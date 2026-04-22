@@ -6,6 +6,7 @@ import AuthVerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import AuthSetup2FAPage from '@/pages/auth/Setup2FAPage'
 import AuthChangePasswordPage from '@/pages/auth/ChangePasswordPage'
 import AuthResetPasswordPage from '@/pages/auth/ResetPasswordPage'
+import RequestAccessPage from '@/pages/auth/RequestAccessPage'
 import OverviewPage from '@/pages/dashboard/OverviewPage'
 import TransactionsPage from '@/pages/dashboard/TransactionsPage'
 import AMLPage from '@/pages/dashboard/AMLPage'
@@ -36,6 +37,7 @@ function App() {
       <Route path="/auth/setup-2fa" element={<AuthSetup2FAPage />} />
       <Route path="/auth/change-password" element={<AuthChangePasswordPage />} />
       <Route path="/auth/reset-password" element={<AuthResetPasswordPage />} />
+      <Route path="/request-access" element={<RequestAccessPage />} />
 
       {/* Dashboard — Monitor */}
       <Route path="/dashboard" element={<OverviewPage />} />

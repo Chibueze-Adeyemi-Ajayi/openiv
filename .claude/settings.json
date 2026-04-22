@@ -4,7 +4,11 @@
       "Bash(npm install *)",
       "Bash(npm --version)",
       "Bash(dir \"c:\\\\Users\\\\Chibueze\\\\Projects\\\\openiv\\\\frontend\\\\src\\\\theme\" /b)",
-      "PowerShell($file = Get-Item \"src/assets/nigeria.svg\"; Write-Output \"Size: $\\($file.Length\\) bytes\"; \\(Get-Content $file -Raw | Measure-Object -Line -Character\\).Lines, \\(Get-Content $file -Raw | Measure-Object -Line -Character\\).Characters | ForEach-Object { Write-Output $_ })"
+      "PowerShell($file = Get-Item \"src/assets/nigeria.svg\"; Write-Output \"Size: $\\($file.Length\\) bytes\"; \\(Get-Content $file -Raw | Measure-Object -Line -Character\\).Lines, \\(Get-Content $file -Raw | Measure-Object -Line -Character\\).Characters | ForEach-Object { Write-Output $_ })",
+      "Read(//c/Users/Chibueze/Projects/openiv/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Chibueze\\Projects\\openiv\\backend"
     ]
   }
 }

@@ -1,11 +1,17 @@
-import { Box, Button, Stack, TextField, Typography, Link, IconButton } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography, Link, IconButton } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
+import FormLoadingOverlay from './FormLoadingOverlay'
 
 interface LoginFormProps {
   onSubmit?: (email: string, password: string) => void
+  defaultEmail?: string
+  submitting?: boolean
+  errorMessage?: string | null
+  /** Optional hint shown above the form (e.g. "Signing in with invitation for d***@openiv.local"). */
+  headerHint?: string | null
 }
 
 const inputSx = {
@@ -66,8 +72,14 @@ const primaryButtonSx = {
   '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
 }
 
-export default function LoginForm({ onSubmit }: LoginFormProps) {
-  const [email, setEmail] = useState('')
+export default function LoginForm({
+  onSubmit,
+  defaultEmail = '',
+  submitting = false,
+  errorMessage = null,
+  headerHint = null,
+}: LoginFormProps) {
+  const [email, setEmail] = useState(defaultEmail)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -79,7 +91,7 @@ export default function LoginForm({ onSubmit }: LoginFormProps) {
   const isFormValid = email && password
 
   return (
-    <Stack sx={{ gap: 4, width: '100%' }}>
+    <Stack sx={{ gap: 4, width: '100%', position: 'relative' }}>
       <Box>
         <Typography
           sx={{
@@ -97,6 +109,17 @@ export default function LoginForm({ onSubmit }: LoginFormProps) {
           Secure authorization required for data access.
         </Typography>
       </Box>
+
+      {headerHint && (
+        <Alert severity="info" sx={{ borderRadius: 0 }}>
+          {headerHint}
+        </Alert>
+      )}
+      {errorMessage && (
+        <Alert severity="error" sx={{ borderRadius: 0 }}>
+          {errorMessage}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
@@ -162,8 +185,13 @@ export default function LoginForm({ onSubmit }: LoginFormProps) {
             />
           </Box>
 
-          <Button fullWidth type="submit" disabled={!isFormValid} sx={{ ...primaryButtonSx, mt: 1.5 }}>
-            Access Dashboard
+          <Button
+            fullWidth
+            type="submit"
+            disabled={!isFormValid || submitting}
+            sx={{ ...primaryButtonSx, mt: 1.5 }}
+          >
+            {submitting ? 'Signing in…' : 'Access Dashboard'}
           </Button>
         </Stack>
       </form>
@@ -206,6 +234,8 @@ export default function LoginForm({ onSubmit }: LoginFormProps) {
         </Box>
         .
       </Typography>
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
 }

@@ -1,13 +1,16 @@
-import { Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined'
+import FormLoadingOverlay from './FormLoadingOverlay'
 
 interface InviteFormProps {
   onSubmit?: (inviteCode: string) => void
+  submitting?: boolean
+  errorMessage?: string | null
 }
 
-export default function InviteForm({ onSubmit }: InviteFormProps) {
+export default function InviteForm({ onSubmit, submitting = false, errorMessage = null }: InviteFormProps) {
   const [inviteCode, setInviteCode] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -16,7 +19,7 @@ export default function InviteForm({ onSubmit }: InviteFormProps) {
   }
 
   return (
-    <Stack sx={{ gap: 4, width: '100%' }}>
+    <Stack sx={{ gap: 4, width: '100%', position: 'relative' }}>
       <Box>
         <Typography
           sx={{
@@ -63,6 +66,12 @@ export default function InviteForm({ onSubmit }: InviteFormProps) {
           </Typography>
         </Box>
       </Box>
+
+      {errorMessage && (
+        <Alert severity="error" sx={{ borderRadius: 0 }}>
+          {errorMessage}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
@@ -113,7 +122,7 @@ export default function InviteForm({ onSubmit }: InviteFormProps) {
           <Button
             fullWidth
             type="submit"
-            disabled={!inviteCode}
+            disabled={!inviteCode || submitting}
             sx={{
               bgcolor: colorPalette.primary,
               color: '#ffffff',
@@ -135,10 +144,12 @@ export default function InviteForm({ onSubmit }: InviteFormProps) {
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
-            Continue
+            {submitting ? 'Verifying…' : 'Continue'}
           </Button>
         </Stack>
       </form>
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
 }

@@ -1,0 +1,86 @@
+/**
+ * Typed wrappers over the /api/v1/auth endpoints.
+ * Shapes mirror `backend/src/main/resources/openapi.yaml`.
+ */
+
+import { apiRequest } from './client'
+import type { SessionState } from '@/onboarding/state'
+
+export type AccountType = 'INDIVIDUAL' | 'COMPANY' | 'REGULATOR'
+
+export interface InviteVerifyResponse {
+  email: string // masked
+  accountType: AccountType
+}
+
+export interface LoginResponse {
+  state: SessionState
+  accountType: AccountType
+}
+
+export interface SessionStateResponse {
+  state: SessionState
+  accountType?: AccountType
+  email?: string
+}
+
+export interface TotpEnrollment {
+  secret: string
+  otpauthUri: string
+}
+
+export interface ResetVerifyResponse {
+  resetToken: string
+}
+
+export const authApi = {
+  verifyInvite: (inviteCode: string) =>
+    apiRequest<InviteVerifyResponse>('/api/v1/auth/invite/verify', {
+      body: { inviteCode },
+    }),
+
+  login: (email: string, password: string, inviteCode?: string) =>
+    apiRequest<LoginResponse>('/api/v1/auth/login', {
+      body: inviteCode ? { email, password, inviteCode } : { email, password },
+    }),
+
+  resendEmailCode: () =>
+    apiRequest<void>('/api/v1/auth/email/resend', { method: 'POST' }),
+
+  verifyEmail: (code: string) =>
+    apiRequest<SessionStateResponse>('/api/v1/auth/email/verify', {
+      body: { code },
+    }),
+
+  enrollTotp: () =>
+    apiRequest<TotpEnrollment>('/api/v1/auth/totp/enroll', { method: 'POST' }),
+
+  verifyTotp: (code: string) =>
+    apiRequest<SessionStateResponse>('/api/v1/auth/totp/verify', {
+      body: { code },
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiRequest<{ ok: boolean }>('/api/v1/auth/password/change', {
+      body: { currentPassword, newPassword },
+    }),
+
+  requestPasswordReset: (email: string) =>
+    apiRequest<{ ok: boolean }>('/api/v1/auth/password/reset/request', {
+      body: { email },
+    }),
+
+  verifyPasswordResetCode: (email: string, code: string) =>
+    apiRequest<ResetVerifyResponse>('/api/v1/auth/password/reset/verify', {
+      body: { email, code },
+    }),
+
+  confirmPasswordReset: (email: string, resetToken: string, newPassword: string) =>
+    apiRequest<{ ok: boolean }>('/api/v1/auth/password/reset/confirm', {
+      body: { email, resetToken, newPassword },
+    }),
+
+  session: () => apiRequest<SessionStateResponse>('/api/v1/auth/session'),
+
+  logout: () => apiRequest<void>('/api/v1/auth/logout', { method: 'POST' }),
+}

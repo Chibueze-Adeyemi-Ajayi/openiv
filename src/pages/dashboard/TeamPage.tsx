@@ -1,9 +1,11 @@
-import { Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField } from '@mui/material'
+import { Alert, Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import RoleEditor, { type RoleDraft } from '@/components/dashboard/RoleEditor'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { teamApi, type TeamMember, type TeamPending } from '@/api/team'
+import { ApiError } from '@/api/client'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
@@ -124,30 +126,7 @@ const initialRoles: Role[] = [
   },
 ]
 
-const activeMembers = [
-  { name: 'Adaeze Chukwu', email: 'adaeze.chukwu@fcmb.com', role: 'cco', lastActive: 'Now', initials: 'AC' },
-  { name: 'Tunde Bakare', email: 'tunde.bakare@fcmb.com', role: 'admin', lastActive: '12 min ago', initials: 'TB' },
-  { name: 'Ifeoma Eze', email: 'ifeoma.eze@fcmb.com', role: 'analyst', lastActive: '34 min ago', initials: 'IE' },
-  { name: 'Bashir Mohammed', email: 'bashir.m@fcmb.com', role: 'analyst', lastActive: '1 hr ago', initials: 'BM' },
-  { name: 'Olumide Taiwo', email: 'olumide.t@fcmb.com', role: 'developer', lastActive: '8 min ago', initials: 'OT' },
-  { name: 'Grace Williams', email: 'grace.w@fcmb.com', role: 'analyst', lastActive: '2 hr ago', initials: 'GW' },
-  { name: 'Chinaza Obi', email: 'chinaza.obi@fcmb.com', role: 'developer', lastActive: '45 min ago', initials: 'CO' },
-  { name: 'Emeka Nwosu', email: 'emeka.nwosu@fcmb.com', role: 'analyst', lastActive: 'Yesterday', initials: 'EN' },
-  { name: 'Yemi Ogundipe', email: 'yemi.o@fcmb.com', role: 'developer', lastActive: '3 hr ago', initials: 'YO' },
-  { name: 'CBN Banking Supervision', email: 'supervision@cbn.gov.ng', role: 'regulator', lastActive: '6 hr ago', initials: 'CB' },
-  { name: 'NFIU Compliance Officer', email: 'compliance@nfiu.gov.ng', role: 'regulator', lastActive: 'Yesterday', initials: 'NF' },
-  { name: 'Folake Adesanya', email: 'folake.a@fcmb.com', role: 'admin', lastActive: '3 days ago', initials: 'FA' },
-  { name: 'Aisha Lawal', email: 'aisha.l@fcmb.com', role: 'analyst', lastActive: '4 hr ago', initials: 'AL' },
-  { name: 'Daniel Okonkwo', email: 'daniel.o@fcmb.com', role: 'analyst', lastActive: '1 day ago', initials: 'DO' },
-  { name: 'KPMG Audit Team', email: 'audit.ng@kpmg.com', role: 'viewer', lastActive: '5 days ago', initials: 'KA' },
-  { name: 'Internal Audit Lead', email: 'internal.audit@fcmb.com', role: 'viewer', lastActive: '2 days ago', initials: 'IA' },
-]
-
-const initialPending = [
-  { email: 'audit.lagos@pwc.com', role: 'viewer', invitedBy: 'Adaeze C.', invitedOn: '2 days ago' },
-  { email: 'oluchi.adekunle@fcmb.com', role: 'analyst', invitedBy: 'Tunde B.', invitedOn: '5 hours ago' },
-  { email: 'risk.team@deloitte.com', role: 'viewer', invitedBy: 'Folake A.', invitedOn: 'Yesterday' },
-]
+// Members + pending come from GET /api/v1/team/members and /pending; see useEffect below.
 
 const permissionMatrix = [
   { area: 'Transaction Monitor', actions: [{ key: 'monitor.view', label: 'View live feed' }, { key: 'monitor.act', label: 'Block / clear' }] },
@@ -170,13 +149,41 @@ export default function TeamPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
-  const [pending, setPending] = useState(initialPending)
+
+  // Server-backed data.
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [pending, setPending] = useState<TeamPending[]>([])
+  const [apiError, setApiError] = useState<string | null>(null)
+
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('analyst')
   const [inviteTOTP, setInviteTOTP] = useState(false)
-  const [removeMember, setRemoveMember] = useState<typeof activeMembers[number] | null>(null)
-  const [revokePending, setRevokePending] = useState<typeof initialPending[number] | null>(null)
+  const [removeMember, setRemoveMember] = useState<TeamMember | null>(null)
+  const [revokePending, setRevokePending] = useState<TeamPending | null>(null)
+
+  const loadMembers = async () => {
+    try {
+      const { members } = await teamApi.listMembers()
+      setMembers(members)
+    } catch (err) {
+      setApiError(humanizeError(err, 'Could not load team members.'))
+    }
+  }
+
+  const loadPending = async () => {
+    try {
+      const { pending } = await teamApi.listPending()
+      setPending(pending)
+    } catch (err) {
+      setApiError(humanizeError(err, 'Could not load pending invitations.'))
+    }
+  }
+
+  useEffect(() => {
+    loadMembers()
+    loadPending()
+  }, [])
 
   // Role management
   const [roles, setRoles] = useState<Role[]>(initialRoles)
@@ -232,7 +239,7 @@ export default function TeamPage() {
   }
 
   const filtered = useMemo(() => {
-    return activeMembers.filter((m) => {
+    return members.filter((m) => {
       if (roleFilter !== 'all' && m.role !== roleFilter) return false
       if (search) {
         const q = search.toLowerCase()
@@ -240,7 +247,7 @@ export default function TeamPage() {
       }
       return true
     })
-  }, [search, roleFilter])
+  }, [members, search, roleFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageStart = (page - 1) * PAGE_SIZE
@@ -250,28 +257,74 @@ export default function TeamPage() {
   if (page > totalPages) setTimeout(() => setPage(1), 0)
 
   const submitInvite = () => {
+    // Opens the TOTP confirmation modal; real API call fires in finalizeInvite.
     setInviteTOTP(true)
   }
 
-  const finalizeInvite = () => {
-    setPending((prev) => [
-      ...prev,
-      { email: inviteEmail, role: inviteRole, invitedBy: 'Adaeze C.', invitedOn: 'Just now' },
-    ])
-    setInviteEmail('')
-    setInviteRole('analyst')
-    setInviteTOTP(false)
-    setInviteOpen(false)
+  const finalizeInvite = async () => {
+    setApiError(null)
+    try {
+      await teamApi.invite(inviteEmail.trim(), inviteRole as any)
+      setInviteEmail('')
+      setInviteRole('analyst')
+      setInviteTOTP(false)
+      setInviteOpen(false)
+      await loadPending()
+    } catch (err) {
+      setInviteTOTP(false)
+      setInviteOpen(false)
+      setApiError(humanizeError(err, 'Could not send invitation.'))
+    }
   }
 
-  const revokeInvite = (email: string) => {
-    setPending((prev) => prev.filter((p) => p.email !== email))
-    setRevokePending(null)
+  const finalizeRevokeInvite = async () => {
+    if (!revokePending) return
+    setApiError(null)
+    try {
+      await teamApi.revokePending(revokePending.id)
+      setRevokePending(null)
+      await loadPending()
+    } catch (err) {
+      setRevokePending(null)
+      setApiError(humanizeError(err, 'Could not revoke invitation.'))
+    }
+  }
+
+  const finalizeRemoveMember = async () => {
+    if (!removeMember) return
+    setApiError(null)
+    try {
+      await teamApi.removeMember(removeMember.id)
+      setRemoveMember(null)
+      await loadMembers()
+    } catch (err) {
+      setRemoveMember(null)
+      setApiError(humanizeError(err, 'Could not remove member.'))
+    }
+  }
+
+  const handleResendInvite = async (p: TeamPending) => {
+    setApiError(null)
+    try {
+      await teamApi.resendPending(p.id)
+      await loadPending()
+    } catch (err) {
+      setApiError(humanizeError(err, 'Could not resend invitation.'))
+    }
   }
 
   return (
     <DashboardLayout>
       <Box sx={{ p: 4 }}>
+        {apiError && (
+          <Alert
+            severity="error"
+            onClose={() => setApiError(null)}
+            sx={{ borderRadius: 0, mb: 2 }}
+          >
+            {apiError}
+          </Alert>
+        )}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
@@ -308,7 +361,7 @@ export default function TeamPage() {
         {/* Tabs */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 0 }}>
           {[
-            { id: 'members' as const, label: `Members (${activeMembers.length})` },
+            { id: 'members' as const, label: `Members (${members.length})` },
             { id: 'pending' as const, label: `Pending (${pending.length})` },
             { id: 'roles' as const, label: `Roles (${roles.length})` },
           ].map((t) => (
@@ -344,7 +397,7 @@ export default function TeamPage() {
             {/* Filter bar */}
             <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Stack direction="row" gap={0.5}>
-                {[{ id: 'all', label: `All (${activeMembers.length})` }, ...roles.map((r) => ({ id: r.id, label: `${r.name.split(' ')[0]} (${activeMembers.filter((m) => m.role === r.id).length})` }))].map((f) => (
+                {[{ id: 'all', label: `All (${members.length})` }, ...roles.map((r) => ({ id: r.id, label: `${r.name.split(' ')[0]} (${members.filter((m) => m.role === r.id).length})` }))].map((f) => (
                   <Box
                     key={f.id}
                     onClick={() => { setRoleFilter(f.id); setPage(1) }}
@@ -655,6 +708,7 @@ export default function TeamPage() {
                           size="small"
                           disableRipple
                           title="Resend invitation"
+                          onClick={() => handleResendInvite(p)}
                           sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary } }}
                         >
                           <RefreshRoundedIcon sx={{ fontSize: '1.125rem' }} />
@@ -1033,7 +1087,7 @@ export default function TeamPage() {
       <TOTPConfirmation
         open={!!removeMember}
         onClose={() => setRemoveMember(null)}
-        onConfirm={() => setRemoveMember(null)}
+        onConfirm={finalizeRemoveMember}
         operation="delete"
         title="Remove team member"
         description="This will immediately revoke all access. Open cases assigned to this member will be reassigned to you."
@@ -1046,7 +1100,7 @@ export default function TeamPage() {
       <TOTPConfirmation
         open={!!revokePending}
         onClose={() => setRevokePending(null)}
-        onConfirm={() => revokePending && revokeInvite(revokePending.email)}
+        onConfirm={finalizeRevokeInvite}
         operation="delete"
         title="Revoke invitation"
         description="The invitation link will be invalidated immediately. The recipient will no longer be able to accept and join the team."
@@ -1093,4 +1147,25 @@ export default function TeamPage() {
       />
     </DashboardLayout>
   )
+}
+
+function humanizeError(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return 'Your session expired. Please sign in again.'
+    if (err.status === 403) return 'You need admin or compliance-officer privileges for this.'
+    if (err.code === 'invalid' && err.detail === 'already_invited') {
+      return 'That email already has a pending invitation in your institution.'
+    }
+    if (err.code === 'invalid' && err.detail === 'cannot_remove_self') {
+      return "You can't remove yourself from the team."
+    }
+    if (err.code === 'invalid' && err.detail === 'email') {
+      return 'That email address is not valid.'
+    }
+    if (err.code === 'invalid' && err.detail === 'invitation_not_pending') {
+      return 'That invitation has already been accepted or revoked.'
+    }
+    return fallback
+  }
+  return 'Network error. Please check your connection and try again.'
 }

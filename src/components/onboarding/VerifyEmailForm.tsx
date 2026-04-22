@@ -1,13 +1,23 @@
-import { Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
+import FormLoadingOverlay from './FormLoadingOverlay'
 
 interface VerifyEmailFormProps {
   email?: string
   onSubmit?: (code: string) => void
+  onResend?: () => void
+  submitting?: boolean
+  errorMessage?: string | null
 }
 
-export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProps) {
+export default function VerifyEmailForm({
+  email,
+  onSubmit,
+  onResend,
+  submitting = false,
+  errorMessage = null,
+}: VerifyEmailFormProps) {
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [resendClicked, setResendClicked] = useState(false)
 
@@ -50,12 +60,13 @@ export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProp
   const handleResend = () => {
     setResendClicked(true)
     setTimeout(() => setResendClicked(false), 2500)
+    onResend?.()
   }
 
   const isFilled = code.every((d) => d !== '')
 
   return (
-    <Stack sx={{ gap: 4, width: '100%' }}>
+    <Stack sx={{ gap: 4, width: '100%', position: 'relative' }}>
       <Box>
         <Typography
           sx={{
@@ -76,6 +87,12 @@ export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProp
           </Box>
         </Typography>
       </Box>
+
+      {errorMessage && (
+        <Alert severity="error" sx={{ borderRadius: 0 }}>
+          {errorMessage}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
@@ -136,7 +153,7 @@ export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProp
           <Button
             fullWidth
             type="submit"
-            disabled={!isFilled}
+            disabled={!isFilled || submitting}
             sx={{
               bgcolor: colorPalette.primary,
               color: '#ffffff',
@@ -159,7 +176,7 @@ export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProp
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
-            Verify & Continue
+            {submitting ? 'Verifying…' : 'Verify & Continue'}
           </Button>
         </Stack>
       </form>
@@ -188,6 +205,8 @@ export default function VerifyEmailForm({ email, onSubmit }: VerifyEmailFormProp
           {resendClicked ? 'Code Sent' : 'Resend Code'}
         </Typography>
       </Box>
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
 }

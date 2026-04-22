@@ -1,4 +1,4 @@
-import { Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import QrCodeScannerOutlinedIcon from '@mui/icons-material/QrCodeScannerOutlined'
@@ -7,9 +7,20 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBackRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
+import { QRCodeSVG } from 'qrcode.react'
+import FormLoadingOverlay from './FormLoadingOverlay'
 
 interface Setup2FAFormProps {
-  onSubmit?: (method: string) => void
+  /** Emits the entered 6-digit TOTP code. */
+  onSubmit?: (code: string) => void
+  /** Triggered when the user first selects "Authenticator App" — the page should call enroll. */
+  onEnroll?: () => void
+  /** Base32 TOTP secret from /totp/enroll. */
+  secret?: string
+  /** otpauth:// URI from /totp/enroll — render as QR or copy for manual entry. */
+  otpauthUri?: string
+  submitting?: boolean
+  errorMessage?: string | null
 }
 
 const primaryButtonSx = {
@@ -53,17 +64,29 @@ const backButtonSx = {
   '&:hover': { bgcolor: 'transparent', color: colorPalette.primary },
 }
 
-export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
+export default function Setup2FAForm({
+  onSubmit,
+  onEnroll,
+  secret,
+  otpauthUri,
+  submitting = false,
+  errorMessage = null,
+}: Setup2FAFormProps) {
   const [selectedMethod, setSelectedMethod] = useState<'authenticator' | null>(null)
   const [showCodeInput, setShowCodeInput] = useState(false)
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [copied, setCopied] = useState(false)
 
-  const mockSecret = '4F3X AZLO YNEB GQZD ORJA'
+  const displaySecret = secret ? formatSecret(secret) : '— — — —'
+
+  const handleSelectAuthenticator = () => {
+    setSelectedMethod('authenticator')
+    if (!secret) onEnroll?.()
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (code.every((d) => d !== '') && selectedMethod) onSubmit?.(selectedMethod)
+    if (code.every((d) => d !== '')) onSubmit?.(code.join(''))
   }
 
   const handleCodeChange = (index: number, value: string) => {
@@ -97,9 +120,15 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
   }
 
   const handleCopySecret = () => {
-    navigator.clipboard.writeText(mockSecret.replace(/\s/g, ''))
+    if (!secret) return
+    navigator.clipboard.writeText(secret)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyUri = () => {
+    if (!otpauthUri) return
+    navigator.clipboard.writeText(otpauthUri)
   }
 
   const isFilled = code.every((d) => d !== '')
@@ -109,6 +138,7 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
       sx={{
         gap: 4,
         width: '100%',
+        position: 'relative',
         '@keyframes slideIn': {
           from: { opacity: 0, transform: 'translateX(8px)' },
           to: { opacity: 1, transform: 'translateX(0)' },
@@ -140,7 +170,7 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
           {!selectedMethod ? (
             <Stack sx={{ gap: 1.25, animation: 'slideIn 0.3s ease' }}>
               <Box
-                onClick={() => setSelectedMethod('authenticator')}
+                onClick={handleSelectAuthenticator}
                 sx={{
                   p: 2.25,
                   bgcolor: '#f5f3fb',
@@ -225,14 +255,35 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
                 Back
               </Button>
 
-              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                <Box
-                  component="img"
-                  src="/src/assets/qr-sample.png"
-                  alt="QR Code"
-                  sx={{ width: 200, height: 200, objectFit: 'contain', display: 'block' }}
-                />
-              </Box>
+              {otpauthUri ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: '#ffffff',
+                      border: '1px solid #e4dff2',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    <QRCodeSVG
+                      value={otpauthUri}
+                      size={192}
+                      level="M"
+                      marginSize={0}
+                      fgColor={colorPalette.primary}
+                      bgColor="#ffffff"
+                    />
+                  </Box>
+                </Box>
+              ) : (
+                <Alert severity="info" sx={{ borderRadius: 0 }}>
+                  Preparing your authenticator setup…
+                </Alert>
+              )}
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', textAlign: 'center' }}>
+                Scan with Google Authenticator, Authy, 1Password, or any TOTP app. If you can't
+                scan, use the manual setup key below.
+              </Typography>
 
               <Box>
                 <Typography sx={labelSx}>Manual Setup Key</Typography>
@@ -255,7 +306,7 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
                   }}
                 >
                   <Box component="span" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {mockSecret}
+                    {displaySecret}
                   </Box>
                   <Button
                     size="small"
@@ -284,9 +335,33 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
                 </Box>
               </Box>
 
-              <Button fullWidth onClick={() => setShowCodeInput(true)} sx={primaryButtonSx}>
-                I've Scanned The Code
+              <Button
+                fullWidth
+                onClick={() => setShowCodeInput(true)}
+                disabled={!secret}
+                sx={primaryButtonSx}
+              >
+                {secret ? "I've Added The Account" : 'Preparing…'}
               </Button>
+              {otpauthUri && (
+                <Typography
+                  component="button"
+                  type="button"
+                  onClick={handleCopyUri}
+                  sx={{
+                    fontSize: '0.8125rem',
+                    color: colorPalette.primary,
+                    fontWeight: 600,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    fontFamily: 'Jost',
+                  }}
+                >
+                  Copy otpauth:// URI (advanced)
+                </Typography>
+              )}
             </Stack>
           ) : (
             <Stack sx={{ gap: 2.5, animation: 'slideIn 0.3s ease' }}>
@@ -343,13 +418,26 @@ export default function Setup2FAForm({ onSubmit }: Setup2FAFormProps) {
                 </Box>
               </Box>
 
-              <Button fullWidth type="submit" disabled={!isFilled} sx={primaryButtonSx}>
-                Verify & Continue
+              {errorMessage && (
+                <Alert severity="error" sx={{ borderRadius: 0 }}>
+                  {errorMessage}
+                </Alert>
+              )}
+
+              <Button fullWidth type="submit" disabled={!isFilled || submitting} sx={primaryButtonSx}>
+                {submitting ? 'Verifying…' : 'Verify & Continue'}
               </Button>
             </Stack>
           )}
         </Stack>
       </form>
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
+}
+
+/** Format a base32 secret as four-char groups for readability. */
+function formatSecret(secret: string): string {
+  return secret.toUpperCase().match(/.{1,4}/g)?.join(' ') ?? secret
 }

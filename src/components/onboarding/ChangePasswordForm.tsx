@@ -1,4 +1,5 @@
-import { Box, Button, Stack, TextField, Typography, IconButton } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography, IconButton } from '@mui/material'
+import FormLoadingOverlay from './FormLoadingOverlay'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -7,6 +8,8 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 
 interface ChangePasswordFormProps {
   onSubmit?: (currentPassword: string, newPassword: string, confirmPassword: string) => void
+  submitting?: boolean
+  errorMessage?: string | null
 }
 
 const inputSx = {
@@ -53,7 +56,11 @@ function passwordStrength(pwd: string) {
 const strengthLabels = ['Too Weak', 'Weak', 'Fair', 'Strong', 'Very Strong']
 const strengthColors = ['#cbd5e1', '#f59e0b', '#3b82f6', colorPalette.primary, colorPalette.primary_container]
 
-export default function ChangePasswordForm({ onSubmit }: ChangePasswordFormProps) {
+export default function ChangePasswordForm({
+  onSubmit,
+  submitting = false,
+  errorMessage = null,
+}: ChangePasswordFormProps) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -92,7 +99,7 @@ export default function ChangePasswordForm({ onSubmit }: ChangePasswordFormProps
   )
 
   return (
-    <Stack sx={{ gap: 4, width: '100%' }}>
+    <Stack sx={{ gap: 4, width: '100%', position: 'relative' }}>
       <Box>
         <Typography
           sx={{
@@ -110,6 +117,12 @@ export default function ChangePasswordForm({ onSubmit }: ChangePasswordFormProps
           Update your password to keep your account secure.
         </Typography>
       </Box>
+
+      {errorMessage && (
+        <Alert severity="error" sx={{ borderRadius: 0 }}>
+          {errorMessage}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
@@ -194,7 +207,7 @@ export default function ChangePasswordForm({ onSubmit }: ChangePasswordFormProps
           <Button
             fullWidth
             type="submit"
-            disabled={!isValid}
+            disabled={!isValid || submitting}
             sx={{
               bgcolor: colorPalette.primary,
               color: '#ffffff',
@@ -217,10 +230,12 @@ export default function ChangePasswordForm({ onSubmit }: ChangePasswordFormProps
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
-            Update Password
+            {submitting ? 'Updating…' : 'Update Password'}
           </Button>
         </Stack>
       </form>
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
 }

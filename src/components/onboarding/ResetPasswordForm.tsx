@@ -1,4 +1,5 @@
-import { Box, Button, Stack, TextField, Typography, IconButton } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography, IconButton } from '@mui/material'
+import FormLoadingOverlay from './FormLoadingOverlay'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -7,7 +8,14 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBackRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 
 interface ResetPasswordFormProps {
-  onSubmit?: (email: string) => void
+  /** Step 1: request backend to send the reset code. Best-effort — never throws to the form. */
+  onRequestEmail?: (email: string) => Promise<void> | void
+  /** Step 2: verify the emailed code. Must reject on bad code — form stays on step 2 then. */
+  onVerifyCode?: (email: string, code: string) => Promise<void>
+  /** Step 3: finalize with the new password. Parent navigates on success. */
+  onConfirm?: (email: string, newPassword: string) => Promise<void>
+  submitting?: boolean
+  errorMessage?: string | null
 }
 
 const inputSx = {
@@ -85,7 +93,13 @@ function passwordStrength(pwd: string) {
 const strengthLabels = ['Too Weak', 'Weak', 'Fair', 'Strong', 'Very Strong']
 const strengthColors = ['#cbd5e1', '#f59e0b', '#3b82f6', colorPalette.primary, colorPalette.primary_container]
 
-export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) {
+export default function ResetPasswordForm({
+  onRequestEmail,
+  onVerifyCode,
+  onConfirm,
+  submitting = false,
+  errorMessage = null,
+}: ResetPasswordFormProps) {
   const [step, setStep] = useState<'email' | 'code' | 'newpassword'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState(['', '', '', '', '', ''])
@@ -100,17 +114,31 @@ export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) 
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (email) setStep('code')
+    if (!email) return
+    // Fire-and-forget: endpoint never leaks whether the email exists, so we advance regardless.
+    Promise.resolve(onRequestEmail?.(email)).catch(() => {})
+    setStep('code')
   }
 
-  const handleCodeSubmit = (e: React.FormEvent) => {
+  const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (code.every((d) => d !== '')) setStep('newpassword')
+    if (!code.every((d) => d !== '')) return
+    try {
+      await onVerifyCode?.(email, code.join(''))
+      setStep('newpassword')
+    } catch {
+      // Parent has set errorMessage; stay on step 'code' so the user can retry.
+    }
   }
 
-  const handleResetSubmit = (e: React.FormEvent) => {
+  const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (passwordMatch && newPassword.length >= 8) onSubmit?.(email)
+    if (!passwordMatch || newPassword.length < 8) return
+    try {
+      await onConfirm?.(email, newPassword)
+    } catch {
+      /* parent surfaces errorMessage */
+    }
   }
 
   const handleCodeChange = (index: number, value: string) => {
@@ -169,6 +197,7 @@ export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) 
       sx={{
         gap: 4,
         width: '100%',
+        position: 'relative',
         '@keyframes slideIn': {
           from: { opacity: 0, transform: 'translateX(8px)' },
           to: { opacity: 1, transform: 'translateX(0)' },
@@ -224,8 +253,11 @@ export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) 
                 sx={inputSx}
               />
             </Box>
-            <Button fullWidth type="submit" disabled={!email} sx={primaryButtonSx}>
-              Send Reset Code
+            {errorMessage && step === 'email' && (
+              <Alert severity="error" sx={{ borderRadius: 0 }}>{errorMessage}</Alert>
+            )}
+            <Button fullWidth type="submit" disabled={!email || submitting} sx={primaryButtonSx}>
+              {submitting ? 'Sending…' : 'Send Reset Code'}
             </Button>
           </Stack>
         </form>
@@ -278,8 +310,16 @@ export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) 
               </Box>
             </Box>
 
-            <Button fullWidth type="submit" disabled={!code.every((d) => d !== '')} sx={primaryButtonSx}>
-              Verify Code
+            {errorMessage && step === 'code' && (
+              <Alert severity="error" sx={{ borderRadius: 0 }}>{errorMessage}</Alert>
+            )}
+            <Button
+              fullWidth
+              type="submit"
+              disabled={!code.every((d) => d !== '') || submitting}
+              sx={primaryButtonSx}
+            >
+              {submitting ? 'Verifying…' : 'Continue'}
             </Button>
 
             <Button
@@ -362,17 +402,22 @@ export default function ResetPasswordForm({ onSubmit }: ResetPasswordFormProps) 
               />
             </Box>
 
+            {errorMessage && step === 'newpassword' && (
+              <Alert severity="error" sx={{ borderRadius: 0 }}>{errorMessage}</Alert>
+            )}
             <Button
               fullWidth
               type="submit"
-              disabled={!passwordMatch || newPassword.length < 8}
+              disabled={!passwordMatch || newPassword.length < 8 || submitting}
               sx={primaryButtonSx}
             >
-              Reset Password
+              {submitting ? 'Resetting…' : 'Reset Password'}
             </Button>
           </Stack>
         </form>
       )}
+
+      {submitting && <FormLoadingOverlay />}
     </Stack>
   )
 }
