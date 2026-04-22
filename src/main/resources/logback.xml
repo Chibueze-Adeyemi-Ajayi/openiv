@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- Application logs go to stdout with the correlation id if present. The operator's
+       log collector (Fluentbit, Vector, Datadog agent, etc.) picks these up from there. -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] rid=%X{rid:-none} %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- AUDIT logger: one JSON object per line. Keep this stream separate so SIEM ingestion
+       is simple, and so security events survive application-log routing mistakes. In
+       production this should tail to a write-once append-only store. -->
+  <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/audit.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>logs/audit-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+      <maxHistory>365</maxHistory>
+      <totalSizeCap>50GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Async wrapper so AUDIT writes never block the calling (event loop) thread. -->
+  <appender name="AUDIT_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>false</neverBlock>
+    <includeCallerData>false</includeCallerData>
+    <appender-ref ref="AUDIT_FILE"/>
+  </appender>
+
+  <logger name="AUDIT" level="INFO" additivity="false">
+    <appender-ref ref="AUDIT_ASYNC"/>
+  </logger>
+
+  <logger name="io.netty" level="INFO"/>
+  <logger name="io.vertx" level="INFO"/>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>

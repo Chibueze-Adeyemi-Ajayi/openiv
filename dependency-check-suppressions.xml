@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!--
+    Add entries here only after verifying a CVE does NOT apply to our usage.
+    Each suppression must include:
+      - a link to the CVE
+      - one-line justification (why it doesn't apply to us)
+      - expiry date — force a re-review
+
+    Example:
+    <suppress until="2026-10-01Z">
+      <notes>CVE-XXXX-YYYY only affects feature X which we don't use. Reviewed 2026-04-21 by @you.</notes>
+      <cve>CVE-XXXX-YYYY</cve>
+    </suppress>
+  -->
+</suppressions>

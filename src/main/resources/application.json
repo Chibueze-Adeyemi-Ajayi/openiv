@@ -1,0 +1,37 @@
+{
+  "environment": "production",
+  "http": {
+    "port": 8080,
+    "host": "0.0.0.0"
+  },
+  "db": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "openiv",
+    "user": "openiv",
+    "password": "openiv",
+    "reactivePoolSize": 16,
+    "pipeliningLimit": 256,
+    "migrate": true,
+    "sslMode": "disable"
+  },
+  "security": {
+    "corsAllowedOrigins": [],
+    "corsAllowedMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    "corsAllowedHeaders": ["authorization", "content-type", "x-request-id"],
+    "corsAllowCredentials": false,
+    "maxBodyBytes": 65536,
+    "rateLimitRequestsPerMinute": 600,
+    "requestTimeoutMillis": 30000,
+    "hstsEnabled": true,
+    "hstsMaxAgeSeconds": 63072000,
+    "contentSecurityPolicy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    "tlsRequired": false,
+    "trustedProxies": [],
+    "authRequired": true
+  },
+  "totp": {
+    "publicKey": "",
+    "privateKey": ""
+  }
+}

@@ -1,0 +1,42 @@
+# Build output
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# Maven
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE / editor
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+nbproject/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# config
+# Local overrides
+config/application.json
+
+# run.bat
+
+# Security scan archive — reports can reference specific versions/paths you may not
+# want in public history. Keep locally; rely on CI artifacts for the source of truth.
+security-reports/
