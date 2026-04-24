@@ -9,6 +9,8 @@ import com.openiv.backend.security.RequireAuth;
 import com.openiv.backend.security.SecurityConfig;
 import com.openiv.backend.team.TeamRouter;
 import com.openiv.backend.team.TeamService;
+import com.openiv.backend.cases.CaseHandlers;
+import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionHandlers;
 import com.openiv.backend.transactions.TransactionService;
 import io.vertx.core.Handler;
@@ -33,7 +35,8 @@ public final class V1Router {
 
   public static Router create(Vertx vertx, Pool dbPool, SecurityConfig security,
       AuthService authService, AccessRequestService accessRequestService,
-      TeamService teamService, TransactionService transactionService, boolean devMode) {
+      TeamService teamService, TransactionService transactionService,
+      CaseService caseService, boolean devMode) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -56,6 +59,19 @@ public final class V1Router {
     router.get("/transactions/export").handler(txnAuth).handler(txnHandlers.export());
     router.post("/transactions/bulk-status").handler(txnAuth).handler(txnHandlers.bulkStatus());
     router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
+
+    // Cases — metrics must be registered before /:id to avoid path collision
+    CaseHandlers caseHandlers = new CaseHandlers(caseService);
+    Handler<RoutingContext> caseAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/transactions/:id/case").handler(txnAuth).handler(caseHandlers.forTransaction());
+    router.get("/cases/metrics").handler(caseAuth).handler(caseHandlers.metrics());
+    router.get("/cases").handler(caseAuth).handler(caseHandlers.list());
+    router.post("/cases").handler(caseAuth).handler(caseHandlers.create());
+    router.get("/cases/:id").handler(caseAuth).handler(caseHandlers.detail());
+    router.patch("/cases/:id/status").handler(caseAuth).handler(caseHandlers.updateStatus());
+    router.post("/cases/:id/transactions").handler(caseAuth).handler(caseHandlers.linkTransaction());
+    router.post("/cases/:id/notes").handler(caseAuth).handler(caseHandlers.addNote());
+    router.post("/cases/:id/evidence").handler(caseAuth).handler(caseHandlers.addEvidence());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

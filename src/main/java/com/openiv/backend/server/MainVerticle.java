@@ -5,6 +5,7 @@ import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.config.AppConfig;
 import com.openiv.backend.team.TeamService;
+import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -29,22 +30,24 @@ public final class MainVerticle extends AbstractVerticle {
   private final AccessRequestService accessRequestService;
   private final TeamService teamService;
   private final TransactionService transactionService;
+  private final CaseService caseService;
   private HttpServer httpServer;
 
   public MainVerticle(AppConfig config, Pool dbPool, AuthService authService,
       AccessRequestService accessRequestService, TeamService teamService,
-      TransactionService transactionService) {
+      TransactionService transactionService, CaseService caseService) {
     this.config = config;
     this.dbPool = dbPool;
     this.authService = authService;
     this.accessRequestService = accessRequestService;
     this.teamService = teamService;
     this.transactionService = transactionService;
+    this.caseService = caseService;
   }
 
   /** Test convenience constructor — no services, DB-less routes only. */
   public MainVerticle(AppConfig config, Pool dbPool) {
-    this(config, dbPool, null, null, null, null);
+    this(config, dbPool, null, null, null, null, null);
   }
 
   @Override
@@ -73,7 +76,8 @@ public final class MainVerticle extends AbstractVerticle {
   private Future<Void> startHttpServer() {
     Router router = Router.router(vertx);
     ApiRouter.mount(vertx, router, dbPool, config.security(),
-        authService, accessRequestService, teamService, transactionService, config.isDevelopment());
+        authService, accessRequestService, teamService, transactionService,
+        caseService, config.isDevelopment());
 
     return vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(
