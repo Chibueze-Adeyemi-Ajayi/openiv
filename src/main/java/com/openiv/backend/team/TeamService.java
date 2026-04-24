@@ -12,6 +12,8 @@ import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.auth.service.EmailSender;
 import io.vertx.core.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Set;
@@ -26,6 +28,7 @@ import java.util.regex.Pattern;
  */
 public final class TeamService {
 
+  private static final Logger log = LoggerFactory.getLogger(TeamService.class);
   private static final int INVITE_EXPIRY_DAYS = 7;
   private static final Set<String> MANAGER_ROLES = Set.of("admin", "cco");
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -137,8 +140,12 @@ public final class TeamService {
           AccountType accountType = ctx.institution().type();
           return invitations.create(hash, normalized, role, accountType,
                   ctx.institution().id(), INVITE_EXPIRY_DAYS)
-              .compose(inv -> emailSender.sendVerificationCode(normalized,
-                      "Invite code: " + code)
+              .compose(inv -> emailSender.sendVerificationCode(normalized, "Invite code: " + code)
+                  .recover(err -> {
+                    log.warn("Invite email failed for {} (id={}); invitation created, admin can resend: {}",
+                        normalized, inv.id(), err.getMessage());
+                    return Future.succeededFuture();
+                  })
                   .map(v -> inv));
         });
   }
@@ -177,7 +184,12 @@ public final class TeamService {
       String code = Codes.generateInviteCode();
       String hash = Codes.sha256(code);
       return invitations.rotateCode(inv.id(), hash, INVITE_EXPIRY_DAYS)
-          .compose(v -> emailSender.sendVerificationCode(inv.email(), "Invite code: " + code))
+          .compose(v -> emailSender.sendVerificationCode(inv.email(), "Invite code: " + code)
+              .recover(err -> {
+                log.warn("Resend email failed for {} (id={}); code was rotated, admin can retry: {}",
+                    inv.email(), inv.id(), err.getMessage());
+                return Future.succeededFuture();
+              }))
           .compose(v -> invitations.findById(inv.id()))
           .map(updated -> updated.orElse(inv));
     });

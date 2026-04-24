@@ -100,11 +100,11 @@ public final class Main {
         TotpSecretRepository totp = new TotpSecretRepository(pool);
         SessionRepository sessions = new SessionRepository(pool);
         EmailSender emailSender;
-        if (config.email().user() != null && config.email().password() != null) {
+        if (config.email().enabled()) {
           emailSender = new VertxEmailSender(vertx, config.email());
         } else {
           emailSender = new LogEmailSender();
-          log.warn("SMTP credentials missing; using LogEmailSender. Emails will only be logged!");
+          log.warn("No email config; using LogEmailSender. Add an \"email\" block to application.json to enable SMTP.");
         }
 
         TotpCipher totpCipher = TotpCipher.fromPem(

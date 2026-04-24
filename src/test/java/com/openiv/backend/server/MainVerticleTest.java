@@ -16,7 +16,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pure unit tests — no database, no auth. DB-backed endpoints are covered in {@code *IT.java}
+ * Pure unit tests — no database, no auth. DB-backed endpoints are covered in
+ * {@code *IT.java}
  * via Testcontainers.
  */
 @ExtendWith(VertxExtension.class)
@@ -24,19 +25,19 @@ class MainVerticleTest {
 
   private static AppConfig testConfig() {
     SecurityConfig security = new SecurityConfig(
-        List.of(),                         // corsAllowedOrigins
-        List.of("GET", "POST"),            // corsAllowedMethods
-        List.of("content-type"),           // corsAllowedHeaders
-        false,                             // corsAllowCredentials
-        65536L,                            // maxBodyBytes
-        100_000,                           // rateLimitRequestsPerMinute (effectively off for tests)
-        30_000L,                           // requestTimeoutMillis
-        false,                             // hstsEnabled
-        63_072_000L,                       // hstsMaxAgeSeconds
-        "default-src 'none'",              // csp
-        false,                             // tlsRequired
-        List.of(),                         // trustedProxies
-        false                              // authRequired
+        List.of(), // corsAllowedOrigins
+        List.of("GET", "POST"), // corsAllowedMethods
+        List.of("content-type"), // corsAllowedHeaders
+        false, // corsAllowCredentials
+        65536L, // maxBodyBytes
+        100_000, // rateLimitRequestsPerMinute (effectively off for tests)
+        30_000L, // requestTimeoutMillis
+        false, // hstsEnabled
+        63_072_000L, // hstsMaxAgeSeconds
+        "default-src 'none'", // csp
+        false, // tlsRequired
+        List.of(), // trustedProxies
+        false // authRequired
     );
     DbConfig db = new DbConfig("localhost", 5432, "test", "test", "test",
         1, 1, false, "disable");
@@ -46,7 +47,7 @@ class MainVerticleTest {
         db,
         security,
         new TotpCipherConfig("", ""),
-        new AppConfig.EmailConfig("localhost", 25, null, null, "test@openiv.local", false));
+        new AppConfig.EmailConfig("localhost", 25, null, null, "test@openiv.local", false, false));
   }
 
   @Test

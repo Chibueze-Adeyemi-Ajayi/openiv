@@ -18,11 +18,14 @@ public final class VertxEmailSender implements EmailSender {
   private final String from;
 
   public VertxEmailSender(Vertx vertx, AppConfig.EmailConfig config) {
+    // DISABLED: already wrapped in TLS (implicit/port-465).
+    // OPTIONAL: plain connect first; upgrade to TLS if the server advertises it (STARTTLS / port-587, Mailpit, etc.)
+    StartTLSOptions startTls = config.useSsl() ? StartTLSOptions.DISABLED : StartTLSOptions.OPTIONAL;
     MailConfig mailConfig = new MailConfig()
         .setHostname(config.host())
         .setPort(config.port())
         .setSsl(config.useSsl())
-        .setStarttls(config.useSsl() ? StartTLSOptions.DISABLED : StartTLSOptions.REQUIRED);
+        .setStarttls(startTls);
 
     if (config.user() != null && config.password() != null) {
       mailConfig.setUsername(config.user()).setPassword(config.password());

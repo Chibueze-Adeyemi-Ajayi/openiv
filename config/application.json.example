@@ -17,7 +17,7 @@
   },
   "security": {
     "_comment_cors": "Enable credentials so the browser sends the HttpOnly session cookie on cross-origin XHR from Vite (:5173) to the API (:8080).",
-    "corsAllowedOrigins": ["http://localhost:5173"],
+    "corsAllowedOrigins": ["http://localhost:5173","http://localhost:5174"],
     "corsAllowedMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
     "corsAllowedHeaders": ["authorization", "content-type", "x-request-id"],
     "corsAllowCredentials": true,
@@ -30,6 +30,15 @@
     "tlsRequired": false,
     "trustedProxies": [],
     "authRequired": false
+  },
+  "email": {
+    "_comment": "SMTP settings. Omit user/password for unauthenticated servers (Mailpit, MailHog). Set useSsl to true only for implicit TLS (port 465); for STARTTLS (port 587) leave it false.",
+    "host": "smtp.example.com",
+    "port": 587,
+    "user": "smtp-user@example.com",
+    "password": "smtp-password",
+    "from": "noreply@example.com",
+    "useSsl": false
   },
   "totp": {
     "_comment": "DEV ONLY. Regenerate for production and source from a KMS/HSM via OPENIV_TOTP_PUBLIC_KEY / OPENIV_TOTP_PRIVATE_KEY env vars. The keypair encrypts TOTP secrets at rest (RSA-OAEP-SHA256).",

@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * End-to-end integration test. Spins up a real Postgres via Testcontainers, runs Flyway,
+ * End-to-end integration test. Spins up a real Postgres via Testcontainers,
+ * runs Flyway,
  * exercises the jOOQ → pg-client path through the HTTP server. Requires Docker.
  */
 @Testcontainers
@@ -46,21 +47,19 @@ class MainVerticleIT {
         POSTGRES.getDatabaseName(),
         POSTGRES.getUsername(),
         POSTGRES.getPassword(),
-        4, 64, true, "disable"
-    );
+        4, 64, true, "disable");
     SecurityConfig security = new SecurityConfig(
         List.of(), List.of("GET"), List.of("content-type"),
         false, 65536L, 100_000, 30_000L,
         false, 63_072_000L, "default-src 'none'",
-        false, List.of(), false
-    );
+        false, List.of(), false);
     AppConfig cfg = new AppConfig(
         "development",
         new AppConfig.HttpConfig(0, "127.0.0.1"),
         db,
         security,
         new TotpCipherConfig("", ""),
-        new AppConfig.EmailConfig("localhost", 25, null, null, "test@openiv.local", false));
+        new AppConfig.EmailConfig("localhost", 25, null, null, "test@openiv.local", false, false));
 
     Migrations.run(vertx, db)
         .onFailure(testContext::failNow)

@@ -82,7 +82,9 @@ public final class TeamHandlers {
           .map(inv -> new JsonObject()
               .put("id", inv.id())
               .put("email", inv.email())
-              .put("status", inv.status()));
+              .put("role", inv.role())
+              .put("status", inv.status())
+              .put("expiresAt", inv.expiresAt() != null ? inv.expiresAt().toString() : null));
     });
   }
 

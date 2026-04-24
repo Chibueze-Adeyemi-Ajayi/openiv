@@ -17,13 +17,14 @@ public record AppConfig(
     EmailConfig email
 ) {
 
-  public record EmailConfig(String host, int port, String user, String password, String from, boolean useSsl) {}
+  public record EmailConfig(String host, int port, String user, String password, String from, boolean useSsl, boolean enabled) {}
 
   public static AppConfig from(JsonObject json) {
     JsonObject httpJson = json.getJsonObject("http", new JsonObject());
     JsonObject dbJson = json.getJsonObject("db", new JsonObject());
     JsonObject securityJson = json.getJsonObject("security", new JsonObject());
     JsonObject totpJson = json.getJsonObject("totp", new JsonObject());
+    boolean emailPresent = json.containsKey("email");
     JsonObject emailJson = json.getJsonObject("email", new JsonObject());
     String env = json.getString("environment", "production");
     return new AppConfig(
@@ -41,7 +42,8 @@ public record AppConfig(
             emailJson.getString("user"),
             emailJson.getString("password"),
             emailJson.getString("from", "noreply@openiv.com"),
-            emailJson.getBoolean("useSsl", false)
+            emailJson.getBoolean("useSsl", false),
+            emailJson.getBoolean("enabled", emailPresent)
         )
     );
   }
