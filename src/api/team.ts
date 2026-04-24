@@ -1,7 +1,7 @@
 import { apiRequest } from './client'
 import type { AccountType } from './auth'
 
-export type TeamRoleId = 'admin' | 'cco' | 'analyst' | 'developer' | 'viewer' | 'regulator'
+export type TeamRoleId = string // Support custom- prefixes
 
 export interface TeamMember {
   id: number
@@ -31,6 +31,8 @@ export interface TeamRole {
   name: string
   description: string
   color: string
+  members?: number
+  permissions?: Record<string, boolean>
 }
 
 export const teamApi = {
@@ -49,4 +51,10 @@ export const teamApi = {
 
   resendPending: (id: number) =>
     apiRequest<TeamPending>(`/api/v1/team/pending/${id}/resend`, { method: 'POST' }),
+
+  saveRole: (role: TeamRole) =>
+    apiRequest<{ ok: boolean }>('/api/v1/team/custom-roles', { method: 'POST', body: role }),
+
+  deleteRole: (id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/team/custom-roles/${id}`, { method: 'DELETE' }),
 }

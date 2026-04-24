@@ -4,8 +4,9 @@ import AuthLayout from '@/components/onboarding/AuthLayout'
 import VerifyEmailForm from '@/components/onboarding/VerifyEmailForm'
 import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
-import { getLoginEmail, hydrate, setSessionState } from '@/onboarding/state'
+import { getLoginEmail, hydrate, setSessionState, clearOnboardingState } from '@/onboarding/state'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
+import { Box, Typography } from '@mui/material'
 
 export default function VerifyEmailPage() {
   const navigate = useNavigate()
@@ -23,10 +24,12 @@ export default function VerifyEmailPage() {
     try {
       const { state } = await authApi.verifyEmail(code)
       await setSessionState(state)
-      if (state === 'pending_totp_setup' || state === 'pending_totp_challenge') {
+      if (state === 'pending_totp_setup') {
         navigate('/auth/setup-2fa')
+      } else if (state === 'pending_totp_challenge') {
+        navigate('/auth/verify-otp')
       } else if (state === 'authenticated') {
-        navigate('/')
+        navigate('/dashboard')
       }
     } catch (err) {
       setErrorMessage(messageFor(err))
@@ -52,6 +55,19 @@ export default function VerifyEmailPage() {
         submitting={submitting}
         errorMessage={errorMessage}
       />
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Typography 
+          onClick={() => { clearOnboardingState(); navigate('/auth/login'); }}
+          sx={{ 
+            fontSize: '0.875rem', 
+            color: '#64748b', 
+            cursor: 'pointer',
+            '&:hover': { color: '#0f172a', textDecoration: 'underline' }
+          }}
+        >
+          Sign in as a different user
+        </Typography>
+      </Box>
     </AuthLayout>
   )
 }

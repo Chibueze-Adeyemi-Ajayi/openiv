@@ -1,33 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from '@/components/onboarding/AuthLayout'
-import Setup2FAForm from '@/components/onboarding/Setup2FAForm'
+import VerifyTOTPForm from '@/components/onboarding/VerifyTOTPForm'
 import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { clearOnboardingBreadcrumbs, setSessionState, clearOnboardingState } from '@/onboarding/state'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
 import { Box, Typography } from '@mui/material'
 
-export default function Setup2FAPage() {
+export default function VerifyTOTPPage() {
   const navigate = useNavigate()
-  const [secret, setSecret] = useState<string | undefined>(undefined)
-  const [otpauthUri, setOtpauthUri] = useState<string | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  const handleEnroll = async () => {
-    setErrorMessage(null)
-    try {
-      const enrollment = await authApi.enrollTotp()
-      setSecret(enrollment.secret)
-      setOtpauthUri(enrollment.otpauthUri)
-    } catch (err) {
-      // If we're already past enrollment (e.g. re-login, state=pending_totp_challenge), the
-      // backend returns 409 — that's fine; no secret to show and the code input still works.
-      if (err instanceof ApiError && err.status === 409) return
-      setErrorMessage(messageFor(err))
-    }
-  }
 
   const handleSubmit = useSubmitGuard(async (code: string) => {
     setSubmitting(true)
@@ -48,10 +32,7 @@ export default function Setup2FAPage() {
 
   return (
     <AuthLayout>
-      <Setup2FAForm
-        secret={secret}
-        otpauthUri={otpauthUri}
-        onEnroll={handleEnroll}
+      <VerifyTOTPForm
         onSubmit={handleSubmit}
         submitting={submitting}
         errorMessage={errorMessage}

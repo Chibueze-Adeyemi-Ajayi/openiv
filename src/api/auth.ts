@@ -22,6 +22,7 @@ export interface SessionStateResponse {
   state: SessionState
   accountType?: AccountType
   email?: string
+  role?: string
 }
 
 export interface TotpEnrollment {
@@ -39,9 +40,16 @@ export const authApi = {
       body: { inviteCode },
     }),
 
-  login: (email: string, password: string, inviteCode?: string) =>
+  login: (email: string, password: string, inviteCode?: string, lat?: number, lon?: number, accuracy?: number) =>
     apiRequest<LoginResponse>('/api/v1/auth/login', {
-      body: inviteCode ? { email, password, inviteCode } : { email, password },
+      body: {
+        email,
+        password,
+        inviteCode,
+        lat,
+        lon,
+        accuracy,
+      },
     }),
 
   resendEmailCode: () =>

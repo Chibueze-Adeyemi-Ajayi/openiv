@@ -4,7 +4,8 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import RoleEditor, { type RoleDraft } from '@/components/dashboard/RoleEditor'
 import { useState, useMemo, useEffect } from 'react'
-import { teamApi, type TeamMember, type TeamPending } from '@/api/team'
+import { teamApi, type TeamMember, type TeamPending, type TeamRole } from '@/api/team'
+import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -17,114 +18,7 @@ import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
-interface Role {
-  id: string
-  name: string
-  description: string
-  members: number
-  color: string
-  permissions: {
-    monitor: { view: boolean; act: boolean }
-    cases: { view: boolean; assign: boolean; close: boolean }
-    rules: { view: boolean; modify: boolean }
-    reports: { view: boolean; file: boolean }
-    team: { view: boolean; manage: boolean }
-    integrations: { view: boolean; modify: boolean }
-  }
-}
 
-const initialRoles: Role[] = [
-  {
-    id: 'admin',
-    name: 'Administrator',
-    description: 'Full access — manages org, billing, integrations',
-    members: 2,
-    color: '#dc2626',
-    permissions: {
-      monitor: { view: true, act: true },
-      cases: { view: true, assign: true, close: true },
-      rules: { view: true, modify: true },
-      reports: { view: true, file: true },
-      team: { view: true, manage: true },
-      integrations: { view: true, modify: true },
-    },
-  },
-  {
-    id: 'cco',
-    name: 'Chief Compliance Officer',
-    description: 'Files NFIU reports, signs off on STRs, manages compliance team',
-    members: 1,
-    color: colorPalette.primary,
-    permissions: {
-      monitor: { view: true, act: true },
-      cases: { view: true, assign: true, close: true },
-      rules: { view: true, modify: true },
-      reports: { view: true, file: true },
-      team: { view: true, manage: false },
-      integrations: { view: true, modify: false },
-    },
-  },
-  {
-    id: 'analyst',
-    name: 'Fraud Analyst',
-    description: 'Investigates cases, escalates to seniors, no rule modification',
-    members: 8,
-    color: '#f59e0b',
-    permissions: {
-      monitor: { view: true, act: true },
-      cases: { view: true, assign: false, close: false },
-      rules: { view: true, modify: false },
-      reports: { view: true, file: false },
-      team: { view: false, manage: false },
-      integrations: { view: false, modify: false },
-    },
-  },
-  {
-    id: 'developer',
-    name: 'Developer',
-    description: 'Wires integrations, webhooks, and API connections — no compliance authority',
-    members: 3,
-    color: '#0891b2',
-    permissions: {
-      monitor: { view: true, act: false },
-      cases: { view: false, assign: false, close: false },
-      rules: { view: true, modify: false },
-      reports: { view: false, file: false },
-      team: { view: false, manage: false },
-      integrations: { view: true, modify: true },
-    },
-  },
-  {
-    id: 'viewer',
-    name: 'Auditor (Read-only)',
-    description: 'View-only access for internal/external auditors',
-    members: 4,
-    color: '#94a3b8',
-    permissions: {
-      monitor: { view: true, act: false },
-      cases: { view: true, assign: false, close: false },
-      rules: { view: true, modify: false },
-      reports: { view: true, file: false },
-      team: { view: true, manage: false },
-      integrations: { view: true, modify: false },
-    },
-  },
-  {
-    id: 'regulator',
-    name: 'Regulator',
-    description: 'External supervisor (CBN, NFIU, NDIC) — scoped read-only access for examinations',
-    members: 2,
-    color: '#7c3aed',
-    permissions: {
-      monitor: { view: true, act: false },
-      cases: { view: true, assign: false, close: false },
-      rules: { view: true, modify: false },
-      reports: { view: true, file: false },
-      team: { view: false, manage: false },
-      integrations: { view: false, modify: false },
-    },
-  },
-]
 
 // Members + pending come from GET /api/v1/team/members and /pending; see useEffect below.
 
@@ -137,9 +31,9 @@ const permissionMatrix = [
   { area: 'Integrations', actions: [{ key: 'integrations.view', label: 'View' }, { key: 'integrations.modify', label: 'Modify' }] },
 ]
 
-function getPermission(role: Role, key: string): boolean {
+function getPermission(role: TeamRole, key: string): boolean {
   const [area, action] = key.split('.')
-  return (role.permissions as any)[area]?.[action] ?? false
+  return (role.permissions as any)?.[area]?.[action] ?? false
 }
 
 const PAGE_SIZE = 8
@@ -153,6 +47,9 @@ export default function TeamPage() {
   // Server-backed data.
   const [members, setMembers] = useState<TeamMember[]>([])
   const [pending, setPending] = useState<TeamPending[]>([])
+  const [roles, setRoles] = useState<TeamRole[]>([])
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -183,23 +80,35 @@ export default function TeamPage() {
   useEffect(() => {
     loadMembers()
     loadPending()
+    loadRoles()
+    authApi.session().then(res => {
+      setCurrentUserEmail(res.email ?? null)
+      setCurrentUserRole(res.role ?? null)
+    }).catch(() => {})
   }, [])
 
-  // Role management
-  const [roles, setRoles] = useState<Role[]>(initialRoles)
+  const loadRoles = async () => {
+    try {
+      const res = await teamApi.listRoles()
+      setRoles(res.roles)
+    } catch {
+      setApiError('Failed to load team roles.')
+    }
+  }
+
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
-  const [editorInitial, setEditorInitial] = useState<RoleDraft | null>(null)
-  const [pendingRoleSave, setPendingRoleSave] = useState<RoleDraft | null>(null)
-  const [removeRole, setRemoveRole] = useState<Role | null>(null)
+  const [editorInitial, setEditorInitial] = useState<RoleDraft | undefined>()
+  const [pendingRoleSave, setPendingRoleSave] = useState<TeamRole | null>(null)
+  const [removeRole, setRemoveRole] = useState<TeamRole | null>(null)
 
   const openCreateRole = () => {
     setEditorMode('create')
-    setEditorInitial(null)
+    setEditorInitial(undefined)
     setEditorOpen(true)
   }
 
-  const openEditRole = (role: Role) => {
+  const openEditRole = (role: TeamRole) => {
     setEditorMode('edit')
     setEditorInitial({
       id: role.id,
@@ -218,23 +127,37 @@ export default function TeamPage() {
 
   const finalizeRoleSave = () => {
     if (!pendingRoleSave) return
+    const roleToAdd = { ...pendingRoleSave, members: pendingRoleSave.members || 0 }
+    
+    // OPTIMISTIC UPDATE: Update UI immediately
     setRoles((prev) => {
-      const exists = prev.find((r) => r.id === pendingRoleSave.id)
-      if (exists) {
-        return prev.map((r) =>
-          r.id === pendingRoleSave.id
-            ? { ...r, name: pendingRoleSave.name, description: pendingRoleSave.description, color: pendingRoleSave.color, permissions: pendingRoleSave.permissions }
-            : r
-        )
-      }
-      return [...prev, { ...pendingRoleSave, members: 0 }]
+      const exists = prev.find((r) => r.id === roleToAdd.id)
+      if (exists) return prev.map((r) => (r.id === roleToAdd.id ? roleToAdd : r))
+      return [...prev, roleToAdd]
     })
+    
+    // SYNC BACKGROUND
+    teamApi.saveRole(roleToAdd).catch(err => {
+      setApiError('Failed to sync role to server. Please refresh.')
+      console.error(err)
+    })
+    
     setPendingRoleSave(null)
   }
 
   const finalizeRoleDelete = () => {
     if (!removeRole) return
-    setRoles((prev) => prev.filter((r) => r.id !== removeRole.id))
+    const idToDelete = removeRole.id
+    
+    // OPTIMISTIC UPDATE
+    setRoles((prev) => prev.filter((r) => r.id !== idToDelete))
+    
+    // SYNC BACKGROUND
+    teamApi.deleteRole(idToDelete).catch(err => {
+      setApiError('Failed to delete role on server.')
+      console.error(err)
+    })
+    
     setRemoveRole(null)
   }
 
@@ -506,6 +429,11 @@ export default function TeamPage() {
                       </Box>
                       <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
                         {m.name}
+                        {m.email === currentUserEmail && (
+                          <Box component="span" sx={{ color: colorPalette.primary, ml: 1, fontWeight: 700, fontSize: '0.75rem' }}>
+                            (you)
+                          </Box>
+                        )}
                       </Typography>
                     </Box>
                     <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
@@ -520,14 +448,18 @@ export default function TeamPage() {
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                       {m.lastActive}
                     </Typography>
-                    <IconButton
-                      size="small"
-                      disableRipple
-                      onClick={() => setRemoveMember(m)}
-                      sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
-                    >
-                      <DeleteOutlineRoundedIcon sx={{ fontSize: '1.125rem' }} />
-                    </IconButton>
+                    {currentUserRole === 'admin' && m.email !== currentUserEmail && m.role !== 'admin' ? (
+                      <IconButton
+                        size="small"
+                        disableRipple
+                        onClick={() => setRemoveMember(m)}
+                        sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
+                      >
+                        <DeleteOutlineRoundedIcon sx={{ fontSize: '1.125rem' }} />
+                      </IconButton>
+                    ) : (
+                      <Box sx={{ width: 32 }} />
+                    )}
                   </Box>
                 )
               })
@@ -787,47 +719,7 @@ export default function TeamPage() {
                           {r.members} member{r.members !== 1 ? 's' : ''}
                           {isCustom && ' · custom'}
                         </Typography>
-                        <Box
-                          className="role-actions"
-                          sx={{
-                            opacity: 0,
-                            transition: 'opacity 0.18s',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            gap: 0.25,
-                          }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => openEditRole(r)}
-                            disableRipple
-                            title="Edit role permissions"
-                            sx={{
-                              borderRadius: 0,
-                              color: '#64748b',
-                              p: 0.5,
-                              '&:hover': { color: colorPalette.primary, bgcolor: '#f8fafc' },
-                            }}
-                          >
-                            <EditOutlinedIcon sx={{ fontSize: '0.9375rem' }} />
-                          </IconButton>
-                          {isCustom && (
-                            <IconButton
-                              size="small"
-                              onClick={() => setRemoveRole(r)}
-                              disableRipple
-                              title="Delete custom role"
-                              sx={{
-                                borderRadius: 0,
-                                color: '#94a3b8',
-                                p: 0.5,
-                                '&:hover': { color: '#dc2626', bgcolor: '#fef2f2' },
-                              }}
-                            >
-                              <DeleteOutlineRoundedIcon sx={{ fontSize: '0.9375rem' }} />
-                            </IconButton>
-                          )}
-                        </Box>
+                        {/* Role modifications are globally locked */}
                       </Box>
                     )
                   })}
@@ -1159,11 +1051,20 @@ function humanizeError(err: unknown, fallback: string): string {
     if (err.code === 'invalid' && err.detail === 'cannot_remove_self') {
       return "You can't remove yourself from the team."
     }
+    if (err.code === 'invalid' && err.detail === 'cannot_remove_admin') {
+      return "Administrators cannot be removed for security and account integrity."
+    }
+    if (err.code === 'feature_disabled') {
+      return "Member deletion is currently disabled for your institution."
+    }
     if (err.code === 'invalid' && err.detail === 'email') {
       return 'That email address is not valid.'
     }
-    if (err.code === 'invalid' && err.detail === 'invitation_not_pending') {
-      return 'That invitation has already been accepted or revoked.'
+    if (err.code === 'invalid' && err.detail === 'duplicate_role_name') {
+      return "A role with this name already exists in your institution."
+    }
+    if (err.code === 'invalid' && err.detail === 'role_id') {
+      return "Invalid role configuration. Please try again."
     }
     return fallback
   }

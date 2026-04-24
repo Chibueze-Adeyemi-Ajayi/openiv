@@ -4,9 +4,11 @@ import { useState } from 'react'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import FormLoadingOverlay from './FormLoadingOverlay'
+import LocationPermissionModal from './LocationPermissionModal'
+import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
 
 interface LoginFormProps {
-  onSubmit?: (email: string, password: string) => void
+  onSubmit?: (email: string, password: string, location?: { lat: number; lon: number; accuracy: number }) => void
   defaultEmail?: string
   submitting?: boolean
   errorMessage?: string | null
@@ -82,10 +84,38 @@ export default function LoginForm({
   const [email, setEmail] = useState(defaultEmail)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [locationModalOpen, setLocationModalOpen] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [loadingLocation, setLoadingLocation] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit?.(email, password)
+    setLocationModalOpen(true)
+  }
+
+  const handleLocationConfirm = () => {
+    setLocationModalOpen(false)
+    setLocationError(null)
+    setLoadingLocation(true)
+
+    if (!navigator.geolocation) {
+      setLoadingLocation(false)
+      setLocationError("Geolocation is not supported by your browser.")
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLoadingLocation(false)
+        const { latitude, longitude, accuracy } = position.coords
+        onSubmit?.(email, password, { lat: latitude, lon: longitude, accuracy })
+      },
+      (error) => {
+        setLoadingLocation(false)
+        console.error('Location Access Error:', error)
+        setLocationError("Location access is required to proceed because of the sensitivity of this application.")
+      }
+    )
   }
 
   const isFormValid = email && password
@@ -118,6 +148,15 @@ export default function LoginForm({
       {errorMessage && (
         <Alert severity="error" sx={{ borderRadius: 0 }}>
           {errorMessage}
+        </Alert>
+      )}
+      {locationError && (
+        <Alert 
+          severity="warning" 
+          sx={{ borderRadius: 0 }}
+          icon={<MapOutlinedIcon fontSize="inherit" />}
+        >
+          {locationError}
         </Alert>
       )}
 
@@ -235,7 +274,13 @@ export default function LoginForm({
         .
       </Typography>
 
-      {submitting && <FormLoadingOverlay />}
+      <LocationPermissionModal 
+        open={locationModalOpen}
+        onClose={() => setLocationModalOpen(false)}
+        onConfirm={handleLocationConfirm}
+      />
+
+      {(submitting || loadingLocation) && <FormLoadingOverlay />}
     </Stack>
   )
 }

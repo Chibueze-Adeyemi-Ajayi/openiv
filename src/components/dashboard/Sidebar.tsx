@@ -1,5 +1,6 @@
-import { Box, Typography, Tooltip, Chip } from '@mui/material'
+import { Box, Typography, Tooltip, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
@@ -17,6 +18,9 @@ import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
+import { authApi } from '@/api/auth'
+import { clearOnboardingState } from '@/onboarding/state'
+import { useNavigate } from 'react-router-dom'
 
 const navGroups = [
   {
@@ -58,6 +62,19 @@ const navGroups = [
 
 export default function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // ignore
+    } finally {
+      clearOnboardingState()
+      navigate('/auth/login')
+    }
+  }
 
   return (
     <Box
@@ -247,6 +264,7 @@ export default function Sidebar() {
           </Box>
           <Tooltip title="Sign out" placement="top">
             <LogoutOutlinedIcon
+              onClick={() => setLogoutDialogOpen(true)}
               sx={{
                 fontSize: '1.125rem',
                 color: '#94a3b8',
@@ -257,6 +275,54 @@ export default function Sidebar() {
           </Tooltip>
         </Box>
       </Box>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+        PaperProps={{
+          sx: { borderRadius: 0, width: '100%', maxWidth: 360 }
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, pb: 1 }}>
+          Confirm Sign Out
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontFamily: 'Jost', fontSize: '0.9375rem', color: '#64748b' }}>
+            Are you sure you want to sign out of your session?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={() => setLogoutDialogOpen(false)}
+            sx={{
+              fontFamily: 'Jost',
+              textTransform: 'none',
+              color: '#64748b',
+              fontWeight: 600,
+              '&:hover': { bgcolor: '#f8fafc' }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLogout}
+            autoFocus
+            sx={{
+              fontFamily: 'Jost',
+              textTransform: 'none',
+              bgcolor: colorPalette.primary,
+              color: '#ffffff',
+              fontWeight: 600,
+              px: 3,
+              borderRadius: 0,
+              '&:hover': { bgcolor: '#1a3896' }
+            }}
+          >
+            Sign Out
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

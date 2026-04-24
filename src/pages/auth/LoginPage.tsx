@@ -28,11 +28,18 @@ export default function LoginPage() {
     })
   }, [])
 
-  const handleSubmit = useSubmitGuard(async (email: string, password: string) => {
+  const handleSubmit = useSubmitGuard(async (email: string, password: string, location?: { lat: number; lon: number; accuracy: number }) => {
     setSubmitting(true)
     setErrorMessage(null)
     try {
-      const { state } = await authApi.login(email, password, inviteCode ?? undefined)
+      const { state } = await authApi.login(
+        email,
+        password,
+        inviteCode ?? undefined,
+        location?.lat,
+        location?.lon,
+        location?.accuracy
+      )
       await setSessionState(state)
       await setLoginEmail(email)
       clearInviteState()
@@ -42,11 +49,13 @@ export default function LoginPage() {
           navigate('/auth/verify-email')
           break
         case 'pending_totp_setup':
-        case 'pending_totp_challenge':
           navigate('/auth/setup-2fa')
           break
+        case 'pending_totp_challenge':
+          navigate('/auth/verify-otp')
+          break
         case 'authenticated':
-          navigate('/')
+          navigate('/dashboard')
           break
       }
     } catch (err) {

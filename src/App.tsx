@@ -24,6 +24,9 @@ import DataBeamingPage from '@/pages/dashboard/DataBeamingPage'
 import CBNCompliancePage from '@/pages/dashboard/CBNCompliancePage'
 import BehavioralPatternsPage from '@/pages/dashboard/BehavioralPatternsPage'
 import UserProfilePage from '@/pages/dashboard/UserProfilePage'
+import AuthVerifyTOTPPage from '@/pages/auth/VerifyTOTPPage'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import PublicRoute from '@/components/auth/PublicRoute'
 
 function App() {
   return (
@@ -32,37 +35,38 @@ function App() {
 
       {/* Auth */}
       <Route path="/auth/invite" element={<AuthInvitePage />} />
-      <Route path="/auth/login" element={<AuthLoginPage />} />
-      <Route path="/auth/verify-email" element={<AuthVerifyEmailPage />} />
-      <Route path="/auth/setup-2fa" element={<AuthSetup2FAPage />} />
+      <Route path="/auth/login" element={<PublicRoute><AuthLoginPage /></PublicRoute>} />
+      <Route path="/auth/verify-email" element={<ProtectedRoute requiredState="pending_email_verification"><AuthVerifyEmailPage /></ProtectedRoute>} />
+      <Route path="/auth/setup-2fa" element={<ProtectedRoute requiredState="pending_totp_setup"><AuthSetup2FAPage /></ProtectedRoute>} />
+      <Route path="/auth/verify-otp" element={<ProtectedRoute requiredState="pending_totp_challenge"><AuthVerifyTOTPPage /></ProtectedRoute>} />
       <Route path="/auth/change-password" element={<AuthChangePasswordPage />} />
       <Route path="/auth/reset-password" element={<AuthResetPasswordPage />} />
-      <Route path="/request-access" element={<RequestAccessPage />} />
+      <Route path="/request-access" element={<PublicRoute><RequestAccessPage /></PublicRoute>} />
 
       {/* Dashboard — Monitor */}
-      <Route path="/dashboard" element={<OverviewPage />} />
-      <Route path="/dashboard/otp-alerts" element={<OTPAlertsPage />} />
-      <Route path="/dashboard/transactions" element={<TransactionsPage />} />
-      <Route path="/dashboard/patterns" element={<BehavioralPatternsPage />} />
-      <Route path="/dashboard/aml" element={<AMLPage />} />
-      <Route path="/dashboard/kyc" element={<KYCPage />} />
-      <Route path="/dashboard/users/:id" element={<UserProfilePage />} />
-      <Route path="/dashboard/heatmaps" element={<HeatmapsPage />} />
+      <Route path="/dashboard" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
+      <Route path="/dashboard/otp-alerts" element={<ProtectedRoute><OTPAlertsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/patterns" element={<ProtectedRoute><BehavioralPatternsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/aml" element={<ProtectedRoute><AMLPage /></ProtectedRoute>} />
+      <Route path="/dashboard/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
+      <Route path="/dashboard/users/:id" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
+      <Route path="/dashboard/heatmaps" element={<ProtectedRoute><HeatmapsPage /></ProtectedRoute>} />
 
       {/* Dashboard — Compliance */}
-      <Route path="/dashboard/cbn" element={<CBNCompliancePage />} />
-      <Route path="/dashboard/reports" element={<ReportsPage />} />
+      <Route path="/dashboard/cbn" element={<ProtectedRoute><CBNCompliancePage /></ProtectedRoute>} />
+      <Route path="/dashboard/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
 
       {/* Dashboard — Configure */}
-      <Route path="/dashboard/thresholds" element={<ThresholdsPage />} />
-      <Route path="/dashboard/beam" element={<DataBeamingPage />} />
-      <Route path="/dashboard/ingest" element={<IngestionPage />} />
-      <Route path="/dashboard/webhooks" element={<WebhooksPage />} />
+      <Route path="/dashboard/thresholds" element={<ProtectedRoute><ThresholdsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/beam" element={<ProtectedRoute><DataBeamingPage /></ProtectedRoute>} />
+      <Route path="/dashboard/ingest" element={<ProtectedRoute><IngestionPage /></ProtectedRoute>} />
+      <Route path="/dashboard/webhooks" element={<ProtectedRoute><WebhooksPage /></ProtectedRoute>} />
 
       {/* Dashboard — Manage */}
-      <Route path="/dashboard/team" element={<TeamPage />} />
-      <Route path="/dashboard/billing" element={<BillingPage />} />
-      <Route path="/dashboard/settings" element={<SettingsPage />} />
+      <Route path="/dashboard/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+      <Route path="/dashboard/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+      <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     </Routes>
   )
 }
