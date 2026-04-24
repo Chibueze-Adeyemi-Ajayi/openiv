@@ -16,6 +16,10 @@ import com.openiv.backend.cases.CaseRepository;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionRepository;
 import com.openiv.backend.transactions.TransactionService;
+import com.openiv.backend.thresholds.ThresholdRepository;
+import com.openiv.backend.thresholds.ThresholdService;
+import com.openiv.backend.webhooks.WebhookRepository;
+import com.openiv.backend.webhooks.WebhookService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.auth.service.DevInviteSeeder;
 import com.openiv.backend.auth.service.EmailSender;
@@ -122,12 +126,15 @@ public final class Main {
         TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
         TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users);
         CaseService caseService = new CaseService(new CaseRepository(pool), users);
+        ThresholdService thresholdService = new ThresholdService(new ThresholdRepository(pool), users);
+        WebhookService webhookService = new WebhookService(new WebhookRepository(pool), users);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, authService, accessRequestService,
-                teamService, transactionService, caseService, cores));
+                teamService, transactionService, caseService, thresholdService, webhookService, cores))
+            .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
   }
@@ -143,15 +150,27 @@ public final class Main {
   private static Future<Void> deployVerticles(Vertx vertx, AppConfig config, Pool pool,
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
-      CaseService caseService, int instances) {
+      CaseService caseService, ThresholdService thresholdService,
+      WebhookService webhookService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, authService, accessRequestService,
-                teamService, transactionService, caseService),
+                teamService, transactionService, caseService, thresholdService, webhookService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();
+  }
+
+  private static void scheduleWebhookAutoRotation(Vertx vertx, WebhookService webhookService) {
+    // Run once immediately on startup, then every hour, to rotate any expired signing secrets.
+    long oneHourMs = 3_600_000L;
+    Runnable rotate = () ->
+        webhookService.rotateExpiredSecrets()
+            .onSuccess(n -> { if (n > 0) log.info("Auto-rotated {} webhook signing secret(s)", n); })
+            .onFailure(err -> log.error("Webhook secret auto-rotation failed", err));
+    rotate.run();
+    vertx.setPeriodic(oneHourMs, id -> rotate.run());
   }
 
   private static void installShutdownHook(Vertx vertx, Pool pool) {

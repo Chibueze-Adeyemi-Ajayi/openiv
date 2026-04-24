@@ -13,6 +13,10 @@ import com.openiv.backend.cases.CaseHandlers;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionHandlers;
 import com.openiv.backend.transactions.TransactionService;
+import com.openiv.backend.thresholds.ThresholdHandlers;
+import com.openiv.backend.thresholds.ThresholdService;
+import com.openiv.backend.webhooks.WebhookHandlers;
+import com.openiv.backend.webhooks.WebhookService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -36,7 +40,8 @@ public final class V1Router {
   public static Router create(Vertx vertx, Pool dbPool, SecurityConfig security,
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
-      CaseService caseService, boolean devMode) {
+      CaseService caseService, ThresholdService thresholdService,
+      WebhookService webhookService, boolean devMode) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -72,6 +77,27 @@ public final class V1Router {
     router.post("/cases/:id/transactions").handler(caseAuth).handler(caseHandlers.linkTransaction());
     router.post("/cases/:id/notes").handler(caseAuth).handler(caseHandlers.addNote());
     router.post("/cases/:id/evidence").handler(caseAuth).handler(caseHandlers.addEvidence());
+
+    // Thresholds — metrics before /:id to avoid path collision
+    ThresholdHandlers thresholdHandlers = new ThresholdHandlers(thresholdService);
+    Handler<RoutingContext> thresholdAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/thresholds/metrics").handler(thresholdAuth).handler(thresholdHandlers.metrics());
+    router.get("/thresholds").handler(thresholdAuth).handler(thresholdHandlers.list());
+    router.patch("/thresholds/:id").handler(thresholdAuth).handler(thresholdHandlers.update());
+    router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
+
+    // Webhooks — secret routes and specific sub-paths before /:id to avoid collision
+    WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService);
+    Handler<RoutingContext> webhookAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.getSecret());
+    router.post("/webhooks/secret/rotate").handler(webhookAuth).handler(webhookHandlers.rotateSecret());
+    router.patch("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.updateSecret());
+    router.get("/webhooks").handler(webhookAuth).handler(webhookHandlers.listEndpoints());
+    router.post("/webhooks").handler(webhookAuth).handler(webhookHandlers.createEndpoint());
+    router.patch("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.updateEndpoint());
+    router.delete("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.deleteEndpoint());
+    router.post("/webhooks/:id/test").handler(webhookAuth).handler(webhookHandlers.testEndpoint());
+    router.get("/webhooks/:id/deliveries").handler(webhookAuth).handler(webhookHandlers.listDeliveries());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());
