@@ -15,6 +15,9 @@ import com.openiv.backend.transactions.TransactionHandlers;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdHandlers;
 import com.openiv.backend.thresholds.ThresholdService;
+import com.openiv.backend.beam.BeamApiKeyHandler;
+import com.openiv.backend.beam.BeamHandlers;
+import com.openiv.backend.beam.BeamService;
 import com.openiv.backend.webhooks.WebhookHandlers;
 import com.openiv.backend.webhooks.WebhookService;
 import io.vertx.core.Handler;
@@ -41,7 +44,7 @@ public final class V1Router {
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
-      WebhookService webhookService, boolean devMode) {
+      WebhookService webhookService, boolean devMode, BeamService beamService) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -86,18 +89,36 @@ public final class V1Router {
     router.patch("/thresholds/:id").handler(thresholdAuth).handler(thresholdHandlers.update());
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
 
-    // Webhooks — secret routes and specific sub-paths before /:id to avoid collision
+    // Beam API key auth for ingest endpoints
+    BeamHandlers beamHandlers = new BeamHandlers(beamService);
+    BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService);
+    Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
+
+    // Inbound beam ingestion — authenticated with institution API key (not session)
+    router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
+
+    // Beam management — session authenticated
+    router.get("/beam/records").handler(beamSessionAuth).handler(beamHandlers.listRecords());
+    router.get("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.getApiKeyInfo());
+    router.post("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.generateApiKey());
+    router.delete("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.revokeApiKey());
+
+    // Webhooks — fixed paths before /:id to avoid collision
     WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService);
     Handler<RoutingContext> webhookAuth = SessionAuthHandler.authenticated(authService);
     router.get("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.getSecret());
     router.post("/webhooks/secret/rotate").handler(webhookAuth).handler(webhookHandlers.rotateSecret());
     router.patch("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.updateSecret());
+    router.get("/webhooks/deliveries").handler(webhookAuth).handler(webhookHandlers.listAllDeliveries());
     router.get("/webhooks").handler(webhookAuth).handler(webhookHandlers.listEndpoints());
     router.post("/webhooks").handler(webhookAuth).handler(webhookHandlers.createEndpoint());
     router.patch("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.updateEndpoint());
     router.delete("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.deleteEndpoint());
     router.post("/webhooks/:id/test").handler(webhookAuth).handler(webhookHandlers.testEndpoint());
     router.get("/webhooks/:id/deliveries").handler(webhookAuth).handler(webhookHandlers.listDeliveries());
+    router.get("/webhooks/:id/security").handler(webhookAuth).handler(webhookHandlers.getSecurityRule());
+    router.put("/webhooks/:id/security").handler(webhookAuth).handler(webhookHandlers.upsertSecurityRule());
+    router.post("/webhooks/:id/security/api-key").handler(webhookAuth).handler(webhookHandlers.generateApiKey());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

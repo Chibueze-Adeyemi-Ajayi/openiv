@@ -43,10 +43,8 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       JsonObject body = body(ctx);
       if (body == null) return;
-
       if (!body.containsKey("autoRotate")) { badRequest(ctx, "autoRotate required"); return; }
       boolean autoRotate = body.getBoolean("autoRotate", true);
-
       service.updateAutoRotate(session, autoRotate)
           .onSuccess(s -> ok(ctx, new JsonObject().put("secret", secretJson(s))))
           .onFailure(ctx::fail);
@@ -73,17 +71,13 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       JsonObject body = body(ctx);
       if (body == null) return;
-
       String url         = body.getString("url");
       String description = body.getString("description");
       JsonArray evArr    = body.getJsonArray("events");
-
-      if (url == null || url.isBlank())  { badRequest(ctx, "url is required"); return; }
-      if (evArr == null || evArr.isEmpty()) { badRequest(ctx, "events required"); return; }
-
+      if (url == null || url.isBlank())         { badRequest(ctx, "url is required"); return; }
+      if (evArr == null || evArr.isEmpty())     { badRequest(ctx, "events required"); return; }
       List<String> events = new ArrayList<>();
       evArr.forEach(o -> events.add(o.toString()));
-
       service.createEndpoint(session, url, description, events)
           .onSuccess(ep -> ok(ctx, new JsonObject().put("endpoint", endpointJson(ep))))
           .onFailure(err -> {
@@ -99,15 +93,12 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = longPath(ctx, "id");
       if (id < 0) return;
-
       JsonObject body = body(ctx);
       if (body == null) return;
-
       String     status      = body.getString("status");
       String     description = body.getString("description");
       JsonArray  evArr       = body.getJsonArray("events");
       List<String> events    = evArr == null ? null : evArr.stream().map(Object::toString).toList();
-
       service.updateEndpoint(session, id, status, events, description)
           .onSuccess(opt -> {
             if (opt.isEmpty()) { ctx.fail(404); return; }
@@ -126,7 +117,6 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = longPath(ctx, "id");
       if (id < 0) return;
-
       service.deleteEndpoint(session, id)
           .onSuccess(deleted -> {
             if (!deleted) { ctx.fail(404); return; }
@@ -142,7 +132,6 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = longPath(ctx, "id");
       if (id < 0) return;
-
       service.sendTestEvent(session, id)
           .onSuccess(result -> ok(ctx, new JsonObject()
               .put("ok",        true)
@@ -162,13 +151,70 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = longPath(ctx, "id");
       if (id < 0) return;
-
       service.listDeliveries(session, id)
           .onSuccess(list -> {
             var arr = new JsonArray();
             list.forEach(d -> arr.add(deliveryJson(d)));
             ok(ctx, new JsonObject().put("deliveries", arr));
           })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /webhooks/deliveries  (institution-wide beam log)
+  public Handler<RoutingContext> listAllDeliveries() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.listAllDeliveries(session)
+          .onSuccess(list -> {
+            var arr = new JsonArray();
+            list.forEach(d -> arr.add(deliveryJson(d)));
+            ok(ctx, new JsonObject().put("deliveries", arr));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /webhooks/:id/security
+  public Handler<RoutingContext> getSecurityRule() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = longPath(ctx, "id");
+      if (id < 0) return;
+      service.getSecurityRule(session, id)
+          .onSuccess(opt -> ok(ctx, new JsonObject()
+              .put("rule", opt.map(WebhookHandlers::securityRuleJson).orElse(null))))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // PUT /webhooks/:id/security
+  public Handler<RoutingContext> upsertSecurityRule() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = longPath(ctx, "id");
+      if (id < 0) return;
+      JsonObject body = body(ctx);
+      if (body == null) return;
+      String  apiKey         = body.getString("apiKey");
+      String  ipAllowlist    = body.getString("ipAllowlist");
+      int     timeoutSeconds = body.getInteger("timeoutSeconds", 10);
+      int     maxRetries     = body.getInteger("maxRetries", 3);
+      boolean requireAck     = body.getBoolean("requireAck", false);
+      service.upsertSecurityRule(session, id, apiKey, ipAllowlist, timeoutSeconds, maxRetries, requireAck)
+          .onSuccess(rule -> ok(ctx, new JsonObject().put("rule", securityRuleJson(rule))))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /webhooks/:id/security/api-key  (generate fresh API key)
+  public Handler<RoutingContext> generateApiKey() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = longPath(ctx, "id");
+      if (id < 0) return;
+      service.generateApiKey(session, id)
+          .onSuccess(key -> ok(ctx, new JsonObject().put("apiKey", key)))
           .onFailure(ctx::fail);
     };
   }
@@ -200,16 +246,35 @@ public final class WebhookHandlers {
         .put("updatedAt",       e.updatedAt().toString());
   }
 
-  private static JsonObject deliveryJson(WebhookDelivery d) {
+  static JsonObject deliveryJson(WebhookDelivery d) {
     return new JsonObject()
-        .put("id",           d.id())
-        .put("endpointId",   d.endpointId())
-        .put("eventType",    d.eventType())
-        .put("status",       d.status())
-        .put("responseCode", d.responseCode())
-        .put("attemptCount", d.attemptCount())
-        .put("deliveredAt",  d.deliveredAt() != null ? d.deliveredAt().toString() : null)
-        .put("createdAt",    d.createdAt().toString());
+        .put("id",              d.id())
+        .put("endpointId",      d.endpointId())
+        .put("eventType",       d.eventType())
+        .put("status",          d.status())
+        .put("responseCode",    d.responseCode())
+        .put("attemptCount",    d.attemptCount())
+        .put("deliveredAt",     d.deliveredAt() != null ? d.deliveredAt().toString() : null)
+        .put("createdAt",       d.createdAt().toString())
+        .put("deliveryId",      d.deliveryId())
+        .put("requestHeaders",  d.requestHeaders())
+        .put("requestBody",     d.requestBody())
+        .put("responseHeaders", d.responseHeaders())
+        .put("responseBody",    d.responseBody())
+        .put("durationMs",      d.durationMs())
+        .put("errorMessage",    d.errorMessage());
+  }
+
+  private static JsonObject securityRuleJson(WebhookSecurityRule r) {
+    return new JsonObject()
+        .put("id",             r.id())
+        .put("endpointId",     r.endpointId())
+        .put("hasApiKey",      r.apiKey() != null && !r.apiKey().isBlank())
+        .put("ipAllowlist",    r.ipAllowlist())
+        .put("timeoutSeconds", r.timeoutSeconds())
+        .put("maxRetries",     r.maxRetries())
+        .put("requireAck",     r.requireAck())
+        .put("updatedAt",      r.updatedAt().toString());
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

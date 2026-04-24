@@ -18,8 +18,13 @@ import com.openiv.backend.transactions.TransactionRepository;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdRepository;
 import com.openiv.backend.thresholds.ThresholdService;
+import com.openiv.backend.beam.BeamRepository;
+import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.webhooks.WebhookDeliveryService;
 import com.openiv.backend.webhooks.WebhookRepository;
 import com.openiv.backend.webhooks.WebhookService;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.auth.service.DevInviteSeeder;
 import com.openiv.backend.auth.service.EmailSender;
@@ -127,13 +132,20 @@ public final class Main {
         TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users);
         CaseService caseService = new CaseService(new CaseRepository(pool), users);
         ThresholdService thresholdService = new ThresholdService(new ThresholdRepository(pool), users);
-        WebhookService webhookService = new WebhookService(new WebhookRepository(pool), users);
+        WebhookRepository webhookRepository = new WebhookRepository(pool);
+        WebClient webClient = WebClient.create(vertx,
+            new WebClientOptions().setFollowRedirects(false).setSsl(true).setTrustAll(false));
+        WebhookDeliveryService webhookDeliveryService = new WebhookDeliveryService(webClient, webhookRepository);
+        WebhookService webhookService = new WebhookService(webhookRepository, users, webhookDeliveryService);
+        BeamRepository beamRepository = new BeamRepository(pool);
+        BeamService beamService = new BeamService(beamRepository, users);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, authService, accessRequestService,
-                teamService, transactionService, caseService, thresholdService, webhookService, cores))
+                teamService, transactionService, caseService, thresholdService, webhookService,
+                beamService, cores))
             .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
@@ -151,12 +163,13 @@ public final class Main {
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
-      WebhookService webhookService, int instances) {
+      WebhookService webhookService, BeamService beamService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, authService, accessRequestService,
-                teamService, transactionService, caseService, thresholdService, webhookService),
+                teamService, transactionService, caseService, thresholdService, webhookService,
+                beamService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();

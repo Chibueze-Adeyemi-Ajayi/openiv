@@ -8,6 +8,7 @@ import com.openiv.backend.team.TeamService;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
+import com.openiv.backend.beam.BeamService;
 import com.openiv.backend.webhooks.WebhookService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -35,12 +36,14 @@ public final class MainVerticle extends AbstractVerticle {
   private final CaseService        caseService;
   private final ThresholdService   thresholdService;
   private final WebhookService     webhookService;
+  private final BeamService        beamService;
   private HttpServer httpServer;
 
   public MainVerticle(AppConfig config, Pool dbPool, AuthService authService,
       AccessRequestService accessRequestService, TeamService teamService,
       TransactionService transactionService, CaseService caseService,
-      ThresholdService thresholdService, WebhookService webhookService) {
+      ThresholdService thresholdService, WebhookService webhookService,
+      BeamService beamService) {
     this.config = config;
     this.dbPool = dbPool;
     this.authService = authService;
@@ -50,11 +53,12 @@ public final class MainVerticle extends AbstractVerticle {
     this.caseService = caseService;
     this.thresholdService = thresholdService;
     this.webhookService = webhookService;
+    this.beamService = beamService;
   }
 
   /** Test convenience constructor — no services, DB-less routes only. */
   public MainVerticle(AppConfig config, Pool dbPool) {
-    this(config, dbPool, null, null, null, null, null, null, null);
+    this(config, dbPool, null, null, null, null, null, null, null, null);
   }
 
   @Override
@@ -84,7 +88,7 @@ public final class MainVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     ApiRouter.mount(vertx, router, dbPool, config.security(),
         authService, accessRequestService, teamService, transactionService,
-        caseService, thresholdService, webhookService, config.isDevelopment());
+        caseService, thresholdService, webhookService, config.isDevelopment(), beamService);
 
     return vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(
