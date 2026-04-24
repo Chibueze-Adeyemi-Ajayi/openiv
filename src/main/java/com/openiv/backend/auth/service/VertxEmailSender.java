@@ -63,4 +63,33 @@ public final class VertxEmailSender implements EmailSender {
         .onFailure(err -> log.error("Failed to send password reset email to {}: {}", toEmail, err.getMessage()))
         .mapEmpty();
   }
+
+  @Override
+  public Future<Void> sendStepUpLockout(String toEmail, String fullName, String timestamp) {
+    MailMessage message = new MailMessage()
+        .setFrom(from)
+        .setTo(toEmail)
+        .setSubject("OpenIV — Suspicious Activity Detected on Your Account")
+        .setText("We detected 3 consecutive failed TOTP verification attempts at " + timestamp + " UTC.")
+        .setHtml(EmailTemplates.stepUpLockoutUser(fullName, timestamp));
+
+    return client.sendMail(message)
+        .onFailure(err -> log.error("Failed to send step-up lockout email to {}: {}", toEmail, err.getMessage()))
+        .mapEmpty();
+  }
+
+  @Override
+  public Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
+      String userName, String userEmail, String timestamp) {
+    MailMessage message = new MailMessage()
+        .setFrom(from)
+        .setTo(toEmail)
+        .setSubject("OpenIV — Account Security Alert: Step-Up Lockout")
+        .setText("User " + userName + " (" + userEmail + ") was locked out after 3 failed TOTP attempts at " + timestamp + " UTC.")
+        .setHtml(EmailTemplates.stepUpLockoutAdmin(adminName, userName, userEmail, timestamp));
+
+    return client.sendMail(message)
+        .onFailure(err -> log.error("Failed to send step-up lockout admin email to {}: {}", toEmail, err.getMessage()))
+        .mapEmpty();
+  }
 }

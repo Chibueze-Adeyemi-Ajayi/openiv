@@ -15,6 +15,11 @@ import com.openiv.backend.auth.repository.TotpSecretRepository;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.repository.VerificationCodeRepository;
 import io.vertx.core.Future;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Orchestration for every onboarding / authentication flow.
@@ -220,6 +225,50 @@ public final class AuthService {
           : Future.succeededFuture();
       return activate.compose(v -> sessions.transitionState(session.id(), SessionState.AUTHENTICATED))
           .map(v -> new VerifyResult(SessionState.AUTHENTICATED));
+    });
+  }
+
+  public Future<Void> verifyTotpStepUp(Session session, String code) {
+    if (session.state() != SessionState.AUTHENTICATED) {
+      throw AuthException.wrongState();
+    }
+    return totp.findEnabledSecret(session.userId()).compose(opt -> {
+      String encrypted = opt.orElseThrow(() -> AuthException.invalid("totp_not_enrolled"));
+      String secret = totpCipher.decrypt(encrypted);
+      if (!Totp.verify(secret, code.trim())) {
+        throw AuthException.invalid("code");
+      }
+      return Future.succeededFuture();
+    });
+  }
+
+  public Future<Void> reportStepUpLockout(Session session) {
+    if (session.state() != SessionState.AUTHENTICATED) {
+      throw AuthException.wrongState();
+    }
+    String timestamp = Instant.now()
+        .atOffset(ZoneOffset.UTC)
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    return users.findById(session.userId()).compose(opt -> {
+      User user = opt.orElseThrow();
+      Future<Void> notifyUser = emailSender.sendStepUpLockout(
+          user.email(), user.displayName(), timestamp);
+      Future<Void> notifyAdmins = users.listActiveByInstitution(user.institutionId())
+          .compose(all -> {
+            List<User> admins = all.stream()
+                .filter(u -> u.id() != user.id()
+                    && u.role() != null
+                    && u.role().toLowerCase().contains("admin"))
+                .collect(Collectors.toList());
+            if (admins.isEmpty()) return Future.succeededFuture();
+            List<Future<?>> futures = admins.stream()
+                .map(admin -> (Future<?>) emailSender.sendStepUpLockoutAdmin(
+                    admin.email(), admin.displayName(),
+                    user.displayName(), user.email(), timestamp))
+                .collect(Collectors.toList());
+            return Future.all(futures).mapEmpty();
+          });
+      return Future.all(notifyUser, notifyAdmins).mapEmpty();
     });
   }
 

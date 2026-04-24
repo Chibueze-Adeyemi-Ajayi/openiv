@@ -12,6 +12,8 @@ import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.DevDemoBankSeeder;
 import com.openiv.backend.team.TeamService;
 import com.openiv.backend.team.CustomRoleRepository;
+import com.openiv.backend.transactions.TransactionRepository;
+import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.auth.service.DevInviteSeeder;
 import com.openiv.backend.auth.service.EmailSender;
@@ -116,11 +118,13 @@ public final class Main {
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
         TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
+        TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
-                vertx, config, pool, authService, accessRequestService, teamService, cores));
+                vertx, config, pool, authService, accessRequestService,
+                teamService, transactionService, cores));
       });
     });
   }
@@ -135,11 +139,12 @@ public final class Main {
 
   private static Future<Void> deployVerticles(Vertx vertx, AppConfig config, Pool pool,
       AuthService authService, AccessRequestService accessRequestService,
-      TeamService teamService, int instances) {
+      TeamService teamService, TransactionService transactionService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
-            () -> new MainVerticle(config, pool, authService, accessRequestService, teamService),
+            () -> new MainVerticle(config, pool, authService, accessRequestService,
+                teamService, transactionService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();

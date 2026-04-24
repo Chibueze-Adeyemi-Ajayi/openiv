@@ -46,6 +46,10 @@ public final class AuthRouter {
         .handler(handlers.logout());
 
     // Authenticated session required
+    router.post("/totp/step-up").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.verifyTotpStepUp());
+    router.post("/totp/step-up-lockout").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.stepUpLockoutAlert());
     router.post("/password/change").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.changePassword());
 

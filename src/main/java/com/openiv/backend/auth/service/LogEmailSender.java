@@ -24,4 +24,18 @@ public final class LogEmailSender implements EmailSender {
     log.warn("[DEV EMAIL] password-reset code for {}: {}", toEmail, code);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendStepUpLockout(String toEmail, String fullName, String timestamp) {
+    log.warn("[DEV EMAIL] step-up lockout alert for {} ({}) at {}", fullName, toEmail, timestamp);
+    return Future.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
+      String userName, String userEmail, String timestamp) {
+    log.warn("[DEV EMAIL] step-up lockout admin alert to {} for user {} ({}) at {}",
+        adminName, userName, userEmail, timestamp);
+    return Future.succeededFuture();
+  }
 }

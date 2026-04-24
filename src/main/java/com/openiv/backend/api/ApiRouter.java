@@ -5,6 +5,7 @@ import com.openiv.backend.api.v1.V1Router;
 import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.team.TeamService;
+import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.security.ContentTypeGuard;
 import com.openiv.backend.security.Cors;
 import com.openiv.backend.security.MethodGuard;
@@ -67,7 +68,7 @@ public final class ApiRouter {
 
   public static void mount(Vertx vertx, Router router, Pool dbPool, SecurityConfig security,
       AuthService authService, AccessRequestService accessRequestService,
-      TeamService teamService, boolean devMode) {
+      TeamService teamService, TransactionService transactionService, boolean devMode) {
     router.route().handler(RequestId.create());
     router.route().handler(SecurityHeaders.create(security));
     router.route().handler(MethodGuard.create());
@@ -80,7 +81,8 @@ public final class ApiRouter {
 
     HealthHandler.mount(router);
     router.route("/api/v1/*").subRouter(V1Router.create(
-        vertx, dbPool, security, authService, accessRequestService, teamService, devMode));
+        vertx, dbPool, security, authService, accessRequestService,
+        teamService, transactionService, devMode));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

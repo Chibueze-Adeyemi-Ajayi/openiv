@@ -101,6 +101,24 @@ public final class AuthHandlers {
     });
   }
 
+  public Handler<RoutingContext> verifyTotpStepUp() {
+    return ctx -> withJson(ctx, body -> {
+      var session = SessionAuthHandler.require(ctx);
+      String code = required(body, "code");
+      return auth.verifyTotpStepUp(session, code)
+          .map(v -> new JsonObject().put("ok", true));
+    });
+  }
+
+  public Handler<RoutingContext> stepUpLockoutAlert() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      auth.reportStepUpLockout(session)
+          .onSuccess(v -> okJson(ctx, new JsonObject().put("ok", true)))
+          .onFailure(err -> handleFailure(ctx, err));
+    };
+  }
+
   public Handler<RoutingContext> changePassword() {
     return ctx -> withJson(ctx, body -> {
       var session = SessionAuthHandler.require(ctx);

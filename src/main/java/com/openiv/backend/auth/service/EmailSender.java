@@ -12,4 +12,9 @@ public interface EmailSender {
   Future<Void> sendVerificationCode(String toEmail, String code);
 
   Future<Void> sendPasswordResetCode(String toEmail, String code);
+
+  Future<Void> sendStepUpLockout(String toEmail, String fullName, String timestamp);
+
+  Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
+      String userName, String userEmail, String timestamp);
 }

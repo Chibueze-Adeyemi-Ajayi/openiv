@@ -1,6 +1,7 @@
 package com.openiv.backend.api.v1;
 
 import com.openiv.backend.auth.handler.AccessRequestHandlers;
+import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.db.Jooq;
@@ -8,6 +9,9 @@ import com.openiv.backend.security.RequireAuth;
 import com.openiv.backend.security.SecurityConfig;
 import com.openiv.backend.team.TeamRouter;
 import com.openiv.backend.team.TeamService;
+import com.openiv.backend.transactions.TransactionHandlers;
+import com.openiv.backend.transactions.TransactionService;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -29,7 +33,7 @@ public final class V1Router {
 
   public static Router create(Vertx vertx, Pool dbPool, SecurityConfig security,
       AuthService authService, AccessRequestService accessRequestService,
-      TeamService teamService, boolean devMode) {
+      TeamService teamService, TransactionService transactionService, boolean devMode) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -44,6 +48,14 @@ public final class V1Router {
 
     // Team management — requires an authenticated session (gate inside TeamRouter).
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService));
+
+    // Transactions — two endpoints registered directly to avoid sub-router path-stripping on root.
+    TransactionHandlers txnHandlers = new TransactionHandlers(transactionService);
+    Handler<RoutingContext> txnAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/transactions").handler(txnAuth).handler(txnHandlers.list());
+    router.get("/transactions/export").handler(txnAuth).handler(txnHandlers.export());
+    router.post("/transactions/bulk-status").handler(txnAuth).handler(txnHandlers.bulkStatus());
+    router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());
