@@ -21,6 +21,17 @@ export interface WebhookSecret {
   updatedAt: string
 }
 
+export interface WebhookSecurityRule {
+  id: number
+  endpointId: number
+  hasApiKey: boolean
+  ipAllowlist: string | null
+  timeoutSeconds: number
+  maxRetries: number
+  requireAck: boolean
+  updatedAt: string
+}
+
 export interface WebhookDelivery {
   id: number
   endpointId: number
@@ -30,6 +41,13 @@ export interface WebhookDelivery {
   attemptCount: number
   deliveredAt: string | null
   createdAt: string
+  deliveryId: string | null
+  requestHeaders: string | null
+  requestBody: string | null
+  responseHeaders: string | null
+  responseBody: string | null
+  durationMs: number | null
+  errorMessage: string | null
 }
 
 export interface TestResult {
@@ -75,4 +93,22 @@ export const webhookApi = {
 
   deliveries: (id: number) =>
     apiRequest<{ deliveries: WebhookDelivery[] }>(`/api/v1/webhooks/${id}/deliveries`),
+
+  listAllDeliveries: () =>
+    apiRequest<{ deliveries: WebhookDelivery[] }>('/api/v1/webhooks/deliveries'),
+
+  getSecurityRule: (id: number) =>
+    apiRequest<{ rule: WebhookSecurityRule | null }>(`/api/v1/webhooks/${id}/security`),
+
+  upsertSecurityRule: (
+    id: number,
+    data: { ipAllowlist?: string | null; timeoutSeconds?: number; maxRetries?: number; requireAck?: boolean },
+  ) =>
+    apiRequest<{ rule: WebhookSecurityRule }>(`/api/v1/webhooks/${id}/security`, {
+      method: 'PUT',
+      body: data,
+    }),
+
+  generateApiKey: (id: number) =>
+    apiRequest<{ apiKey: string }>(`/api/v1/webhooks/${id}/security/api-key`, { method: 'POST' }),
 }

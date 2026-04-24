@@ -1,7 +1,12 @@
-import { Box, Typography, Stack, Button, Chip, IconButton } from '@mui/material'
+import {
+  Box, Typography, Stack, Button, Chip, IconButton,
+  Skeleton, Dialog, Select, MenuItem, FormControl, Collapse,
+} from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
-import { useState } from 'react'
+import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { beamApi, type BeamApiKey, type BeamRecord } from '@/api/beam'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded'
 import TouchAppOutlinedIcon from '@mui/icons-material/TouchAppOutlined'
@@ -11,501 +16,939 @@ import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
+
+// ── Syntax highlighting ───────────────────────────────────────────────────────
+
+type Token = { text: string; color: string; italic?: boolean }
+
+const C = {
+  keyword:  '#c792ea',
+  string:   '#c3e88d',
+  number:   '#f78c6c',
+  comment:  '#546e7a',
+  func:     '#82aaff',
+  env:      '#ffcb6b',
+  url:      '#80cbc4',
+  punct:    '#89ddff',
+  plain:    '#e2e8f0',
+  operator: '#89ddff',
+}
+
+const KW_RE = new RegExp(
+  `^(?:${[
+    'curl','const','let','var','import','from','require','async','await',
+    'function','return','if','else','try','catch','throw','new','class',
+    'export','default','def','for','in','with','pass','raise','as','elif',
+    'True','False','None','func','package','type','struct','interface',
+    'public','private','protected','static','void','final','this',
+    'print','println','true','false','null','undefined','nil',
+    'bytes','json','http','time','net','os','fmt','uuid',
+    'POST','GET','PUT','DELETE','PATCH','HEAD',
+  ].join('|')})(?=[^a-zA-Z_0-9]|$)`,
+)
+
+const PATTERNS: Array<{ re: RegExp; color: string; italic?: boolean }> = [
+  { re: /^#[^\n]*/,                           color: C.comment,  italic: true },
+  { re: /^\/\/[^\n]*/,                        color: C.comment,  italic: true },
+  { re: /^"(?:[^"\\]|\\.)*"/,                 color: C.string },
+  { re: /^'(?:[^'\\]|\\.)*'/,                 color: C.string },
+  { re: /^`(?:[^`\\]|\\.)*`/,                 color: C.string },
+  { re: /^\$\{[^}]+\}/,                       color: C.env },
+  { re: /^\$[A-Z_][A-Z_0-9]*/,               color: C.env },
+  { re: /^https?:\/\/[^\s'"\\),`]+/,          color: C.url },
+  { re: KW_RE,                                color: C.keyword },
+  { re: /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, color: C.number },
+  { re: /^[{}[\]();,]/,                       color: C.punct },
+  { re: /^[:=<>+\-*/|&^~%!]/,                color: C.operator },
+  { re: /^[\\]/,                              color: C.punct },
+  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/,    color: C.func },
+]
+
+function tokenize(code: string): Token[] {
+  const tokens: Token[] = []
+  let remaining = code
+  while (remaining.length > 0) {
+    let matched = false
+    for (const { re, color, italic } of PATTERNS) {
+      const m = re.exec(remaining)
+      if (m) {
+        tokens.push({ text: m[0], color, italic })
+        remaining = remaining.slice(m[0].length)
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      const last = tokens[tokens.length - 1]
+      if (last && last.color === C.plain && !last.italic) last.text += remaining[0]
+      else tokens.push({ text: remaining[0], color: C.plain })
+      remaining = remaining.slice(1)
+    }
+  }
+  return tokens
+}
+
+function SyntaxCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+  const tokens = useMemo(() => tokenize(code), [code])
+
+  const copy = () => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <Box sx={{
+        bgcolor: '#0d1117', p: 2.5, overflowX: 'auto',
+        fontFamily: 'SF Mono, Monaco, Consolas, monospace',
+        fontSize: '0.75rem', lineHeight: 1.75,
+        maxHeight: 380, overflowY: 'auto',
+      }}>
+        {tokens.map((t, i) => (
+          <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>
+            {t.text}
+          </Box>
+        ))}
+      </Box>
+      <Button
+        size="small"
+        startIcon={
+          copied
+            ? <CheckRoundedIcon sx={{ fontSize: '0.75rem !important', color: '#10b981' }} />
+            : <ContentCopyOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />
+        }
+        onClick={copy}
+        sx={{
+          position: 'absolute', top: 8, right: 8,
+          fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
+          color: copied ? '#10b981' : '#64748b', textTransform: 'none',
+          px: 1, py: 0.375, borderRadius: 0, bgcolor: '#0d1117',
+          '&:hover': { bgcolor: '#1e293b' },
+          '& .MuiButton-startIcon': { mr: 0.375 },
+        }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </Button>
+    </Box>
+  )
+}
+
+// ── Stream data ────────────────────────────────────────────────────────────────
 
 type StreamId = 'transactions' | 'logins' | 'activity' | 'location' | 'devices' | 'otps'
 
+interface StreamField { field: string; type: string; required: boolean; example: string }
 interface Stream {
-  id: StreamId
-  icon: React.ReactNode
-  title: string
-  desc: string
+  id: StreamId; icon: React.ReactNode; title: string; desc: string
   status: 'connected' | 'partial' | 'disconnected'
-  recordsToday: number
-  lastSeen: string
-  why: string
-  schema: { field: string; type: string; required: boolean; example: string }[]
+  recordsToday: number; lastSeen: string; why: string; powers: string
+  schema: StreamField[]
 }
 
 const streams: Stream[] = [
   {
-    id: 'transactions',
-    icon: <ReceiptLongOutlinedIcon />,
-    title: 'Transactions',
+    id: 'transactions', icon: <ReceiptLongOutlinedIcon />, title: 'Transactions',
     desc: 'Every credit, debit, transfer & FX flow as it lands on your core',
-    status: 'connected',
-    recordsToday: 84219,
-    lastSeen: '2 sec ago',
+    status: 'connected', recordsToday: 84219, lastSeen: '2 sec ago',
     why: "The foundational stream. Without transactions, no risk score is possible. Beam the moment your core posts — even before settlement — so we can intercept.",
+    powers: 'Risk scoring · STR/SAR · Velocity rules',
     schema: [
-      { field: 'transaction_id', type: 'string', required: true, example: 'TXN-48721' },
-      { field: 'timestamp', type: 'ISO 8601', required: true, example: '2026-04-19T14:22:08Z' },
-      { field: 'amount', type: 'number', required: true, example: '14250000' },
-      { field: 'currency', type: 'ISO 4217', required: true, example: 'NGN' },
-      { field: 'channel', type: 'enum', required: true, example: 'wire | mobile | pos | ussd' },
-      { field: 'from_account', type: 'string', required: true, example: 'ACC-1729' },
-      { field: 'to_account', type: 'string', required: true, example: 'EXT-WIRE' },
-      { field: 'merchant_id', type: 'string', required: false, example: 'MCH-2918' },
-      { field: 'narration', type: 'string', required: false, example: 'Salary disbursement' },
+      { field: 'transaction_id', type: 'string',   required: true,  example: 'TXN-48721' },
+      { field: 'timestamp',      type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:08Z' },
+      { field: 'amount',         type: 'number',   required: true,  example: '14250000' },
+      { field: 'currency',       type: 'ISO 4217', required: true,  example: 'NGN' },
+      { field: 'channel',        type: 'enum',     required: true,  example: 'wire | mobile | pos | ussd' },
+      { field: 'from_account',   type: 'string',   required: true,  example: 'ACC-1729' },
+      { field: 'to_account',     type: 'string',   required: true,  example: 'EXT-WIRE' },
+      { field: 'merchant_id',    type: 'string',   required: false, example: 'MCH-2918' },
+      { field: 'narration',      type: 'string',   required: false, example: 'Salary disbursement' },
     ],
   },
   {
-    id: 'logins',
-    icon: <LoginRoundedIcon />,
-    title: 'User Logins',
+    id: 'logins', icon: <LoginRoundedIcon />, title: 'User Logins',
     desc: 'Every authentication attempt — success, failure, or 2FA',
-    status: 'connected',
-    recordsToday: 41203,
-    lastSeen: '4 sec ago',
+    status: 'connected', recordsToday: 41203, lastSeen: '4 sec ago',
     why: 'Login patterns reveal account-takeover precursors. We correlate failed attempts, IP anomalies and device fingerprints to score risk before money moves.',
+    powers: 'Account-takeover · MFA bypass detection',
     schema: [
-      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
-      { field: 'timestamp', type: 'ISO 8601', required: true, example: '2026-04-19T14:21:11Z' },
-      { field: 'outcome', type: 'enum', required: true, example: 'success | failed | 2fa_required' },
-      { field: 'ip_address', type: 'string', required: true, example: '102.89.32.18' },
-      { field: 'user_agent', type: 'string', required: true, example: 'iOS 17.4 / Chrome 124' },
-      { field: 'device_id', type: 'string', required: false, example: 'DVC-8b32a1' },
-      { field: 'geo_lat', type: 'number', required: false, example: '6.4541' },
-      { field: 'geo_lng', type: 'number', required: false, example: '3.3947' },
+      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
+      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:21:11Z' },
+      { field: 'outcome',    type: 'enum',     required: true,  example: 'success | failed | 2fa_required' },
+      { field: 'ip_address', type: 'string',   required: true,  example: '102.89.32.18' },
+      { field: 'user_agent', type: 'string',   required: true,  example: 'iOS 17.4 / Chrome 124' },
+      { field: 'device_id',  type: 'string',   required: false, example: 'DVC-8b32a1' },
+      { field: 'geo_lat',    type: 'number',   required: false, example: '6.4541' },
+      { field: 'geo_lng',    type: 'number',   required: false, example: '3.3947' },
     ],
   },
   {
-    id: 'activity',
-    icon: <TouchAppOutlinedIcon />,
-    title: 'In-app Activity',
+    id: 'activity', icon: <TouchAppOutlinedIcon />, title: 'In-app Activity',
     desc: 'User actions inside your mobile / web app — sessions, taps, screen views',
-    status: 'partial',
-    recordsToday: 218450,
-    lastSeen: '12 sec ago',
+    status: 'partial', recordsToday: 218450, lastSeen: '12 sec ago',
     why: 'Behavioral fingerprints — typing cadence, navigation flow, time-on-screen — let us spot when a session no longer "feels" like the legitimate user.',
+    powers: 'Behavioral fingerprints · Session anomalies',
     schema: [
-      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
-      { field: 'session_id', type: 'string', required: true, example: 'SES-3491f' },
-      { field: 'event_name', type: 'string', required: true, example: 'beneficiary_added' },
-      { field: 'timestamp', type: 'ISO 8601', required: true, example: '2026-04-19T14:22:00Z' },
-      { field: 'screen', type: 'string', required: false, example: 'transfer/confirm' },
-      { field: 'metadata', type: 'object', required: false, example: '{ "amount": 14250000 }' },
+      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
+      { field: 'session_id', type: 'string',   required: true,  example: 'SES-3491f' },
+      { field: 'event_name', type: 'string',   required: true,  example: 'beneficiary_added' },
+      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
+      { field: 'screen',     type: 'string',   required: false, example: 'transfer/confirm' },
+      { field: 'metadata',   type: 'object',   required: false, example: '{ "amount": 14250000 }' },
     ],
   },
   {
-    id: 'location',
-    icon: <LocationOnOutlinedIcon />,
-    title: 'User Location',
+    id: 'location', icon: <LocationOnOutlinedIcon />, title: 'User Location',
     desc: 'GPS/IP-derived location signals on every interaction',
-    status: 'connected',
-    recordsToday: 41203,
-    lastSeen: '8 sec ago',
-    why: 'Location is the strongest signal for SIM-swap and account-takeover. We compare every transaction against the customer\'s recent location footprint.',
+    status: 'connected', recordsToday: 41203, lastSeen: '8 sec ago',
+    why: "Location is the strongest signal for SIM-swap and account-takeover. We compare every transaction against the customer's recent location footprint.",
+    powers: 'OTP holds · Geo-impossibility · SIM-swap',
     schema: [
-      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
-      { field: 'timestamp', type: 'ISO 8601', required: true, example: '2026-04-19T14:22:00Z' },
-      { field: 'lat', type: 'number', required: true, example: '6.4541' },
-      { field: 'lng', type: 'number', required: true, example: '3.3947' },
-      { field: 'accuracy_m', type: 'number', required: false, example: '12' },
-      { field: 'source', type: 'enum', required: true, example: 'gps | wifi | ip | cell' },
+      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
+      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
+      { field: 'lat',        type: 'number',   required: true,  example: '6.4541' },
+      { field: 'lng',        type: 'number',   required: true,  example: '3.3947' },
+      { field: 'accuracy_m', type: 'number',   required: false, example: '12' },
+      { field: 'source',     type: 'enum',     required: true,  example: 'gps | wifi | ip | cell' },
     ],
   },
   {
-    id: 'devices',
-    icon: <SmartphoneOutlinedIcon />,
-    title: 'Device Fingerprints',
+    id: 'devices', icon: <SmartphoneOutlinedIcon />, title: 'Device Fingerprints',
     desc: 'Hardware, OS, and behavioral fingerprints per session',
-    status: 'partial',
-    recordsToday: 12840,
-    lastSeen: '1 min ago',
+    status: 'partial', recordsToday: 12840, lastSeen: '1 min ago',
     why: 'New device detection is a top SIM-swap signal. We track which devices each user has historically used and trigger when an unfamiliar one initiates a high-value action.',
+    powers: 'Device-of-record · New-device alerts',
     schema: [
-      { field: 'device_id', type: 'string', required: true, example: 'DVC-8b32a1' },
-      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
-      { field: 'os', type: 'string', required: true, example: 'iOS 17.4' },
-      { field: 'model', type: 'string', required: false, example: 'iPhone 14 Pro' },
-      { field: 'first_seen', type: 'ISO 8601', required: false, example: '2026-01-12T08:30:00Z' },
-      { field: 'rooted_or_jailbroken', type: 'boolean', required: false, example: 'false' },
+      { field: 'device_id',            type: 'string',   required: true,  example: 'DVC-8b32a1' },
+      { field: 'user_id',              type: 'string',   required: true,  example: 'USR-8472' },
+      { field: 'os',                   type: 'string',   required: true,  example: 'iOS 17.4' },
+      { field: 'model',                type: 'string',   required: false, example: 'iPhone 14 Pro' },
+      { field: 'first_seen',           type: 'ISO 8601', required: false, example: '2026-01-12T08:30:00Z' },
+      { field: 'rooted_or_jailbroken', type: 'boolean',  required: false, example: 'false' },
     ],
   },
   {
-    id: 'otps',
-    icon: <KeyOutlinedIcon />,
-    title: 'OTP Events',
+    id: 'otps', icon: <KeyOutlinedIcon />, title: 'OTP Events',
     desc: 'Every OTP request, send, retry, and successful verification',
-    status: 'disconnected',
-    recordsToday: 0,
-    lastSeen: 'Never',
+    status: 'disconnected', recordsToday: 0, lastSeen: 'Never',
     why: 'OTP retry patterns are how we catch SIM-swappers in real time. Without this stream, we cannot hold suspicious transactions for verification.',
+    powers: 'Real-time OTP defense · Hold-and-call',
     schema: [
-      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
-      { field: 'phone_msisdn', type: 'string', required: true, example: '+2348031234567' },
-      { field: 'event_type', type: 'enum', required: true, example: 'requested | sent | verified | retry | failed' },
-      { field: 'timestamp', type: 'ISO 8601', required: true, example: '2026-04-19T14:22:00Z' },
-      { field: 'transaction_id', type: 'string', required: false, example: 'TXN-48721' },
-      { field: 'attempt_count', type: 'number', required: false, example: '4' },
+      { field: 'user_id',        type: 'string',   required: true,  example: 'USR-8472' },
+      { field: 'phone_msisdn',   type: 'string',   required: true,  example: '+2348031234567' },
+      { field: 'event_type',     type: 'enum',     required: true,  example: 'requested | sent | verified | retry | failed' },
+      { field: 'timestamp',      type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
+      { field: 'transaction_id', type: 'string',   required: false, example: 'TXN-48721' },
+      { field: 'attempt_count',  type: 'number',   required: false, example: '4' },
     ],
   },
 ]
 
 const statusConfig: Record<Stream['status'], { color: string; bg: string; label: string }> = {
-  connected: { color: '#10b981', bg: '#f0fdf4', label: 'Connected' },
-  partial: { color: '#f59e0b', bg: '#fffbeb', label: 'Partial' },
+  connected:    { color: '#10b981', bg: '#f0fdf4', label: 'Connected' },
+  partial:      { color: '#f59e0b', bg: '#fffbeb', label: 'Partial' },
   disconnected: { color: '#dc2626', bg: '#fef2f2', label: 'Not connected' },
 }
 
-export default function DataBeamingPage() {
-  const [activeStream, setActiveStream] = useState<StreamId>('transactions')
-  const stream = streams.find((s) => s.id === activeStream)!
+// ── Code samples ──────────────────────────────────────────────────────────────
 
-  const connected = streams.filter((s) => s.status === 'connected').length
+type Lang = 'cURL' | 'Node.js' | 'Python' | 'Go'
+
+function buildCurl(s: Stream) {
+  const fields = s.schema.filter(f => f.required)
+    .map(f => `    "${f.field}": ${f.type === 'number' || f.type === 'boolean' ? f.example : `"${f.example}"`}`)
+    .join(',\n')
+  return `curl -X POST https://api.openiv.io/v1/beam/${s.id} \\
+  -H "Authorization: Bearer $OPENIV_BEAM_KEY" \\
+  -H "X-Idempotency-Key: $(uuidgen)" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+${fields}
+  }'`
+}
+
+function buildNode(s: Stream) {
+  const fields = s.schema.filter(f => f.required)
+    .map(f => `    ${f.field}: ${f.type === 'number' || f.type === 'boolean' ? f.example : `'${f.example}'`},`)
+    .join('\n')
+  const fn = s.title.replace(/\s+/g, '')
+  return `const axios = require('axios')
+const { v4: uuid } = require('uuid')
+
+const client = axios.create({
+  baseURL: 'https://api.openiv.io/v1/beam',
+  headers: { 'Authorization': \`Bearer \${process.env.OPENIV_BEAM_KEY}\` },
+})
+
+async function beam${fn}(data) {
+  const response = await client.post('/${s.id}', {
+${fields}
+  }, { headers: { 'X-Idempotency-Key': uuid() } })
+  return response.data  // { ok: true, recordId: ... }
+}`
+}
+
+function buildPython(s: Stream) {
+  const fields = s.schema.filter(f => f.required)
+    .map(f => `        '${f.field}': ${f.type === 'number' ? f.example : f.type === 'boolean' ? f.example.charAt(0).toUpperCase() + f.example.slice(1) : `'${f.example}'`},`)
+    .join('\n')
+  return `import httpx, uuid, os
+
+client = httpx.Client(
+    base_url='https://api.openiv.io/v1/beam',
+    headers={'Authorization': f'Bearer {os.environ["OPENIV_BEAM_KEY"]}'},
+)
+
+def beam_${s.id}(data: dict) -> dict:
+    response = client.post('/${s.id}',
+        json={
+${fields}
+        },
+        headers={'X-Idempotency-Key': str(uuid.uuid4())},
+    )
+    response.raise_for_status()
+    return response.json()  # {'ok': True, 'recordId': ...}`
+}
+
+function buildGo(s: Stream) {
+  const fn = s.title.split(/\s+/).map(w => w[0].toUpperCase() + w.slice(1)).join('')
+  const fields = s.schema.filter(f => f.required)
+    .map(f => `        "${f.field}": ${f.type === 'number' ? f.example : `"${f.example}"`},`)
+    .join('\n')
+  return `package beam
+
+import (
+    "bytes"; "encoding/json"; "fmt"
+    "net/http"; "os"
+    "github.com/google/uuid"
+)
+
+func Beam${fn}(data map[string]any) error {
+    payload, _ := json.Marshal(map[string]any{
+${fields}
+    })
+    req, _ := http.NewRequest("POST",
+        "https://api.openiv.io/v1/beam/${s.id}",
+        bytes.NewReader(payload))
+    req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENIV_BEAM_KEY"))
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("X-Idempotency-Key", uuid.New().String())
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil { return fmt.Errorf("beam: %w", err) }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("rejected: HTTP %d", resp.StatusCode)
+    }
+    return nil
+}`
+}
+
+// ── Beam log helpers ──────────────────────────────────────────────────────────
+
+const STREAM_LABELS: Record<string, string> = {
+  transactions: 'Transactions', logins: 'User Logins', activity: 'In-app Activity',
+  location: 'User Location',   devices: 'Device FP',  otps: 'OTP Events',
+}
+const STREAM_COLORS: Record<string, { bg: string; color: string }> = {
+  transactions: { bg: '#eff6ff', color: '#2563eb' },
+  logins:       { bg: '#f0fdf4', color: '#16a34a' },
+  activity:     { bg: '#fdf4ff', color: '#9333ea' },
+  location:     { bg: '#fff7ed', color: '#ea580c' },
+  devices:      { bg: '#f8fafc', color: '#475569' },
+  otps:         { bg: '#fef2f2', color: '#dc2626' },
+}
+
+function fmtRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60_000)
+  if (m < 1)  return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`
+}
+
+function prettyJson(raw: string): string {
+  try { return JSON.stringify(JSON.parse(raw), null, 2) } catch { return raw }
+}
+
+function CopyText({ text }: { text: string }) {
+  const [done, setDone] = useState(false)
+  const go = () => { navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1600) }
+  return (
+    <Button size="small" onClick={go}
+      startIcon={done
+        ? <CheckRoundedIcon sx={{ fontSize: '0.75rem !important', color: '#10b981' }} />
+        : <ContentCopyOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />}
+      sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: done ? '#10b981' : '#64748b', textTransform: 'none', px: 1, py: 0.375, borderRadius: 0, '&:hover': { bgcolor: '#f8fafc' }, '& .MuiButton-startIcon': { mr: 0.375 } }}>
+      {done ? 'Copied' : 'Copy'}
+    </Button>
+  )
+}
+
+function RecordRow({ record }: { record: BeamRecord }) {
+  const [expanded, setExpanded] = useState(false)
+  const pretty = useMemo(() => prettyJson(record.payload), [record.payload])
+  const cfg = STREAM_COLORS[record.stream] ?? { bg: '#f8fafc', color: '#475569' }
+
+  let preview = ''
+  try {
+    const obj = JSON.parse(record.payload)
+    const keys = Object.keys(obj).slice(0, 3)
+    preview = keys.map(k => `"${k}": ${JSON.stringify(obj[k])}`).join(', ')
+    if (Object.keys(obj).length > 3) preview += ', …'
+  } catch { preview = record.payload.slice(0, 80) }
+
+  return (
+    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+      <Box
+        onClick={() => setExpanded(p => !p)}
+        sx={{ px: 3, py: 1.5, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' }, transition: 'background 0.15s' }}
+      >
+        <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: cfg.bg }}>
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', color: cfg.color }}>
+            {(STREAM_LABELS[record.stream] ?? record.stream).toUpperCase()}
+          </Typography>
+        </Box>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {'{ ' + preview + ' }'}
+        </Typography>
+        <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: '#f0fdf4' }}>
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', color: '#10b981' }}>RECEIVED</Typography>
+        </Box>
+        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>{fmtRelative(record.receivedAt)}</Typography>
+        <Box sx={{ color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
+          {expanded ? <ExpandLessRoundedIcon sx={{ fontSize: '1rem' }} /> : <ExpandMoreRoundedIcon sx={{ fontSize: '1rem' }} />}
+        </Box>
+      </Box>
+
+      <Collapse in={expanded}>
+        <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #eef0f4', p: 2.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+            {[
+              ['Record ID', String(record.id)],
+              ['Stream', record.stream],
+              ['Status', record.status],
+              ['Idempotency key', record.idempotencyKey ?? '—'],
+              ['Received at', new Date(record.receivedAt).toLocaleString()],
+            ].map(([label, value]) => (
+              <Box key={label}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>{label}</Typography>
+                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a' }}>{value}</Typography>
+              </Box>
+            ))}
+          </Box>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>PAYLOAD</Typography>
+          <Box sx={{ position: 'relative' }}>
+            <Box sx={{ bgcolor: '#0d1117', color: '#e2e8f0', p: 2, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto', maxHeight: 280, overflowY: 'auto' }}>
+              {pretty}
+            </Box>
+            <Box sx={{ position: 'absolute', top: 6, right: 6 }}><CopyText text={pretty} /></Box>
+          </Box>
+        </Box>
+      </Collapse>
+    </Box>
+  )
+}
+
+// ── API key modal ─────────────────────────────────────────────────────────────
+
+interface ApiKeyModalProps { open: boolean; onClose: () => void }
+
+function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
+  const [keyInfo,   setKeyInfo]   = useState<BeamApiKey | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [newKey,    setNewKey]    = useState<string | null>(null)
+  const [keyCopied, setKeyCopied] = useState(false)
+
+  const [genTotpOpen,    setGenTotpOpen]    = useState(false)
+  const [revokeTotpOpen, setRevokeTotpOpen] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setKeyInfo((await beamApi.getApiKeyInfo()).key) }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { if (open) { load(); setNewKey(null) } }, [open, load])
+
+  const handleGenerate = async () => {
+    try {
+      const res = await beamApi.generateApiKey()
+      setNewKey(res.apiKey)
+      setKeyInfo({ prefix: res.apiKey.slice(0, 12), createdAt: new Date().toISOString(), lastUsedAt: null })
+    } finally { setGenTotpOpen(false) }
+  }
+
+  const handleRevoke = async () => {
+    try { await beamApi.revokeApiKey(); setKeyInfo(null); setNewKey(null) }
+    finally { setRevokeTotpOpen(false) }
+  }
+
+  const copyKey = () => {
+    if (!newKey) return
+    navigator.clipboard.writeText(newKey)
+    setKeyCopied(true)
+    setTimeout(() => setKeyCopied(false), 2000)
+  }
+
+  const anyTotpOpen = genTotpOpen || revokeTotpOpen
+
+  return (
+    <>
+      {/* disableEnforceFocus lets the TOTP overlay steal focus from this Dialog */}
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth disableEnforceFocus={anyTotpOpen}
+        PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <VpnKeyOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
+            <Box>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Beam API Key</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.125 }}>Authenticate your server when beaming data to OpenIV</Typography>
+            </Box>
+          </Box>
+          <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+            <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
+          </IconButton>
+        </Box>
+
+        <Box sx={{ px: 3, py: 3 }}>
+          {loading ? (
+            <Stack gap={2}><Skeleton height={60} /><Skeleton height={40} /></Stack>
+          ) : (
+            <Stack gap={2.5}>
+              <Box sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>Current key</Typography>
+                  <Box sx={{ px: 1, py: 0.375, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.1em', bgcolor: keyInfo ? '#f0fdf4' : '#f8fafc', color: keyInfo ? '#10b981' : '#94a3b8' }}>
+                    {keyInfo ? 'ACTIVE' : 'NOT SET'}
+                  </Box>
+                </Box>
+                {keyInfo ? (
+                  <>
+                    <Typography sx={{ fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a', mb: 0.5 }}>
+                      {keyInfo.prefix}••••••••••••••••••
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                      Created {new Date(keyInfo.createdAt).toLocaleDateString()}{keyInfo.lastUsedAt ? ` · Last used ${new Date(keyInfo.lastUsedAt).toLocaleDateString()}` : ' · Never used'}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No API key set. Generate one to start beaming data.</Typography>
+                )}
+              </Box>
+
+              {newKey && (
+                <Box sx={{ p: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#10b981', mb: 1, letterSpacing: '0.08em' }}>
+                    YOUR KEY — COPY NOW, SHOWN ONLY ONCE
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#0f172a', wordBreak: 'break-all' }}>{newKey}</Typography>
+                    <Button
+                      onClick={copyKey}
+                      startIcon={keyCopied
+                        ? <CheckRoundedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />
+                        : <ContentCopyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                      sx={{ flexShrink: 0, bgcolor: keyCopied ? '#10b981' : colorPalette.primary, color: '#ffffff', px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff', mr: 0.5 }, '&:hover': { bgcolor: keyCopied ? '#10b981' : '#1a3896' } }}>
+                      <Box component="span" sx={{ color: '#ffffff' }}>{keyCopied ? 'Copied' : 'Copy'}</Box>
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Pass this key in the <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: colorPalette.primary }}>Authorization: Bearer</Box> header of every beam request. Store it in your secrets manager — OpenIV never shows it again.
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  onClick={() => setGenTotpOpen(true)}
+                  startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                  sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1a3896' } }}>
+                  <Box component="span" sx={{ color: '#ffffff' }}>{keyInfo ? 'Regenerate key' : 'Generate key'}</Box>
+                </Button>
+                {keyInfo && (
+                  <Button
+                    onClick={() => setRevokeTotpOpen(true)}
+                    startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                    sx={{ border: '1px solid #fecaca', color: '#dc2626', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#fef2f2' } }}>
+                    Revoke
+                  </Button>
+                )}
+              </Box>
+            </Stack>
+          )}
+        </Box>
+      </Dialog>
+
+      <TOTPConfirmation
+        open={genTotpOpen}
+        onClose={() => setGenTotpOpen(false)}
+        onConfirm={handleGenerate}
+        operation={keyInfo ? 'update' : 'create'}
+        title={keyInfo ? 'Regenerate beam API key' : 'Generate beam API key'}
+        description={keyInfo ? 'Regenerating immediately invalidates the existing key. Update your servers before deploying.' : 'Generating an API key allows your server to authenticate when beaming data to OpenIV.'}
+        resourceType="Beam API key"
+        resourceName="Institution beam API key"
+        changes={keyInfo ? [{ field: 'API Key', from: 'Current key', to: 'New generated key' }] : undefined}
+      />
+      <TOTPConfirmation
+        open={revokeTotpOpen}
+        onClose={() => setRevokeTotpOpen(false)}
+        onConfirm={handleRevoke}
+        operation="delete"
+        title="Revoke beam API key"
+        description="Revoking the key immediately stops all beam ingestion. Beams will be rejected with 401 until a new key is generated."
+        resourceType="Beam API key"
+        resourceName="Institution beam API key"
+      />
+    </>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+type PageView = 'streams' | 'log'
+
+export default function DataBeamingPage() {
+  const [view,         setView]         = useState<PageView>('streams')
+  const [activeStream, setActiveStream] = useState<StreamId>('transactions')
+  const [activeLang,   setActiveLang]   = useState<Lang>('cURL')
+  const [apiKeyOpen,   setApiKeyOpen]   = useState(false)
+
+  // Beam log state
+  const [records,      setRecords]      = useState<BeamRecord[]>([])
+  const [logLoading,   setLogLoading]   = useState(false)
+  const [filterStream, setFilterStream] = useState<string>('all')
+
+  const stream = streams.find(s => s.id === activeStream)!
+  const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
+  const codeByLang: Record<Lang, string> = {
+    'cURL':    buildCurl(stream),
+    'Node.js': buildNode(stream),
+    'Python':  buildPython(stream),
+    'Go':      buildGo(stream),
+  }
+
+  const connected    = streams.filter(s => s.status === 'connected').length
   const totalRecords = streams.reduce((sum, s) => sum + s.recordsToday, 0)
+
+  const loadLog = useCallback(async () => {
+    setLogLoading(true)
+    try { setRecords((await beamApi.listRecords()).records) }
+    finally { setLogLoading(false) }
+  }, [])
+
+  useEffect(() => { if (view === 'log') loadLog() }, [view, loadLog])
+
+  const filteredRecords = useMemo(() =>
+    filterStream === 'all' ? records : records.filter(r => r.stream === filterStream),
+  [records, filterStream])
+
+  const logStats = useMemo(() => {
+    const total = records.length
+    const byStream: Record<string, number> = {}
+    records.forEach(r => { byStream[r.stream] = (byStream[r.stream] ?? 0) + 1 })
+    const top = Object.entries(byStream).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
+    return { total, top, last: records[0]?.receivedAt ?? null }
+  }, [records])
+
+  const selectSx = {
+    height: 36, fontSize: '0.8125rem', fontFamily: 'Jost', borderRadius: 0, bgcolor: '#ffffff',
+    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #eef0f4' },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary, borderWidth: '1px' },
+  }
 
   return (
     <DashboardLayout>
       <Box sx={{ p: 4 }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, gap: 2, flexWrap: 'wrap' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
-              Configure
-            </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
-              Beam to OpenIV
-            </Typography>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>Configure</Typography>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>Beam to OpenIV</Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', maxWidth: 720 }}>
-              Stream the six signals that power real-time fraud defense. Each one feeds a different layer of behavioral intelligence — Eureka tells you exactly what to send and why.
+              Stream the six signals that power real-time fraud defense.
             </Typography>
           </Box>
+          <Stack direction="row" gap={1.25} sx={{ mt: 0.75, flexShrink: 0 }}>
+            <Button
+              startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
+              onClick={() => setApiKeyOpen(true)}
+              sx={{ border: '1px solid #eef0f4', bgcolor: '#ffffff', color: '#475569', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' } }}>
+              API Key
+            </Button>
+          </Stack>
         </Box>
 
-        {/* Health KPIs */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
-          {[
-            { label: 'Streams connected', value: `${connected}/${streams.length}`, sub: connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
-            { label: 'Records today', value: totalRecords.toLocaleString(), sub: 'across all streams' },
-            { label: 'Median latency', value: '142ms', sub: 'from your core to OpenIV' },
-            { label: 'Schema validity', value: '99.84%', sub: '17 rejected today' },
-          ].map((s) => (
-            <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>
-                {s.label}
-              </Typography>
-              <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>
-                {s.value}
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
+        {/* View tabs */}
+        <Box sx={{ display: 'flex', borderBottom: '2px solid #eef0f4', mb: 3 }}>
+          {(['streams', 'log'] as PageView[]).map(v => (
+            <Box
+              key={v}
+              onClick={() => setView(v)}
+              sx={{ px: 2.5, py: 1.25, cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Jost', fontWeight: view === v ? 700 : 500, color: view === v ? colorPalette.primary : '#64748b', borderBottom: view === v ? `2px solid ${colorPalette.primary}` : '2px solid transparent', mb: '-2px', transition: 'all 0.15s', '&:hover': { color: colorPalette.primary } }}>
+              {v === 'streams' ? 'Streams' : 'Beam Log'}
             </Box>
           ))}
         </Box>
 
-        {/* Stream Picker */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
-          {streams.map((s) => {
-            const isActive = s.id === activeStream
-            const cfg = statusConfig[s.status]
-            return (
-              <Box
-                key={s.id}
-                onClick={() => setActiveStream(s.id)}
-                sx={{
-                  bgcolor: '#ffffff',
-                  border: '1px solid',
-                  borderColor: isActive ? colorPalette.primary : '#eef0f4',
-                  p: 2,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 0.18s',
-                  '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' },
-                  '&::before': isActive ? {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '2px',
-                    bgcolor: colorPalette.primary,
-                  } : {},
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: isActive ? colorPalette.primary : `${colorPalette.primary}10`,
-                      color: isActive ? '#ffffff' : colorPalette.primary,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.18s',
-                    }}
-                  >
-                    {s.icon}
-                  </Box>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cfg.color }} />
+        {view === 'streams' ? (
+          <>
+            {/* Health KPIs */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+              {[
+                { label: 'Streams connected', value: `${connected}/${streams.length}`, sub: connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
+                { label: 'Records today',     value: totalRecords.toLocaleString(),    sub: 'across all streams' },
+                { label: 'Median latency',    value: '142ms',                          sub: 'from your core to OpenIV' },
+                { label: 'Schema validity',   value: '99.84%',                         sub: '17 rejected today' },
+              ].map(s => (
+                <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>{s.label}</Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
                 </Box>
-                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
-                  {s.title}
-                </Typography>
-                <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                  {s.recordsToday > 0 ? `${(s.recordsToday / 1000).toFixed(1)}k today` : 'No data'}
-                </Typography>
-              </Box>
-            )
-          })}
-        </Box>
+              ))}
+            </Box>
 
-        {/* Detail panel */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-          {/* Schema + Why */}
-          <Stack gap={3}>
-            {/* Eureka explainer */}
-            <Box
-              sx={{
-                bgcolor: colorPalette.primary,
-                color: '#ffffff',
-                p: 2.5,
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
-                <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                  Why beam {stream.title.toLowerCase()}?
-                </Typography>
-              </Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.55, mb: 1.5, fontFamily: 'Jost' }}>
-                {stream.why}
-              </Typography>
-              <Stack direction="row" gap={2}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    Powers
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>
-                    {stream.id === 'transactions' && 'Risk scoring · STR/SAR · Velocity rules'}
-                    {stream.id === 'logins' && 'Account-takeover · MFA bypass detection'}
-                    {stream.id === 'activity' && 'Behavioral fingerprints · Session anomalies'}
-                    {stream.id === 'location' && 'OTP holds · Geo-impossibility · SIM-swap'}
-                    {stream.id === 'devices' && 'Device-of-record · New-device alerts'}
-                    {stream.id === 'otps' && 'Real-time OTP defense · Hold-and-call'}
-                  </Typography>
+            {/* Stream picker */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
+              {streams.map(s => {
+                const isActive = s.id === activeStream
+                const cfg = statusConfig[s.status]
+                return (
+                  <Box key={s.id} onClick={() => setActiveStream(s.id)} sx={{ bgcolor: '#ffffff', border: '1px solid', borderColor: isActive ? colorPalette.primary : '#eef0f4', p: 2, cursor: 'pointer', position: 'relative', transition: 'all 0.18s', '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' }, '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {} }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Box sx={{ width: 32, height: 32, bgcolor: isActive ? colorPalette.primary : `${colorPalette.primary}10`, color: isActive ? '#ffffff' : colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>{s.icon}</Box>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cfg.color }} />
+                    </Box>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                      {s.recordsToday > 0 ? `${(s.recordsToday / 1000).toFixed(1)}k today` : 'No data'}
+                    </Typography>
+                  </Box>
+                )
+              })}
+            </Box>
+
+            {/* Detail panel */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+              <Stack gap={3}>
+                {/* Why box */}
+                <Box sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
+                    <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why beam {stream.title.toLowerCase()}?</Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.55, mb: 1.5, fontFamily: 'Jost' }}>{stream.why}</Typography>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Powers</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>{stream.powers}</Typography>
+                  </Box>
+                </Box>
+
+                {/* Schema */}
+                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Schema · {stream.title}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{stream.schema.filter(f => f.required).length} required · {stream.schema.length} total fields</Typography>
+                    </Box>
+                    <Chip label={statusConfig[stream.status].label.toUpperCase()} size="small" sx={{ bgcolor: statusConfig[stream.status].bg, color: statusConfig[stream.status].color, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22 }} />
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                    {['Field & example', 'Type', 'Required'].map(h => (
+                      <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
+                    ))}
+                  </Box>
+                  {stream.schema.map((f, i) => (
+                    <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' } }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{f.field}</Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>e.g. {f.example}</Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600 }}>{f.type}</Typography>
+                      {f.required ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} /> : <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>}
+                    </Box>
+                  ))}
+                </Box>
+              </Stack>
+
+              <Stack gap={3}>
+                {/* Code sample */}
+                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>How to beam</Typography>
+                    <Box sx={{ display: 'flex' }}>
+                      {langs.map(lang => (
+                        <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
+                          {lang}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                  <SyntaxCode code={codeByLang[activeLang]} />
+                </Box>
+
+                {/* Recent payloads */}
+                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Recent payloads</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: stream.status === 'disconnected' ? '#94a3b8' : '#10b981', animation: stream.status === 'disconnected' ? 'none' : 'pulse 2s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: stream.status === 'disconnected' ? '#94a3b8' : '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {stream.status === 'disconnected' ? 'idle' : 'live'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Stack>
+                    {stream.status === 'disconnected' ? (
+                      <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>Stream not connected</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
+                        <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' } }}>
+                          Get API Key
+                        </Button>
+                      </Box>
+                    ) : (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: i === 4 ? 'none' : '1px solid #f4f5f7', display: 'grid', gridTemplateColumns: '90px 1fr 80px', gap: 2, alignItems: 'center', fontFamily: 'SF Mono, Monaco, monospace', '&:hover': { bgcolor: '#fafbfc' } }}>
+                          <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{`14:22:${(8 - i).toString().padStart(2, '0')}`}</Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {stream.id === 'transactions' && `{ "transaction_id": "TXN-${48721 - i}", "amount": ${(14250000 - i * 1200000).toLocaleString()} ... }`}
+                            {stream.id === 'logins' && `{ "user_id": "USR-${8472 - i}", "outcome": "success", "ip": "102.89.${32 + i}.18" }`}
+                            {stream.id === 'activity' && `{ "event_name": "${['transfer_initiated', 'beneficiary_added', 'screen_viewed', 'login_attempt', 'biometric_pass'][i]}" }`}
+                            {stream.id === 'location' && `{ "user_id": "USR-${8472 - i}", "lat": ${(6.45 + i * 0.001).toFixed(4)}, "lng": 3.3947 }`}
+                            {stream.id === 'devices' && `{ "device_id": "DVC-8b32a1", "os": "iOS 17.4", "model": "iPhone 14 Pro" }`}
+                          </Typography>
+                          <Chip label="200 OK" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', borderRadius: 0, height: 18, width: 'fit-content', '& .MuiChip-label': { px: 0.625 } }} />
+                        </Box>
+                      ))
+                    )}
+                  </Stack>
                 </Box>
               </Stack>
             </Box>
 
-            {/* Schema spec */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                    Schema · {stream.title}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                    {stream.schema.filter((f) => f.required).length} required · {stream.schema.length} total fields
-                  </Typography>
-                </Box>
-                <Chip
-                  label={statusConfig[stream.status].label.toUpperCase()}
-                  size="small"
-                  sx={{
-                    bgcolor: statusConfig[stream.status].bg,
-                    color: statusConfig[stream.status].color,
-                    fontWeight: 700,
-                    fontSize: '0.625rem',
-                    letterSpacing: '0.1em',
-                    borderRadius: 0,
-                    height: 22,
-                  }}
-                />
+            {/* Auth reference */}
+            <Box sx={{ mt: 3, bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Authentication & headers</Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Required on every beam request</Typography>
               </Box>
-
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-                {['Field & example', 'Type', 'Required'].map((h) => (
-                  <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    {h}
-                  </Typography>
-                ))}
-              </Box>
-              {stream.schema.map((f, i) => (
-                <Box
-                  key={f.field}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 90px 60px',
-                    px: 3,
-                    py: 1.5,
-                    alignItems: 'center',
-                    borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7',
-                    '&:hover': { bgcolor: '#fafbfc' },
-                  }}
-                >
-                  <Box>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                      {f.field}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>
-                      e.g. {f.example}
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                    {f.type}
-                  </Typography>
-                  {f.required ? (
-                    <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} />
-                  ) : (
-                    <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>
-                  )}
-                </Box>
-              ))}
-            </Box>
-          </Stack>
-
-          {/* Code + recent payloads */}
-          <Stack gap={3}>
-            {/* Code sample */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                  How to beam
-                </Typography>
-                <Stack direction="row" gap={0.5}>
-                  {['cURL', 'Node', 'Python'].map((lang, i) => (
-                    <Box
-                      key={lang}
-                      sx={{
-                        px: 1.25,
-                        py: 0.5,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        color: i === 0 ? colorPalette.primary : '#64748b',
-                        bgcolor: i === 0 ? `${colorPalette.primary}0a` : 'transparent',
-                        cursor: 'pointer',
-                        fontFamily: 'Jost',
-                        transition: 'all 0.15s',
-                        '&:hover': { color: colorPalette.primary },
-                      }}
-                    >
-                      {lang}
+              <Box sx={{ px: 3, py: 2.5 }}>
+                <Stack gap={0}>
+                  {[
+                    { header: 'Authorization',     value: 'Bearer $OPENIV_BEAM_KEY', desc: 'Your institution beam API key.' },
+                    { header: 'Content-Type',      value: 'application/json',        desc: 'All payloads must be JSON.' },
+                    { header: 'X-Idempotency-Key', value: '<uuid-v4>',               desc: 'Unique per request — re-use to safely retry without duplicating records.' },
+                  ].map(({ header, value, desc }) => (
+                    <Box key={header} sx={{ display: 'grid', gridTemplateColumns: '220px 240px 1fr', gap: 2, alignItems: 'flex-start', py: 1.25, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, fontWeight: 600 }}>{header}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#ffcb6b', bgcolor: '#0d1117', px: 1, py: 0.25 }}>{value}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
                     </Box>
                   ))}
                 </Stack>
               </Box>
-              <Box sx={{ p: 0 }}>
-                <Box sx={{ bgcolor: '#0f172a', color: '#e2e8f0', p: 2.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto' }}>
-{`curl -X POST https://api.openiv.io/v1/beam/${stream.id} \\
-  -H "Authorization: Bearer $OPENIV_API_KEY" \\
-  -H "X-Idempotency-Key: $(uuidgen)" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-${stream.schema
-  .filter((f) => f.required)
-  .map((f) => `    "${f.field}": ${f.type === 'number' || f.type === 'boolean' ? f.example : `"${f.example}"`}`)
-  .join(',\n')}
-  }'`}
-                </Box>
-              </Box>
+            </Box>
+          </>
+        ) : (
+          // ── Beam Log view ──────────────────────────────────────────────────
+          <>
+            {/* Stats */}
+            <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
+              {logLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+                    <Skeleton height={16} width="60%" /><Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
+                  </Box>
+                ))
+              ) : (
+                <>
+                  {[
+                    { label: 'RECORDS LOADED',  value: String(logStats.total) },
+                    { label: 'TOP STREAM',      value: STREAM_LABELS[logStats.top] ?? logStats.top },
+                    { label: 'LAST RECEIVED',   value: logStats.last ? fmtRelative(logStats.last) : '—' },
+                  ].map(s => (
+                    <Box key={s.label} sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>{s.label}</Typography>
+                      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>{s.value}</Typography>
+                    </Box>
+                  ))}
+                </>
+              )}
+            </Stack>
+
+            {/* Filter */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <Select value={filterStream} onChange={e => setFilterStream(e.target.value)} sx={selectSx} displayEmpty>
+                  <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All streams</MenuItem>
+                  {Object.entries(STREAM_LABELS).map(([id, label]) => (
+                    <MenuItem key={id} value={id} sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>{label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Box sx={{ flex: 1 }} />
+              <Button startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />} onClick={loadLog} disabled={logLoading} sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff', px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' } }}>
+                Refresh
+              </Button>
             </Box>
 
-            {/* Recent payloads */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                    Recent payloads
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                    Last 6 events received on this stream
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-                  <Box
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      bgcolor: stream.status === 'disconnected' ? '#94a3b8' : '#10b981',
-                      animation: stream.status === 'disconnected' ? 'none' : 'pulse 2s infinite',
-                      '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
-                    }}
-                  />
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: stream.status === 'disconnected' ? '#94a3b8' : '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    {stream.status === 'disconnected' ? 'idle' : 'live'}
-                  </Typography>
-                </Box>
+            {/* Table */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
+              <Box sx={{ px: 3, py: 1.25, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
+                {['STREAM', 'PAYLOAD PREVIEW', 'STATUS', 'TIME', ''].map((h, i) => (
+                  <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>{h}</Typography>
+                ))}
               </Box>
-              <Stack>
-                {stream.status === 'disconnected' ? (
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
-                      Stream not connected
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>
-                      Eureka will help you wire this up. Connecting OTP events unlocks real-time SIM-swap defense.
-                    </Typography>
-                    <Button
-                      sx={{
-                        bgcolor: colorPalette.primary,
-                        color: '#ffffff',
-                        px: 2.25,
-                        py: 1.125,
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        fontFamily: 'Jost',
-                        borderRadius: 0,
-                        textTransform: 'none',
-                        boxShadow: 'none',
-                        '&:hover': { bgcolor: '#1a3896' },
-                      }}
-                    >
-                      Connect This Stream
-                    </Button>
-                  </Box>
-                ) : (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        px: 3,
-                        py: 1.5,
-                        borderBottom: i === 4 ? 'none' : '1px solid #f4f5f7',
-                        display: 'grid',
-                        gridTemplateColumns: '90px 1fr 80px',
-                        gap: 2,
-                        alignItems: 'center',
-                        fontFamily: 'SF Mono, Monaco, monospace',
-                        '&:hover': { bgcolor: '#fafbfc' },
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
-                        {`14:22:${(8 - i).toString().padStart(2, '0')}`}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {stream.id === 'transactions' && `{ "transaction_id": "TXN-${48721 - i}", "amount": ${(14250000 - i * 1200000).toLocaleString()} ... }`}
-                        {stream.id === 'logins' && `{ "user_id": "USR-${8472 - i}", "outcome": "success", "ip": "102.89.${32 + i}.${18 + i}" }`}
-                        {stream.id === 'activity' && `{ "event_name": "${['transfer_initiated', 'beneficiary_added', 'screen_viewed', 'login_attempt', 'biometric_pass'][i]}", "session_id": "SES-${3491 + i}" }`}
-                        {stream.id === 'location' && `{ "user_id": "USR-${8472 - i}", "lat": ${(6.45 + i * 0.001).toFixed(4)}, "lng": ${(3.39 + i * 0.001).toFixed(4)} }`}
-                        {stream.id === 'devices' && `{ "device_id": "DVC-8b32a1", "os": "iOS 17.4", "model": "iPhone 14 Pro" }`}
-                      </Typography>
-                      <Chip
-                        label="200 OK"
-                        size="small"
-                        sx={{
-                          bgcolor: '#f0fdf4',
-                          color: '#10b981',
-                          fontWeight: 700,
-                          fontSize: '0.625rem',
-                          borderRadius: 0,
-                          height: 18,
-                          width: 'fit-content',
-                          '& .MuiChip-label': { px: 0.625 },
-                        }}
-                      />
+              {logLoading ? (
+                <Stack>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                      <Skeleton variant="rectangular" width={90} height={18} />
+                      <Skeleton variant="rectangular" width="60%" height={18} />
+                      <Skeleton variant="rectangular" width={60} height={18} />
                     </Box>
-                  ))
-                )}
-              </Stack>
+                  ))}
+                </Stack>
+              ) : filteredRecords.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                    {records.length === 0 ? 'No inbound beams yet — instrument your core and start sending data' : 'No records match the selected stream filter'}
+                  </Typography>
+                </Box>
+              ) : (
+                filteredRecords.map(r => <RecordRow key={r.id} record={r} />)
+              )}
             </Box>
-          </Stack>
-        </Box>
+
+            <Box sx={{ p: 2.5, bgcolor: `${colorPalette.primary}08`, border: `1px solid ${colorPalette.primary}20` }}>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: colorPalette.primary, fontFamily: 'Jost', mb: 0.375 }}>Schema validation</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>
+                Payloads that pass validation are stored with <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#10b981' }}>status: received</Box>. Rejected payloads get a <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#dc2626' }}>400</Box> response and are not stored. Use <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: colorPalette.primary }}>X-Idempotency-Key</Box> to safely retry without duplicating records.
+              </Typography>
+            </Box>
+          </>
+        )}
       </Box>
+
+      <ApiKeyModal open={apiKeyOpen} onClose={() => setApiKeyOpen(false)} />
     </DashboardLayout>
   )
 }
