@@ -87,12 +87,38 @@ public final class TeamHandlers {
   }
 
   public Handler<RoutingContext> roles() {
-    return ctx -> {
-      ctx.response()
-          .setStatusCode(200)
-          .putHeader("content-type", "application/json; charset=utf-8")
-          .end(new JsonObject().put("roles", TeamRoles.catalog()).encode());
-    };
+    return ctx -> withContext(ctx, tctx ->
+        service.listCustomRoles(tctx).map(custom -> {
+          JsonArray arr = TeamRoles.catalog().copy();
+          custom.forEach(arr::add);
+          return new JsonObject().put("roles", arr);
+        }));
+  }
+
+  public Handler<RoutingContext> listCustomRoles() {
+    return ctx -> withContext(ctx, tctx ->
+        service.listCustomRoles(tctx).map(list -> {
+          JsonArray arr = new JsonArray();
+          list.forEach(arr::add);
+          return new JsonObject().put("customRoles", arr);
+        }));
+  }
+
+  public Handler<RoutingContext> saveCustomRole() {
+    return ctx -> withContext(ctx, tctx -> {
+      JsonObject body = safeBody(ctx);
+      if (body == null) return Future.failedFuture(AuthException.invalid("invalid_body"));
+      return service.saveCustomRole(tctx, body)
+          .map(v -> new JsonObject().put("ok", true));
+    });
+  }
+
+  public Handler<RoutingContext> deleteCustomRole() {
+    return ctx -> withContext(ctx, tctx -> {
+      String id = ctx.pathParam("id");
+      return service.deleteCustomRole(tctx, id)
+          .map(v -> new JsonObject().put("ok", true));
+    });
   }
 
   // --- plumbing -----------------------------------------------------------
@@ -128,6 +154,7 @@ public final class TeamHandlers {
     if (err instanceof AuthException ae) {
       int status = switch (ae.detail()) {
         case "forbidden" -> 403;
+        case "feature_locked" -> 403;
         case "session" -> 401;
         case "invitation_not_found" -> 404;
         case "already_invited" -> 409;

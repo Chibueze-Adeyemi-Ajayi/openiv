@@ -17,8 +17,18 @@
   },
   "security": {
     "corsAllowedOrigins": [],
-    "corsAllowedMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    "corsAllowedHeaders": ["authorization", "content-type", "x-request-id"],
+    "corsAllowedMethods": [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "corsAllowedHeaders": [
+      "authorization",
+      "content-type",
+      "x-request-id"
+    ],
     "corsAllowCredentials": false,
     "maxBodyBytes": 65536,
     "rateLimitRequestsPerMinute": 600,
@@ -33,5 +43,13 @@
   "totp": {
     "publicKey": "",
     "privateKey": ""
+  },
+  "email": {
+    "host": "sandbox.smtp.mailtrap.io",
+    "port": 587,
+    "user": "8b3d672371f666",
+    "password": "3336b3909e120c",
+    "from": "8b3d672371f666",
+    "useSsl": false
   }
 }

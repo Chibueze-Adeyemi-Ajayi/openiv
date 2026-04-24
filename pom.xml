@@ -101,6 +101,10 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-pg-client</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-mail-client</artifactId>
+    </dependency>
     <!-- Required for SCRAM-SHA-256 auth against modern PostgreSQL. -->
     <dependency>
       <groupId>com.ongres.scram</groupId>

@@ -47,6 +47,12 @@ public final class ConfigLoader {
       "OPENIV_SECURITY_TRUSTED_PROXIES",
       "OPENIV_TOTP_PUBLIC_KEY",
       "OPENIV_TOTP_PRIVATE_KEY",
+      "OPENIV_EMAIL_HOST",
+      "OPENIV_EMAIL_PORT",
+      "OPENIV_EMAIL_USER",
+      "OPENIV_EMAIL_PASSWORD",
+      "OPENIV_EMAIL_FROM",
+      "OPENIV_EMAIL_USE_SSL",
   };
 
   private ConfigLoader() {}
@@ -119,6 +125,15 @@ public final class ConfigLoader {
     moveStringKey(merged, "OPENIV_TOTP_PUBLIC_KEY", totp, "publicKey");
     moveStringKey(merged, "OPENIV_TOTP_PRIVATE_KEY", totp, "privateKey");
     merged.put("totp", totp);
+
+    JsonObject email = merged.getJsonObject("email", new JsonObject());
+    moveStringKey(merged, "OPENIV_EMAIL_HOST", email, "host");
+    moveIntKey(merged, "OPENIV_EMAIL_PORT", email, "port");
+    moveStringKey(merged, "OPENIV_EMAIL_USER", email, "user");
+    moveStringKey(merged, "OPENIV_EMAIL_PASSWORD", email, "password");
+    moveStringKey(merged, "OPENIV_EMAIL_FROM", email, "from");
+    moveBoolKey(merged, "OPENIV_EMAIL_USE_SSL", email, "useSsl");
+    merged.put("email", email);
 
     return merged;
   }

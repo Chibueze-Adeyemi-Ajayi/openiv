@@ -10,7 +10,10 @@ public record Session(
     OffsetDateTime expiresAt,
     OffsetDateTime revokedAt,
     OffsetDateTime lastUsedAt,
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    Double lat,
+    Double lon,
+    Double accuracy
 ) {
   public boolean isActive() {
     return revokedAt == null && expiresAt.isAfter(OffsetDateTime.now());

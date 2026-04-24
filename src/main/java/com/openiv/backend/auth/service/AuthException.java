@@ -10,7 +10,8 @@ public final class AuthException extends RuntimeException {
     INVALID,       // generic invalid input (bad code, bad creds)
     LOCKED,        // account temporarily locked
     WRONG_STATE,   // session in the wrong state for this operation
-    WEAK_PASSWORD  // new password rejected by policy
+    WEAK_PASSWORD, // new password rejected by policy
+    SECURITY       // permission or feature-lock failure
   }
 
   private final Category category;
@@ -29,4 +30,5 @@ public final class AuthException extends RuntimeException {
   public static AuthException locked() { return new AuthException(Category.LOCKED, "account_locked"); }
   public static AuthException wrongState() { return new AuthException(Category.WRONG_STATE, "wrong_session_state"); }
   public static AuthException weakPassword(String detail) { return new AuthException(Category.WEAK_PASSWORD, detail); }
+  public static AuthException security(String detail) { return new AuthException(Category.SECURITY, detail); }
 }

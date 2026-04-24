@@ -33,13 +33,15 @@ public final class TeamService {
   private final UserRepository users;
   private final InvitationRepository invitations;
   private final InstitutionRepository institutions;
+  private final CustomRoleRepository customRoles;
   private final EmailSender emailSender;
 
   public TeamService(UserRepository users, InvitationRepository invitations,
-      InstitutionRepository institutions, EmailSender emailSender) {
+      InstitutionRepository institutions, CustomRoleRepository customRoles, EmailSender emailSender) {
     this.users = users;
     this.invitations = invitations;
     this.institutions = institutions;
+    this.customRoles = customRoles;
     this.emailSender = emailSender;
   }
 
@@ -60,6 +62,61 @@ public final class TeamService {
 
   public Future<List<Invitation>> listPending(TeamContext ctx) {
     return invitations.listPendingByInstitution(ctx.institution().id());
+  }
+
+  public Future<List<io.vertx.core.json.JsonObject>> listCustomRoles(TeamContext ctx) {
+    return customRoles.listByInstitution(ctx.institution().id()).compose(list -> {
+      if (list.isEmpty()) {
+        // Auto-implement the standard app custom role: "Compliance Manager"
+        io.vertx.core.json.JsonObject defaultRole = new io.vertx.core.json.JsonObject()
+            .put("id", "custom-default-compliance")
+            .put("name", "Compliance Manager")
+            .put("description", "Dedicated custom role for overseeing institutional compliance workflows.")
+            .put("color", "#1e40af")
+            .put("permissions", new io.vertx.core.json.JsonObject()
+                .put("monitor", new io.vertx.core.json.JsonObject().put("view", true).put("act", true))
+                .put("cases", new io.vertx.core.json.JsonObject().put("view", true).put("assign", true).put("close", true))
+                .put("reports", new io.vertx.core.json.JsonObject().put("view", true).put("file", true))
+                .put("team", new io.vertx.core.json.JsonObject().put("view", true).put("manage", false))
+            );
+        return customRoles.upsert(ctx.institution().id(), defaultRole).map(v -> List.of(defaultRole));
+      }
+      return Future.succeededFuture(list);
+    });
+  }
+
+  public Future<Void> saveCustomRole(TeamContext ctx, io.vertx.core.json.JsonObject role) {
+    requireManager(ctx);
+    String id = role.getString("id");
+    String name = role.getString("name");
+    
+    if (id == null || !id.startsWith("custom-")) {
+      return Future.failedFuture(AuthException.invalid("role_id"));
+    }
+
+    // CHECK FOR DUPLICATES: Check system roles first
+    for (Object r : TeamRoles.catalog()) {
+      if (((io.vertx.core.json.JsonObject)r).getString("name").equalsIgnoreCase(name)) {
+        return Future.failedFuture(AuthException.invalid("duplicate_role_name"));
+      }
+    }
+
+    return customRoles.listByInstitution(ctx.institution().id()).compose(list -> {
+      for (io.vertx.core.json.JsonObject existing : list) {
+        // PERMIT NEW ROLE CREATION, BLOCK UPDATES
+        if (existing.getString("id").equals(id)) {
+          return Future.failedFuture(AuthException.security("feature_locked"));
+        }
+        if (existing.getString("name").equalsIgnoreCase(name)) {
+          return Future.failedFuture(AuthException.invalid("duplicate_role_name"));
+        }
+      }
+      return customRoles.upsert(ctx.institution().id(), role);
+    });
+  }
+
+  public Future<Void> deleteCustomRole(TeamContext ctx, String roleId) {
+    return Future.failedFuture(AuthException.security("feature_locked"));
   }
 
   // --- Mutate -------------------------------------------------------------
@@ -87,11 +144,19 @@ public final class TeamService {
   }
 
   public Future<Void> removeMember(TeamContext ctx, long userId) {
-    requireManager(ctx);
+    if (!"admin".equals(ctx.caller().role())) {
+      return Future.failedFuture(AuthException.invalid("forbidden"));
+    }
     if (userId == ctx.caller().id()) {
       return Future.failedFuture(AuthException.invalid("cannot_remove_self"));
     }
-    return users.disable(userId, ctx.institution().id());
+    return users.findById(userId).compose(opt -> {
+      User target = opt.orElseThrow(() -> AuthException.invalid("user_not_found"));
+      if ("admin".equals(target.role())) {
+        return Future.failedFuture(AuthException.invalid("cannot_remove_admin"));
+      }
+      return users.disable(userId, ctx.institution().id());
+    });
   }
 
   public Future<Void> revokeInvitation(TeamContext ctx, long invitationId) {

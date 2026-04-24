@@ -12,12 +12,15 @@ import io.vertx.ext.web.RoutingContext;
 import java.util.function.Function;
 
 /**
- * Thin HTTP handlers. Each: parses/validates the JSON body, delegates to {@link AuthService},
+ * Thin HTTP handlers. Each: parses/validates the JSON body, delegates to
+ * {@link AuthService},
  * translates success/failure to HTTP. No business logic lives here.
  */
 public final class AuthHandlers {
 
-  /** Matches AuthService SESSION_TTL_MINUTES (24h); used as the cookie's Max-Age. */
+  /**
+   * Matches AuthService SESSION_TTL_MINUTES (24h); used as the cookie's Max-Age.
+   */
   private static final int SESSION_COOKIE_SECONDS = 24 * 60 * 60;
 
   private final AuthService auth;
@@ -44,9 +47,13 @@ public final class AuthHandlers {
       String inviteCode = body.getString("inviteCode"); // optional
       String ip = ctx.request().remoteAddress().hostAddress();
       String ua = ctx.request().getHeader("User-Agent");
-      return auth.login(email, password, inviteCode, ip, ua).map(result -> {
+      Double lat = body.getDouble("lat");
+      Double lon = body.getDouble("lon");
+      Double acc = body.getDouble("accuracy");
+      return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc).map(result -> {
         AuditLog.authSuccess(ctx, email);
-        // Session token goes into an HttpOnly cookie; the browser will send it automatically
+        // Session token goes into an HttpOnly cookie; the browser will send it
+        // automatically
         // on subsequent requests. We do NOT return it in the response body.
         SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
         return new JsonObject()
@@ -135,8 +142,10 @@ public final class AuthHandlers {
       auth.sessionInfo(session)
           .onSuccess(info -> {
             JsonObject body = new JsonObject().put("state", info.state().dbValue());
-            if (info.accountType() != null) body.put("accountType", info.accountType().dbValue());
-            if (info.email() != null) body.put("email", info.email());
+            if (info.accountType() != null)
+              body.put("accountType", info.accountType().dbValue());
+            if (info.email() != null)
+              body.put("email", info.email());
             okJson(ctx, body);
           })
           .onFailure(err -> handleFailure(ctx, err));
@@ -214,6 +223,7 @@ public final class AuthHandlers {
         case LOCKED -> 423;
         case WRONG_STATE -> 409;
         case WEAK_PASSWORD -> 422;
+        default -> throw new IllegalArgumentException("Unexpected value: " + ae.category());
       };
       AuditLog.securityException(ctx, ae.category().name().toLowerCase(), ae.detail());
       ctx.response()

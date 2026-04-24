@@ -29,6 +29,10 @@ public final class TeamRouter {
 
     router.post("/invite").handler(handlers.invite());
     router.get("/roles").handler(handlers.roles());
+    
+    router.get("/custom-roles").handler(handlers.listCustomRoles());
+    router.post("/custom-roles").handler(handlers.saveCustomRole());
+    router.delete("/custom-roles/:id").handler(handlers.deleteCustomRole());
 
     return router;
   }

@@ -79,16 +79,16 @@ public final class AuthService {
   // --- Login (with optional invite claim) ---------------------------------
 
   public Future<LoginResult> login(String email, String password, String inviteCode,
-      String ip, String userAgent) {
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     String normalizedEmail = email.trim();
     if (inviteCode != null && !inviteCode.isBlank()) {
-      return loginWithInvite(normalizedEmail, password, inviteCode, ip, userAgent);
+      return loginWithInvite(normalizedEmail, password, inviteCode, ip, userAgent, lat, lon, accuracy);
     }
-    return loginExisting(normalizedEmail, password, ip, userAgent);
+    return loginExisting(normalizedEmail, password, ip, userAgent, lat, lon, accuracy);
   }
 
   private Future<LoginResult> loginWithInvite(String email, String password, String inviteCode,
-      String ip, String userAgent) {
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     String codeHash = Codes.sha256(inviteCode.trim().toUpperCase());
     return invitations.findByCodeHash(codeHash).compose(opt -> {
       Invitation inv = opt.orElseThrow(() -> AuthException.invalid("invite_code"));
@@ -112,12 +112,12 @@ public final class AuthService {
               /* emailVerified   */ false)
           .compose(user -> invitations.markAccepted(inv.id(), user.id())
               .map(v -> user))
-          .compose(user -> issueSessionAndSendEmailCode(user, ip, userAgent));
+          .compose(user -> issueSessionAndSendEmailCode(user, ip, userAgent, lat, lon, accuracy));
     });
   }
 
   private Future<LoginResult> loginExisting(String email, String password,
-      String ip, String userAgent) {
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     return users.findByEmail(email).compose(opt -> {
       if (opt.isEmpty()) {
         // Burn CPU to equalize timing with the password-verify path.
@@ -133,23 +133,25 @@ public final class AuthService {
             .compose(v -> Future.<LoginResult>failedFuture(AuthException.invalid("credentials")));
       }
       return users.resetFailedLogins(user.id())
-          .compose(v -> afterPasswordOk(user, ip, userAgent));
+          .compose(v -> afterPasswordOk(user, ip, userAgent, lat, lon, accuracy));
     });
   }
 
-  private Future<LoginResult> afterPasswordOk(User user, String ip, String userAgent) {
+  private Future<LoginResult> afterPasswordOk(User user, String ip, String userAgent,
+      Double lat, Double lon, Double accuracy) {
     if (!user.emailVerified()) {
-      return issueSessionAndSendEmailCode(user, ip, userAgent);
+      return issueSessionAndSendEmailCode(user, ip, userAgent, lat, lon, accuracy);
     }
     return totp.isEnabled(user.id()).compose(enabled -> {
       SessionState next = enabled ? SessionState.PENDING_TOTP_CHALLENGE : SessionState.PENDING_TOTP_SETUP;
-      return issueSession(user, next, ip, userAgent)
+      return issueSession(user, next, ip, userAgent, lat, lon, accuracy)
           .map(sess -> new LoginResult(sess.token(), next, user.accountType()));
     });
   }
 
-  private Future<LoginResult> issueSessionAndSendEmailCode(User user, String ip, String userAgent) {
-    return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, ip, userAgent)
+  private Future<LoginResult> issueSessionAndSendEmailCode(User user, String ip, String userAgent,
+      Double lat, Double lon, Double accuracy) {
+    return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, ip, userAgent, lat, lon, accuracy)
         .compose(sess -> generateAndSendEmailCode(user).map(v -> new LoginResult(
             sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType())));
   }
@@ -239,6 +241,7 @@ public final class AuthService {
     });
   }
 
+
   public Future<Void> requestPasswordReset(String email) {
     String normalized = email.trim();
     return users.findByEmail(normalized).compose(opt -> {
@@ -312,15 +315,17 @@ public final class AuthService {
     return users.findById(session.userId())
         .map(opt -> new SessionInfo(session.state(),
             opt.map(User::accountType).orElse(null),
-            opt.map(User::email).orElse(null)));
+            opt.map(User::email).orElse(null),
+            opt.map(User::role).orElse(null)));
   }
 
   // --- Helpers -------------------------------------------------------------
 
-  private Future<IssuedSession> issueSession(User user, SessionState state, String ip, String userAgent) {
+  private Future<IssuedSession> issueSession(User user, SessionState state, String ip, String userAgent,
+      Double lat, Double lon, Double accuracy) {
     String token = Tokens.generate();
     String hash = Tokens.hash(token);
-    return sessions.create(user.id(), hash, state, SESSION_TTL_MINUTES, ip, userAgent)
+    return sessions.create(user.id(), hash, state, SESSION_TTL_MINUTES, ip, userAgent, lat, lon, accuracy)
         .map(s -> new IssuedSession(token, s));
   }
 
@@ -380,7 +385,8 @@ public final class AuthService {
 
   public record SessionInfo(SessionState state,
       com.openiv.backend.auth.model.AccountType accountType,
-      String email) {}
+      String email,
+      String role) {}
 
   public record TotpEnrollment(String secret, String otpauthUri) {}
 

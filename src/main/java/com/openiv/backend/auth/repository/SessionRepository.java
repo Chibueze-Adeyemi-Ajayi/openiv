@@ -6,13 +6,12 @@ import io.vertx.core.Future;
 import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.Tuple;
-
 import java.util.Optional;
 
 public final class SessionRepository {
 
   private static final String SELECT_COLS =
-      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at";
+      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at, lat, lon, accuracy";
 
   private final Pool pool;
 
@@ -21,12 +20,14 @@ public final class SessionRepository {
   }
 
   public Future<Session> create(long userId, String tokenHash, SessionState state,
-      int ttlMinutes, String ip, String userAgent) {
-    String sql = "INSERT INTO sessions (user_id, token_hash, state, ip, user_agent, expires_at) "
-        + "VALUES ($1, $2, $3, $4::inet, $5, now() + ($6 || ' minutes')::interval) "
+      int ttlMinutes, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+    String sql = "INSERT INTO sessions (user_id, token_hash, state, ip, user_agent, expires_at, lat, lon, accuracy) "
+        + "VALUES ($1, $2, $3, ($4::text)::inet, $5, now() + ($6 || ' minutes')::interval, $7, $8, $9) "
         + "RETURNING " + SELECT_COLS;
+
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(userId, tokenHash, state.dbValue(), ip, userAgent, Integer.toString(ttlMinutes)))
+        .execute(Tuple.of(userId, tokenHash, state.dbValue(), ip, userAgent,
+            Integer.toString(ttlMinutes), lat, lon, accuracy))
         .map(rs -> map(rs.iterator().next()));
   }
 
@@ -73,6 +74,9 @@ public final class SessionRepository {
         r.getOffsetDateTime("expires_at"),
         r.getOffsetDateTime("revoked_at"),
         r.getOffsetDateTime("last_used_at"),
-        r.getOffsetDateTime("created_at"));
+        r.getOffsetDateTime("created_at"),
+        r.getDouble("lat"),
+        r.getDouble("lon"),
+        r.getDouble("accuracy"));
   }
 }

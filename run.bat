@@ -14,7 +14,7 @@ REM   run.bat                 # build-if-needed, then run
 REM   run.bat --rebuild       # force a fresh package, then run
 REM ---------------------------------------------------------------------------
 
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 set "JAR=target\openiv-backend-0.1.0-SNAPSHOT-fat.jar"
@@ -41,10 +41,23 @@ if "%REBUILD%"=="1" (
   echo [run] Forcing rebuild...
   call mvn -q package -DskipTests
   if errorlevel 1 goto :fail
-) else if not exist "%JAR%" (
-  echo [run] Fat jar missing; running mvn package...
-  call mvn -q package -DskipTests
-  if errorlevel 1 goto :fail
+) else (
+  set "NEEDS_PKG=0"
+  if not exist "%JAR%" (
+    set "NEEDS_PKG=1"
+    echo [run] Jar missing.
+  ) else (
+    rem Smart check: is anything in src/ newer than the jar? 
+    rem xcopy /D /L returns files that would be copied (newer).
+    for /f %%i in ('xcopy /D /L /S /Y "src" "%JAR%" 2^>nul ^| find /c /v ""') do if %%i gtr 1 set "NEEDS_PKG=1"
+    for /f %%i in ('xcopy /D /L /Y "pom.xml" "%JAR%" 2^>nul ^| find /c /v ""') do if %%i gtr 1 set "NEEDS_PKG=1"
+  )
+
+  if "!NEEDS_PKG!"=="1" (
+    echo [run] Source changes detected; rebuilding...
+    call mvn -q package -DskipTests
+    if errorlevel 1 goto :fail
+  )
 )
 
 echo [run] Starting openiv-backend ^(java -jar %JAR%^)

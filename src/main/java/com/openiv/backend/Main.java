@@ -11,10 +11,12 @@ import com.openiv.backend.auth.repository.VerificationCodeRepository;
 import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.DevDemoBankSeeder;
 import com.openiv.backend.team.TeamService;
+import com.openiv.backend.team.CustomRoleRepository;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.auth.service.DevInviteSeeder;
 import com.openiv.backend.auth.service.EmailSender;
 import com.openiv.backend.auth.service.LogEmailSender;
+import com.openiv.backend.auth.service.VertxEmailSender;
 import com.openiv.backend.config.AppConfig;
 import com.openiv.backend.config.ConfigLoader;
 import com.openiv.backend.db.DataSources;
@@ -97,7 +99,13 @@ public final class Main {
         VerificationCodeRepository codes = new VerificationCodeRepository(pool);
         TotpSecretRepository totp = new TotpSecretRepository(pool);
         SessionRepository sessions = new SessionRepository(pool);
-        EmailSender emailSender = new LogEmailSender();
+        EmailSender emailSender;
+        if (config.email().user() != null && config.email().password() != null) {
+          emailSender = new VertxEmailSender(vertx, config.email());
+        } else {
+          emailSender = new LogEmailSender();
+          log.warn("SMTP credentials missing; using LogEmailSender. Emails will only be logged!");
+        }
 
         TotpCipher totpCipher = TotpCipher.fromPem(
             config.totp().publicKeyPem(), config.totp().privateKeyPem());
@@ -106,7 +114,8 @@ public final class Main {
         AuthService authService = new AuthService(
             users, invitations, codes, totp, sessions, emailSender, totpCipher);
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests);
-        TeamService teamService = new TeamService(users, invitations, institutions, emailSender);
+        CustomRoleRepository customRoles = new CustomRoleRepository(pool);
+        TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))

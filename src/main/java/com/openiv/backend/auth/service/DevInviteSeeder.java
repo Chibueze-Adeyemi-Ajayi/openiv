@@ -38,7 +38,7 @@ public final class DevInviteSeeder {
             .id();
         String code = Codes.generateInviteCode();
         String hash = Codes.sha256(code);
-        return invitations.create(hash, SEED_EMAIL, "customer",
+        return invitations.create(hash, SEED_EMAIL, "analyst",
                 AccountType.INDIVIDUAL, institutionId, 365)
             .map(inv -> {
               log.warn("====================================================================");
