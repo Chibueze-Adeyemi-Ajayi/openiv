@@ -1,10 +1,13 @@
 import { Box, Typography, Button, TextField, Stack, IconButton, Chip } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { authApi } from '@/api/auth'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 
 export type TOTPOperation = 'create' | 'update' | 'delete'
 
@@ -41,10 +44,13 @@ export default function TOTPConfirmation({
   changes,
   itemsAffected,
 }: TOTPConfirmationProps) {
+  const navigate = useNavigate()
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [verifying, setVerifying] = useState(false)
   const [verified, setVerified] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lockedOut, setLockedOut] = useState(false)
+  const failedAttemptsRef = useRef(0)
 
   const cfg = operationConfig[operation]
 
@@ -55,6 +61,8 @@ export default function TOTPConfirmation({
       setVerifying(false)
       setVerified(false)
       setError(null)
+      setLockedOut(false)
+      failedAttemptsRef.current = 0
       setTimeout(() => {
         const first = document.querySelector('[data-totp-input]') as HTMLInputElement
         first?.focus()
@@ -100,29 +108,35 @@ export default function TOTPConfirmation({
     }
   }
 
-  const verify = (full: string) => {
+  const verify = useCallback(async (full: string) => {
+    if (full.length !== 6 || !/^\d{6}$/.test(full)) return
     setVerifying(true)
     setError(null)
-    // Simulate verification — in real world, hit /api/totp/verify
-    setTimeout(() => {
-      // Accept any 6-digit code for the demo, except 000000 which fails
-      if (full === '000000') {
-        setVerifying(false)
-        setError('Invalid code. Check your authenticator app and try again.')
-        setCode(['', '', '', '', '', ''])
-        setTimeout(() => {
-          const first = document.querySelector('[data-totp-input]') as HTMLInputElement
-          first?.focus()
-        }, 0)
-        return
-      }
+    try {
+      await authApi.stepUpTotp(full.trim())
       setVerifying(false)
       setVerified(true)
+      setTimeout(() => onConfirm(), 700)
+    } catch {
+      setVerifying(false)
+      const attempts = failedAttemptsRef.current + 1
+      failedAttemptsRef.current = attempts
+      if (attempts >= 3) {
+        setLockedOut(true)
+        authApi.stepUpLockout().catch(() => {})
+        authApi.logout().catch(() => {})
+        setTimeout(() => navigate('/'), 1500)
+        return
+      }
+      const remaining = 3 - attempts
+      setError(`Invalid code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`)
+      setCode(['', '', '', '', '', ''])
       setTimeout(() => {
-        onConfirm()
-      }, 700)
-    }, 900)
-  }
+        const first = document.querySelector('[data-totp-input]') as HTMLInputElement
+        first?.focus()
+      }, 0)
+    }
+  }, [onConfirm, navigate])
 
   if (!open) return null
 
@@ -198,7 +212,7 @@ export default function TOTPConfirmation({
           <IconButton
             onClick={onClose}
             disableRipple
-            disabled={verifying || verified}
+            disabled={verifying || verified || lockedOut}
             sx={{
               color: '#94a3b8',
               borderRadius: 0,
@@ -211,7 +225,34 @@ export default function TOTPConfirmation({
 
         {/* Body */}
         <Box sx={{ px: 3, py: 3 }}>
-          {verified ? (
+          {lockedOut ? (
+            <Stack alignItems="center" gap={1.5} sx={{ py: 4 }}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  bgcolor: '#fef2f2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  animation: 'checkPop 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '@keyframes checkPop': {
+                    '0%': { transform: 'scale(0.5)', opacity: 0 },
+                    '60%': { transform: 'scale(1.1)' },
+                    '100%': { transform: 'scale(1)', opacity: 1 },
+                  },
+                }}
+              >
+                <WarningAmberRoundedIcon sx={{ fontSize: '1.875rem', color: '#dc2626' }} />
+              </Box>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                Session terminated
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
+                3 failed verification attempts detected. Your session has been terminated and a security alert has been sent. Redirecting…
+              </Typography>
+            </Stack>
+          ) : verified ? (
             <Stack alignItems="center" gap={1.5} sx={{ py: 4 }}>
               <Box
                 sx={{
@@ -429,7 +470,7 @@ export default function TOTPConfirmation({
         </Box>
 
         {/* Footer */}
-        {!verified && (
+        {!verified && !lockedOut && (
           <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
             <Typography
               sx={{

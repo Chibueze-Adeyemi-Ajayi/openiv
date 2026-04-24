@@ -58,6 +58,7 @@ export default function TeamPage() {
   const [inviteTOTP, setInviteTOTP] = useState(false)
   const [removeMember, setRemoveMember] = useState<TeamMember | null>(null)
   const [revokePending, setRevokePending] = useState<TeamPending | null>(null)
+  const [resendPending, setResendPending] = useState<TeamPending | null>(null)
 
   const loadMembers = async () => {
     try {
@@ -226,12 +227,19 @@ export default function TeamPage() {
     }
   }
 
-  const handleResendInvite = async (p: TeamPending) => {
+  const handleResendInvite = (p: TeamPending) => {
+    setResendPending(p)
+  }
+
+  const finalizeResendInvite = async () => {
+    if (!resendPending) return
     setApiError(null)
     try {
-      await teamApi.resendPending(p.id)
+      await teamApi.resendPending(resendPending.id)
+      setResendPending(null)
       await loadPending()
     } catch (err) {
+      setResendPending(null)
       setApiError(humanizeError(err, 'Could not resend invitation.'))
     }
   }
@@ -393,7 +401,7 @@ export default function TeamPage() {
               </Box>
             ) : (
               pageRows.map((m, i) => {
-                const role = roles.find((r) => r.id === m.role)!
+                const role = roles.find((r) => r.id === m.role) ?? { id: m.role, name: m.role, color: '#94a3b8', description: '', members: 0, permissions: {} }
                 return (
                   <Box
                     key={m.email}
@@ -571,7 +579,7 @@ export default function TeamPage() {
                   ))}
                 </Box>
                 {pending.map((p, i) => {
-                  const role = roles.find((r) => r.id === p.role)!
+                  const role = roles.find((r) => r.id === p.role) ?? { id: p.role, name: p.role, color: '#94a3b8', description: '', members: 0, permissions: {} }
                   return (
                     <Box
                       key={p.email}
@@ -998,6 +1006,18 @@ export default function TeamPage() {
         description="The invitation link will be invalidated immediately. The recipient will no longer be able to accept and join the team."
         resourceType="Pending invitation"
         resourceName={revokePending?.email || ''}
+      />
+
+      {/* TOTP — resend pending invitation */}
+      <TOTPConfirmation
+        open={!!resendPending}
+        onClose={() => setResendPending(null)}
+        onConfirm={finalizeResendInvite}
+        operation="create"
+        title="Resend invitation"
+        description="A fresh invitation link will be sent to the recipient. The previous link will be immediately invalidated and the expiry extended by 7 days."
+        resourceType="Pending invitation"
+        resourceName={resendPending?.email || ''}
       />
 
       {/* Role editor (create + edit) */}
