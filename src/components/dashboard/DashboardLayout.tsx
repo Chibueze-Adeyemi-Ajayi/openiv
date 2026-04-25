@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import EurekaAssistant from './EurekaAssistant'
+import InactivityGuard from './InactivityGuard'
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 
@@ -21,6 +22,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Box sx={{ flex: 1, overflowY: 'auto' }}>{children}</Box>
       </Box>
       <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
+      <InactivityGuard />
 
       {/* Floating Eureka FAB */}
       {!eurekaOpen && (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AuthLayout from '@/components/onboarding/AuthLayout'
 import LoginForm from '@/components/onboarding/LoginForm'
 import { authApi } from '@/api/auth'
@@ -16,6 +16,8 @@ import { useSubmitGuard } from '@/hooks/useSubmitGuard'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('expired') === '1'
   const [inviteCode, setInviteCodeState] = useState<string | null>(null)
   const [inviteEmail, setInviteEmailState] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -72,7 +74,9 @@ export default function LoginPage() {
         submitting={submitting}
         errorMessage={errorMessage}
         headerHint={
-          inviteEmail
+          sessionExpired
+            ? 'Session expired — please sign in again to continue.'
+            : inviteEmail
             ? `Completing your invitation for ${inviteEmail}. First login will claim the invite.`
             : null
         }

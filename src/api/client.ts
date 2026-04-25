@@ -33,6 +33,8 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
+  /** Internal — prevents infinite retry loop on 401. */
+  _retried?: boolean
 }
 
 export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -53,6 +55,29 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
 
   if (response.status === 204) {
     return undefined as T
+  }
+
+  // 401 on a non-auth route: check whether the session cookie is still alive.
+  // If yes, the 401 was transient — retry once. If no, the session is gone —
+  // redirect to login with ?expired=1 so the page can surface the right message.
+  if (
+    response.status === 401 &&
+    !path.startsWith('/api/v1/auth/') &&
+    !opts._retried
+  ) {
+    try {
+      const check = await fetch(`${BASE_URL}/api/v1/auth/session`, { credentials: 'include' })
+      if (check.ok) {
+        // Session still valid — transient 401, retry once.
+        return apiRequest<T>(path, { ...opts, _retried: true })
+      }
+    } catch {
+      // Network error during check — fall through to redirect.
+    }
+    // Session gone — navigate away. Return a never-resolving promise so the
+    // caller doesn't get a partially-handled response before the page unloads.
+    window.location.replace('/auth/login?expired=1')
+    return new Promise<T>(() => {})
   }
 
   const ct = response.headers.get('content-type') ?? ''
