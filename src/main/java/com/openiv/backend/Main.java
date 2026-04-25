@@ -20,6 +20,10 @@ import com.openiv.backend.thresholds.ThresholdRepository;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamRepository;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.heatmap.HeatmapRepository;
+import com.openiv.backend.heatmap.HeatmapService;
+import com.openiv.backend.kyc.KycRepository;
+import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookDeliveryService;
 import com.openiv.backend.webhooks.WebhookRepository;
 import com.openiv.backend.webhooks.WebhookService;
@@ -49,22 +53,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Application entry point.
  *
- * <p>Startup sequence:
+ * <p>
+ * Startup sequence:
  * <ol>
- *   <li>Create Vert.x with an event-loop pool sized to the host CPU.</li>
- *   <li>Load config.</li>
- *   <li>Run Flyway migrations (blocking, on a worker thread).</li>
- *   <li>Build the reactive Postgres pool (shared across all verticle instances).</li>
- *   <li>Construct repositories + AuthService (singleton; the pool is shared).</li>
- *   <li>In development: seed a dev invite if none exists (the code is logged).</li>
- *   <li>Deploy {@code MainVerticle} × N so every event loop owns an HTTP server.</li>
+ * <li>Create Vert.x with an event-loop pool sized to the host CPU.</li>
+ * <li>Load config.</li>
+ * <li>Run Flyway migrations (blocking, on a worker thread).</li>
+ * <li>Build the reactive Postgres pool (shared across all verticle
+ * instances).</li>
+ * <li>Construct repositories + AuthService (singleton; the pool is
+ * shared).</li>
+ * <li>In development: seed a dev invite if none exists (the code is
+ * logged).</li>
+ * <li>Deploy {@code MainVerticle} × N so every event loop owns an HTTP
+ * server.</li>
  * </ol>
  */
 public final class Main {
 
   private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-  private Main() {}
+  private Main() {
+  }
 
   public static void main(String[] args) {
     System.setProperty("vertx.logger-delegate-factory-class-name",
@@ -85,10 +95,15 @@ public final class Main {
         .onFailure(err -> {
           log.error("Startup failed", err);
           // Try to close Vert.x gracefully so ports are released, but don't trust it: if
-          // close() hangs (which it can if a verticle is in a bad state), the JVM stays up
+          // close() hangs (which it can if a verticle is in a bad state), the JVM stays
+          // up
           // holding the port. The watchdog thread below hard-halts after 3s.
           Thread halter = new Thread(() -> {
-            try { Thread.sleep(3_000); } catch (InterruptedException ignored) { return; }
+            try {
+              Thread.sleep(3_000);
+            } catch (InterruptedException ignored) {
+              return;
+            }
             log.error("Graceful close exceeded 3s; calling Runtime.halt(1)");
             Runtime.getRuntime().halt(1);
           }, "openiv-force-halt");
@@ -139,13 +154,15 @@ public final class Main {
         WebhookService webhookService = new WebhookService(webhookRepository, users, webhookDeliveryService);
         BeamRepository beamRepository = new BeamRepository(pool);
         BeamService beamService = new BeamService(beamRepository, users);
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService);
+        HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, cores))
+                beamService, kycService, heatmapService, cores))
             .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
@@ -163,25 +180,29 @@ public final class Main {
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
-      WebhookService webhookService, BeamService beamService, int instances) {
+      WebhookService webhookService, BeamService beamService,
+      KycService kycService, HeatmapService heatmapService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService),
+                beamService, kycService, heatmapService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();
   }
 
   private static void scheduleWebhookAutoRotation(Vertx vertx, WebhookService webhookService) {
-    // Run once immediately on startup, then every hour, to rotate any expired signing secrets.
+    // Run once immediately on startup, then every hour, to rotate any expired
+    // signing secrets.
     long oneHourMs = 3_600_000L;
-    Runnable rotate = () ->
-        webhookService.rotateExpiredSecrets()
-            .onSuccess(n -> { if (n > 0) log.info("Auto-rotated {} webhook signing secret(s)", n); })
-            .onFailure(err -> log.error("Webhook secret auto-rotation failed", err));
+    Runnable rotate = () -> webhookService.rotateExpiredSecrets()
+        .onSuccess(n -> {
+          if (n > 0)
+            log.info("Auto-rotated {} webhook signing secret(s)", n);
+        })
+        .onFailure(err -> log.error("Webhook secret auto-rotation failed", err));
     rotate.run();
     vertx.setPeriodic(oneHourMs, id -> rotate.run());
   }

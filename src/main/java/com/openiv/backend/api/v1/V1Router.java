@@ -18,6 +18,10 @@ import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamApiKeyHandler;
 import com.openiv.backend.beam.BeamHandlers;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.heatmap.HeatmapHandlers;
+import com.openiv.backend.heatmap.HeatmapService;
+import com.openiv.backend.kyc.KycHandlers;
+import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookHandlers;
 import com.openiv.backend.webhooks.WebhookService;
 import io.vertx.core.Handler;
@@ -44,7 +48,8 @@ public final class V1Router {
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
-      WebhookService webhookService, boolean devMode, BeamService beamService) {
+      WebhookService webhookService, boolean devMode, BeamService beamService,
+      KycService kycService, HeatmapService heatmapService) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -94,14 +99,14 @@ public final class V1Router {
     BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService);
     Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
 
-    // Inbound beam ingestion — authenticated with institution API key (not session)
-    router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
-
-    // Beam management — session authenticated
+    // Beam management — session authenticated (must be before /:stream to avoid param capture)
     router.get("/beam/records").handler(beamSessionAuth).handler(beamHandlers.listRecords());
     router.get("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.getApiKeyInfo());
     router.post("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.generateApiKey());
     router.delete("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.revokeApiKey());
+
+    // Inbound beam ingestion — authenticated with institution API key (not session)
+    router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
 
     // Webhooks — fixed paths before /:id to avoid collision
     WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService);
@@ -119,6 +124,20 @@ public final class V1Router {
     router.get("/webhooks/:id/security").handler(webhookAuth).handler(webhookHandlers.getSecurityRule());
     router.put("/webhooks/:id/security").handler(webhookAuth).handler(webhookHandlers.upsertSecurityRule());
     router.post("/webhooks/:id/security/api-key").handler(webhookAuth).handler(webhookHandlers.generateApiKey());
+
+    // KYC — lookup URL config and manual lookup trigger
+    KycHandlers kycHandlers = new KycHandlers(kycService);
+    Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
+    router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
+    router.post("/kyc/lookup").handler(kycAuth).handler(kycHandlers.lookup());
+    router.get("/kyc/logs").handler(kycAuth).handler(kycHandlers.listLogs());
+
+    // Heatmaps — day-of-week × hour density from transactions and login beam records
+    HeatmapHandlers heatmapHandlers = new HeatmapHandlers(heatmapService);
+    Handler<RoutingContext> heatmapAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/heatmap/transactions").handler(heatmapAuth).handler(heatmapHandlers.transactions());
+    router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

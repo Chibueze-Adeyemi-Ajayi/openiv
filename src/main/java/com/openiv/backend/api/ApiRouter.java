@@ -9,6 +9,8 @@ import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.heatmap.HeatmapService;
+import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
 import com.openiv.backend.security.ContentTypeGuard;
 import com.openiv.backend.security.Cors;
@@ -74,7 +76,8 @@ public final class ApiRouter {
       AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
-      WebhookService webhookService, boolean devMode, BeamService beamService) {
+      WebhookService webhookService, boolean devMode, BeamService beamService,
+      KycService kycService, HeatmapService heatmapService) {
     router.route().handler(RequestId.create());
     router.route().handler(SecurityHeaders.create(security));
     router.route().handler(MethodGuard.create());
@@ -89,7 +92,7 @@ public final class ApiRouter {
     router.route("/api/v1/*").subRouter(V1Router.create(
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
-        beamService));
+        beamService, kycService, heatmapService));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);
