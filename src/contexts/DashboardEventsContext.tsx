@@ -1,0 +1,214 @@
+/**
+ * DashboardEventsContext
+ *
+ * Manages a single SSE connection to GET /api/v1/dashboard/events and
+ * distributes all three live streams (stats, activity, OTP alerts) via React
+ * context. Every dashboard component that needs live data reads from this
+ * context — never opens its own connection.
+ *
+ * Event protocol (server → client):
+ *   stats          — DashboardStats snapshot, every 5 s
+ *   activityInit   — ActivityEventItem[], last 30, on connect
+ *   activityUpdate — ActivityEventItem[], incremental, every 5 s if new
+ *   otpInit        — OtpAlertItem[], last 30, on connect
+ *   otpUpdate      — OtpAlertItem[], incremental, every 5 s if new
+ *   :\n\n          — heartbeat comment, every 20 s
+ *
+ * Reconnection: exponential back-off, capped at 30 s, resets on success.
+ * The connection is torn down when the provider unmounts (page leave / logout).
+ */
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { DashboardStats } from '@/api/dashboard'
+
+// ── Shared types ──────────────────────────────────────────────────────────────
+
+export interface ActivityEventItem {
+  id:         number
+  source:     string
+  severity:   'critical' | 'warning' | 'info' | 'resolved'
+  title:      string
+  detail:     string | null
+  entityId:   string | null
+  entityType: string | null
+  actor:      string
+  occurredAt: string
+}
+
+export interface OtpAlertItem {
+  id:         number
+  rule:       'FAILED_CASCADE' | 'OTP_BOMBING' | 'VELOCITY_SPIKE' | 'NEW_DEVICE_SUSPICIOUS'
+  severity:   'critical' | 'warning'
+  customerId: string | null
+  deviceId:   string | null
+  channel:    string | null
+  otpType:    string | null
+  eventCount: number
+  detail:     string
+  firedAt:    string
+}
+
+export interface SecurityEvent {
+  type:        'login_attempt'
+  userId:      number
+  ip:          string | null
+  userAgent:   string | null
+  deviceId:    string | null
+  at:          string
+}
+
+// ── Context shape ─────────────────────────────────────────────────────────────
+
+export interface DashboardEventsState {
+  stats:          DashboardStats | null
+  activity:       ActivityEventItem[]
+  otpAlerts:      OtpAlertItem[]
+  securityEvents: SecurityEvent[]
+  connected:      boolean
+  error:          boolean
+}
+
+const INITIAL: DashboardEventsState = {
+  stats: null, activity: [], otpAlerts: [], securityEvents: [], connected: false, error: false,
+}
+
+const DashboardEventsContext = createContext<DashboardEventsState>(INITIAL)
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const MAX_ITEMS       = 50
+const BASE_RETRY_MS   = 3_000
+const MAX_RETRY_MS    = 30_000
+const SSE_URL         = '/api/v1/dashboard/events'
+
+// ── Provider ──────────────────────────────────────────────────────────────────
+
+export function DashboardEventsProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<DashboardEventsState>(INITIAL)
+  const esRef             = useRef<EventSource | null>(null)
+  const retryRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retryDelayRef     = useRef(BASE_RETRY_MS)
+  const cancelledRef      = useRef(false)
+
+  useEffect(() => {
+    cancelledRef.current = false
+
+    function connect() {
+      if (cancelledRef.current) return
+
+      const es = new EventSource(SSE_URL, { withCredentials: true })
+      esRef.current = es
+
+      es.onopen = () => {
+        if (cancelledRef.current) { es.close(); return }
+        retryDelayRef.current = BASE_RETRY_MS           // reset back-off on success
+        setState(s => ({ ...s, connected: true, error: false }))
+      }
+
+      // ── Stats ───────────────────────────────────────────────────────────
+      es.addEventListener('stats', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const stats: DashboardStats = JSON.parse(e.data)
+          setState(s => ({ ...s, stats, connected: true, error: false }))
+        } catch { /* malformed frame — ignore */ }
+      })
+
+      // ── Activity: full initial batch ────────────────────────────────────
+      es.addEventListener('activityInit', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const items: ActivityEventItem[] = JSON.parse(e.data)
+          setState(s => ({ ...s, activity: items.slice(0, MAX_ITEMS) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── Activity: incremental (deduplicated by ID) ──────────────────────
+      es.addEventListener('activityUpdate', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const incoming: ActivityEventItem[] = JSON.parse(e.data)
+          if (!incoming.length) return
+          setState(s => {
+            const seen  = new Set(s.activity.map(x => x.id))
+            const fresh = incoming.filter(x => !seen.has(x.id))
+            if (!fresh.length) return s
+            return { ...s, activity: [...fresh, ...s.activity].slice(0, MAX_ITEMS) }
+          })
+        } catch { /* ignore */ }
+      })
+
+      // ── OTP alerts: full initial batch ──────────────────────────────────
+      es.addEventListener('otpInit', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const items: OtpAlertItem[] = JSON.parse(e.data)
+          setState(s => ({ ...s, otpAlerts: items.slice(0, MAX_ITEMS) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── OTP alerts: incremental (deduplicated by ID) ────────────────────
+      es.addEventListener('otpUpdate', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const incoming: OtpAlertItem[] = JSON.parse(e.data)
+          if (!incoming.length) return
+          setState(s => {
+            const seen  = new Set(s.otpAlerts.map(x => x.id))
+            const fresh = incoming.filter(x => !seen.has(x.id))
+            if (!fresh.length) return s
+            return { ...s, otpAlerts: [...fresh, ...s.otpAlerts].slice(0, MAX_ITEMS) }
+          })
+        } catch { /* ignore */ }
+      })
+
+      // ── Security events (login attempts from other devices) ────────────
+      es.addEventListener('securityEvent', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const evt: SecurityEvent = JSON.parse(e.data)
+          setState(s => ({ ...s, securityEvents: [evt, ...s.securityEvents].slice(0, 20) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── Error / reconnect ───────────────────────────────────────────────
+      es.onerror = () => {
+        es.close()
+        esRef.current = null
+        if (cancelledRef.current) return
+        setState(s => ({ ...s, connected: false, error: true }))
+        const delay = retryDelayRef.current
+        retryDelayRef.current = Math.min(delay * 2, MAX_RETRY_MS)
+        retryRef.current = setTimeout(connect, delay)
+      }
+    }
+
+    connect()
+
+    return () => {
+      cancelledRef.current = true
+      if (retryRef.current) clearTimeout(retryRef.current)
+      esRef.current?.close()
+      esRef.current = null
+    }
+  }, [])
+
+  return (
+    <DashboardEventsContext.Provider value={state}>
+      {children}
+    </DashboardEventsContext.Provider>
+  )
+}
+
+// ── Consumer hook (internal — use the typed slice hooks below) ────────────────
+
+export function useDashboardEvents(): DashboardEventsState {
+  return useContext(DashboardEventsContext)
+}

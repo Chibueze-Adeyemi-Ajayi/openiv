@@ -2,9 +2,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { Box, Typography, Stack, IconButton } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { transactionApi, type Transaction, type FlaggedStatus } from '@/api/transactions'
+import { authApi } from '@/api/auth'
 import { caseApi, type Case } from '@/api/cases'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
 import InvestigationWorkspace from '@/components/dashboard/InvestigationWorkspace'
+import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
@@ -64,6 +66,17 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
   const [actionFlaggedStatus, setActionFlaggedStatus] = useState<FlaggedStatus | null>(null)
   const [actioning,           setActioning]           = useState(false)
 
+  // Step 1: evidence dialog
+  const [evidencePending, setEvidencePending] = useState<FlaggedStatus | null>(null)
+  const [pendingReason,   setPendingReason]   = useState('')
+  const [pendingDocId,    setPendingDocId]    = useState<number | null>(null)
+
+  // Step 2: OTP dialog
+  const [otpPending,  setOtpPending]  = useState<FlaggedStatus | null>(null)
+  const [otpCode,     setOtpCode]     = useState('')
+  const [otpError,    setOtpError]    = useState<string | null>(null)
+  const [otpLoading,  setOtpLoading]  = useState(false)
+
   const [existingCase,    setExistingCase]    = useState<Case | null>(null)
   const [checkingCase,    setCheckingCase]    = useState(false)
   const [intakeOpen,      setIntakeOpen]      = useState(false)
@@ -90,15 +103,40 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
       .finally(() => setCheckingCase(false))
   }, [open, txn?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const changeFlag = useCallback(async (newFlag: FlaggedStatus) => {
-    if (!txn || actioning || newFlag === currentFlagged) return
-    setActioning(true)
+  const requestFlag = (flag: FlaggedStatus) => {
+    if (!txn || actioning || flag === currentFlagged) return
+    setEvidencePending(flag)
+  }
+
+  const handleEvidenceConfirm = (payload: EvidencePayload) => {
+    if (!evidencePending) return
+    setPendingReason(payload.reason)
+    setPendingDocId(payload.documentId)
+    setEvidencePending(null)
+    setOtpPending(evidencePending)
+    setOtpCode('')
+    setOtpError(null)
+  }
+
+  const confirmOtp = useCallback(async () => {
+    if (!otpPending || otpLoading || !txn || pendingDocId === null) return
+    setOtpLoading(true)
+    setOtpError(null)
     try {
-      await transactionApi.bulkFlaggedStatus([txn.id], newFlag)
-      setActionFlaggedStatus(newFlag)
+      await authApi.stepUpTotp(otpCode)
+      setActioning(true)
+      await transactionApi.bulkFlaggedStatus([txn.id], otpPending, pendingReason, pendingDocId)
+      setActionFlaggedStatus(otpPending)
       onStatusChange()
-    } finally { setActioning(false) }
-  }, [txn, actioning, currentFlagged, onStatusChange])
+      setOtpPending(null)
+      setOtpCode('')
+    } catch {
+      setOtpError('Invalid code — please try again.')
+    } finally {
+      setOtpLoading(false)
+      setActioning(false)
+    }
+  }, [otpPending, otpLoading, otpCode, txn, pendingReason, pendingDocId, onStatusChange])
 
   const handleIntakeSubmit = useCallback(async (payload: CaseIntakePayload) => {
     if (creating) return
@@ -185,10 +223,10 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   Investigation
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ActionBtn label="Clear"    icon={<CheckRoundedIcon          sx={{ fontSize: '0.875rem !important' }} />} color="#10b981"            active={currentFlagged === 'cleared'} disabled={actioning} onClick={() => changeFlag('cleared')} />
-                  <ActionBtn label="Review"   icon={<HourglassEmptyRoundedIcon sx={{ fontSize: '0.875rem !important' }} />} color={colorPalette.primary} active={currentFlagged === 'review'}  disabled={actioning} onClick={() => changeFlag('review')}  />
-                  <ActionBtn label="Escalate" icon={<FlagRoundedIcon           sx={{ fontSize: '0.875rem !important' }} />} color="#f59e0b"            active={currentFlagged === 'flagged'} disabled={actioning} onClick={() => changeFlag('flagged')} />
-                  <ActionBtn label="Block"    icon={<BlockRoundedIcon          sx={{ fontSize: '0.875rem !important' }} />} color="#dc2626"            active={currentFlagged === 'blocked'} disabled={actioning} onClick={() => changeFlag('blocked')} />
+                  <ActionBtn label="Clear"    icon={<CheckRoundedIcon          sx={{ fontSize: '0.875rem !important' }} />} color="#10b981"            active={currentFlagged === 'cleared'} disabled={actioning} onClick={() => requestFlag('cleared')} />
+                  <ActionBtn label="Review"   icon={<HourglassEmptyRoundedIcon sx={{ fontSize: '0.875rem !important' }} />} color={colorPalette.primary} active={currentFlagged === 'review'}  disabled={actioning} onClick={() => requestFlag('review')}  />
+                  <ActionBtn label="Escalate" icon={<FlagRoundedIcon           sx={{ fontSize: '0.875rem !important' }} />} color="#f59e0b"            active={currentFlagged === 'flagged'} disabled={actioning} onClick={() => requestFlag('flagged')} />
+                  <ActionBtn label="Block"    icon={<BlockRoundedIcon          sx={{ fontSize: '0.875rem !important' }} />} color="#dc2626"            active={currentFlagged === 'blocked'} disabled={actioning} onClick={() => requestFlag('blocked')} />
                 </Box>
               </Box>
 
@@ -313,6 +351,125 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
         onClose={() => setWorkspaceOpen(false)}
         onUpdated={onStatusChange}
       />
+
+      {/* ── Step 1: Evidence + reason dialog ──────────────────────────────── */}
+      {evidencePending && (
+        <ActionEvidenceDialog
+          open
+          onClose={() => setEvidencePending(null)}
+          onConfirm={handleEvidenceConfirm}
+          title="Confirm Status Change"
+          actionLabel={FLAGGED_STATUS_CFG[evidencePending].label}
+          actionColor={FLAGGED_STATUS_CFG[evidencePending].color}
+        />
+      )}
+
+      {/* ── Step 2: OTP step-up confirmation ──────────────────────────────── */}
+      {otpPending && (
+        <>
+          <Box onClick={() => { setOtpPending(null); setOtpCode(''); setOtpError(null) }}
+            sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.45)', zIndex: 1400 }} />
+          <Box sx={{
+            position: 'fixed', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 380, bgcolor: '#ffffff', zIndex: 1401,
+            boxShadow: '0 24px 60px rgba(15,23,42,0.18)',
+            animation: 'otpFadeIn 0.2s ease',
+            '@keyframes otpFadeIn': { from: { opacity: 0, transform: 'translate(-50%, -48%)' }, to: { opacity: 1, transform: 'translate(-50%, -50%)' } },
+          }}>
+            {/* Dialog header */}
+            <Box sx={{ px: 2.5, pt: 2.5, pb: 1.75, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  Confirm Status Change
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.375 }}>
+                  Marking as{' '}
+                  <Box component="span" sx={{ fontWeight: 700, color: FLAGGED_STATUS_CFG[otpPending].color }}>
+                    {FLAGGED_STATUS_CFG[otpPending].label}
+                  </Box>
+                  {' '}requires verification.
+                </Typography>
+              </Box>
+              <IconButton disableRipple size="small"
+                onClick={() => { setOtpPending(null); setOtpCode(''); setOtpError(null) }}
+                sx={{ borderRadius: 0, color: '#94a3b8', mt: -0.25, '&:hover': { color: '#475569' } }}>
+                <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
+              </IconButton>
+            </Box>
+
+            {/* Dialog body */}
+            <Box sx={{ px: 2.5, py: 2 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
+                Authenticator Code
+              </Typography>
+              <Box
+                component="input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="000000"
+                value={otpCode}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setOtpError(null)
+                  setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                }}
+                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') confirmOtp() }}
+                autoFocus
+                sx={{
+                  width: '100%', boxSizing: 'border-box',
+                  border: `1px solid ${otpError ? '#dc2626' : '#e2e8f0'}`,
+                  bgcolor: '#fafbfc',
+                  px: 1.75, py: 1.25,
+                  fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.35em',
+                  fontFamily: 'SF Mono, Monaco, monospace',
+                  color: '#0f172a', outline: 'none',
+                  textAlign: 'center',
+                  transition: 'border-color 0.15s',
+                  '&:focus': { borderColor: colorPalette.primary, bgcolor: '#ffffff' },
+                  '&::placeholder': { color: '#cbd5e1', letterSpacing: '0.2em' },
+                }}
+              />
+              {otpError && (
+                <Typography sx={{ fontSize: '0.6875rem', color: '#dc2626', mt: 0.75, fontWeight: 600 }}>
+                  {otpError}
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 1 }}>
+                Enter the 6-digit code from your authenticator app.
+              </Typography>
+            </Box>
+
+            {/* Dialog footer */}
+            <Box sx={{ px: 2.5, pb: 2.5, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Box
+                onClick={() => { setOtpPending(null); setOtpCode(''); setOtpError(null) }}
+                sx={{
+                  px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+                  color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
+                  transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' },
+                }}
+              >
+                Cancel
+              </Box>
+              <Box
+                onClick={confirmOtp}
+                sx={{
+                  px: 2, py: 0.875, cursor: otpLoading || otpCode.length < 6 ? 'not-allowed' : 'pointer',
+                  bgcolor: otpCode.length < 6 ? '#e2e8f0' : FLAGGED_STATUS_CFG[otpPending].color,
+                  color: otpCode.length < 6 ? '#94a3b8' : '#ffffff',
+                  fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost',
+                  opacity: otpLoading ? 0.7 : 1,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {otpLoading ? 'Verifying…' : `Confirm ${FLAGGED_STATUS_CFG[otpPending].label}`}
+              </Box>
+            </Box>
+          </Box>
+        </>
+      )}
     </>
   )
 }

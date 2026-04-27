@@ -10,4 +10,22 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        // Disable response buffering so SSE frames flush to the browser immediately.
+        // Without this, http-proxy buffers the chunked stream and the client
+        // never receives events until the buffer fills or the connection closes.
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            // Force streaming — remove any content-length that would indicate
+            // a fixed-size response and ensure chunked transfer passes through.
+            delete proxyRes.headers['content-length']
+          })
+        },
+      },
+    },
+  },
 })

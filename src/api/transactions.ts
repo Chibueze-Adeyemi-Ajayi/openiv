@@ -90,9 +90,9 @@ export const transactionApi = {
     return apiRequest<TransactionPage>(`/api/v1/transactions${query ? '?' + query : ''}`)
   },
 
-  bulkFlaggedStatus: (ids: string[], flaggedStatus: FlaggedStatus) =>
+  bulkFlaggedStatus: (ids: string[], flaggedStatus: FlaggedStatus, reason: string, documentId: number) =>
     apiRequest<{ ok: boolean }>('/api/v1/transactions/bulk-status', {
-      body: { ids, flaggedStatus },
+      body: { ids, flaggedStatus, reason, documentId },
     }),
 
   importTransactions: (rows: ImportRow[]) =>

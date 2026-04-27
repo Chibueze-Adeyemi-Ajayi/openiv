@@ -11,6 +11,7 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import TOTPConfirmation, { type TOTPOperation } from '@/components/dashboard/TOTPConfirmation'
+import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 
 interface Props {
   caseId: string | null
@@ -167,9 +168,11 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
   const [note,          setNote]          = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
 
+  const [evidenceOpen,     setEvidenceOpen]     = useState(false)
   const [totpOpen,         setTotpOpen]         = useState(false)
   const [closeSideOpen,    setCloseSideOpen]    = useState(false)
-  const pendingRef = useRef<PendingAction | null>(null)
+  const pendingRef   = useRef<PendingAction | null>(null)
+  const pendingEvRef = useRef<EvidencePayload | null>(null)
 
   const cas: Case | null = data?.case ?? null
   const currentStatus = (localStatus ?? cas?.status ?? null) as CaseStatus | null
@@ -197,6 +200,17 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
   const triggerAction = useCallback((action: PendingAction) => {
     pendingRef.current = action
     setCloseSideOpen(false)
+    // Status changes require a reason + document before TOTP
+    if (action.type === 'status') {
+      setEvidenceOpen(true)
+    } else {
+      setTotpOpen(true)
+    }
+  }, [])
+
+  const handleEvidenceConfirm = useCallback((ev: EvidencePayload) => {
+    pendingEvRef.current = ev
+    setEvidenceOpen(false)
     setTotpOpen(true)
   }, [])
 
@@ -207,7 +221,10 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
     setActioning(true)
     try {
       if (action.type === 'status') {
-        await caseApi.updateStatus(cas.id, action.to, action.resolution)
+        const ev = pendingEvRef.current
+        if (!ev) return
+        await caseApi.updateStatus(cas.id, action.to, action.resolution, ev.reason, ev.documentId)
+        pendingEvRef.current = null
         setLocalStatus(action.to)
         onUpdated?.()
       } else {
@@ -671,6 +688,22 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
           )}
         </Box>
       </Box>
+
+      {/* Evidence + reason gate for status transitions */}
+      {cas && evidenceOpen && pendingRef.current?.type === 'status' && (() => {
+        const action = pendingRef.current as { type: 'status'; to: CaseStatus; resolution?: CaseResolution }
+        const cfg = actionTotp(action, cas.id)
+        return (
+          <ActionEvidenceDialog
+            open
+            onClose={() => { setEvidenceOpen(false); pendingRef.current = null }}
+            onConfirm={handleEvidenceConfirm}
+            title={cfg.title}
+            actionLabel={action.to.replace(/_/g, ' ')}
+            actionColor={STATUS_CFG[action.to]?.color ?? colorPalette.primary}
+          />
+        )
+      })()}
 
       {/* TOTP gate for all workspace actions */}
       {cas && (() => {

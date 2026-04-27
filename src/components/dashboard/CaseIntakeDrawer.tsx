@@ -4,6 +4,7 @@ import { colorPalette } from '@/theme'
 import { transactionApi, type Transaction } from '@/api/transactions'
 import { type CreateCaseInput, type CasePriority, type EvidenceCategory, type AddEvidenceInput } from '@/api/cases'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
+import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -140,6 +141,7 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
   const [caseTitle, setCaseTitle]       = useState('')
   const [caseNotes, setCaseNotes]       = useState('')
   const [titleTouched, setTitleTouched] = useState(false)
+  const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [totpOpen, setTotpOpen]         = useState(false)
   const pendingRef = useRef<CaseIntakePayload | null>(null)
   const txnTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -187,6 +189,11 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    setEvidenceOpen(true)
+  }
+
+  const handleEvidenceConfirm = useCallback((ev: EvidencePayload) => {
+    setEvidenceOpen(false)
     const payload: CaseIntakePayload = {
       caseInput: {
         title: caseTitle.trim(),
@@ -195,20 +202,22 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
         riskScore,
         notes: caseNotes.trim() || undefined,
         transactionId: activityType === 'transaction' && subject.selectedTxn ? subject.selectedTxn.id : undefined,
+        reason: ev.reason,
+        documentId: ev.documentId,
       },
       evidence: evidence!,
     }
     pendingRef.current = payload
     onClose()
     setTotpOpen(true)
-  }
+  }, [caseTitle, typology, priority, riskScore, caseNotes, activityType, subject.selectedTxn, evidence, onClose])
 
   const afterTotpVerified = useCallback(() => {
     const p = pendingRef.current
     if (p) onSubmit(p)
   }, [onSubmit])
 
-  if (!open && !totpOpen) return null
+  if (!open && !totpOpen && !evidenceOpen) return null
 
   return (
     <>
@@ -469,6 +478,15 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
           </Box>
         </>
       )}
+
+      <ActionEvidenceDialog
+        open={evidenceOpen}
+        onClose={() => setEvidenceOpen(false)}
+        onConfirm={handleEvidenceConfirm}
+        title="Open Investigation Case"
+        actionLabel="Create Case"
+        actionColor={colorPalette.primary}
+      />
 
       <TOTPConfirmation
         open={totpOpen}

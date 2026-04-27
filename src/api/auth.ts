@@ -23,6 +23,7 @@ export interface SessionStateResponse {
   accountType?: AccountType
   email?: string
   role?: string
+  fullName?: string
 }
 
 export interface TotpEnrollment {
@@ -34,7 +35,27 @@ export interface ResetVerifyResponse {
   resetToken: string
 }
 
+const DEVICE_ID_KEY = 'openiv_device_id'
+
+function getDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY)
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem(DEVICE_ID_KEY, id)
+  }
+  return id
+}
+
+export interface SessionConflictError {
+  detail: 'active_session_same_device' | 'active_session_other_device'
+  transferRef?: string
+  existingIp?: string
+  existingUserAgent?: string
+}
+
 export const authApi = {
+  getDeviceId,
+
   verifyInvite: (inviteCode: string) =>
     apiRequest<InviteVerifyResponse>('/api/v1/auth/invite/verify', {
       body: { inviteCode },
@@ -49,7 +70,18 @@ export const authApi = {
         lat,
         lon,
         accuracy,
+        deviceId: getDeviceId(),
       },
+    }),
+
+  transferSession: (transferRef: string, totpCode: string, lat?: number, lon?: number, accuracy?: number) =>
+    apiRequest<LoginResponse>('/api/v1/auth/session/transfer', {
+      body: { transferRef, totpCode, deviceId: getDeviceId(), lat, lon, accuracy },
+    }),
+
+  blockDevice: (deviceId: string, ipAddress?: string | null, userAgent?: string | null) =>
+    apiRequest<{ ok: boolean }>('/api/v1/auth/devices/block', {
+      body: { deviceId, ipAddress, userAgent },
     }),
 
   resendEmailCode: () =>

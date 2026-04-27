@@ -84,6 +84,8 @@ export interface CreateCaseInput {
   assignedTo?: number | null
   notes?: string
   transactionId?: string
+  reason: string
+  documentId: number
 }
 
 export const caseApi = {
@@ -107,10 +109,11 @@ export const caseApi = {
   detail: (id: string) =>
     apiRequest<CaseDetail>(`/api/v1/cases/${id}`),
 
-  updateStatus: (id: string, status: CaseStatus, resolution?: CaseResolution) =>
+  updateStatus: (id: string, status: CaseStatus, resolution: CaseResolution | null | undefined,
+      reason: string, documentId: number) =>
     apiRequest<{ ok: boolean }>(`/api/v1/cases/${id}/status`, {
       method: 'PATCH',
-      body: { status, resolution: resolution ?? null },
+      body: { status, resolution: resolution ?? null, reason, documentId },
     }),
 
   linkTransaction: (id: string, transactionId: string) =>

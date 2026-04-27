@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Box, Typography, Stack, IconButton, InputBase } from '@mui/material'
+import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 import { colorPalette } from '@/theme'
 import { caseApi, type Case, type CaseDetail, type CaseStatus, type CaseResolution } from '@/api/cases'
 import type { Transaction } from '@/api/transactions'
@@ -94,6 +95,11 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
   const [closePickerOpen, setClosePickerOpen] = useState(false)
   const [localStatus,   setLocalStatus]   = useState<CaseStatus | null>(null)
 
+  // Evidence gate — set when an action button is clicked; cleared after evidence confirmed or cancelled
+  const [evidenceTarget, setEvidenceTarget] = useState<{
+    status: CaseStatus; resolution?: CaseResolution; label: string; color: string
+  } | null>(null)
+
   const cas: Case | null = data?.case ?? null
   const currentStatus = localStatus ?? cas?.status ?? null
 
@@ -113,19 +119,33 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
     if (open && caseId) { setData(null); setNote(''); setClosePickerOpen(false); setLocalStatus(null); loadDetail() }
   }, [open, caseId, loadDetail])
 
-  const transition = useCallback(async (newStatus: CaseStatus, resolution?: CaseResolution) => {
+  const requestTransition = (status: CaseStatus, resolution: CaseResolution | undefined,
+      label: string, color: string) => {
+    if (!cas || actioning) return
+    setClosePickerOpen(false)
+    setEvidenceTarget({ status, resolution, label, color })
+  }
+
+  const transition = useCallback(async (newStatus: CaseStatus, resolution: CaseResolution | undefined,
+      reason: string, documentId: number) => {
     if (!cas || actioning) return
     setActioning(true)
     try {
-      await caseApi.updateStatus(cas.id, newStatus, resolution)
+      await caseApi.updateStatus(cas.id, newStatus, resolution, reason, documentId)
       setLocalStatus(newStatus)
-      setClosePickerOpen(false)
       onUpdated()
       await loadDetail()
     } finally {
       setActioning(false)
     }
   }, [cas, actioning, onUpdated, loadDetail])
+
+  const handleEvidenceConfirm = useCallback((payload: EvidencePayload) => {
+    if (!evidenceTarget) return
+    const { status, resolution } = evidenceTarget
+    setEvidenceTarget(null)
+    transition(status, resolution, payload.reason, payload.documentId)
+  }, [evidenceTarget, transition])
 
   const submitNote = useCallback(async () => {
     if (!cas || !note.trim() || submittingNote) return
@@ -218,11 +238,11 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
               <Stack direction="row" gap={1} flexWrap="wrap">
                 {currentStatus === 'open' && (
                   <ActionBtn label="Start Investigation" color={colorPalette.primary} disabled={actioning}
-                    onClick={() => transition('investigating')} />
+                    onClick={() => requestTransition('investigating', undefined, 'Start Investigation', colorPalette.primary)} />
                 )}
                 {currentStatus === 'investigating' && (
                   <ActionBtn label="Escalate" color="#f59e0b" disabled={actioning}
-                    onClick={() => transition('escalated')} />
+                    onClick={() => requestTransition('escalated', undefined, 'Escalate', '#f59e0b')} />
                 )}
                 <Box sx={{ position: 'relative' }}>
                   <ActionBtn label="Close Case" color="#64748b" disabled={actioning}
@@ -236,10 +256,10 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         Resolution
                       </Typography>
                       {RESOLUTION_OPTIONS.map(r => (
-                        <Box key={r.key} onClick={() => transition('closed', r.key)} sx={{
-                          px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                          '&:hover': { bgcolor: '#f8fafc' },
-                        }}>
+                        <Box key={r.key}
+                          onClick={() => requestTransition('closed', r.key, r.label, r.color)}
+                          sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                            '&:hover': { bgcolor: '#f8fafc' } }}>
                           <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
                           <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'Jost' }}>{r.label}</Typography>
                         </Box>
@@ -393,6 +413,17 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
           </Box>
         )}
       </Box>
+
+      {evidenceTarget && (
+        <ActionEvidenceDialog
+          open
+          onClose={() => setEvidenceTarget(null)}
+          onConfirm={handleEvidenceConfirm}
+          title="Case Action"
+          actionLabel={evidenceTarget.label}
+          actionColor={evidenceTarget.color}
+        />
+      )}
     </>
   )
 }

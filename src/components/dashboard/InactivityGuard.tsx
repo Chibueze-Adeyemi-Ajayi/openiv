@@ -8,17 +8,43 @@ import { authApi } from '@/api/auth'
 import { clearOnboardingState } from '@/onboarding/state'
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const IDLE_MS        = 15 * 60 * 1000   // 15 min idle → show dialog
-const WARNING_S      = 2 * 60           // 2 min countdown before auto-logout
-const MAX_ATTEMPTS   = 3
+const IDLE_MS      = 15 * 60 * 1000   // 15 min idle → show dialog
+const WARNING_S    = 2 * 60           // 2 min countdown before auto-logout
+const MAX_ATTEMPTS = 3
+
+// ── Persistence keys ──────────────────────────────────────────────────────────
+const STORAGE_KEY  = 'openiv_guard'     // { state, since }
+const CHANNEL_NAME = 'openiv_session'   // BroadcastChannel
 
 type GuardState = 'active' | 'warning' | 'totp'
+
+interface StoredGuard { state: 'warning' | 'totp'; since: number }
+
+type ChannelMsg =
+  | { type: 'warning'; since: number }
+  | { type: 'resumed' }
+  | { type: 'logout' }
 
 function fmt(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-// ── TOTP digit inputs (inline, dialog-sized) ─────────────────────────────────
+function readStorage(): StoredGuard | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function writeStorage(state: 'warning' | 'totp', since: number) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ state, since })) } catch { /* ignore */ }
+}
+
+function clearStorage() {
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+}
+
+// ── TOTP digit inputs ─────────────────────────────────────────────────────────
 function TotpInput({
   value, onChange, disabled,
 }: {
@@ -95,24 +121,27 @@ export default function InactivityGuard() {
   const [submitting, setSubmitting] = useState(false)
   const [attempts, setAttempts]     = useState(0)
 
-  const idleTimer       = useRef<ReturnType<typeof setTimeout>>()
-  const countdownTimer  = useRef<ReturnType<typeof setInterval>>()
-  const guardStateRef   = useRef<GuardState>('active')
+  const idleTimer      = useRef<ReturnType<typeof setTimeout>>()
+  const countdownTimer = useRef<ReturnType<typeof setInterval>>()
+  const guardStateRef  = useRef<GuardState>('active')
+  const channelRef     = useRef<BroadcastChannel | null>(null)
 
-  // Keep ref in sync so event listeners see current value without stale closure.
   useEffect(() => { guardStateRef.current = guardState }, [guardState])
 
   const doLogout = useCallback(async () => {
     clearInterval(countdownTimer.current)
     clearTimeout(idleTimer.current)
+    clearStorage()
     try { await authApi.logout() } catch { /* ignore */ }
     clearOnboardingState()
+    channelRef.current?.postMessage({ type: 'logout' } as ChannelMsg)
     window.location.replace('/auth/login?expired=1')
   }, [])
 
-  const startCountdown = useCallback(() => {
+  // Start or restart the countdown from `remaining` seconds.
+  const startCountdown = useCallback((remaining: number) => {
     clearInterval(countdownTimer.current)
-    setCountdown(WARNING_S)
+    setCountdown(remaining)
     countdownTimer.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -125,34 +154,92 @@ export default function InactivityGuard() {
     }, 1000)
   }, [doLogout])
 
+  const enterWarning = useCallback((since: number) => {
+    const elapsed   = Math.floor((Date.now() - since) / 1000)
+    const remaining = Math.max(WARNING_S - elapsed, 1)
+    writeStorage('warning', since)
+    setGuardState('warning')
+    startCountdown(remaining)
+    channelRef.current?.postMessage({ type: 'warning', since } as ChannelMsg)
+  }, [startCountdown])
+
   const resetIdle = useCallback(() => {
     clearTimeout(idleTimer.current)
     idleTimer.current = setTimeout(() => {
-      setGuardState('warning')
-      startCountdown()
+      enterWarning(Date.now())
     }, IDLE_MS)
-  }, [startCountdown])
+  }, [enterWarning])
 
-  // Activity listeners — only reset the idle timer while the user is active.
+  // ── BroadcastChannel setup ─────────────────────────────────────────────────
   useEffect(() => {
-    const handler = () => {
-      if (guardStateRef.current === 'active') resetIdle()
+    const ch = new BroadcastChannel(CHANNEL_NAME)
+    channelRef.current = ch
+    ch.onmessage = (evt: MessageEvent<ChannelMsg>) => {
+      const msg = evt.data
+      if (msg.type === 'warning' && guardStateRef.current === 'active') {
+        // Another tab went into warning — mirror it here.
+        const elapsed   = Math.floor((Date.now() - msg.since) / 1000)
+        const remaining = Math.max(WARNING_S - elapsed, 1)
+        writeStorage('warning', msg.since)
+        setGuardState('warning')
+        startCountdown(remaining)
+      } else if (msg.type === 'resumed') {
+        // Another tab verified — dismiss here too.
+        clearInterval(countdownTimer.current)
+        clearStorage()
+        setGuardState('active')
+        setDigits(['', '', '', '', '', ''])
+        resetIdle()
+      } else if (msg.type === 'logout') {
+        window.location.replace('/auth/login?expired=1')
+      }
     }
+    return () => { ch.close(); channelRef.current = null }
+  }, [startCountdown, resetIdle])
+
+  // ── Restore persisted warning state on mount (survives refresh) ────────────
+  useEffect(() => {
+    const stored = readStorage()
+    if (stored) {
+      const elapsed   = Math.floor((Date.now() - stored.since) / 1000)
+      const remaining = WARNING_S - elapsed
+      if (remaining <= 0) {
+        // Time already expired — log out immediately.
+        doLogout()
+      } else {
+        setGuardState(stored.state)
+        startCountdown(remaining)
+        return // don't start idle timer — we're already in warning state
+      }
+    }
+    // Normal boot — start idle timer.
+    resetIdle()
     const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+    const handler = () => { if (guardStateRef.current === 'active') resetIdle() }
     events.forEach((e) => window.addEventListener(e, handler, { passive: true }))
-    resetIdle() // start on mount
     return () => {
       events.forEach((e) => window.removeEventListener(e, handler))
       clearTimeout(idleTimer.current)
       clearInterval(countdownTimer.current)
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Activity listeners (only registered when no stored warning) ────────────
+  useEffect(() => {
+    if (readStorage()) return // already in warning — no activity reset
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+    const handler = () => { if (guardStateRef.current === 'active') resetIdle() }
+    events.forEach((e) => window.addEventListener(e, handler, { passive: true }))
+    return () => events.forEach((e) => window.removeEventListener(e, handler))
   }, [resetIdle])
 
   const handleImHere = () => {
+    writeStorage('totp', (() => {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}').since ?? Date.now() } catch { return Date.now() }
+    })())
     setGuardState('totp')
     setDigits(['', '', '', '', '', ''])
     setTotpError(null)
-    // countdown keeps running — no restart
   }
 
   const handleVerify = async () => {
@@ -162,11 +249,12 @@ export default function InactivityGuard() {
     setTotpError(null)
     try {
       await authApi.stepUpTotp(code)
-      // Success — resume session
       clearInterval(countdownTimer.current)
+      clearStorage()
       setGuardState('active')
       setDigits(['', '', '', '', '', ''])
       setAttempts(0)
+      channelRef.current?.postMessage({ type: 'resumed' } as ChannelMsg)
       resetIdle()
     } catch {
       const next = attempts + 1
@@ -212,7 +300,6 @@ export default function InactivityGuard() {
       </Box>
 
       <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-
         {guardState === 'warning' && (
           <>
             <Typography sx={{ fontSize: '0.9375rem', color: '#475569', lineHeight: 1.6 }}>

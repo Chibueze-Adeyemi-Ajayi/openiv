@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { transactionApi, type Transaction, type FlaggedStatus, type TransactionStatus } from '@/api/transactions'
 import ImportTransactionsModal from '@/components/dashboard/ImportTransactionsModal'
 import TransactionDetailPanel from '@/components/dashboard/TransactionDetailPanel'
+import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
@@ -123,13 +124,16 @@ export default function TransactionsPage() {
   const toggleSelect = (id: string) =>
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
-  const handleBulkClear = async () => {
-    await transactionApi.bulkFlaggedStatus(selected, 'cleared')
-    setSelected([]); load()
-  }
+  const [bulkEvidenceTarget, setBulkEvidenceTarget] = useState<FlaggedStatus | null>(null)
 
-  const handleBulkEscalate = async () => {
-    await transactionApi.bulkFlaggedStatus(selected, 'flagged')
+  const handleBulkClear    = () => setBulkEvidenceTarget('cleared')
+  const handleBulkEscalate = () => setBulkEvidenceTarget('flagged')
+
+  const handleBulkEvidenceConfirm = async (ev: EvidencePayload) => {
+    if (!bulkEvidenceTarget) return
+    const target = bulkEvidenceTarget
+    setBulkEvidenceTarget(null)
+    await transactionApi.bulkFlaggedStatus(selected, target, ev.reason, ev.documentId)
     setSelected([]); load()
   }
 
@@ -449,6 +453,15 @@ export default function TransactionsPage() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         onStatusChange={load}
+      />
+
+      <ActionEvidenceDialog
+        open={bulkEvidenceTarget !== null}
+        onClose={() => setBulkEvidenceTarget(null)}
+        onConfirm={handleBulkEvidenceConfirm}
+        title="Bulk Status Change"
+        actionLabel={bulkEvidenceTarget === 'cleared' ? 'Clear' : 'Escalate'}
+        actionColor={bulkEvidenceTarget === 'cleared' ? '#10b981' : '#f59e0b'}
       />
 
       {/* Filter Panel */}
