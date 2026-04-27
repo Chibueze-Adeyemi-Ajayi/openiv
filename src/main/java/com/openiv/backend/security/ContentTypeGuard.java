@@ -33,7 +33,10 @@ public final class ContentTypeGuard {
         return;
       }
       String ct = ctx.request().getHeader("Content-Type");
-      if (ct == null || !ct.toLowerCase().startsWith("application/json")) {
+      String ctLow = ct != null ? ct.toLowerCase() : "";
+      // Allow multipart/form-data (file uploads); CORS preflight already covers cross-origin.
+      if (ctLow.startsWith("multipart/form-data")) { ctx.next(); return; }
+      if (ct == null || !ctLow.startsWith("application/json")) {
         ctx.response()
             .setStatusCode(415)
             .putHeader("Accept", "application/json")

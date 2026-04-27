@@ -1,6 +1,9 @@
 package com.openiv.backend.api.v1;
 
 import com.openiv.backend.auth.handler.AccessRequestHandlers;
+import com.openiv.backend.auth.repository.UserRepository;
+import com.openiv.backend.documents.DocumentHandlers;
+import com.openiv.backend.documents.DocumentRepository;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.AuthService;
@@ -18,6 +21,8 @@ import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamApiKeyHandler;
 import com.openiv.backend.beam.BeamHandlers;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.dashboard.DashboardHandlers;
+import com.openiv.backend.dashboard.DashboardService;
 import com.openiv.backend.heatmap.HeatmapHandlers;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycHandlers;
@@ -49,7 +54,8 @@ public final class V1Router {
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
-      KycService kycService, HeatmapService heatmapService) {
+      KycService kycService, HeatmapService heatmapService,
+      DashboardService dashboardService) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -133,11 +139,31 @@ public final class V1Router {
     router.post("/kyc/lookup").handler(kycAuth).handler(kycHandlers.lookup());
     router.get("/kyc/logs").handler(kycAuth).handler(kycHandlers.listLogs());
 
+    // Documents — compliance evidence files (upload + download)
+    DocumentHandlers docHandlers = new DocumentHandlers(
+        new DocumentRepository(dbPool), new UserRepository(dbPool), vertx);
+    Handler<RoutingContext> docAuth = SessionAuthHandler.authenticated(authService);
+    router.post("/documents/upload").handler(docAuth).handler(docHandlers.upload());
+    router.get("/documents/:id").handler(docAuth).handler(docHandlers.download());
+
     // Heatmaps — day-of-week × hour density from transactions and login beam records
     HeatmapHandlers heatmapHandlers = new HeatmapHandlers(heatmapService);
     Handler<RoutingContext> heatmapAuth = SessionAuthHandler.authenticated(authService);
     router.get("/heatmap/transactions").handler(heatmapAuth).handler(heatmapHandlers.transactions());
     router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
+
+    // Dashboard — SSE streams, REST snapshots, export, NFIU return
+    DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, vertx);
+    Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
+    router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());
+    router.get("/dashboard/activity-stream").handler(dashAuth).handler(dashboardHandlers.activityStream());
+    router.get("/dashboard/otp-alerts-stream").handler(dashAuth).handler(dashboardHandlers.otpAlertsStream());
+    router.get("/dashboard/stats").handler(dashAuth).handler(dashboardHandlers.stats());
+    router.get("/dashboard/flow").handler(dashAuth).handler(dashboardHandlers.flow());
+    router.get("/dashboard/risk-map").handler(dashAuth).handler(dashboardHandlers.riskMap());
+    router.get("/dashboard/export").handler(dashAuth).handler(dashboardHandlers.export());
+    router.post("/dashboard/nfiu-return").handler(dashAuth).handler(dashboardHandlers.nfiuReturn());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

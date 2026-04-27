@@ -99,15 +99,16 @@ public final class CaseRepository {
 
   public Future<CaseRecord> create(String id, long institutionId, String title, String typology,
       String priority, int riskScore, Long assignedTo, String notes,
-      OffsetDateTime slaDeadline, long createdBy) {
+      OffsetDateTime slaDeadline, long createdBy, String openReason, Long openDocumentId) {
 
     String sql = "INSERT INTO cases "
-        + "(id, institution_id, title, typology, priority, risk_score, assigned_to, notes, created_by, sla_deadline) "
-        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)";
+        + "(id, institution_id, title, typology, priority, risk_score, assigned_to, notes,"
+        + " created_by, sla_deadline, open_reason, open_document_id) "
+        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)";
     var p = new ArrayList<>();
     p.add(id); p.add(institutionId); p.add(title); p.add(typology);
     p.add(priority); p.add(riskScore); p.add(assignedTo); p.add(notes);
-    p.add(createdBy); p.add(slaDeadline);
+    p.add(createdBy); p.add(slaDeadline); p.add(openReason); p.add(openDocumentId);
     return pool.preparedQuery(sql).execute(buildTuple(p))
         .compose(v -> findById(id, institutionId).map(opt -> opt.orElseThrow()));
   }
@@ -252,6 +253,13 @@ public final class CaseRepository {
     return pool.preparedQuery(
             "INSERT INTO case_activity(case_id,actor_id,action,detail) VALUES($1,$2,$3,$4)")
         .execute(Tuple.of(caseId, actorId, action, detail))
+        .mapEmpty();
+  }
+
+  public Future<Void> addActivity(String caseId, long actorId, String action, String detail, Long documentId) {
+    return pool.preparedQuery(
+            "INSERT INTO case_activity(case_id,actor_id,action,detail,document_id) VALUES($1,$2,$3,$4,$5)")
+        .execute(Tuple.of(caseId, actorId, action, detail, documentId))
         .mapEmpty();
   }
 

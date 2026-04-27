@@ -42,24 +42,55 @@ public final class AuthHandlers {
 
   public Handler<RoutingContext> login() {
     return ctx -> withJson(ctx, body -> {
-      String email = required(body, "email");
+      String email    = required(body, "email");
       String password = required(body, "password");
-      String inviteCode = body.getString("inviteCode"); // optional
+      String inviteCode = body.getString("inviteCode");
+      String deviceId   = body.getString("deviceId");   // browser localStorage UUID, may be null
       String ip = ctx.request().remoteAddress().hostAddress();
       String ua = ctx.request().getHeader("User-Agent");
       Double lat = body.getDouble("lat");
       Double lon = body.getDouble("lon");
       Double acc = body.getDouble("accuracy");
-      return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc).map(result -> {
+      return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc, deviceId).map(result -> {
         AuditLog.authSuccess(ctx, email);
-        // Session token goes into an HttpOnly cookie; the browser will send it
-        // automatically
-        // on subsequent requests. We do NOT return it in the response body.
         SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
         return new JsonObject()
-            .put("state", result.state().dbValue())
+            .put("state",       result.state().dbValue())
             .put("accountType", result.accountType().dbValue());
       });
+    });
+  }
+
+  /** POST /auth/session/transfer — same-device TOTP transfer. No existing session required. */
+  public Handler<RoutingContext> transferSession() {
+    return ctx -> withJson(ctx, body -> {
+      String transferRef = required(body, "transferRef");
+      String totpCode    = required(body, "totpCode");
+      String deviceId    = body.getString("deviceId");
+      String ip = ctx.request().remoteAddress().hostAddress();
+      String ua = ctx.request().getHeader("User-Agent");
+      Double lat = body.getDouble("lat");
+      Double lon = body.getDouble("lon");
+      Double acc = body.getDouble("accuracy");
+      return auth.transferSession(transferRef, totpCode, deviceId, ip, ua, lat, lon, acc)
+          .map(result -> {
+            SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
+            return new JsonObject()
+                .put("state",       result.state().dbValue())
+                .put("accountType", result.accountType().dbValue());
+          });
+    });
+  }
+
+  /** POST /auth/devices/block — block a device fingerprint from the alert popup. */
+  public Handler<RoutingContext> blockDevice() {
+    return ctx -> withJson(ctx, body -> {
+      var session   = SessionAuthHandler.require(ctx);
+      String deviceId  = required(body, "deviceId");
+      String ipAddr    = body.getString("ipAddress");
+      String ua        = body.getString("userAgent");
+      return auth.blockDevice(session, deviceId, ipAddr, ua)
+          .map(v -> new JsonObject().put("ok", true));
     });
   }
 
@@ -164,6 +195,8 @@ public final class AuthHandlers {
               body.put("accountType", info.accountType().dbValue());
             if (info.email() != null)
               body.put("email", info.email());
+            if (info.fullName() != null)
+              body.put("fullName", info.fullName());
             okJson(ctx, body);
           })
           .onFailure(err -> handleFailure(ctx, err));
@@ -237,21 +270,26 @@ public final class AuthHandlers {
   private static void handleFailure(RoutingContext ctx, Throwable err) {
     if (err instanceof AuthException ae) {
       int status = switch (ae.category()) {
-        case INVALID -> 400;
-        case LOCKED -> 423;
-        case WRONG_STATE -> 409;
+        case INVALID       -> 400;
+        case LOCKED        -> 423;
+        case WRONG_STATE   -> 409;
         case WEAK_PASSWORD -> 422;
-        default -> throw new IllegalArgumentException("Unexpected value: " + ae.category());
+        case SECURITY      -> 403;
+        case CONFLICT      -> 409;
       };
       AuditLog.securityException(ctx, ae.category().name().toLowerCase(), ae.detail());
+      JsonObject out = new JsonObject()
+          .put("error",         ae.category().name().toLowerCase())
+          .put("detail",        ae.detail())
+          .put("correlationId", RequestId.of(ctx));
+      // Merge any extra conflict payload (e.g. transferRef, existingIp) into the response.
+      if (ae.conflictData() != null) {
+        out.mergeIn(ae.conflictData());
+      }
       ctx.response()
           .setStatusCode(status)
           .putHeader("content-type", "application/json; charset=utf-8")
-          .end(new JsonObject()
-              .put("error", ae.category().name().toLowerCase())
-              .put("detail", ae.detail())
-              .put("correlationId", RequestId.of(ctx))
-              .encode());
+          .end(out.encode());
       return;
     }
     ctx.fail(err);

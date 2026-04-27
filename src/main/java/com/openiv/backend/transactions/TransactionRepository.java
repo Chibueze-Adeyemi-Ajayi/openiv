@@ -196,13 +196,15 @@ public final class TransactionRepository {
         });
   }
 
-  public Future<Void> bulkUpdateFlaggedStatus(List<String> ids, long institutionId, String newFlaggedStatus) {
+  public Future<Void> bulkUpdateFlaggedStatus(List<String> ids, long institutionId,
+      String newFlaggedStatus, String reason, long documentId) {
     if (ids.isEmpty()) return Future.succeededFuture();
     String[] arr = ids.toArray(new String[0]);
     return pool.preparedQuery(
-            "UPDATE transactions SET flagged_status = $1, updated_at = now() "
-            + "WHERE id = ANY($2::text[]) AND institution_id = $3")
-        .execute(Tuple.of(newFlaggedStatus, arr, institutionId))
+            "UPDATE transactions SET flagged_status = $1, status_reason = $2,"
+            + " status_document_id = $3, updated_at = now()"
+            + " WHERE id = ANY($4::text[]) AND institution_id = $5")
+        .execute(Tuple.of(newFlaggedStatus, reason, documentId, arr, institutionId))
         .mapEmpty();
   }
 

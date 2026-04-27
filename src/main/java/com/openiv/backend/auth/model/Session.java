@@ -13,7 +13,10 @@ public record Session(
     OffsetDateTime createdAt,
     Double lat,
     Double lon,
-    Double accuracy
+    Double accuracy,
+    String deviceId,
+    String ip,
+    String userAgent
 ) {
   public boolean isActive() {
     return revokedAt == null && expiresAt.isAfter(OffsetDateTime.now());

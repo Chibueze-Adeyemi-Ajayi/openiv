@@ -34,9 +34,11 @@ public final class TransactionService {
             institutionId, status, flaggedStatus, q, range, channel, minRisk, maxRisk));
   }
 
-  public Future<Void> bulkUpdateFlaggedStatus(Session session, List<String> ids, String newFlaggedStatus) {
+  public Future<Void> bulkUpdateFlaggedStatus(Session session, List<String> ids,
+      String newFlaggedStatus, String reason, long documentId) {
     return resolveInstitution(session)
-        .compose(institutionId -> repository.bulkUpdateFlaggedStatus(ids, institutionId, newFlaggedStatus));
+        .compose(institutionId -> repository.bulkUpdateFlaggedStatus(
+            ids, institutionId, newFlaggedStatus, reason, documentId));
   }
 
   public Future<Integer> importTransactions(Session session, List<TransactionImport> rows) {

@@ -9,6 +9,7 @@ import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.dashboard.DashboardService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
@@ -19,8 +20,10 @@ import com.openiv.backend.security.RateLimit;
 import com.openiv.backend.security.RequestId;
 import com.openiv.backend.security.SecurityConfig;
 import com.openiv.backend.security.SecurityHeaders;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.ResponseTimeHandler;
 import io.vertx.ext.web.handler.TimeoutHandler;
@@ -77,22 +80,36 @@ public final class ApiRouter {
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
-      KycService kycService, HeatmapService heatmapService) {
+      KycService kycService, HeatmapService heatmapService,
+      DashboardService dashboardService) {
     router.route().handler(RequestId.create());
     router.route().handler(SecurityHeaders.create(security));
     router.route().handler(MethodGuard.create());
     router.route().handler(Cors.create(security));
     router.route().handler(RateLimit.create(security));
+    // Document upload needs a larger body limit; register before the global handler.
+    // BodyHandler is idempotent — the global handler below is a no-op for this path.
+    router.post("/api/v1/documents/upload")
+        .handler(BodyHandler.create().setBodyLimit(10L * 1024 * 1024).setHandleFileUploads(true));
     router.route().handler(BodyHandler.create().setBodyLimit(security.maxBodyBytes()));
     router.route().handler(ContentTypeGuard.create());
-    router.route().handler(TimeoutHandler.create(security.requestTimeoutMillis(), 503));
+    // SSE stream must not be subject to the per-request timeout — bypass it for that path.
+    Handler<RoutingContext> timeout = TimeoutHandler.create(security.requestTimeoutMillis(), 503);
+    router.route().handler(ctx -> {
+      String path = ctx.normalizedPath();
+      if (path != null && (path.endsWith("/dashboard/events")
+          || path.endsWith("/dashboard/stream")
+          || path.endsWith("/activity-stream")
+          || path.endsWith("/otp-alerts-stream"))) ctx.next();
+      else timeout.handle(ctx);
+    });
     router.route().handler(ResponseTimeHandler.create());
 
     HealthHandler.mount(router);
     router.route("/api/v1/*").subRouter(V1Router.create(
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
-        beamService, kycService, heatmapService));
+        beamService, kycService, heatmapService, dashboardService));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

@@ -27,6 +27,7 @@ public final class AuthRouter {
     // Public
     router.post("/invite/verify").handler(handlers.verifyInvite());
     router.post("/login").handler(handlers.login());
+    router.post("/session/transfer").handler(handlers.transferSession());
     router.post("/password/reset/request").handler(handlers.requestPasswordReset());
     router.post("/password/reset/verify").handler(handlers.verifyPasswordResetCode());
     router.post("/password/reset/confirm").handler(handlers.confirmPasswordReset());
@@ -46,6 +47,8 @@ public final class AuthRouter {
         .handler(handlers.logout());
 
     // Authenticated session required
+    router.post("/devices/block").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.blockDevice());
     router.post("/totp/step-up").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.verifyTotpStepUp());
     router.post("/totp/step-up-lockout").handler(SessionAuthHandler.authenticated(authService))

@@ -2,9 +2,11 @@ package com.openiv.backend;
 
 import com.openiv.backend.auth.crypto.TotpCipher;
 import com.openiv.backend.auth.repository.AccessRequestRepository;
+import com.openiv.backend.auth.repository.BlockedDeviceRepository;
 import com.openiv.backend.auth.repository.InstitutionRepository;
 import com.openiv.backend.auth.repository.InvitationRepository;
 import com.openiv.backend.auth.repository.SessionRepository;
+import com.openiv.backend.auth.repository.SessionTransferRepository;
 import com.openiv.backend.auth.repository.TotpSecretRepository;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.repository.VerificationCodeRepository;
@@ -20,6 +22,10 @@ import com.openiv.backend.thresholds.ThresholdRepository;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamRepository;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.beam.OtpAlertRepository;
+import com.openiv.backend.beam.OtpAnalyzer;
+import com.openiv.backend.dashboard.DashboardRepository;
+import com.openiv.backend.dashboard.DashboardService;
 import com.openiv.backend.heatmap.HeatmapRepository;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycRepository;
@@ -127,6 +133,8 @@ public final class Main {
         VerificationCodeRepository codes = new VerificationCodeRepository(pool);
         TotpSecretRepository totp = new TotpSecretRepository(pool);
         SessionRepository sessions = new SessionRepository(pool);
+        BlockedDeviceRepository blockedDevices = new BlockedDeviceRepository(pool);
+        SessionTransferRepository transfers = new SessionTransferRepository(pool);
         EmailSender emailSender;
         if (config.email().enabled()) {
           emailSender = new VertxEmailSender(vertx, config.email());
@@ -140,7 +148,8 @@ public final class Main {
         log.info("TOTP cipher initialized (RSA-OAEP-SHA256)");
 
         AuthService authService = new AuthService(
-            users, invitations, codes, totp, sessions, emailSender, totpCipher);
+            users, invitations, codes, totp, sessions, emailSender, totpCipher,
+            blockedDevices, transfers, vertx);
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
         TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
@@ -153,16 +162,19 @@ public final class Main {
         WebhookDeliveryService webhookDeliveryService = new WebhookDeliveryService(webClient, webhookRepository);
         WebhookService webhookService = new WebhookService(webhookRepository, users, webhookDeliveryService);
         BeamRepository beamRepository = new BeamRepository(pool);
-        BeamService beamService = new BeamService(beamRepository, users);
+        OtpAlertRepository otpAlertRepository = new OtpAlertRepository(pool);
+        OtpAnalyzer otpAnalyzer = new OtpAnalyzer(otpAlertRepository);
+        BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer);
         KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
+        DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, cores))
+                beamService, kycService, heatmapService, dashboardService, cores))
             .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
@@ -181,13 +193,14 @@ public final class Main {
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, BeamService beamService,
-      KycService kycService, HeatmapService heatmapService, int instances) {
+      KycService kycService, HeatmapService heatmapService,
+      DashboardService dashboardService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService),
+                beamService, kycService, heatmapService, dashboardService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();

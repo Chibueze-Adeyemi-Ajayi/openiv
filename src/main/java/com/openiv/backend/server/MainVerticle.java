@@ -9,6 +9,7 @@ import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.dashboard.DashboardService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
@@ -41,13 +42,15 @@ public final class MainVerticle extends AbstractVerticle {
   private final BeamService        beamService;
   private final KycService         kycService;
   private final HeatmapService     heatmapService;
+  private final DashboardService   dashboardService;
   private HttpServer httpServer;
 
   public MainVerticle(AppConfig config, Pool dbPool, AuthService authService,
       AccessRequestService accessRequestService, TeamService teamService,
       TransactionService transactionService, CaseService caseService,
       ThresholdService thresholdService, WebhookService webhookService,
-      BeamService beamService, KycService kycService, HeatmapService heatmapService) {
+      BeamService beamService, KycService kycService, HeatmapService heatmapService,
+      DashboardService dashboardService) {
     this.config = config;
     this.dbPool = dbPool;
     this.authService = authService;
@@ -60,11 +63,12 @@ public final class MainVerticle extends AbstractVerticle {
     this.beamService = beamService;
     this.kycService = kycService;
     this.heatmapService = heatmapService;
+    this.dashboardService = dashboardService;
   }
 
   /** Test convenience constructor — no services, DB-less routes only. */
   public MainVerticle(AppConfig config, Pool dbPool) {
-    this(config, dbPool, null, null, null, null, null, null, null, null, null, null);
+    this(config, dbPool, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Override
@@ -95,7 +99,7 @@ public final class MainVerticle extends AbstractVerticle {
     ApiRouter.mount(vertx, router, dbPool, config.security(),
         authService, accessRequestService, teamService, transactionService,
         caseService, thresholdService, webhookService, config.isDevelopment(), beamService,
-        kycService, heatmapService);
+        kycService, heatmapService, dashboardService);
 
     return vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(

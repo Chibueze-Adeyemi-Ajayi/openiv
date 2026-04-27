@@ -114,7 +114,8 @@ public final class KycService {
                   int riskScore = finalTier != null ? Math.max(0, (4 - finalTier) * 25) : 50;
                   String notes = kycNotes(customerRef, finalKycStatus, finalTier, finalError);
                   return cases.create(session, "KYC Review: " + customerRef,
-                      "kyc_review", casePriority, riskScore, null, notes, null)
+                      "kyc_review", casePriority, riskScore, null, notes, null,
+                      "Automatically opened by KYC review", null)
                       .map(cas -> base.put("case", new JsonObject()
                           .put("id",         cas.id())
                           .put("title",      cas.title())

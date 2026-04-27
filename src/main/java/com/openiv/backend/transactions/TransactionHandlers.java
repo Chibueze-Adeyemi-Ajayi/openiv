@@ -56,10 +56,14 @@ public final class TransactionHandlers {
 
       JsonArray idsArr       = body.getJsonArray("ids");
       String    flaggedStatus = body.getString("flaggedStatus");
-      if (idsArr == null || flaggedStatus == null) { ctx.fail(400); return; }
+      String    reason        = body.getString("reason");
+      Long      documentId    = body.getLong("documentId");
+      if (idsArr == null || flaggedStatus == null)        { ctx.fail(400); return; }
+      if (reason == null || reason.isBlank())             { badRequest(ctx, "reason is required"); return; }
+      if (documentId == null)                             { badRequest(ctx, "documentId is required"); return; }
 
       List<String> ids = idsArr.stream().map(Object::toString).toList();
-      service.bulkUpdateFlaggedStatus(session, ids, flaggedStatus)
+      service.bulkUpdateFlaggedStatus(session, ids, flaggedStatus, reason, documentId)
           .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
           .onFailure(ctx::fail);
     };

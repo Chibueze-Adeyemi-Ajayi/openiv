@@ -9,12 +9,16 @@ import com.openiv.backend.auth.model.Invitation;
 import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.SessionState;
 import com.openiv.backend.auth.model.User;
+import com.openiv.backend.auth.repository.BlockedDeviceRepository;
 import com.openiv.backend.auth.repository.InvitationRepository;
 import com.openiv.backend.auth.repository.SessionRepository;
+import com.openiv.backend.auth.repository.SessionTransferRepository;
 import com.openiv.backend.auth.repository.TotpSecretRepository;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.repository.VerificationCodeRepository;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -48,6 +52,9 @@ public final class AuthService {
   private final SessionRepository sessions;
   private final EmailSender emailSender;
   private final TotpCipher totpCipher;
+  private final BlockedDeviceRepository blockedDevices;
+  private final SessionTransferRepository transfers;
+  private final Vertx vertx;
 
   // Lazy-computed Argon2id hash of a throwaway password. Used only to equalize timing on the
   // unknown-email login path. Populated on first use; constant for the JVM's lifetime.
@@ -55,7 +62,8 @@ public final class AuthService {
 
   public AuthService(UserRepository users, InvitationRepository invitations,
       VerificationCodeRepository codes, TotpSecretRepository totp,
-      SessionRepository sessions, EmailSender emailSender, TotpCipher totpCipher) {
+      SessionRepository sessions, EmailSender emailSender, TotpCipher totpCipher,
+      BlockedDeviceRepository blockedDevices, SessionTransferRepository transfers, Vertx vertx) {
     this.users = users;
     this.invitations = invitations;
     this.codes = codes;
@@ -63,6 +71,9 @@ public final class AuthService {
     this.sessions = sessions;
     this.emailSender = emailSender;
     this.totpCipher = totpCipher;
+    this.blockedDevices = blockedDevices;
+    this.transfers = transfers;
+    this.vertx = vertx;
   }
 
   // --- Invite --------------------------------------------------------------
@@ -84,79 +95,131 @@ public final class AuthService {
   // --- Login (with optional invite claim) ---------------------------------
 
   public Future<LoginResult> login(String email, String password, String inviteCode,
-      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+      String ip, String userAgent, Double lat, Double lon, Double accuracy, String deviceId) {
     String normalizedEmail = email.trim();
     if (inviteCode != null && !inviteCode.isBlank()) {
-      return loginWithInvite(normalizedEmail, password, inviteCode, ip, userAgent, lat, lon, accuracy);
+      return loginWithInvite(normalizedEmail, password, inviteCode, deviceId, ip, userAgent, lat, lon, accuracy);
     }
-    return loginExisting(normalizedEmail, password, ip, userAgent, lat, lon, accuracy);
+    return loginExisting(normalizedEmail, password, deviceId, ip, userAgent, lat, lon, accuracy);
   }
 
   private Future<LoginResult> loginWithInvite(String email, String password, String inviteCode,
-      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+      String deviceId, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     String codeHash = Codes.sha256(inviteCode.trim().toUpperCase());
     return invitations.findByCodeHash(codeHash).compose(opt -> {
       Invitation inv = opt.orElseThrow(() -> AuthException.invalid("invite_code"));
-      if (!inv.isUsable()) {
-        throw AuthException.invalid("invite_code");
-      }
-      if (!inv.email().equalsIgnoreCase(email)) {
-        throw AuthException.invalid("invite_email_mismatch");
-      }
-      // Claim the invite: create user (carry role, account_type and institution_id over from
-      // the invitation), mark accepted, issue session, send email code.
+      if (!inv.isUsable()) throw AuthException.invalid("invite_code");
+      if (!inv.email().equalsIgnoreCase(email)) throw AuthException.invalid("invite_email_mismatch");
       String hash = PasswordHasher.hash(password);
-      return users.create(
-              inv.email(),
-              /* fullName        */ null,
-              hash,
-              /* mustChange      */ false,
-              inv.role(),
-              inv.accountType(),
-              inv.institutionId(),
-              /* emailVerified   */ false)
-          .compose(user -> invitations.markAccepted(inv.id(), user.id())
-              .map(v -> user))
-          .compose(user -> issueSessionAndSendEmailCode(user, ip, userAgent, lat, lon, accuracy));
+      return users.create(inv.email(), null, hash, false,
+              inv.role(), inv.accountType(), inv.institutionId(), false)
+          .compose(user -> invitations.markAccepted(inv.id(), user.id()).map(v -> user))
+          .compose(user -> issueSessionAndSendEmailCode(user, deviceId, ip, userAgent, lat, lon, accuracy));
     });
   }
 
   private Future<LoginResult> loginExisting(String email, String password,
-      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+      String deviceId, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     return users.findByEmail(email).compose(opt -> {
       if (opt.isEmpty()) {
-        // Burn CPU to equalize timing with the password-verify path.
         PasswordHasher.verify(password, dummyHash());
         throw AuthException.invalid("credentials");
       }
       User user = opt.get();
-      if (user.isLocked()) {
-        throw AuthException.locked();
-      }
+      if (user.isLocked()) throw AuthException.locked();
       if (!PasswordHasher.verify(password, user.passwordHash())) {
         return users.recordFailedLogin(user.id(), FAILED_LOGIN_THRESHOLD, LOGIN_LOCK_MINUTES)
             .compose(v -> Future.<LoginResult>failedFuture(AuthException.invalid("credentials")));
       }
       return users.resetFailedLogins(user.id())
-          .compose(v -> afterPasswordOk(user, ip, userAgent, lat, lon, accuracy));
+          .compose(v -> checkDeviceConflict(user, deviceId, ip, userAgent, lat, lon, accuracy));
     });
   }
 
-  private Future<LoginResult> afterPasswordOk(User user, String ip, String userAgent,
-      Double lat, Double lon, Double accuracy) {
+  // ── Device / session conflict checks ────────────────────────────────────────
+
+  private Future<LoginResult> checkDeviceConflict(User user, String deviceId,
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+    return blockedDevices.isBlocked(user.id(), deviceId).compose(blocked -> {
+      if (blocked) throw AuthException.deviceBlocked();
+      return sessions.findActiveAuthenticated(user.id()).compose(active -> {
+        if (active.isEmpty()) {
+          return afterPasswordOk(user, deviceId, ip, userAgent, lat, lon, accuracy);
+        }
+        Session existing = active.get(0);
+        boolean sameDevice = deviceId != null && deviceId.equals(existing.deviceId());
+
+        if (sameDevice) {
+          // Same browser profile on a different tab/window — offer session transfer.
+          String token = Tokens.generate();
+          String hash  = Tokens.hash(token);
+          return transfers.create(user.id(), hash, 5)
+              .compose(v -> Future.<LoginResult>failedFuture(
+                  AuthException.conflict("active_session_same_device",
+                      new JsonObject().put("transferRef", token))));
+        } else {
+          // Different machine/browser — block and push a real-time alert to the active session.
+          vertx.eventBus().publish("user." + user.id() + ".security",
+              new JsonObject()
+                  .put("type",      "login_attempt")
+                  .put("userId",    user.id())
+                  .put("ip",        ip)
+                  .put("userAgent", userAgent)
+                  .put("deviceId",  deviceId)
+                  .put("at",        Instant.now().toString()));
+          throw AuthException.conflict("active_session_other_device", new JsonObject()
+              .put("existingIp",        existing.ip())
+              .put("existingUserAgent", existing.userAgent())
+              .put("existingCreatedAt", existing.createdAt() != null ? existing.createdAt().toString() : null));
+        }
+      });
+    });
+  }
+
+  /** Session transfer: verify the short-lived token + TOTP, revoke old sessions, issue new. */
+  public Future<LoginResult> transferSession(String transferRef, String totpCode,
+      String deviceId, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+    String hash = Tokens.hash(transferRef.trim());
+    return transfers.consume(hash).compose(opt -> {
+      long userId = opt.orElseThrow(() -> AuthException.invalid("transfer_ref"));
+      return users.findById(userId).compose(userOpt -> {
+        User user = userOpt.orElseThrow(() -> AuthException.invalid("transfer_ref"));
+        return totp.findEnabledSecret(user.id()).compose(secretOpt -> {
+          String encrypted = secretOpt.orElseThrow(() -> AuthException.invalid("totp_not_enrolled"));
+          String secret = totpCipher.decrypt(encrypted);
+          if (!Totp.verify(secret, totpCode.trim())) throw AuthException.invalid("code");
+          return sessions.revokeAllForUser(user.id())
+              .compose(v -> issueSession(user, SessionState.AUTHENTICATED, deviceId, ip, userAgent, lat, lon, accuracy))
+              .map(sess -> new LoginResult(sess.token(), SessionState.AUTHENTICATED, user.accountType()));
+        });
+      });
+    });
+  }
+
+  /** Block a device fingerprint — called by the active session owner from the alert popup. */
+  public Future<Void> blockDevice(Session session, String deviceId, String ipAddress, String userAgent) {
+    if (session.state() != SessionState.AUTHENTICATED) throw AuthException.wrongState();
+    return users.findById(session.userId()).compose(opt -> {
+      User user = opt.orElseThrow();
+      return blockedDevices.block(user.institutionId(), user.id(), deviceId, ipAddress, userAgent, user.id());
+    });
+  }
+
+  private Future<LoginResult> afterPasswordOk(User user, String deviceId, String ip,
+      String userAgent, Double lat, Double lon, Double accuracy) {
     if (!user.emailVerified()) {
-      return issueSessionAndSendEmailCode(user, ip, userAgent, lat, lon, accuracy);
+      return issueSessionAndSendEmailCode(user, deviceId, ip, userAgent, lat, lon, accuracy);
     }
     return totp.isEnabled(user.id()).compose(enabled -> {
       SessionState next = enabled ? SessionState.PENDING_TOTP_CHALLENGE : SessionState.PENDING_TOTP_SETUP;
-      return issueSession(user, next, ip, userAgent, lat, lon, accuracy)
+      return issueSession(user, next, deviceId, ip, userAgent, lat, lon, accuracy)
           .map(sess -> new LoginResult(sess.token(), next, user.accountType()));
     });
   }
 
-  private Future<LoginResult> issueSessionAndSendEmailCode(User user, String ip, String userAgent,
-      Double lat, Double lon, Double accuracy) {
-    return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, ip, userAgent, lat, lon, accuracy)
+  private Future<LoginResult> issueSessionAndSendEmailCode(User user, String deviceId,
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+    return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, deviceId, ip, userAgent, lat, lon, accuracy)
         .compose(sess -> generateAndSendEmailCode(user).map(v -> new LoginResult(
             sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType())));
   }
@@ -365,16 +428,17 @@ public final class AuthService {
         .map(opt -> new SessionInfo(session.state(),
             opt.map(User::accountType).orElse(null),
             opt.map(User::email).orElse(null),
-            opt.map(User::role).orElse(null)));
+            opt.map(User::role).orElse(null),
+            opt.map(User::fullName).orElse(null)));
   }
 
   // --- Helpers -------------------------------------------------------------
 
-  private Future<IssuedSession> issueSession(User user, SessionState state, String ip, String userAgent,
-      Double lat, Double lon, Double accuracy) {
+  private Future<IssuedSession> issueSession(User user, SessionState state, String deviceId,
+      String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     String token = Tokens.generate();
     String hash = Tokens.hash(token);
-    return sessions.create(user.id(), hash, state, SESSION_TTL_MINUTES, ip, userAgent, lat, lon, accuracy)
+    return sessions.create(user.id(), hash, state, SESSION_TTL_MINUTES, deviceId, ip, userAgent, lat, lon, accuracy)
         .map(s -> new IssuedSession(token, s));
   }
 
@@ -435,7 +499,8 @@ public final class AuthService {
   public record SessionInfo(SessionState state,
       com.openiv.backend.auth.model.AccountType accountType,
       String email,
-      String role) {}
+      String role,
+      String fullName) {}
 
   public record TotpEnrollment(String secret, String otpauthUri) {}
 

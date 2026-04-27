@@ -20,24 +20,34 @@ public final class BeamService {
       "transactions", "logins", "activity", "location", "devices", "otps");
 
   private final BeamRepository repository;
-  private final UserRepository users;
+  private final UserRepository  users;
+  private final OtpAnalyzer     otpAnalyzer;
 
-  public BeamService(BeamRepository repository, UserRepository users) {
-    this.repository = repository;
-    this.users = users;
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer) {
+    this.repository  = repository;
+    this.users       = users;
+    this.otpAnalyzer = otpAnalyzer;
   }
 
   public Future<BeamRecord> ingest(long institutionId, String stream,
       String idempotencyKey, String payload) {
     if (!VALID_STREAMS.contains(stream))
       return Future.failedFuture(new IllegalArgumentException("Unknown stream: " + stream));
+    Future<BeamRecord> saved;
     if (idempotencyKey != null) {
-      return repository.findByIdempotencyKey(institutionId, idempotencyKey)
+      saved = repository.findByIdempotencyKey(institutionId, idempotencyKey)
           .compose(opt -> opt.isPresent()
               ? Future.succeededFuture(opt.get())
               : repository.saveRecord(institutionId, stream, idempotencyKey, payload));
+    } else {
+      saved = repository.saveRecord(institutionId, stream, null, payload);
     }
-    return repository.saveRecord(institutionId, stream, null, payload);
+    return saved.map(record -> {
+      if ("otps".equals(stream) && otpAnalyzer != null) {
+        otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
+      }
+      return record;
+    });
   }
 
   public Future<String> generateApiKey(Session session) {

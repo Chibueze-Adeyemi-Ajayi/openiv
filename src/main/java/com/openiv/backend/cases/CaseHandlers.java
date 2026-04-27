@@ -64,7 +64,7 @@ public final class CaseHandlers {
 
       String title    = body.getString("title");
       String typology = body.getString("typology");
-      if (title == null || title.isBlank())    { badRequest(ctx, "title is required");    return; }
+      if (title == null || title.isBlank())       { badRequest(ctx, "title is required");    return; }
       if (typology == null || typology.isBlank()) { badRequest(ctx, "typology is required"); return; }
 
       String priority     = nvl(body.getString("priority"), "medium");
@@ -72,8 +72,13 @@ public final class CaseHandlers {
       Long   assignedTo   = body.getLong("assignedTo");
       String notes        = body.getString("notes");
       String transactionId = body.getString("transactionId");
+      String reason        = body.getString("reason");
+      Long   documentId    = body.getLong("documentId");
+      if (reason == null || reason.isBlank()) { badRequest(ctx, "reason is required");     return; }
+      if (documentId == null)                 { badRequest(ctx, "documentId is required"); return; }
 
-      service.create(session, title, typology, priority, riskScore, assignedTo, notes, transactionId)
+      service.create(session, title, typology, priority, riskScore, assignedTo, notes,
+          transactionId, reason, documentId)
           .onSuccess(cas -> ok(ctx, new JsonObject().put("case", caseJson(cas))))
           .onFailure(ctx::fail);
     };
@@ -150,6 +155,8 @@ public final class CaseHandlers {
 
       String newStatus  = body.getString("status");
       String resolution = body.getString("resolution");
+      String reason     = body.getString("reason");
+      Long   documentId = body.getLong("documentId");
 
       if (newStatus == null || !Set.of("open","investigating","escalated","closed").contains(newStatus)) {
         badRequest(ctx, "invalid status value"); return;
@@ -157,8 +164,10 @@ public final class CaseHandlers {
       if ("closed".equals(newStatus) && (resolution == null || resolution.isBlank())) {
         badRequest(ctx, "resolution required when closing a case"); return;
       }
+      if (reason == null || reason.isBlank()) { badRequest(ctx, "reason is required");     return; }
+      if (documentId == null)                 { badRequest(ctx, "documentId is required"); return; }
 
-      service.updateStatus(session, id, newStatus, resolution)
+      service.updateStatus(session, id, newStatus, resolution, reason, documentId)
           .onSuccess(updated -> {
             if (!updated) { ctx.fail(404); return; }
             ok(ctx, new JsonObject().put("ok", true));

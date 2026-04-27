@@ -11,7 +11,7 @@ import java.util.Optional;
 public final class SessionRepository {
 
   private static final String SELECT_COLS =
-      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at, lat, lon, accuracy";
+      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at, lat, lon, accuracy, device_id, ip, user_agent";
 
   private final Pool pool;
 
@@ -20,15 +20,30 @@ public final class SessionRepository {
   }
 
   public Future<Session> create(long userId, String tokenHash, SessionState state,
-      int ttlMinutes, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
-    String sql = "INSERT INTO sessions (user_id, token_hash, state, ip, user_agent, expires_at, lat, lon, accuracy) "
-        + "VALUES ($1, $2, $3, ($4::text)::inet, $5, now() + ($6 || ' minutes')::interval, $7, $8, $9) "
+      int ttlMinutes, String deviceId, String ip, String userAgent, Double lat, Double lon, Double accuracy) {
+    String sql = "INSERT INTO sessions (user_id, token_hash, state, device_id, ip, user_agent, expires_at, lat, lon, accuracy) "
+        + "VALUES ($1, $2, $3, $4, $5, $6, now() + ($7 || ' minutes')::interval, $8, $9, $10) "
         + "RETURNING " + SELECT_COLS;
 
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(userId, tokenHash, state.dbValue(), ip, userAgent,
+        .execute(Tuple.of(userId, tokenHash, state.dbValue(), deviceId, ip, userAgent,
             Integer.toString(ttlMinutes), lat, lon, accuracy))
         .map(rs -> map(rs.iterator().next()));
+  }
+
+  /** Returns active AUTHENTICATED sessions for a user, newest first. */
+  public Future<java.util.List<Session>> findActiveAuthenticated(long userId) {
+    String sql = "SELECT " + SELECT_COLS + " FROM sessions "
+        + "WHERE user_id = $1 AND state = 'authenticated' "
+        + "  AND revoked_at IS NULL AND expires_at > now() "
+        + "ORDER BY last_used_at DESC LIMIT 5";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(userId))
+        .map(rs -> {
+          var list = new java.util.ArrayList<Session>();
+          rs.forEach(r -> list.add(map(r)));
+          return list;
+        });
   }
 
   public Future<Optional<Session>> findByTokenHash(String tokenHash) {
@@ -77,6 +92,9 @@ public final class SessionRepository {
         r.getOffsetDateTime("created_at"),
         r.getDouble("lat"),
         r.getDouble("lon"),
-        r.getDouble("accuracy"));
+        r.getDouble("accuracy"),
+        r.getString("device_id"),
+        r.getValue("ip") == null ? null : r.getValue("ip").toString(),
+        r.getString("user_agent"));
   }
 }

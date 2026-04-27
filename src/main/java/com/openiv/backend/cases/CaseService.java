@@ -34,7 +34,8 @@ public final class CaseService {
   }
 
   public Future<CaseRecord> create(Session session, String title, String typology,
-      String priority, int riskScore, Long assignedTo, String notes, String transactionId) {
+      String priority, int riskScore, Long assignedTo, String notes, String transactionId,
+      String reason, Long documentId) {
     return resolveUser(session).compose(u -> {
       OffsetDateTime sla = computeSla(priority);
       return repository.nextSeq().compose(seq -> {
@@ -42,7 +43,7 @@ public final class CaseService {
             + YearMonth.now().format(DateTimeFormatter.ofPattern("yyyyMM"))
             + "-" + String.format("%06d", seq);
         return repository.create(id, u.institutionId(), title, typology,
-                priority, riskScore, assignedTo, notes, sla, u.id())
+                priority, riskScore, assignedTo, notes, sla, u.id(), reason, documentId)
             .compose(cas -> {
               Future<Void> linkFuture = (transactionId != null && !transactionId.isBlank())
                   ? repository.linkTransaction(cas.id(), transactionId, u.institutionId()).mapEmpty()
@@ -62,7 +63,7 @@ public final class CaseService {
   }
 
   public Future<Boolean> updateStatus(Session session, String id,
-      String newStatus, String resolution) {
+      String newStatus, String resolution, String reason, Long documentId) {
     return resolveUser(session).compose(u ->
         repository.findById(id, u.institutionId()).compose(opt -> {
           if (opt.isEmpty()) return Future.succeededFuture(false);
@@ -74,10 +75,11 @@ public final class CaseService {
           return repository.updateStatus(id, u.institutionId(), newStatus, resolution)
               .compose(updated -> {
                 if (!updated) return Future.succeededFuture(false);
-                String detail = "Status changed from " + current + " to " + newStatus
+                String detail = reason
+                    + "\nStatus changed from " + current + " to " + newStatus
                     + (resolution != null ? " · resolution: " + resolution : "");
                 String action = "closed".equals(newStatus) ? "closed" : "status_changed";
-                return repository.addActivity(id, u.id(), action, detail).map(v -> true);
+                return repository.addActivity(id, u.id(), action, detail, documentId).map(v -> true);
               });
         }));
   }
