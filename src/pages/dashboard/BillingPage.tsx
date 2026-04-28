@@ -39,11 +39,11 @@ const CATEGORY_META: Record<string, {
   label: string; sub: string; rate: string; icon: React.ReactNode; color: string
 }> = {
   beam_ingest:         { label: 'Beam data ingests',      sub: 'Data streaming events',      rate: '₦0.10 / event',      icon: <StreamOutlinedIcon sx={{ fontSize: '1.1rem' }} />,              color: colorPalette.primary },
-  kyc_lookup:          { label: 'KYC / identity lookups', sub: 'Customer identity checks',   rate: '₦50.00 / lookup',    icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#7c3aed' },
-  kyc_pep_lookup:      { label: 'KYC PEP look-ups',       sub: 'Politically exposed persons', rate: '₦500.00 / look-up',  icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#be185d' },
+  kyc_lookup:          { label: 'KYC / identity lookups', sub: 'Customer identity checks',   rate: '₦100.00 / lookup',    icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#7c3aed' },
+  kyc_pep_lookup:      { label: 'KYC PEP look-ups',       sub: 'Politically exposed persons', rate: '₦2,500.00 / look-up',  icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#be185d' },
   webhook_delivery:    { label: 'Webhook deliveries',     sub: 'Outbound event callbacks',   rate: '₦0.0001 / delivery', icon: <WebhookOutlinedIcon sx={{ fontSize: '1.1rem' }} />,             color: '#0891b2' },
   ai_token:            { label: 'Eureka AI tokens',       sub: 'Intelligence tokens used',   rate: '₦0.05 / token',      icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem' }} />,         color: '#d97706' },
-  nfiu_return:         { label: 'NFIU returns',           sub: 'Regulatory compliance filings', rate: '₦100.00 / filing', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#92400e' },
+  nfiu_return:         { label: 'NFIU returns',           sub: 'Regulatory compliance filings', rate: '₦10,000.00 / filing', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#92400e' },
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
