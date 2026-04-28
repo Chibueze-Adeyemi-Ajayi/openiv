@@ -9,15 +9,20 @@ import io.vertx.core.json.JsonObject;
  * Expected schema:
  * <pre>
  * {
- *   "customerId":    "C123",
- *   "customerName":  "Jane Doe",
- *   "channel":       "mobile | web | ussd",
- *   "otpType":       "login | transaction | withdrawal",
- *   "outcome":       "success | failed | expired | cancelled",
- *   "ip":            "1.2.3.4",
- *   "deviceId":      "d-abc123",
- *   "lat":           6.45,
- *   "lng":           3.39
+ *   "customerId":          "C123",
+ *   "customerName":        "Jane Doe",          // optional — display name for agents
+ *   "channel":             "mobile | web | ussd",
+ *   "otpType":             "login | transaction | withdrawal",
+ *   "outcome":             "success | failed | expired | cancelled",
+ *   "ip":                  "1.2.3.4",           // optional — OTP request IP
+ *   "deviceId":            "d-abc123",
+ *   "deviceModel":         "iPhone 14 Pro",      // optional — human-readable device label
+ *   "lat":                 6.45,                 // optional — OTP trigger location
+ *   "lng":                 3.39,
+ *   "msisdn":              "+2348031234567",      // optional — customer phone number
+ *   "amount":              14250000,              // optional — transaction amount being protected
+ *   "beneficiaryAccount":  "ACC-8821 · GT Bank", // optional — beneficiary account description
+ *   "transactionId":       "TXN-48721"           // optional — linked transaction ID
  * }
  * </pre>
  */
@@ -29,8 +34,13 @@ public record OtpPayload(
     String outcome,
     String ip,
     String deviceId,
+    String deviceModel,
     Double lat,
-    Double lng
+    Double lng,
+    String msisdn,
+    Long   amount,
+    String beneficiaryAccount,
+    String transactionId
 ) {
 
   public static OtpPayload parse(String json) {
@@ -45,8 +55,13 @@ public record OtpPayload(
           o.getString("outcome"),
           o.getString("ip"),
           o.getString("deviceId"),
+          o.getString("deviceModel"),
           o.getDouble("lat"),
-          o.getDouble("lng")
+          o.getDouble("lng"),
+          o.getString("msisdn"),
+          o.getLong("amount"),
+          o.getString("beneficiaryAccount"),
+          o.getString("transactionId")
       );
     } catch (Exception e) {
       return empty();
@@ -58,6 +73,6 @@ public record OtpPayload(
   }
 
   private static OtpPayload empty() {
-    return new OtpPayload(null, null, null, null, null, null, null, null, null);
+    return new OtpPayload(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 }

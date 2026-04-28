@@ -3,6 +3,10 @@ package com.openiv.backend.dashboard;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.beam.OtpAlert;
+import com.openiv.backend.beam.OtpAlertRepository;
+import com.openiv.backend.billing.BillingService;
+import com.openiv.backend.geofence.GeoFenceRepository;
+import com.openiv.backend.geofence.GeoFenceService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerResponse;
@@ -15,15 +19,21 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 
 public final class DashboardHandlers {
 
   private final DashboardService service;
-  private final Vertx             vertx;
+  private final GeoFenceService  geoFenceService;
+  private final Vertx            vertx;
+  private final BillingService   billing;
 
-  public DashboardHandlers(DashboardService service, Vertx vertx) {
-    this.service = service;
-    this.vertx   = vertx;
+  public DashboardHandlers(DashboardService service, GeoFenceService geoFenceService, Vertx vertx,
+      BillingService billing) {
+    this.service         = service;
+    this.billing         = billing;
+    this.geoFenceService = geoFenceService;
+    this.vertx           = vertx;
   }
 
   // ── SSE: unified events stream ────────────────────────────────────────────
@@ -52,7 +62,8 @@ public final class DashboardHandlers {
 
       final long[] lastActivityId = { 0L };
       final long[] lastOtpId      = { 0L };
-      final int[]  pendingInit    = { 3 };
+      final long[] institutionId  = { 0L };
+      final int[]  pendingInit    = { 4 };   // stats + activity + otp + institutionId
 
       Runnable startTimers = () -> {
         if (sseEnded(resp)) return;
@@ -82,20 +93,48 @@ public final class DashboardHandlers {
           safeWrite(resp, ":\n\n");
         });
 
-          // ── Real-time security event relay (login-attempt alerts) ────────────
+        // ── Real-time security event relay (login-attempt alerts) ─────────
         String secAddr = "user." + session.userId() + ".security";
         var consumer = vertx.eventBus().<JsonObject>consumer(secAddr, msg -> {
           if (!sseEnded(resp)) safeWrite(resp, sseEvent("securityEvent", msg.body()));
+        });
+
+        // ── Real-time OTP alert push ──────────────────────────────────────
+        var otpConsumer = vertx.eventBus().<JsonObject>consumer(
+            OtpAlertRepository.busAddress(institutionId[0]), msg -> {
+          if (!sseEnded(resp)) {
+            lastOtpId[0] = msg.body().getLong("id", lastOtpId[0]);
+            safeWrite(resp, sseEvent("otpUpdate", new JsonArray().add(msg.body())));
+          }
+        });
+
+        // ── Real-time geo-access request push (admin only) ────────────────
+        var geoConsumer = vertx.eventBus().<JsonObject>consumer(
+            GeoFenceRepository.newRequestAddress(institutionId[0]), msg -> {
+          if (!sseEnded(resp)) safeWrite(resp, sseEvent("geoRequest", msg.body()));
+        });
+        // Push any pending requests that arrived before this admin connected
+        geoFenceService.listPendingRequests(institutionId[0]).onSuccess(reqs -> {
+          if (sseEnded(resp) || reqs.isEmpty()) return;
+          JsonArray arr = new JsonArray();
+          reqs.forEach(r -> arr.add(GeoFenceService.requestToJson(r)));
+          safeWrite(resp, sseEvent("geoRequestInit", arr));
         });
 
         ctx.request().connection().closeHandler(v -> {
           vertx.cancelTimer(pollId);
           vertx.cancelTimer(hbId);
           consumer.unregister();
+          otpConsumer.unregister();
+          geoConsumer.unregister();
         });
       };
 
-      // ── Initial push: 3 parallel DB queries ──────────────────────────────
+      // ── Initial push: 4 parallel calls ───────────────────────────────────
+
+      service.resolveInstitutionId(session)
+          .onSuccess(iid -> institutionId[0] = iid)
+          .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
 
       service.stats(session)
           .onSuccess(s -> {
@@ -297,11 +336,14 @@ public final class DashboardHandlers {
       var to       = parseDateTime(first(ctx, "to"),   OffsetDateTime.now(ZoneOffset.UTC));
       String fname = "openiv-report-" + to.toLocalDate() + ".csv";
       service.exportCsv(session, from, to)
-          .onSuccess(csv -> ctx.response()
-              .setStatusCode(200)
-              .putHeader("content-type", "text/csv; charset=utf-8")
-              .putHeader("content-disposition", "attachment; filename=\"" + fname + "\"")
-              .end(csv))
+          .onSuccess(csv -> {
+            ctx.response()
+                .setStatusCode(200)
+                .putHeader("content-type", "text/csv; charset=utf-8")
+                .putHeader("content-disposition", "attachment; filename=\"" + fname + "\"")
+                .end(csv);
+            billing.chargeReportExportAsync(session);
+          })
           .onFailure(ctx::fail);
     };
   }
@@ -317,16 +359,19 @@ public final class DashboardHandlers {
       LocalDate from  = parseDate(body != null ? body.getString("from") : null, today);
       LocalDate to    = parseDate(body != null ? body.getString("to")   : null, today);
       service.fileNfiuReturn(session, from, to)
-          .onSuccess(nr -> ok(ctx, new JsonObject()
-              .put("id",                 nr.id())
-              .put("reference",          nr.reference())
-              .put("periodFrom",         nr.periodFrom().toString())
-              .put("periodTo",           nr.periodTo().toString())
-              .put("totalTransactions",  nr.totalTransactions())
-              .put("flaggedCount",       nr.flaggedCount())
-              .put("totalFlaggedAmount", nr.totalFlaggedAmount())
-              .put("status",             nr.status())
-              .put("submittedAt",        nr.submittedAt().toString())))
+          .onSuccess(nr -> {
+            ok(ctx, new JsonObject()
+                .put("id",                 nr.id())
+                .put("reference",          nr.reference())
+                .put("periodFrom",         nr.periodFrom().toString())
+                .put("periodTo",           nr.periodTo().toString())
+                .put("totalTransactions",  nr.totalTransactions())
+                .put("flaggedCount",       nr.flaggedCount())
+                .put("totalFlaggedAmount", nr.totalFlaggedAmount())
+                .put("status",             nr.status())
+                .put("submittedAt",        nr.submittedAt().toString()));
+            billing.chargeNfiuReturnAsync(session);
+          })
           .onFailure(ctx::fail);
     };
   }
@@ -350,19 +395,32 @@ public final class DashboardHandlers {
         .put("openCases",        s.openCases());
   }
 
+  // ── REST: update OTP alert status (release / decline) ────────────────────
+
+  public Handler<RoutingContext> updateOtpAlertStatus() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = Long.parseLong(ctx.pathParam("id"));
+      JsonObject body = ctx.body().asJsonObject();
+      String status = body != null ? body.getString("status") : null;
+      if (!Set.of("released", "declined", "held").contains(status)) {
+        ctx.response().setStatusCode(400).end("{\"error\":\"invalid status\"}");
+        return;
+      }
+      service.updateOtpAlertStatus(session, id, status)
+          .onSuccess(updated -> {
+            if (!updated) { ctx.fail(404); return; }
+            ctx.response().setStatusCode(200)
+                .putHeader("content-type", "application/json")
+                .end("{\"ok\":true}");
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
   private static JsonArray otpAlertsJson(List<OtpAlert> alerts) {
     var arr = new JsonArray();
-    alerts.forEach(a -> arr.add(new JsonObject()
-        .put("id",         a.id())
-        .put("rule",       a.rule())
-        .put("severity",   a.severity())
-        .put("customerId", a.customerId())
-        .put("deviceId",   a.deviceId())
-        .put("channel",    a.channel())
-        .put("otpType",    a.otpType())
-        .put("eventCount", a.eventCount())
-        .put("detail",     a.detail())
-        .put("firedAt",    a.firedAt().toString())));
+    alerts.forEach(a -> arr.add(OtpAlertRepository.alertToJson(a)));
     return arr;
   }
 

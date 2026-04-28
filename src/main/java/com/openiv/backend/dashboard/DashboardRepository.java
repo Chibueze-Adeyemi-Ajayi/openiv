@@ -1,6 +1,7 @@
 package com.openiv.backend.dashboard;
 
 import com.openiv.backend.beam.OtpAlert;
+import com.openiv.backend.beam.OtpAlertRepository;
 import io.vertx.core.Future;
 import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.Row;
@@ -266,16 +267,18 @@ public final class DashboardRepository {
 
   // ── OTP alerts ────────────────────────────────────────────────────────────
 
+  private static final String OTP_SELECT = """
+      SELECT id, institution_id, rule, severity, customer_id, device_id,
+             channel, otp_type, event_count, detail, fired_at,
+             customer_name, msisdn, ip, txn_lat, txn_lng,
+             amount, beneficiary_account, device_model, transaction_id,
+             risk_score, reasons, status, expires_at,
+             customer_lat, customer_lng, distance_km
+      FROM otp_alerts
+      """;
+
   public Future<List<OtpAlert>> recentOtpAlerts(long institutionId) {
-    String sql = """
-        SELECT id, institution_id, rule, severity, customer_id, device_id,
-               channel, otp_type, event_count, detail, fired_at
-        FROM otp_alerts
-        WHERE institution_id = $1
-        ORDER BY id DESC
-        LIMIT 30
-        """;
-    return pool.preparedQuery(sql)
+    return pool.preparedQuery(OTP_SELECT + "WHERE institution_id = $1 ORDER BY id DESC LIMIT 30")
         .execute(Tuple.of(institutionId))
         .map(rows -> {
           var list = new ArrayList<OtpAlert>(rows.size());
@@ -285,21 +288,20 @@ public final class DashboardRepository {
   }
 
   public Future<List<OtpAlert>> otpAlertsSince(long institutionId, long lastId) {
-    String sql = """
-        SELECT id, institution_id, rule, severity, customer_id, device_id,
-               channel, otp_type, event_count, detail, fired_at
-        FROM otp_alerts
-        WHERE institution_id = $1 AND id > $2
-        ORDER BY id DESC
-        LIMIT 50
-        """;
-    return pool.preparedQuery(sql)
+    return pool.preparedQuery(OTP_SELECT + "WHERE institution_id = $1 AND id > $2 ORDER BY id DESC LIMIT 50")
         .execute(Tuple.of(institutionId, lastId))
         .map(rows -> {
           var list = new ArrayList<OtpAlert>(rows.size());
           rows.forEach(r -> list.add(mapOtpAlert(r)));
           return list;
         });
+  }
+
+  public Future<Boolean> updateOtpAlertStatus(long id, long institutionId, String status) {
+    return pool.preparedQuery(
+            "UPDATE otp_alerts SET status = $1 WHERE id = $2 AND institution_id = $3 AND status IN ('pending','held')")
+        .execute(Tuple.of(status, id, institutionId))
+        .map(rs -> rs.rowCount() > 0);
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -319,19 +321,7 @@ public final class DashboardRepository {
   }
 
   private static OtpAlert mapOtpAlert(Row r) {
-    return new OtpAlert(
-        r.getLong("id"),
-        r.getLong("institution_id"),
-        r.getString("rule"),
-        r.getString("severity"),
-        r.getString("customer_id"),
-        r.getString("device_id"),
-        r.getString("channel"),
-        r.getString("otp_type"),
-        r.getInteger("event_count"),
-        r.getString("detail"),
-        r.getOffsetDateTime("fired_at")
-    );
+    return OtpAlertRepository.mapAlert(r);
   }
 
   private static String csv(String s) {

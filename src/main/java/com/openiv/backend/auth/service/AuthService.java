@@ -16,10 +16,13 @@ import com.openiv.backend.auth.repository.SessionTransferRepository;
 import com.openiv.backend.auth.repository.TotpSecretRepository;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.repository.VerificationCodeRepository;
+import com.openiv.backend.geofence.GeoAccessRequest;
+import com.openiv.backend.geofence.GeoFenceService;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -43,6 +46,9 @@ public final class AuthService {
   private static final int FAILED_LOGIN_THRESHOLD = 5;
   private static final int LOGIN_LOCK_MINUTES = 15;
   private static final int SESSION_TTL_MINUTES = 24 * 60;
+  /** Session idle timeout: if last_used_at is older than this, the session is treated as
+   *  abandoned and silently revoked so the user can log in again without friction. */
+  private static final int SESSION_IDLE_TIMEOUT_MINUTES = 30;
   private static final int RESET_TOKEN_TTL_MINUTES = 10;
 
   private final UserRepository users;
@@ -55,6 +61,7 @@ public final class AuthService {
   private final BlockedDeviceRepository blockedDevices;
   private final SessionTransferRepository transfers;
   private final Vertx vertx;
+  private GeoFenceService geoFence; // set after construction to avoid circular dep
 
   // Lazy-computed Argon2id hash of a throwaway password. Used only to equalize timing on the
   // unknown-email login path. Populated on first use; constant for the JVM's lifetime.
@@ -74,6 +81,11 @@ public final class AuthService {
     this.blockedDevices = blockedDevices;
     this.transfers = transfers;
     this.vertx = vertx;
+  }
+
+  /** Called after construction once GeoFenceService is ready (avoids circular dependency). */
+  public void setGeoFence(GeoFenceService geoFence) {
+    this.geoFence = geoFence;
   }
 
   // --- Invite --------------------------------------------------------------
@@ -147,6 +159,16 @@ public final class AuthService {
           return afterPasswordOk(user, deviceId, ip, userAgent, lat, lon, accuracy);
         }
         Session existing = active.get(0);
+
+        // If the active session has been idle longer than the timeout, treat it as
+        // abandoned (user closed the app without logging out) and allow a fresh login.
+        OffsetDateTime idleSince = OffsetDateTime.now(ZoneOffset.UTC)
+            .minusMinutes(SESSION_IDLE_TIMEOUT_MINUTES);
+        if (existing.lastUsedAt() == null || existing.lastUsedAt().isBefore(idleSince)) {
+          return sessions.revoke(existing.id())
+              .compose(v -> afterPasswordOk(user, deviceId, ip, userAgent, lat, lon, accuracy));
+        }
+
         boolean sameDevice = deviceId != null && deviceId.equals(existing.deviceId());
 
         if (sameDevice) {
@@ -286,8 +308,21 @@ public final class AuthService {
       Future<Void> activate = (state == SessionState.PENDING_TOTP_SETUP)
           ? totp.enable(session.userId())
           : Future.succeededFuture();
+      // Geo fence gate — only on the normal login challenge path (not first-time TOTP setup)
+      if (state == SessionState.PENDING_TOTP_CHALLENGE && geoFence != null) {
+        return activate
+            .compose(v -> geoFence.checkGate(session))
+            .compose(geoOpt -> {
+              if (geoOpt.isPresent()) {
+                // Session already transitioned to GEO_BLOCKED inside checkGate
+                return Future.succeededFuture(new VerifyResult(SessionState.GEO_BLOCKED, geoOpt.get()));
+              }
+              return sessions.transitionState(session.id(), SessionState.AUTHENTICATED)
+                  .map(v -> new VerifyResult(SessionState.AUTHENTICATED, null));
+            });
+      }
       return activate.compose(v -> sessions.transitionState(session.id(), SessionState.AUTHENTICATED))
-          .map(v -> new VerifyResult(SessionState.AUTHENTICATED));
+          .map(v -> new VerifyResult(SessionState.AUTHENTICATED, null));
     });
   }
 
@@ -494,7 +529,9 @@ public final class AuthService {
   public record LoginResult(String sessionToken, SessionState state,
       com.openiv.backend.auth.model.AccountType accountType) {}
 
-  public record VerifyResult(SessionState state) {}
+  public record VerifyResult(SessionState state, GeoAccessRequest geoRequest) {
+    public VerifyResult(SessionState state) { this(state, null); }
+  }
 
   public record SessionInfo(SessionState state,
       com.openiv.backend.auth.model.AccountType accountType,

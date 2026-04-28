@@ -1,0 +1,8 @@
+ALTER TABLE beam_records
+  ADD COLUMN IF NOT EXISTS ip               TEXT,
+  ADD COLUMN IF NOT EXISTS user_agent       TEXT,
+  ADD COLUMN IF NOT EXISTS request_headers  JSONB    NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS response_code    INTEGER  NOT NULL DEFAULT 201,
+  ADD COLUMN IF NOT EXISTS response_body    TEXT,
+  ADD COLUMN IF NOT EXISTS duration_ms      INTEGER,
+  ADD COLUMN IF NOT EXISTS bytes            INTEGER;

@@ -3,6 +3,7 @@ package com.openiv.backend.documents;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -25,13 +26,16 @@ public final class DocumentHandlers {
   );
 
   private final DocumentRepository repository;
-  private final UserRepository users;
-  private final Vertx vertx;
+  private final UserRepository     users;
+  private final Vertx              vertx;
+  private final BillingService     billing;
 
-  public DocumentHandlers(DocumentRepository repository, UserRepository users, Vertx vertx) {
+  public DocumentHandlers(DocumentRepository repository, UserRepository users, Vertx vertx,
+      BillingService billing) {
     this.repository = repository;
-    this.users = users;
-    this.vertx = vertx;
+    this.users      = users;
+    this.vertx      = vertx;
+    this.billing    = billing;
   }
 
   /** POST /api/v1/documents/upload  (multipart/form-data, field name "file") */
@@ -56,7 +60,10 @@ public final class DocumentHandlers {
                 .compose(buf -> repository.save(
                     user.institutionId(), user.id(), filename, ct, buf.getBytes()));
           })
-          .onSuccess(id -> ok(ctx, new JsonObject().put("id", id).put("filename", filename)))
+          .onSuccess(id -> {
+            ok(ctx, new JsonObject().put("id", id).put("filename", filename));
+            billing.chargeDocumentUploadAsync(session);
+          })
           .onFailure(ctx::fail);
     };
   }

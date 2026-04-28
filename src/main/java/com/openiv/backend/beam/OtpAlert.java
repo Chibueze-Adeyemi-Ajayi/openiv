@@ -13,5 +13,22 @@ public record OtpAlert(
     String         otpType,
     int            eventCount,
     String         detail,
-    OffsetDateTime firedAt
+    OffsetDateTime firedAt,
+    // enrichment fields
+    String         customerName,
+    String         msisdn,
+    String         ip,
+    Double         txnLat,
+    Double         txnLng,
+    Long           amount,
+    String         beneficiaryAccount,
+    String         deviceModel,
+    String         transactionId,
+    int            riskScore,
+    String[]       reasons,
+    String         status,
+    OffsetDateTime expiresAt,
+    Double         customerLat,
+    Double         customerLng,
+    Integer        distanceKm
 ) {}

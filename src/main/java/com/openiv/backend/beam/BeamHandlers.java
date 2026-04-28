@@ -1,6 +1,7 @@
 package com.openiv.backend.beam;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -8,10 +9,12 @@ import io.vertx.ext.web.RoutingContext;
 
 public final class BeamHandlers {
 
-  private final BeamService service;
+  private final BeamService    service;
+  private final BillingService billing;
 
-  public BeamHandlers(BeamService service) {
+  public BeamHandlers(BeamService service, BillingService billing) {
     this.service = service;
+    this.billing = billing;
   }
 
   public Handler<RoutingContext> ingest() {
@@ -21,11 +24,27 @@ public final class BeamHandlers {
       JsonObject body = body(ctx);
       if (body == null) return;
       String idempotencyKey = ctx.request().getHeader("X-Idempotency-Key");
-      service.ingest(institutionId, stream, idempotencyKey, body.encode())
-          .onSuccess(r -> ok(ctx, new JsonObject()
-              .put("ok", true)
-              .put("recordId", r.id())
-              .put("status", r.status())))
+
+      // Capture request metadata for network log
+      String ip        = ctx.request().remoteAddress().hostAddress();
+      String userAgent = ctx.request().getHeader("User-Agent");
+      int payloadBytes = ctx.body().buffer() != null ? ctx.body().buffer().length() : 0;
+      JsonObject headersJson = new JsonObject();
+      ctx.request().headers().forEach(h -> {
+        if (!"authorization".equalsIgnoreCase(h.getKey())) {
+          headersJson.put(h.getKey(), h.getValue());
+        }
+      });
+
+      service.ingest(institutionId, stream, idempotencyKey, body.encode(),
+              ip, userAgent, headersJson.encode(), payloadBytes)
+          .onSuccess(r -> {
+            billing.chargeBeamIngestAsync(institutionId);
+            ok(ctx, new JsonObject()
+                .put("ok", true)
+                .put("recordId", r.id())
+                .put("status", r.status()));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
             else ctx.fail(err);

@@ -127,8 +127,16 @@ public final class AuthHandlers {
     return ctx -> withJson(ctx, body -> {
       var session = SessionAuthHandler.require(ctx);
       String code = required(body, "code");
-      return auth.verifyTotp(session, code)
-          .map(result -> new JsonObject().put("state", result.state().dbValue()));
+      return auth.verifyTotp(session, code).map(result -> {
+        JsonObject out = new JsonObject().put("state", result.state().dbValue());
+        if (result.geoRequest() != null) {
+          var req = result.geoRequest();
+          out.put("requestId",  req.id())
+             .put("watchToken", req.watchToken())
+             .put("expiresAt",  req.expiresAt() == null ? null : req.expiresAt().toString());
+        }
+        return out;
+      });
     });
   }
 

@@ -2,6 +2,9 @@ package com.openiv.backend.api.v1;
 
 import com.openiv.backend.auth.handler.AccessRequestHandlers;
 import com.openiv.backend.auth.repository.UserRepository;
+import com.openiv.backend.billing.BillingHandlers;
+import com.openiv.backend.billing.BillingRepository;
+import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.documents.DocumentHandlers;
 import com.openiv.backend.documents.DocumentRepository;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
@@ -23,10 +26,15 @@ import com.openiv.backend.beam.BeamHandlers;
 import com.openiv.backend.beam.BeamService;
 import com.openiv.backend.dashboard.DashboardHandlers;
 import com.openiv.backend.dashboard.DashboardService;
+import com.openiv.backend.geofence.GeoFenceHandlers;
+import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapHandlers;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycHandlers;
 import com.openiv.backend.kyc.KycService;
+import com.openiv.backend.network.NetworkHandlers;
+import com.openiv.backend.network.NetworkRepository;
+import com.openiv.backend.network.NetworkService;
 import com.openiv.backend.webhooks.WebhookHandlers;
 import com.openiv.backend.webhooks.WebhookService;
 import io.vertx.core.Handler;
@@ -55,7 +63,7 @@ public final class V1Router {
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService) {
+      DashboardService dashboardService, GeoFenceService geoFenceService) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -71,8 +79,29 @@ public final class V1Router {
     // Team management — requires an authenticated session (gate inside TeamRouter).
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService));
 
+    // Billing — instantiated first; referenced by Transactions, Cases, Beam, KYC, Dashboard
+    String paystackSecret = System.getenv().getOrDefault("PAYSTACK_SECRET_KEY", "sk_test_placeholder");
+    String paystackPublic = System.getenv().getOrDefault("PAYSTACK_PUBLIC_KEY", "pk_test_placeholder");
+    String billingEncKey  = System.getenv("BILLING_ENCRYPTION_KEY"); // null → dev fallback inside service
+    BillingService billingService = new BillingService(
+        new BillingRepository(dbPool), new UserRepository(dbPool),
+        vertx, paystackSecret, billingEncKey);
+    BillingHandlers billingHandlers = new BillingHandlers(billingService, paystackPublic);
+    Handler<RoutingContext> billingAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/billing/config").handler(billingHandlers.getConfig());
+    router.get("/billing/summary").handler(billingAuth).handler(billingHandlers.getSummary());
+    router.get("/billing/usage").handler(billingAuth).handler(billingHandlers.getUsage());
+    router.get("/billing/ledger").handler(billingAuth).handler(billingHandlers.getLedger());
+    router.get("/billing/payment-methods").handler(billingAuth).handler(billingHandlers.listPaymentMethods());
+    router.delete("/billing/payment-methods/:id").handler(billingAuth).handler(billingHandlers.deletePaymentMethod());
+    router.post("/billing/payment/initialize").handler(billingAuth).handler(billingHandlers.initializePayment());
+    router.post("/billing/payment/verify").handler(billingAuth).handler(billingHandlers.verifyPayment());
+    router.post("/billing/topup").handler(billingAuth).handler(billingHandlers.topup());
+    router.post("/billing/card/charge").handler(billingAuth).handler(billingHandlers.chargeCard());
+    router.post("/billing/card/challenge").handler(billingAuth).handler(billingHandlers.submitChallenge());
+
     // Transactions — two endpoints registered directly to avoid sub-router path-stripping on root.
-    TransactionHandlers txnHandlers = new TransactionHandlers(transactionService);
+    TransactionHandlers txnHandlers = new TransactionHandlers(transactionService, billingService);
     Handler<RoutingContext> txnAuth = SessionAuthHandler.authenticated(authService);
     router.get("/transactions").handler(txnAuth).handler(txnHandlers.list());
     router.get("/transactions/export").handler(txnAuth).handler(txnHandlers.export());
@@ -80,7 +109,7 @@ public final class V1Router {
     router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
 
     // Cases — metrics must be registered before /:id to avoid path collision
-    CaseHandlers caseHandlers = new CaseHandlers(caseService);
+    CaseHandlers caseHandlers = new CaseHandlers(caseService, billingService);
     Handler<RoutingContext> caseAuth = SessionAuthHandler.authenticated(authService);
     router.get("/transactions/:id/case").handler(txnAuth).handler(caseHandlers.forTransaction());
     router.get("/cases/metrics").handler(caseAuth).handler(caseHandlers.metrics());
@@ -101,7 +130,7 @@ public final class V1Router {
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
 
     // Beam API key auth for ingest endpoints
-    BeamHandlers beamHandlers = new BeamHandlers(beamService);
+    BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
     BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService);
     Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
 
@@ -131,8 +160,14 @@ public final class V1Router {
     router.put("/webhooks/:id/security").handler(webhookAuth).handler(webhookHandlers.upsertSecurityRule());
     router.post("/webhooks/:id/security/api-key").handler(webhookAuth).handler(webhookHandlers.generateApiKey());
 
+    // Network logs — unified beam + webhook traffic view
+    NetworkHandlers networkHandlers = new NetworkHandlers(
+        new NetworkService(new NetworkRepository(dbPool), new UserRepository(dbPool)));
+    Handler<RoutingContext> networkAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/network/logs").handler(networkAuth).handler(networkHandlers.listLogs());
+
     // KYC — lookup URL config and manual lookup trigger
-    KycHandlers kycHandlers = new KycHandlers(kycService);
+    KycHandlers kycHandlers = new KycHandlers(kycService, billingService);
     Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
     router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
@@ -141,7 +176,7 @@ public final class V1Router {
 
     // Documents — compliance evidence files (upload + download)
     DocumentHandlers docHandlers = new DocumentHandlers(
-        new DocumentRepository(dbPool), new UserRepository(dbPool), vertx);
+        new DocumentRepository(dbPool), new UserRepository(dbPool), vertx, billingService);
     Handler<RoutingContext> docAuth = SessionAuthHandler.authenticated(authService);
     router.post("/documents/upload").handler(docAuth).handler(docHandlers.upload());
     router.get("/documents/:id").handler(docAuth).handler(docHandlers.download());
@@ -153,7 +188,7 @@ public final class V1Router {
     router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
-    DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, vertx);
+    DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx, billingService);
     Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
     router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
     router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());
@@ -164,6 +199,21 @@ public final class V1Router {
     router.get("/dashboard/risk-map").handler(dashAuth).handler(dashboardHandlers.riskMap());
     router.get("/dashboard/export").handler(dashAuth).handler(dashboardHandlers.export());
     router.post("/dashboard/nfiu-return").handler(dashAuth).handler(dashboardHandlers.nfiuReturn());
+    router.patch("/otp-alerts/:id/status").handler(dashAuth).handler(dashboardHandlers.updateOtpAlertStatus());
+
+    // Geo-fence — config (super-admin) + user assignment + request review
+    GeoFenceHandlers geoHandlers = new GeoFenceHandlers(geoFenceService, authService,
+        new com.openiv.backend.auth.repository.UserRepository(dbPool), vertx);
+    Handler<RoutingContext> geoAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/settings/geo-fence").handler(geoAuth).handler(geoHandlers.getConfig());
+    router.put("/settings/geo-fence").handler(geoAuth).handler(geoHandlers.saveConfig());
+    router.get("/settings/geo-fence/users").handler(geoAuth).handler(geoHandlers.listFencedUsers());
+    router.post("/settings/geo-fence/users").handler(geoAuth).handler(geoHandlers.addFencedUser());
+    router.delete("/settings/geo-fence/users/:userId").handler(geoAuth).handler(geoHandlers.removeFencedUser());
+    router.get("/geo-access/requests").handler(geoAuth).handler(geoHandlers.listPendingRequests());
+    router.patch("/geo-access/requests/:id").handler(geoAuth).handler(geoHandlers.reviewRequest());
+    // Watch stream — no session auth; guarded by watchToken query param
+    router.get("/geo-access/requests/:id/watch").handler(geoHandlers.watchRequest());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

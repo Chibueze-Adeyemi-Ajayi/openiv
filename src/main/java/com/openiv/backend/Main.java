@@ -26,6 +26,8 @@ import com.openiv.backend.beam.OtpAlertRepository;
 import com.openiv.backend.beam.OtpAnalyzer;
 import com.openiv.backend.dashboard.DashboardRepository;
 import com.openiv.backend.dashboard.DashboardService;
+import com.openiv.backend.geofence.GeoFenceRepository;
+import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapRepository;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycRepository;
@@ -162,19 +164,22 @@ public final class Main {
         WebhookDeliveryService webhookDeliveryService = new WebhookDeliveryService(webClient, webhookRepository);
         WebhookService webhookService = new WebhookService(webhookRepository, users, webhookDeliveryService);
         BeamRepository beamRepository = new BeamRepository(pool);
-        OtpAlertRepository otpAlertRepository = new OtpAlertRepository(pool);
+        OtpAlertRepository otpAlertRepository = new OtpAlertRepository(pool, vertx);
         OtpAnalyzer otpAnalyzer = new OtpAnalyzer(otpAlertRepository);
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer);
         KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
+        GeoFenceService geoFenceService = new GeoFenceService(
+            new GeoFenceRepository(pool), users, sessions, vertx);
+        authService.setGeoFence(geoFenceService);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService, cores))
+                beamService, kycService, heatmapService, dashboardService, geoFenceService, cores))
             .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
@@ -194,13 +199,13 @@ public final class Main {
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService, int instances) {
+      DashboardService dashboardService, GeoFenceService geoFenceService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService),
+                beamService, kycService, heatmapService, dashboardService, geoFenceService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();

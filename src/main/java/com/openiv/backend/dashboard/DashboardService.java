@@ -66,6 +66,10 @@ public final class DashboardService {
     return resolveUser(session).compose(u -> repository.otpAlertsSince(u.institutionId(), lastId));
   }
 
+  public Future<Boolean> updateOtpAlertStatus(Session session, long id, String status) {
+    return resolveUser(session).compose(u -> repository.updateOtpAlertStatus(id, u.institutionId(), status));
+  }
+
   private Future<User> resolveUser(Session session) {
     return users.findById(session.userId())
         .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")));

@@ -1,6 +1,7 @@
 package com.openiv.backend.transactions;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -14,9 +15,11 @@ import java.util.List;
 public final class TransactionHandlers {
 
   private final TransactionService service;
+  private final BillingService     billing;
 
-  public TransactionHandlers(TransactionService service) {
+  public TransactionHandlers(TransactionService service, BillingService billing) {
     this.service = service;
+    this.billing = billing;
   }
 
   public Handler<RoutingContext> list() {
@@ -134,7 +137,10 @@ public final class TransactionHandlers {
       }
 
       service.importTransactions(session, rows)
-          .onSuccess(count -> ok(ctx, new JsonObject().put("imported", count)))
+          .onSuccess(count -> {
+            ok(ctx, new JsonObject().put("imported", count));
+            billing.chargeTransactionImportAsync(session, count);
+          })
           .onFailure(ctx::fail);
     };
   }
@@ -158,6 +164,7 @@ public final class TransactionHandlers {
                 .putHeader("content-type", "text/csv; charset=utf-8")
                 .putHeader("content-disposition", "attachment; filename=\"transactions.csv\"")
                 .end(csv);
+            billing.chargeReportExportAsync(session);
           })
           .onFailure(ctx::fail);
     };

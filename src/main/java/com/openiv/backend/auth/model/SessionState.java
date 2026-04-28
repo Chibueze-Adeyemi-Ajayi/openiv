@@ -25,7 +25,8 @@ public enum SessionState {
   PENDING_EMAIL_VERIFICATION("pending_email_verification"),
   PENDING_TOTP_SETUP("pending_totp_setup"),
   PENDING_TOTP_CHALLENGE("pending_totp_challenge"),
-  AUTHENTICATED("authenticated");
+  AUTHENTICATED("authenticated"),
+  GEO_BLOCKED("geo_blocked");
 
   private final String dbValue;
 

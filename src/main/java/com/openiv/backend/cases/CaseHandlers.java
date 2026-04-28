@@ -1,6 +1,7 @@
 package com.openiv.backend.cases;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.transactions.Transaction;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
@@ -11,10 +12,12 @@ import java.util.Set;
 
 public final class CaseHandlers {
 
-  private final CaseService service;
+  private final CaseService    service;
+  private final BillingService billing;
 
-  public CaseHandlers(CaseService service) {
+  public CaseHandlers(CaseService service, BillingService billing) {
     this.service = service;
+    this.billing = billing;
   }
 
   // GET /cases/metrics
@@ -79,7 +82,10 @@ public final class CaseHandlers {
 
       service.create(session, title, typology, priority, riskScore, assignedTo, notes,
           transactionId, reason, documentId)
-          .onSuccess(cas -> ok(ctx, new JsonObject().put("case", caseJson(cas))))
+          .onSuccess(cas -> {
+            ok(ctx, new JsonObject().put("case", caseJson(cas)));
+            billing.chargeCaseOpenAsync(session);
+          })
           .onFailure(ctx::fail);
     };
   }

@@ -1,6 +1,7 @@
 package com.openiv.backend.kyc;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -8,10 +9,12 @@ import io.vertx.ext.web.RoutingContext;
 
 public final class KycHandlers {
 
-  private final KycService service;
+  private final KycService     service;
+  private final BillingService billing;
 
-  public KycHandlers(KycService service) {
+  public KycHandlers(KycService service, BillingService billing) {
     this.service = service;
+    this.billing = billing;
   }
 
   // GET /kyc/config
@@ -56,7 +59,10 @@ public final class KycHandlers {
       boolean openCase      = Boolean.TRUE.equals(body.getBoolean("openCase"));
       if (customerRef == null || customerRef.isBlank()) { badRequest(ctx, "customerRef is required"); return; }
       service.lookup(session, customerRef, triggerSource, openCase)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            billing.chargeKycLookupAsync(session, customerRef);
+            ok(ctx, result);
+          })
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException || err instanceof IllegalStateException)
               badRequest(ctx, err.getMessage());

@@ -40,6 +40,13 @@
     "from": "noreply@example.com",
     "useSsl": false
   },
+  "billing": {
+    "_comment": "Pay-as-you-go billing via Paystack. Keys sourced from env vars first, then this block. Generate encryptionKey with:  openssl rand -base64 32",
+    "_comment_rates": "Rates — beam_ingest: ₦0.10, webhook: ₦0.0001, kyc_lookup: ₦50, ai_token: ₦0.05/token, document_upload: ₦5, transaction_import: ₦0.01/row, case_open: ₦10, nfiu_return: ₦500, report_export: ₦5. Welcome credit: ₦500,000 / 30 days.",
+    "paystackSecretKey": "sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "paystackPublicKey":  "pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "encryptionKey":      "REPLACE_WITH_32_BYTE_BASE64_KEY__openssl_rand_-base64_32"
+  },
   "totp": {
     "_comment": "DEV ONLY. Regenerate for production and source from a KMS/HSM via OPENIV_TOTP_PUBLIC_KEY / OPENIV_TOTP_PRIVATE_KEY env vars. The keypair encrypts TOTP secrets at rest (RSA-OAEP-SHA256).",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqAtN2IZX8rAn0z0VNf/G\ndztWGIT5v2JIGDj8XxAKrGYyE38ldfrC0s0ht9sfucUhc+CkuoUI5m3sbXzmhdV0\nY+iilj5u3uxR5az932BT0/X3L6lth5raFe+NeeiHYZZBroNG2WlrpGGEUAHGj4Ez\n1sdTVZIJNSkR+0xOY34749iNpMm6bL/cDQsgC/Oxq4Slol24jztlaYM/jj3jnVLK\nU3h8uIPr1HRHBBoUXO+CRhTkdHcfBX0PmiehtbActyttJ5SJXkcJM1ymiudmouiK\n4QSJAfy3aR1Lmp0MzyQtYAvGWM+KnxN0YhPK5ZkJA7wA02jmmqRfRfgiz8gAl0ny\n4wIDAQAB\n-----END PUBLIC KEY-----",

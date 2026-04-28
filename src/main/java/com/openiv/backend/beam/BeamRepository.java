@@ -11,6 +11,10 @@ import java.util.Optional;
 
 public final class BeamRepository {
 
+  private static final String RECORD_COLS =
+      "id, institution_id, stream, idempotency_key, payload, status, received_at,"
+      + " ip, user_agent, request_headers, response_code, response_body, duration_ms, bytes";
+
   private final Pool pool;
 
   public BeamRepository(Pool pool) {
@@ -65,7 +69,7 @@ public final class BeamRepository {
 
   public Future<Optional<BeamRecord>> findByIdempotencyKey(long institutionId, String idempotencyKey) {
     return pool.preparedQuery(
-            "SELECT id, institution_id, stream, idempotency_key, payload, status, received_at"
+            "SELECT " + RECORD_COLS
             + " FROM beam_records WHERE institution_id = $1 AND idempotency_key = $2")
         .execute(Tuple.of(institutionId, idempotencyKey))
         .map(rs -> {
@@ -75,13 +79,16 @@ public final class BeamRepository {
   }
 
   public Future<BeamRecord> saveRecord(long institutionId, String stream,
-      String idempotencyKey, String payload) {
+      String idempotencyKey, String payload,
+      String ip, String userAgent, String requestHeadersJson, int bytes) {
     String sql =
-        "INSERT INTO beam_records (institution_id, stream, idempotency_key, payload)"
-        + " VALUES ($1, $2, $3, $4)"
-        + " RETURNING id, institution_id, stream, idempotency_key, payload, status, received_at";
+        "INSERT INTO beam_records"
+        + " (institution_id, stream, idempotency_key, payload, ip, user_agent, request_headers, bytes)"
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)"
+        + " RETURNING " + RECORD_COLS;
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, stream, idempotencyKey, payload))
+        .execute(Tuple.of(institutionId, stream, idempotencyKey, payload,
+            ip, userAgent, requestHeadersJson, bytes))
         .map(rs -> mapRecord(rs.iterator().next()));
   }
 
@@ -89,13 +96,11 @@ public final class BeamRepository {
     String sql;
     Tuple params;
     if (stream == null || stream.isBlank()) {
-      sql = "SELECT id, institution_id, stream, idempotency_key, payload, status, received_at"
-          + " FROM beam_records WHERE institution_id = $1"
+      sql = "SELECT " + RECORD_COLS + " FROM beam_records WHERE institution_id = $1"
           + " ORDER BY received_at DESC LIMIT $2";
       params = Tuple.of(institutionId, limit);
     } else {
-      sql = "SELECT id, institution_id, stream, idempotency_key, payload, status, received_at"
-          + " FROM beam_records WHERE institution_id = $1 AND stream = $2"
+      sql = "SELECT " + RECORD_COLS + " FROM beam_records WHERE institution_id = $1 AND stream = $2"
           + " ORDER BY received_at DESC LIMIT $3";
       params = Tuple.of(institutionId, stream, limit);
     }
@@ -108,11 +113,28 @@ public final class BeamRepository {
   }
 
   private static BeamRecord mapRecord(Row r) {
+    // request_headers is JSONB; Vert.x reactive-pg returns it as JsonObject
+    Object rh = r.getValue("request_headers");
+    String requestHeaders = rh != null ? rh.toString() : "{}";
+
+    Integer responseCode = r.getInteger("response_code");
+
     return new BeamRecord(
-        r.getLong("id"), r.getLong("institution_id"),
-        r.getString("stream"), r.getString("idempotency_key"),
-        r.getString("payload"), r.getString("status"),
-        r.getOffsetDateTime("received_at"));
+        r.getLong("id"),
+        r.getLong("institution_id"),
+        r.getString("stream"),
+        r.getString("idempotency_key"),
+        r.getString("payload"),
+        r.getString("status"),
+        r.getOffsetDateTime("received_at"),
+        r.getString("ip"),
+        r.getString("user_agent"),
+        requestHeaders,
+        responseCode != null ? responseCode : 201,
+        r.getString("response_body"),
+        r.getInteger("duration_ms"),
+        r.getInteger("bytes")
+    );
   }
 
   private static BeamApiKey mapApiKey(Row r) {

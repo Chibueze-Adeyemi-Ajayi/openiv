@@ -30,7 +30,8 @@ public final class BeamService {
   }
 
   public Future<BeamRecord> ingest(long institutionId, String stream,
-      String idempotencyKey, String payload) {
+      String idempotencyKey, String payload,
+      String ip, String userAgent, String requestHeaders, int bytes) {
     if (!VALID_STREAMS.contains(stream))
       return Future.failedFuture(new IllegalArgumentException("Unknown stream: " + stream));
     Future<BeamRecord> saved;
@@ -38,9 +39,11 @@ public final class BeamService {
       saved = repository.findByIdempotencyKey(institutionId, idempotencyKey)
           .compose(opt -> opt.isPresent()
               ? Future.succeededFuture(opt.get())
-              : repository.saveRecord(institutionId, stream, idempotencyKey, payload));
+              : repository.saveRecord(institutionId, stream, idempotencyKey, payload,
+                  ip, userAgent, requestHeaders, bytes));
     } else {
-      saved = repository.saveRecord(institutionId, stream, null, payload);
+      saved = repository.saveRecord(institutionId, stream, null, payload,
+          ip, userAgent, requestHeaders, bytes);
     }
     return saved.map(record -> {
       if ("otps".equals(stream) && otpAnalyzer != null) {

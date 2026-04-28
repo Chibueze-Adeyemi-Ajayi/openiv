@@ -10,6 +10,7 @@ import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamService;
 import com.openiv.backend.dashboard.DashboardService;
+import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
@@ -81,7 +82,7 @@ public final class ApiRouter {
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService) {
+      DashboardService dashboardService, GeoFenceService geoFenceService) {
     router.route().handler(RequestId.create());
     router.route().handler(SecurityHeaders.create(security));
     router.route().handler(MethodGuard.create());
@@ -100,7 +101,8 @@ public final class ApiRouter {
       if (path != null && (path.endsWith("/dashboard/events")
           || path.endsWith("/dashboard/stream")
           || path.endsWith("/activity-stream")
-          || path.endsWith("/otp-alerts-stream"))) ctx.next();
+          || path.endsWith("/otp-alerts-stream")
+          || path.contains("/geo-access/requests/") && path.endsWith("/watch"))) ctx.next();
       else timeout.handle(ctx);
     });
     router.route().handler(ResponseTimeHandler.create());
@@ -109,7 +111,7 @@ public final class ApiRouter {
     router.route("/api/v1/*").subRouter(V1Router.create(
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
-        beamService, kycService, heatmapService, dashboardService));
+        beamService, kycService, heatmapService, dashboardService, geoFenceService));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);
