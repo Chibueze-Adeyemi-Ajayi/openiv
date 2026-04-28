@@ -8,6 +8,7 @@ import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/Dashboar
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LoginAttemptAlert from './LoginAttemptAlert'
+import GeoAccessNotification from './GeoAccessNotification'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -18,11 +19,17 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   eurekaOpen: boolean
   setEurekaOpen: (v: boolean) => void
 }) {
-  const { securityEvents } = useDashboardEvents()
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const { securityEvents, geoAccessRequests } = useDashboardEvents()
+  const [dismissed,    setDismissed]    = useState<Set<string>>(new Set())
+  const [dismissedGeo, setDismissedGeo] = useState<Set<number>>(new Set())
 
-  const visible = securityEvents.filter(e => !dismissed.has(e.at))
-  const latest  = visible[0] ?? null
+  const visible    = securityEvents.filter(e => !dismissed.has(e.at))
+  const latest     = visible[0] ?? null
+
+  const pendingGeo = geoAccessRequests.filter(
+    r => r.status === 'pending' && !dismissedGeo.has(r.id)
+  )
+  const latestGeo  = pendingGeo[0] ?? null
 
   return (
     <>
@@ -76,6 +83,13 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
         <LoginAttemptAlert
           event={latest}
           onDismiss={() => setDismissed(prev => new Set([...prev, latest.at]))}
+        />
+      )}
+
+      {latestGeo && (
+        <GeoAccessNotification
+          request={latestGeo}
+          onDismiss={() => setDismissedGeo(prev => new Set([...prev, latestGeo.id]))}
         />
       )}
     </>

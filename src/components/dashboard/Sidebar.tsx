@@ -17,6 +17,7 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
+import CallMadeIcon        from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import { authApi } from '@/api/auth'
 import { clearOnboardingState } from '@/onboarding/state'
@@ -43,11 +44,12 @@ const navGroups = [
     ],
   },
   {
-    label: 'Configure',
+    label: 'Configuration',
     items: [
       { to: '/dashboard/thresholds', icon: <TuneOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Thresholds' },
-      { to: '/dashboard/beam', icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Beam to OpenIV' },
-      { to: '/dashboard/webhooks', icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks' },
+      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network' },
+      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />, label: 'Beam to OpenIV' },
+      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks' },
     ],
   },
   {

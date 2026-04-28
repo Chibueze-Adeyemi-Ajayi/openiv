@@ -1,93 +1,129 @@
-import { Box, Typography, Stack, Button, Chip, IconButton } from '@mui/material'
+import {
+  Box, Typography, Stack, Button, Chip, IconButton, CircularProgress, Divider,
+} from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
-import { useState } from 'react'
+import FundWalletDialog from '@/components/dashboard/FundWalletDialog'
+import AddCardDialog from '@/components/dashboard/AddCardDialog'
+import { useState, useEffect, useCallback } from 'react'
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
-import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
-import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
-import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined'
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
+import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
+import StreamOutlinedIcon from '@mui/icons-material/StreamOutlined'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined'
+import {
+  billingApi,
+  type BillingSummary,
+  type LedgerEntry,
+  type BillingUsageSummary,
+  type CategoryUsage,
+  type PaymentMethod,
+} from '@/api/billing'
 
-interface UsageMetric {
-  label: string
-  used: number
-  limit: number
-  unit: string
-  rate: string
+// ── constants ─────────────────────────────────────────────────────────────────
+
+const UNITS_PER_NGN = 10_000
+const WELCOME_NGN   = 500_000
+
+const CATEGORY_META: Record<string, {
+  label: string; sub: string; rate: string; icon: React.ReactNode; color: string
+}> = {
+  beam_ingest:         { label: 'Beam data ingests',      sub: 'Data streaming events',      rate: '₦0.10 / event',      icon: <StreamOutlinedIcon sx={{ fontSize: '1.1rem' }} />,              color: colorPalette.primary },
+  kyc_lookup:          { label: 'KYC / identity lookups', sub: 'Customer identity checks',   rate: '₦50.00 / lookup',    icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#7c3aed' },
+  kyc_pep_lookup:      { label: 'KYC PEP look-ups',       sub: 'Politically exposed persons', rate: '₦500.00 / look-up',  icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#be185d' },
+  webhook_delivery:    { label: 'Webhook deliveries',     sub: 'Outbound event callbacks',   rate: '₦0.0001 / delivery', icon: <WebhookOutlinedIcon sx={{ fontSize: '1.1rem' }} />,             color: '#0891b2' },
+  ai_token:            { label: 'Eureka AI tokens',       sub: 'Intelligence tokens used',   rate: '₦0.05 / token',      icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem' }} />,         color: '#d97706' },
+  nfiu_return:         { label: 'NFIU returns',           sub: 'Regulatory compliance filings', rate: '₦100.00 / filing', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#92400e' },
 }
 
-const usageMetrics: UsageMetric[] = [
-  { label: 'Transactions monitored', used: 84219000, limit: 100000000, unit: '', rate: '₦0.0008 each' },
-  { label: 'Customer profiles', used: 847219, limit: 1000000, unit: '', rate: '₦12 / profile / month' },
-  { label: 'Webhook deliveries', used: 4280000, limit: 10000000, unit: '', rate: '₦0.0001 each' },
-  { label: 'Eureka AI requests', used: 12480, limit: 50000, unit: '', rate: '₦25 / request' },
-  { label: 'NFIU filings (auto)', used: 847, limit: 5000, unit: '', rate: 'Included' },
-  { label: 'Storage', used: 412, limit: 1000, unit: 'GB', rate: '₦80 / GB / month' },
-]
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-const ledger = [
-  { id: 'INV-2026-0419', date: '2026-04-19 14:32', type: 'usage', description: 'Daily usage charge · 19 Apr', amount: -842500, balance: 4218000, ref: 'auto-debit' },
-  { id: 'TOP-2026-0418', date: '2026-04-18 09:15', type: 'topup', description: 'Wallet top-up · GTB Transfer', amount: 5000000, balance: 5060500, ref: 'GT/REF/8X29F' },
-  { id: 'INV-2026-0418', date: '2026-04-18 14:32', type: 'usage', description: 'Daily usage charge · 18 Apr', amount: -794200, balance: 60500, ref: 'auto-debit' },
-  { id: 'INV-2026-0417', date: '2026-04-17 14:32', type: 'usage', description: 'Daily usage charge · 17 Apr', amount: -812400, balance: 854700, ref: 'auto-debit' },
-  { id: 'INV-2026-0416', date: '2026-04-16 14:32', type: 'usage', description: 'Daily usage charge · 16 Apr', amount: -728900, balance: 1667100, ref: 'auto-debit' },
-  { id: 'TOP-2026-0415', date: '2026-04-15 11:08', type: 'topup', description: 'Wallet top-up · Paystack', amount: 3000000, balance: 2396000, ref: 'ps_T62V8M2P' },
-  { id: 'INV-2026-0415', date: '2026-04-15 14:32', type: 'usage', description: 'Daily usage charge · 15 Apr', amount: -901300, balance: -604000, ref: 'auto-debit' },
-  { id: 'INV-2026-0414', date: '2026-04-14 14:32', type: 'usage', description: 'Daily usage charge · 14 Apr', amount: -782450, balance: 297300, ref: 'auto-debit' },
-]
+function unitsToNgn(units: number) { return units / UNITS_PER_NGN }
 
-const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '₦480k',
-    period: '/month',
-    description: 'For MFBs and early-stage fintechs',
-    features: ['Up to 5M transactions/month', '100k customer profiles', 'Standard rules engine', 'Email support'],
-    current: false,
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    price: '₦2.4M',
-    period: '/month',
-    description: 'For mid-tier banks and scaling fintechs',
-    features: ['Up to 50M transactions/month', '1M customer profiles', 'Eureka AI included', 'NFIU auto-filing', 'Priority support'],
-    current: true,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    description: 'For Tier-1 banks and complex regulators',
-    features: ['Unlimited transactions', 'Dedicated infrastructure', 'On-premise option', 'CBN-aligned SLA', 'Named CSM'],
-    current: false,
-  },
-]
-
-function fmt(amount: number) {
-  const abs = Math.abs(amount)
-  return `${amount < 0 ? '−' : ''}₦${abs.toLocaleString()}`
+function fmtNgn(ngn: number, decimals = 0) {
+  if (ngn >= 1_000_000) return `₦${(ngn / 1_000_000).toFixed(2)}M`
+  if (ngn >= 1_000)     return `₦${(ngn / 1_000).toFixed(1)}k`
+  return `₦${ngn.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
 }
+
+function fmtSign(ngn: number) {
+  const abs = Math.abs(ngn)
+  return `${ngn < 0 ? '−' : '+'}₦${abs.toLocaleString()}`
+}
+
+function daysUntil(isoStr: string) {
+  const ms = new Date(isoStr).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 86_400_000))
+}
+
+// ── page ──────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  const [topUpOpen, setTopUpOpen] = useState(false)
-  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [fundOpen, setFundOpen]       = useState(false)
+  const [addCardOpen, setAddCardOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<string | null>(null)
-  const [range, setRange] = useState<DateRange>('30d')
-  const balance = 4218000
-  const lowBalance = balance < 5000000
+  const [range, setRange]         = useState<DateRange>('30d')
+
+  const [summary, setSummary]           = useState<BillingSummary | null>(null)
+  const [usage, setUsage]               = useState<BillingUsageSummary | null>(null)
+  const [ledger, setLedger]             = useState<LedgerEntry[]>([])
+  const [methods, setMethods]           = useState<PaymentMethod[]>([])
+  const [paystackKey, setPaystackKey]   = useState('')
+  const [loading, setLoading]           = useState(true)
+  const [deletingId, setDeletingId]     = useState<number | null>(null)
+
+  const loadData = useCallback(() => {
+    setLoading(true)
+    Promise.all([
+      billingApi.getSummary(),
+      billingApi.getUsage(),
+      billingApi.getLedger(),
+      billingApi.getConfig(),
+      billingApi.listPaymentMethods(),
+    ]).then(([s, u, l, c, m]) => {
+      setSummary(s)
+      setUsage(u)
+      setLedger(l.entries)
+      setPaystackKey(c.paystackPublicKey)
+      setMethods(m.paymentMethods)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  async function deleteMethod(id: number) {
+    setDeletingId(id)
+    try {
+      await billingApi.deletePaymentMethod(id)
+      setMethods(prev => prev.filter(m => m.id !== id))
+    } catch { /* ignore */ }
+    finally { setDeletingId(null) }
+  }
+
+  const balanceNgn      = summary?.balanceNgn ?? 0
+  const creditExpires   = usage?.creditExpiresAt
+  const inFreePeriod    = usage?.isInFreePeriod ?? false
+  const daysLeft        = creditExpires ? daysUntil(creditExpires) : 0
+  const creditUsedNgn   = unitsToNgn(usage?.totalDebitUnits ?? 0)
+  const creditPct       = Math.min(100, (creditUsedNgn / WELCOME_NGN) * 100)
+  const lowBalance      = !inFreePeriod && balanceNgn < 5_000
+  const noPaymentMethod = methods.length === 0
 
   return (
     <DashboardLayout>
-      <Box sx={{ p: 4 }}>
-        {/* Header */}
+      <Box sx={{ p: 4, maxWidth: 1200 }}>
+
+        {/* ── Header ── */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
@@ -100,72 +136,31 @@ export default function BillingPage() {
               Billing & Usage
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-              Wallet, plan, and a complete ledger of every charge and top-up
+              Pay as you go · ₦500,000 welcome credit · usage charged per event
             </Typography>
           </Box>
-          <Stack direction="row" gap={1.25}>
-            <Button
-              startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{
-                bgcolor: '#ffffff',
-                color: '#475569',
-                border: '1px solid #e5e7eb',
-                px: 2.25,
-                py: 1.125,
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                fontFamily: 'Jost',
-                borderRadius: 0,
-                textTransform: 'none',
-                '&:hover': { bgcolor: '#f8fafc' },
-              }}
-            >
-              Download Invoices
-            </Button>
-            <Button
-              onClick={() => setTopUpOpen(true)}
-              startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{
-                bgcolor: colorPalette.primary,
-                color: '#ffffff',
-                px: 2.25,
-                py: 1.125,
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                fontFamily: 'Jost',
-                borderRadius: 0,
-                textTransform: 'none',
-                boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896' },
-              }}
-            >
-              Fund Wallet
-            </Button>
-          </Stack>
-        </Box>
-
-        {/* Wallet + Plan summary */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
-          {/* Wallet card */}
-          <Box
+          <Button
+            onClick={() => setFundOpen(true)}
+            startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
             sx={{
-              bgcolor: colorPalette.primary,
-              color: '#ffffff',
-              p: 3,
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: '-30%',
-                right: '-5%',
-                width: 280,
-                height: 280,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.06)',
-              },
+              bgcolor: colorPalette.primary, color: '#fff',
+              px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 700,
+              fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
+              boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' },
             }}
           >
+            Fund Wallet
+          </Button>
+        </Box>
+
+        {/* ── Balance + credit status ── */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 3 }}>
+
+          {/* Balance card */}
+          <Box sx={{
+            bgcolor: colorPalette.primary, color: '#fff', p: 3, position: 'relative', overflow: 'hidden',
+            '&::before': { content: '""', position: 'absolute', top: '-40%', right: '-8%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' },
+          }}>
             <Box sx={{ position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.125rem' }} />
@@ -173,431 +168,393 @@ export default function BillingPage() {
                   Wallet balance
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: '2.75rem', fontWeight: 700, fontFamily: 'Jost', lineHeight: 1, letterSpacing: '-0.02em', mb: 1 }}>
-                ₦{balance.toLocaleString()}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
-                <Typography sx={{ fontSize: '0.8125rem', opacity: 0.85 }}>
-                  ≈ {Math.round(balance / 800000)} days remaining at current daily burn
-                </Typography>
-                {lowBalance && (
-                  <Chip
-                    label="LOW BALANCE"
-                    size="small"
-                    sx={{
-                      bgcolor: 'rgba(245, 158, 11, 0.2)',
-                      color: '#fbbf24',
-                      fontWeight: 700,
-                      fontSize: '0.625rem',
-                      letterSpacing: '0.1em',
-                      borderRadius: 0,
-                      height: 20,
-                    }}
-                  />
-                )}
-              </Box>
 
-              <Stack direction="row" gap={1.25}>
+              {loading ? (
+                <CircularProgress size={32} sx={{ color: '#fff', my: 1 }} />
+              ) : (
+                <Typography sx={{ fontSize: '2.75rem', fontWeight: 700, fontFamily: 'Jost', lineHeight: 1, letterSpacing: '-0.02em', mb: 1 }}>
+                  {fmtNgn(balanceNgn)}
+                </Typography>
+              )}
+
+              {/* Credit / low balance badge */}
+              {inFreePeriod ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <CheckCircleOutlineRoundedIcon sx={{ fontSize: '0.875rem', opacity: 0.85 }} />
+                  <Typography sx={{ fontSize: '0.8125rem', opacity: 0.9 }}>
+                    Welcome credit active · {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining
+                  </Typography>
+                </Box>
+              ) : lowBalance ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, bgcolor: 'rgba(245,158,11,0.2)', px: 1.5, py: 0.75, width: 'fit-content' }}>
+                  <WarningAmberRoundedIcon sx={{ fontSize: '0.875rem', color: '#fbbf24' }} />
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#fbbf24', fontWeight: 600 }}>
+                    Low balance — add funds to avoid interruption
+                  </Typography>
+                </Box>
+              ) : !inFreePeriod ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', opacity: 0.75 }}>
+                    Pay as you go · usage deducted in real-time
+                  </Typography>
+                </Box>
+              ) : null}
+
+              <Stack direction="row" gap={1}>
                 <Button
-                  onClick={() => setTopUpOpen(true)}
+                  onClick={() => setFundOpen(true)}
                   startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                  sx={{
-                    bgcolor: '#ffffff',
-                    color: colorPalette.primary,
-                    px: 2.25,
-                    py: 1,
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    fontFamily: 'Jost',
-                    borderRadius: 0,
-                    textTransform: 'none',
-                    '&:hover': { bgcolor: '#f8fafc' },
-                  }}
+                  sx={{ bgcolor: '#fff', color: colorPalette.primary, px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}
                 >
                   Fund Wallet
-                </Button>
-                <Button
-                  sx={{
-                    bgcolor: 'rgba(255,255,255,0.12)',
-                    color: '#ffffff',
-                    px: 2.25,
-                    py: 1,
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    fontFamily: 'Jost',
-                    borderRadius: 0,
-                    textTransform: 'none',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
-                  }}
-                >
-                  Auto-recharge: Off
                 </Button>
               </Stack>
             </Box>
           </Box>
 
-          {/* Plan card */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                  Current plan
+          {/* Credit usage / pay-as-you-go status */}
+          <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', p: 3 }}>
+            {inFreePeriod ? (
+              <>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
+                  Welcome credit usage
                 </Typography>
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.5 }}>
-                  Growth
-                </Typography>
-              </Box>
-              <Chip
-                label="ACTIVE"
-                size="small"
-                sx={{
-                  bgcolor: '#f0fdf4',
-                  color: '#10b981',
-                  fontWeight: 700,
-                  fontSize: '0.625rem',
-                  letterSpacing: '0.1em',
-                  borderRadius: 0,
-                  height: 22,
-                }}
-              />
-            </Box>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2 }}>
-              ₦2.4M base · billed monthly · usage charges separate. Renews 1 May 2026.
-            </Typography>
-            <Stack direction="row" gap={3} sx={{ mb: 2 }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
-                  Spend this month
-                </Typography>
-                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                  ₦14.8M
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
-                  vs last month
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <TrendingUpRoundedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost' }}>
-                    +18%
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.75 }}>
+                  <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                    {fmtNgn(creditUsedNgn, 2)} used
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
+                    of ₦500,000
                   </Typography>
                 </Box>
-              </Box>
-            </Stack>
-            <Button
-              onClick={() => setUpgradeOpen(true)}
-              startIcon={<RocketLaunchOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{
-                bgcolor: '#ffffff',
-                color: colorPalette.primary,
-                border: `1px solid ${colorPalette.primary}40`,
-                px: 2.25,
-                py: 1,
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                fontFamily: 'Jost',
-                borderRadius: 0,
-                textTransform: 'none',
-                '&:hover': { bgcolor: `${colorPalette.primary}06`, borderColor: colorPalette.primary },
-              }}
-            >
-              Upgrade Plan
-            </Button>
+                <Box sx={{ width: '100%', height: 8, bgcolor: '#f1f5f9', mb: 0.75 }}>
+                  <Box sx={{ width: `${creditPct}%`, height: '100%', bgcolor: creditPct > 80 ? '#f59e0b' : colorPalette.primary, transition: 'width 0.5s' }} />
+                </Box>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
+                  {(100 - creditPct).toFixed(1)}% credit remaining · expires {creditExpires ? new Date(creditExpires).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+                </Typography>
+                <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #d1fae5', p: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#047857', fontWeight: 500, lineHeight: 1.5 }}>
+                    After your credit expires, usage is charged against your wallet balance. Add a card now so we can auto-debit and keep you running.
+                  </Typography>
+                </Box>
+              </>
+            ) : (
+              <>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
+                  Pay as you go
+                </Typography>
+                <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                  {fmtNgn(unitsToNgn(usage?.totalDebitUnits ?? 0), 2)} this month
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
+                  {usage?.periodStart} – {usage?.periodEnd} · Day {usage?.dayOfPeriod ?? '—'} of {usage?.daysInPeriod ?? '—'}
+                </Typography>
+                {noPaymentMethod && (
+                  <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', p: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 500, lineHeight: 1.5 }}>
+                      No card on file — your service will stop when the wallet hits ₦0. Add a card for seamless auto-debit.
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
           </Box>
         </Box>
 
-        {/* Usage section */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
+        {/* ── Usage tiles — always 4 categories ── */}
+        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
                 Usage this billing period
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                1 April – 30 April 2026 · Day 19 of 30
+                {usage
+                  ? `${usage.periodStart} – ${usage.periodEnd} · Day ${usage.dayOfPeriod} of ${usage.daysInPeriod}`
+                  : '…'}
               </Typography>
             </Box>
-            <DateRangeFilter value={range} onChange={setRange} compact options={['7d', '30d', '90d', 'ytd']} />
-          </Box>
-          <Box sx={{ p: 3, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
-            {usageMetrics.map((m) => {
-              const pct = (m.used / m.limit) * 100
-              const overSoft = pct > 80
-              return (
-                <Box key={m.label} sx={{ p: 2, border: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.5, fontFamily: 'Jost' }}>
-                    {m.label}
-                  </Typography>
-                  <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1 }}>
-                    {m.used.toLocaleString()}
-                    {m.unit && ` ${m.unit}`}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mb: 1.25 }}>
-                    of {m.limit.toLocaleString()}
-                    {m.unit && ` ${m.unit}`} · {m.rate}
-                  </Typography>
-                  <Box sx={{ width: '100%', height: 4, bgcolor: '#f1f5f9' }}>
-                    <Box
-                      sx={{
-                        width: `${Math.min(100, pct)}%`,
-                        height: '100%',
-                        bgcolor: overSoft ? '#f59e0b' : colorPalette.primary,
-                        transition: 'width 0.4s',
-                      }}
-                    />
-                  </Box>
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: overSoft ? '#f59e0b' : '#64748b', mt: 0.625 }}>
-                    {pct.toFixed(1)}% used
-                  </Typography>
-                </Box>
-              )
-            })}
-          </Box>
-        </Box>
-
-        {/* Plans (expandable section) */}
-        {upgradeOpen && (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3, animation: 'slideDown 0.25s ease', '@keyframes slideDown': { from: { opacity: 0, transform: 'translateY(-8px)' }, to: { opacity: 1, transform: 'translateY(0)' } } }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                  Choose your plan
+            {!loading && usage && (
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Total spend
                 </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                  Upgrades take effect immediately · downgrades at next renewal
+                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  {fmtNgn(unitsToNgn(usage.totalDebitUnits), 2)}
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={() => setUpgradeOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8' }}>
-                ✕
-              </IconButton>
+            )}
+          </Box>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} sx={{ color: colorPalette.primary }} />
             </Box>
-            <Box sx={{ p: 3, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-              {plans.map((p) => (
-                <Box
-                  key={p.id}
-                  sx={{
-                    p: 2.5,
-                    border: '1px solid',
-                    borderColor: p.current ? colorPalette.primary : '#eef0f4',
-                    bgcolor: p.current ? `${colorPalette.primary}06` : '#ffffff',
-                    position: 'relative',
-                  }}
-                >
-                  {p.current && (
-                    <Chip
-                      label="CURRENT"
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        bgcolor: colorPalette.primary,
-                        color: '#ffffff',
-                        fontWeight: 700,
-                        fontSize: '0.5625rem',
-                        letterSpacing: '0.1em',
-                        borderRadius: 0,
-                        height: 18,
-                      }}
-                    />
-                  )}
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost', mb: 1 }}>
-                    {p.name}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 1 }}>
-                    <Typography sx={{ fontSize: '1.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      {p.price}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontWeight: 600 }}>
-                      {p.period}
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1.75, lineHeight: 1.5 }}>
-                    {p.description}
-                  </Typography>
-                  <Stack gap={0.625} sx={{ mb: 2 }}>
-                    {p.features.map((f) => (
-                      <Box key={f} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.875 }}>
-                        <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#10b981', mt: 0.25, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{f}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                  <Button
-                    fullWidth
-                    onClick={() => !p.current && setPendingPlan(p.id)}
-                    disabled={p.current}
+          ) : (
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              {(usage?.categories ?? []).filter(c => c.category in CATEGORY_META).map((cat: CategoryUsage, idx: number, arr: CategoryUsage[]) => {
+                const meta       = CATEGORY_META[cat.category] ?? { label: cat.category, sub: '', rate: '', icon: null, color: '#64748b' }
+                const costNgn    = unitsToNgn(cat.totalAmountUnits)
+                const total      = usage?.totalDebitUnits ?? 0
+                const pct        = total > 0 ? (cat.totalAmountUnits / total) * 100 : 0
+                const isEmpty    = cat.eventCount === 0
+                const N          = arr.length
+                const isRightCol = (idx + 1) % 3 === 0 || idx === N - 1
+                const isLastRow  = idx >= N - ((N % 3) || 3)
+
+                return (
+                  <Box
+                    key={cat.category}
                     sx={{
-                      bgcolor: p.current ? '#e2e8f0' : colorPalette.primary,
-                      color: p.current ? '#94a3b8' : '#ffffff',
-                      py: 1,
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      fontFamily: 'Jost',
-                      borderRadius: 0,
-                      textTransform: 'none',
-                      boxShadow: 'none',
-                      '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                      p: 2.5, minWidth: 0,
+                      borderRight: isRightCol ? 'none' : '1px solid #eef0f4',
+                      borderBottom: isLastRow ? 'none' : '1px solid #eef0f4',
                     }}
                   >
-                    {p.current ? 'Current Plan' : p.id === 'enterprise' ? 'Contact Sales' : 'Upgrade'}
-                  </Button>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: isEmpty ? '#94a3b8' : meta.color }}>
+                      {meta.icon}
+                      <Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isEmpty ? '#94a3b8' : '#475569', fontFamily: 'Jost', lineHeight: 1.2 }}>
+                          {meta.label}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', lineHeight: 1.2 }}>
+                          {meta.sub}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#0f172a', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
+                      {cat.eventCount.toLocaleString()}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mb: 1.25 }}>
+                      events · {meta.rate}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600 }}>
+                        {isEmpty ? 'No usage' : `${pct.toFixed(0)}% of spend`}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#0f172a', fontFamily: 'Jost' }}>
+                        {isEmpty ? '₦0' : fmtNgn(costNgn, 2)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ width: '100%', height: 3, bgcolor: '#f1f5f9' }}>
+                      <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: meta.color, transition: 'width 0.4s' }} />
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          )}
+        </Box>
+
+        {/* ── Payment methods ── */}
+        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
+          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                Payment methods
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                Saved cards for one-click top-up and auto-debit
+              </Typography>
+            </Box>
+            <Button
+              onClick={() => setAddCardOpen(true)}
+              startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
+              sx={{
+                bgcolor: '#fff', color: colorPalette.primary,
+                border: `1px solid ${colorPalette.primary}40`,
+                px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 700,
+                fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
+                '&:hover': { bgcolor: `${colorPalette.primary}06`, borderColor: colorPalette.primary },
+              }}
+            >
+              Add card
+            </Button>
+          </Box>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={24} sx={{ color: colorPalette.primary }} />
+            </Box>
+          ) : methods.length === 0 ? (
+            <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CreditCardOutlinedIcon sx={{ fontSize: '2rem', color: '#cbd5e1' }} />
+              <Box>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>
+                  No payment methods yet
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  Add a card via the Fund Wallet dialog — we'll save it for future top-ups and auto-debit.
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              {methods.map((m, i) => (
+                <Box
+                  key={m.id}
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 2, px: 3, py: 1.75,
+                    borderBottom: i === methods.length - 1 ? 'none' : '1px solid #f4f5f7',
+                    '&:hover': { bgcolor: '#fafbfc' },
+                  }}
+                >
+                  <CreditCardOutlinedIcon sx={{ fontSize: '1.375rem', color: '#64748b', flexShrink: 0 }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>
+                      {m.displayName}
+                      {m.isDefault && (
+                        <Chip label="default" size="small" sx={{ ml: 1, height: 18, fontSize: '0.625rem', fontWeight: 700, bgcolor: `${colorPalette.primary}12`, color: colorPalette.primary, borderRadius: 0 }} />
+                      )}
+                    </Typography>
+                    {m.last4 && (
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                        ···· {m.last4}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                    Added {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    disabled={deletingId === m.id}
+                    onClick={() => deleteMethod(m.id)}
+                    sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
+                  >
+                    {deletingId === m.id
+                      ? <CircularProgress size={14} sx={{ color: '#94a3b8' }} />
+                      : <DeleteOutlineRoundedIcon sx={{ fontSize: '1rem' }} />}
+                  </IconButton>
                 </Box>
               ))}
             </Box>
-          </Box>
-        )}
+          )}
+        </Box>
 
-        {/* Ledger */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+        {/* ── Wallet ledger ── */}
+        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4' }}>
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ReceiptLongOutlinedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ReceiptLongOutlinedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />
+              <Box>
                 <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
                   Wallet ledger
                 </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.125 }}>
+                  Every charge and top-up · audit-grade trail
+                </Typography>
               </Box>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                Every charge and top-up · audit-grade trail
-              </Typography>
             </Box>
             <DateRangeFilter value={range} onChange={setRange} compact options={['7d', '30d', '90d', 'ytd']} />
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '140px 160px 1fr 130px 130px 120px', gap: 2, px: 3, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-            {['Reference', 'Date', 'Description', 'Amount (₦)', 'Balance (₦)', 'Source'].map((h) => (
+
+          {/* Table header */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 130px 100px', gap: 2, px: 3, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+            {['Date', 'Description', 'Amount (₦)', 'Balance (₦)', 'Type'].map(h => (
               <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {h}
               </Typography>
             ))}
           </Box>
-          {ledger.map((row, i) => (
-            <Box
-              key={row.id}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: '140px 160px 1fr 130px 130px 120px',
-                gap: 2,
-                px: 3,
-                py: 1.75,
-                alignItems: 'center',
-                borderBottom: i === ledger.length - 1 ? 'none' : '1px solid #f4f5f7',
-                '&:hover': { bgcolor: '#fafbfc' },
-              }}
-            >
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                {row.id}
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                {row.date}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} sx={{ color: colorPalette.primary }} />
+            </Box>
+          ) : ledger.length === 0 ? (
+            <Box sx={{ py: 4, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>No ledger entries yet</Typography>
+            </Box>
+          ) : ledger.map((row, i) => {
+            const amountNgn  = Math.round(unitsToNgn(row.totalAmountUnits))
+            const balNgn     = Math.round(unitsToNgn(row.endingBalanceUnits))
+            const isCredit   = row.type === 'credit'
+            return (
+              <Box
+                key={`${row.dayStr}-${row.type}`}
+                sx={{
+                  display: 'grid', gridTemplateColumns: '120px 1fr 120px 130px 100px',
+                  gap: 2, px: 3, py: 1.75, alignItems: 'center',
+                  borderBottom: i === ledger.length - 1 ? 'none' : '1px solid #f4f5f7',
+                  '&:hover': { bgcolor: '#fafbfc' },
+                }}
+              >
+                <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                  {row.dayStr}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: isCredit ? '#10b981' : colorPalette.primary, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a' }}>
+                    {isCredit ? 'Credit' : 'Usage charges'} · {row.dayStr}
+                    {row.eventCount > 1 && (
+                      <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 0.75 }}>
+                        {row.eventCount.toLocaleString()} events
+                      </Typography>
+                    )}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isCredit ? '#10b981' : '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
+                  {fmtSign(isCredit ? amountNgn : -amountNgn)}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: balNgn < 0 ? '#dc2626' : '#475569', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
+                  ₦{Math.abs(balNgn).toLocaleString()}{balNgn < 0 ? ' (negative)' : ''}
+                </Typography>
+                <Chip
+                  label={row.type}
+                  size="small"
                   sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    bgcolor: row.type === 'topup' ? '#10b981' : colorPalette.primary,
+                    borderRadius: 0, height: 20, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em',
+                    bgcolor: isCredit ? '#f0fdf4' : '#eff6ff',
+                    color: isCredit ? '#10b981' : colorPalette.primary,
                   }}
                 />
-                <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a' }}>
-                  {row.description}
-                </Typography>
               </Box>
-              <Typography
-                sx={{
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  color: row.amount > 0 ? '#10b981' : '#0f172a',
-                  fontFamily: 'SF Mono, Monaco, monospace',
-                  textAlign: 'right',
-                }}
-              >
-                {fmt(row.amount)}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: row.balance < 0 ? '#dc2626' : '#475569',
-                  fontFamily: 'SF Mono, Monaco, monospace',
-                  textAlign: 'right',
-                }}
-              >
-                {fmt(row.balance)}
-              </Typography>
-              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                {row.ref}
-              </Typography>
-            </Box>
-          ))}
-          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              Showing 8 of 240 entries
+            )
+          })}
+
+          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #eef0f4' }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+              {ledger.length > 0 ? `${ledger.length} entries shown · last 90 days` : ''}
             </Typography>
-            <Stack direction="row" gap={0.5}>
-              {['Previous', '1', '2', '3', '…', '30', 'Next'].map((p) => (
-                <Box
-                  key={p}
-                  sx={{
-                    px: 1.25,
-                    py: 0.5,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: p === '1' ? '#ffffff' : '#475569',
-                    bgcolor: p === '1' ? colorPalette.primary : 'transparent',
-                    border: '1px solid',
-                    borderColor: p === '1' ? colorPalette.primary : '#e5e7eb',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {p}
-                </Box>
-              ))}
-            </Stack>
           </Box>
         </Box>
       </Box>
 
-      {/* TOTP — fund wallet */}
-      <TOTPConfirmation
-        open={topUpOpen}
-        onClose={() => setTopUpOpen(false)}
-        onConfirm={() => setTopUpOpen(false)}
-        operation="create"
-        title="Fund OpenIV wallet"
-        description="Authorize a transfer from your linked bank account to your OpenIV wallet. Funds appear instantly via Paystack/Flutterwave settlement."
-        resourceType="Wallet top-up"
-        resourceName="₦5,000,000 from FCMB ··· 1729"
+      {/* ── Add Card dialog ── */}
+      <AddCardDialog
+        open={addCardOpen}
+        onClose={() => setAddCardOpen(false)}
+        onCardAdded={(method) => {
+          setMethods(prev => [...prev, method])
+          setAddCardOpen(false)
+        }}
       />
 
-      {/* TOTP — change plan */}
+      {/* ── Fund Wallet dialog ── */}
+      <FundWalletDialog
+        open={fundOpen}
+        onClose={() => setFundOpen(false)}
+        paystackPublicKey={paystackKey}
+        onSuccess={(newBalance) => {
+          setSummary(prev => prev ? { ...prev, balanceNgn: newBalance } : null)
+          loadData()
+        }}
+      />
+
+      {/* ── TOTP — plan change (kept for future use) ── */}
       <TOTPConfirmation
         open={!!pendingPlan}
         onClose={() => setPendingPlan(null)}
-        onConfirm={() => {
-          setPendingPlan(null)
-          setUpgradeOpen(false)
-        }}
+        onConfirm={() => setPendingPlan(null)}
         operation="update"
-        title="Change subscription plan"
-        description={
-          pendingPlan === 'enterprise'
-            ? 'This will route a request to our sales team. A Customer Success Manager will reach out within one business day.'
-            : 'Plan changes apply immediately. Usage charges remain on top of base subscription.'
-        }
-        resourceType="Subscription plan"
-        resourceName={`Growth → ${plans.find((p) => p.id === pendingPlan)?.name || ''}`}
-        changes={
-          pendingPlan && pendingPlan !== 'enterprise'
-            ? [
-                { field: 'Plan', from: 'Growth', to: plans.find((p) => p.id === pendingPlan)?.name || '' },
-                { field: 'Base price', from: '₦2.4M / mo', to: plans.find((p) => p.id === pendingPlan)?.price + plans.find((p) => p.id === pendingPlan)?.period || '' },
-              ]
-            : undefined
-        }
+        title="Change plan"
+        description="Plan changes apply immediately."
+        resourceType="Subscription"
+        resourceName=""
       />
     </DashboardLayout>
   )

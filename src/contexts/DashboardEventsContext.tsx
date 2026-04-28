@@ -43,16 +43,33 @@ export interface ActivityEventItem {
 }
 
 export interface OtpAlertItem {
-  id:         number
-  rule:       'FAILED_CASCADE' | 'OTP_BOMBING' | 'VELOCITY_SPIKE' | 'NEW_DEVICE_SUSPICIOUS'
-  severity:   'critical' | 'warning'
-  customerId: string | null
-  deviceId:   string | null
-  channel:    string | null
-  otpType:    string | null
-  eventCount: number
-  detail:     string
-  firedAt:    string
+  id:                 number
+  rule:               'FAILED_CASCADE' | 'OTP_BOMBING' | 'VELOCITY_SPIKE' | 'NEW_DEVICE_SUSPICIOUS'
+  severity:           'critical' | 'warning'
+  customerId:         string | null
+  deviceId:           string | null
+  channel:            string | null
+  otpType:            string | null
+  eventCount:         number
+  detail:             string
+  firedAt:            string
+  // enrichment fields (populated when the beam OTP stream carries them)
+  customerName:       string | null
+  msisdn:             string | null
+  ip:                 string | null
+  txnLat:             number | null
+  txnLng:             number | null
+  amount:             number | null
+  beneficiaryAccount: string | null
+  deviceModel:        string | null
+  transactionId:      string | null
+  riskScore:          number
+  reasons:            string[]
+  status:             'pending' | 'held' | 'released' | 'declined'
+  expiresAt:          string | null
+  customerLat:        number | null
+  customerLng:        number | null
+  distanceKm:         number | null
 }
 
 export interface SecurityEvent {
@@ -64,19 +81,36 @@ export interface SecurityEvent {
   at:          string
 }
 
+export interface GeoAccessRequestItem {
+  id:           number
+  userId:       number
+  userEmail:    string
+  userFullName: string | null
+  rawLat:       number | null
+  rawLng:       number | null
+  ip:           string | null
+  userAgent:    string | null
+  deviceId:     string | null
+  status:       'pending' | 'approved' | 'rejected'
+  expiresAt:    string | null
+  createdAt:    string
+}
+
 // ── Context shape ─────────────────────────────────────────────────────────────
 
 export interface DashboardEventsState {
-  stats:          DashboardStats | null
-  activity:       ActivityEventItem[]
-  otpAlerts:      OtpAlertItem[]
-  securityEvents: SecurityEvent[]
-  connected:      boolean
-  error:          boolean
+  stats:              DashboardStats | null
+  activity:           ActivityEventItem[]
+  otpAlerts:          OtpAlertItem[]
+  securityEvents:     SecurityEvent[]
+  geoAccessRequests:  GeoAccessRequestItem[]
+  connected:          boolean
+  error:              boolean
 }
 
 const INITIAL: DashboardEventsState = {
-  stats: null, activity: [], otpAlerts: [], securityEvents: [], connected: false, error: false,
+  stats: null, activity: [], otpAlerts: [], securityEvents: [],
+  geoAccessRequests: [], connected: false, error: false,
 }
 
 const DashboardEventsContext = createContext<DashboardEventsState>(INITIAL)
@@ -175,6 +209,28 @@ export function DashboardEventsProvider({ children }: { children: ReactNode }) {
         try {
           const evt: SecurityEvent = JSON.parse(e.data)
           setState(s => ({ ...s, securityEvents: [evt, ...s.securityEvents].slice(0, 20) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── Geo-access requests: full initial batch (admin only) ────────────
+      es.addEventListener('geoRequestInit', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const items: GeoAccessRequestItem[] = JSON.parse(e.data)
+          setState(s => ({ ...s, geoAccessRequests: items.slice(0, 20) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── Geo-access requests: new request pushed in real-time ───────────
+      es.addEventListener('geoRequest', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const req: GeoAccessRequestItem = JSON.parse(e.data)
+          setState(s => {
+            const seen = new Set(s.geoAccessRequests.map(x => x.id))
+            if (seen.has(req.id)) return s
+            return { ...s, geoAccessRequests: [req, ...s.geoAccessRequests].slice(0, 20) }
+          })
         } catch { /* ignore */ }
       })
 

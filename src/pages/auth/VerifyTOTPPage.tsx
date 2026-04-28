@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client'
 import { clearOnboardingBreadcrumbs, setSessionState, clearOnboardingState } from '@/onboarding/state'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
 import { Box, Typography } from '@mui/material'
+import { storeGeoBlock } from '@/pages/auth/GeoBlockedPage'
 
 export default function VerifyTOTPPage() {
   const navigate = useNavigate()
@@ -17,9 +18,19 @@ export default function VerifyTOTPPage() {
     setSubmitting(true)
     setErrorMessage(null)
     try {
-      const { state } = await authApi.verifyTotp(code)
-      await setSessionState(state)
-      if (state === 'authenticated') {
+      const result = await authApi.verifyTotp(code) as {
+        state: string
+        requestId?: number
+        watchToken?: string
+        expiresAt?:  string
+      }
+      if (result.state === 'geo_blocked' && result.requestId && result.watchToken) {
+        storeGeoBlock(result.requestId, result.watchToken, result.expiresAt ?? '')
+        navigate('/auth/geo-blocked', { replace: true })
+        return
+      }
+      await setSessionState(result.state as Parameters<typeof setSessionState>[0])
+      if (result.state === 'authenticated') {
         clearOnboardingBreadcrumbs()
         navigate('/dashboard')
       }

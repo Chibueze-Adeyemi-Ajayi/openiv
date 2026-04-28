@@ -1,6 +1,6 @@
 import {
   Box, Typography, Stack, Button, Chip, IconButton,
-  Skeleton, Dialog, Select, MenuItem, FormControl, Collapse,
+  Skeleton, Dialog, Collapse,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
@@ -247,8 +247,15 @@ const streams: Stream[] = [
       { field: 'phone_msisdn',   type: 'string',   required: true,  example: '+2348031234567' },
       { field: 'event_type',     type: 'enum',     required: true,  example: 'requested | sent | verified | retry | failed' },
       { field: 'timestamp',      type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
-      { field: 'transaction_id', type: 'string',   required: false, example: 'TXN-48721' },
-      { field: 'attempt_count',  type: 'number',   required: false, example: '4' },
+      { field: 'transaction_id',    type: 'string',   required: false, example: 'TXN-48721' },
+      { field: 'attempt_count',    type: 'number',   required: false, example: '4' },
+      { field: 'customer_name',    type: 'string',   required: false, example: 'Amaka Okoye' },
+      { field: 'geo_lat',          type: 'number',   required: false, example: '6.4541' },
+      { field: 'geo_lng',          type: 'number',   required: false, example: '3.3947' },
+      { field: 'ip_address',       type: 'string',   required: false, example: '102.89.32.18' },
+      { field: 'amount',           type: 'number',   required: false, example: '150000' },
+      { field: 'beneficiary_account', type: 'string', required: false, example: '0123456789' },
+      { field: 'device_model',     type: 'string',   required: false, example: 'iPhone 14 Pro' },
     ],
   },
 ]
@@ -617,18 +624,10 @@ function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type PageView = 'streams' | 'log'
-
 export default function DataBeamingPage() {
-  const [view,         setView]         = useState<PageView>('streams')
   const [activeStream, setActiveStream] = useState<StreamId>('transactions')
   const [activeLang,   setActiveLang]   = useState<Lang>('cURL')
   const [apiKeyOpen,   setApiKeyOpen]   = useState(false)
-
-  // Beam log state
-  const [records,      setRecords]      = useState<BeamRecord[]>([])
-  const [logLoading,   setLogLoading]   = useState(false)
-  const [filterStream, setFilterStream] = useState<string>('all')
 
   const stream = streams.find(s => s.id === activeStream)!
   const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
@@ -641,33 +640,6 @@ export default function DataBeamingPage() {
 
   const connected    = streams.filter(s => s.status === 'connected').length
   const totalRecords = streams.reduce((sum, s) => sum + s.recordsToday, 0)
-
-  const loadLog = useCallback(async () => {
-    setLogLoading(true)
-    try { setRecords((await beamApi.listRecords()).records) }
-    finally { setLogLoading(false) }
-  }, [])
-
-  useEffect(() => { if (view === 'log') loadLog() }, [view, loadLog])
-
-  const filteredRecords = useMemo(() =>
-    filterStream === 'all' ? records : records.filter(r => r.stream === filterStream),
-  [records, filterStream])
-
-  const logStats = useMemo(() => {
-    const total = records.length
-    const byStream: Record<string, number> = {}
-    records.forEach(r => { byStream[r.stream] = (byStream[r.stream] ?? 0) + 1 })
-    const top = Object.entries(byStream).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
-    return { total, top, last: records[0]?.receivedAt ?? null }
-  }, [records])
-
-  const selectSx = {
-    height: 36, fontSize: '0.8125rem', fontFamily: 'Jost', borderRadius: 0, bgcolor: '#ffffff',
-    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #eef0f4' },
-    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
-    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary, borderWidth: '1px' },
-  }
 
   return (
     <DashboardLayout>
@@ -691,20 +663,6 @@ export default function DataBeamingPage() {
           </Stack>
         </Box>
 
-        {/* View tabs */}
-        <Box sx={{ display: 'flex', borderBottom: '2px solid #eef0f4', mb: 3 }}>
-          {(['streams', 'log'] as PageView[]).map(v => (
-            <Box
-              key={v}
-              onClick={() => setView(v)}
-              sx={{ px: 2.5, py: 1.25, cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Jost', fontWeight: view === v ? 700 : 500, color: view === v ? colorPalette.primary : '#64748b', borderBottom: view === v ? `2px solid ${colorPalette.primary}` : '2px solid transparent', mb: '-2px', transition: 'all 0.15s', '&:hover': { color: colorPalette.primary } }}>
-              {v === 'streams' ? 'Streams' : 'Beam Log'}
-            </Box>
-          ))}
-        </Box>
-
-        {view === 'streams' ? (
-          <>
             {/* Health KPIs */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
               {[
@@ -866,86 +824,6 @@ export default function DataBeamingPage() {
                 </Stack>
               </Box>
             </Box>
-          </>
-        ) : (
-          // ── Beam Log view ──────────────────────────────────────────────────
-          <>
-            {/* Stats */}
-            <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-              {logLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
-                    <Skeleton height={16} width="60%" /><Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
-                  </Box>
-                ))
-              ) : (
-                <>
-                  {[
-                    { label: 'RECORDS LOADED',  value: String(logStats.total) },
-                    { label: 'TOP STREAM',      value: STREAM_LABELS[logStats.top] ?? logStats.top },
-                    { label: 'LAST RECEIVED',   value: logStats.last ? fmtRelative(logStats.last) : '—' },
-                  ].map(s => (
-                    <Box key={s.label} sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>{s.label}</Typography>
-                      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>{s.value}</Typography>
-                    </Box>
-                  ))}
-                </>
-              )}
-            </Stack>
-
-            {/* Filter */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <Select value={filterStream} onChange={e => setFilterStream(e.target.value)} sx={selectSx} displayEmpty>
-                  <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All streams</MenuItem>
-                  {Object.entries(STREAM_LABELS).map(([id, label]) => (
-                    <MenuItem key={id} value={id} sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>{label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Box sx={{ flex: 1 }} />
-              <Button startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />} onClick={loadLog} disabled={logLoading} sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff', px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' } }}>
-                Refresh
-              </Button>
-            </Box>
-
-            {/* Table */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-              <Box sx={{ px: 3, py: 1.25, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-                {['STREAM', 'PAYLOAD PREVIEW', 'STATUS', 'TIME', ''].map((h, i) => (
-                  <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>{h}</Typography>
-                ))}
-              </Box>
-              {logLoading ? (
-                <Stack>
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
-                      <Skeleton variant="rectangular" width={90} height={18} />
-                      <Skeleton variant="rectangular" width="60%" height={18} />
-                      <Skeleton variant="rectangular" width={60} height={18} />
-                    </Box>
-                  ))}
-                </Stack>
-              ) : filteredRecords.length === 0 ? (
-                <Box sx={{ py: 6, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                    {records.length === 0 ? 'No inbound beams yet — instrument your core and start sending data' : 'No records match the selected stream filter'}
-                  </Typography>
-                </Box>
-              ) : (
-                filteredRecords.map(r => <RecordRow key={r.id} record={r} />)
-              )}
-            </Box>
-
-            <Box sx={{ p: 2.5, bgcolor: `${colorPalette.primary}08`, border: `1px solid ${colorPalette.primary}20` }}>
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: colorPalette.primary, fontFamily: 'Jost', mb: 0.375 }}>Schema validation</Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>
-                Payloads that pass validation are stored with <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#10b981' }}>status: received</Box>. Rejected payloads get a <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#dc2626' }}>400</Box> response and are not stored. Use <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: colorPalette.primary }}>X-Idempotency-Key</Box> to safely retry without duplicating records.
-              </Typography>
-            </Box>
-          </>
-        )}
       </Box>
 
       <ApiKeyModal open={apiKeyOpen} onClose={() => setApiKeyOpen(false)} />

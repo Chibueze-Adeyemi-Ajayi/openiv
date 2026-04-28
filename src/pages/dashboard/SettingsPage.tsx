@@ -1,8 +1,12 @@
-import { Box, Typography, Stack, TextField, Switch, Button } from '@mui/material'
+import { Box, Typography, Stack, TextField, Switch, Button, Chip } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
+import GeoFenceDialog from '@/components/dashboard/GeoFenceDialog'
 import { useState } from 'react'
+import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined'
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
+import ChevronRightIcon   from '@mui/icons-material/ChevronRight'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -52,7 +56,8 @@ const toggles = [
 ]
 
 export default function SettingsPage() {
-  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveOpen,     setSaveOpen]     = useState(false)
+  const [geoFenceOpen, setGeoFenceOpen] = useState(false)
   return (
     <DashboardLayout>
       <Box sx={{ p: 4 }}>
@@ -155,6 +160,51 @@ export default function SettingsPage() {
               ))}
             </Stack>
           </Box>
+
+          {/* Security */}
+          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+              <Box>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  Security
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                  Access control and physical security boundaries
+                </Typography>
+              </Box>
+            </Box>
+            <Box
+              onClick={() => setGeoFenceOpen(true)}
+              sx={{
+                px: 3, py: 2.25,
+                display: 'flex', alignItems: 'center', gap: 2,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: '#f8fafc' },
+                transition: 'background 0.15s',
+              }}
+            >
+              <Box sx={{
+                width: 40, height: 40, borderRadius: '8px', flexShrink: 0,
+                bgcolor: `${colorPalette.primary}12`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PublicOutlinedIcon sx={{ fontSize: '1.25rem', color: colorPalette.primary }} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                    Geographical Access Fence
+                  </Typography>
+                  <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />
+                </Stack>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>
+                  Draw a polygon on OpenStreetMap and restrict specific users to that zone. Calibrate for GPS drift. Real-time admin approval for out-of-zone login attempts.
+                </Typography>
+              </Box>
+              <ChevronRightIcon sx={{ color: '#94a3b8', flexShrink: 0 }} />
+            </Box>
+          </Box>
         </Box>
       </Box>
 
@@ -168,6 +218,8 @@ export default function SettingsPage() {
         resourceType="Organization"
         resourceName="First City Monument Bank"
       />
+
+      <GeoFenceDialog open={geoFenceOpen} onClose={() => setGeoFenceOpen(false)} />
     </DashboardLayout>
   )
 }

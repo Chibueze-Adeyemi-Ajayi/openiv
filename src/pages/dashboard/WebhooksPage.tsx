@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box, Typography, Stack, Button, TextField, Switch,
   IconButton, Popover, Skeleton, Collapse, Dialog,
-  Select, MenuItem, FormControl, Tabs, Tab,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
@@ -1213,15 +1212,9 @@ app.MapPost("/webhooks/openiv", async (HttpContext ctx) =>
 app.Run();`,
 }
 
-// ── Page view ─────────────────────────────────────────────────────────────────
-
-type PageView = 'endpoints' | 'log'
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
-  const [view, setView] = useState<PageView>('endpoints')
-
   // Endpoints view state
   const [secret,        setSecret]        = useState<WebhookSecret | null>(null)
   const [secretLoading, setSecretLoading] = useState(true)
@@ -1236,14 +1229,7 @@ export default function WebhooksPage() {
   const [submitting,     setSubmitting]     = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
-
-  // Webhook Log view state
-  const [logDeliveries,   setLogDeliveries]   = useState<WebhookDelivery[]>([])
-  const [logLoading,      setLogLoading]      = useState(false)
-  const [filterEndpoint,  setFilterEndpoint]  = useState('all')
-  const [filterEvent,     setFilterEvent]     = useState('all')
-  const [filterStatus,    setFilterStatus]    = useState('all')
-  const [codeLang,        setCodeLang]        = useState(0)
+  const [codeLang,   setCodeLang]   = useState(0)
 
   const langs = Object.keys(codeSamples)
 
@@ -1261,50 +1247,7 @@ export default function WebhooksPage() {
     finally { setEpLoading(false) }
   }, [])
 
-  const loadLog = useCallback(async () => {
-    setLogLoading(true)
-    try {
-      const res = await webhookApi.listAllDeliveries()
-      setLogDeliveries(res.deliveries)
-    } finally { setLogLoading(false) }
-  }, [])
-
   useEffect(() => { loadSecret(); loadEndpoints() }, [loadSecret, loadEndpoints])
-  useEffect(() => { if (view === 'log') loadLog() }, [view, loadLog])
-
-  // ── Log computed values ──────────────────────────────────────────────────────
-
-  const endpointMap = useMemo(() => {
-    const m: Record<number, string> = {}
-    endpoints.forEach(e => { m[e.id] = e.url })
-    return m
-  }, [endpoints])
-
-  const uniqueEvents = useMemo(() => {
-    const s = new Set<string>()
-    logDeliveries.forEach(d => s.add(d.eventType))
-    return Array.from(s).sort()
-  }, [logDeliveries])
-
-  const filteredDeliveries = useMemo(() => {
-    return logDeliveries.filter(d => {
-      if (filterEndpoint !== 'all' && String(d.endpointId) !== filterEndpoint) return false
-      if (filterEvent    !== 'all' && d.eventType !== filterEvent) return false
-      if (filterStatus   !== 'all' && d.status    !== filterStatus) return false
-      return true
-    })
-  }, [logDeliveries, filterEndpoint, filterEvent, filterStatus])
-
-  const logStats = useMemo(() => {
-    const total     = logDeliveries.length
-    const delivered = logDeliveries.filter(d => d.status === 'delivered').length
-    const failed    = logDeliveries.filter(d => d.status === 'failed').length
-    const rate      = total === 0 ? 100 : Math.round((delivered / total) * 1000) / 10
-    const durations = logDeliveries.filter(d => d.durationMs != null).map(d => d.durationMs!)
-    const avgMs     = durations.length === 0 ? null
-      : Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-    return { total, delivered, failed, rate, avgMs }
-  }, [logDeliveries])
 
   // ── Endpoint form handlers ────────────────────────────────────────────────────
 
@@ -1369,30 +1312,8 @@ export default function WebhooksPage() {
           </Typography>
         </Box>
 
-        {/* Tab switcher */}
-        <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', mb: 3 }}>
-          {(['endpoints', 'log'] as PageView[]).map(v => (
-            <Box
-              key={v}
-              onClick={() => setView(v)}
-              sx={{
-                px: 2.5, py: 1.25, cursor: 'pointer',
-                fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: view === v ? 700 : 500,
-                color: view === v ? colorPalette.primary : '#64748b',
-                borderBottom: view === v ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
-                mb: '-1px',
-                transition: 'all 0.15s',
-                '&:hover': { color: colorPalette.primary },
-              }}
-            >
-              {v === 'endpoints' ? 'Endpoints' : 'Webhook Log'}
-            </Box>
-          ))}
-        </Box>
-
         {/* ── Endpoints view ───────────────────────────────────────────────── */}
-        {view === 'endpoints' && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
             <Stack gap={3}>
               {/* New endpoint form */}
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
@@ -1645,233 +1566,6 @@ if (sig !== hash) return res.sendStatus(401)`}
               </Box>
             </Stack>
           </Box>
-        )}
-
-        {/* ── Webhook Log view ─────────────────────────────────────────────── */}
-        {view === 'log' && (
-          <Box>
-            {/* Stats */}
-            <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-              {logLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
-                    <Skeleton height={16} width="60%" />
-                    <Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
-                  </Box>
-                ))
-              ) : (
-                <>
-                  <StatCard label="TOTAL" value={String(logStats.total)} />
-                  <StatCard label="DELIVERED" value={String(logStats.delivered)} sub={`${logStats.rate}% success rate`} color="#10b981" />
-                  <StatCard label="FAILED" value={String(logStats.failed)} color={logStats.failed > 0 ? '#dc2626' : '#0f172a'} />
-                  <StatCard label="SUCCESS RATE" value={`${logStats.rate}%`} color={logStats.rate >= 99 ? '#10b981' : logStats.rate >= 95 ? '#f59e0b' : '#dc2626'} />
-                  <StatCard label="AVG DURATION" value={logStats.avgMs != null ? fmtDuration(logStats.avgMs) : '—'} sub="of successful deliveries" />
-                </>
-              )}
-            </Stack>
-
-            {/* Filter toolbar */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <Select value={filterEndpoint} onChange={e => setFilterEndpoint(e.target.value)} sx={selectSx} displayEmpty>
-                  <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All endpoints</MenuItem>
-                  {endpoints.map(ep => (
-                    <MenuItem key={ep.id} value={String(ep.id)} sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', maxWidth: 360 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ep.url}
-                      </Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 160 }}>
-                <Select value={filterEvent} onChange={e => setFilterEvent(e.target.value)} sx={selectSx} displayEmpty>
-                  <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All events</MenuItem>
-                  {uniqueEvents.map(ev => (
-                    <MenuItem key={ev} value={ev} sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace' }}>{ev}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 130 }}>
-                <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} sx={selectSx} displayEmpty>
-                  <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All statuses</MenuItem>
-                  <MenuItem value="delivered" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Delivered</MenuItem>
-                  <MenuItem value="failed"    sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Failed</MenuItem>
-                  <MenuItem value="pending"   sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Pending</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Box sx={{ flex: 1 }} />
-              <Button
-                startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                onClick={loadLog}
-                disabled={logLoading}
-                sx={{
-                  borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
-                  fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff',
-                  px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' },
-                }}
-              >
-                Refresh
-              </Button>
-            </Box>
-
-            {/* Delivery table */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 4 }}>
-              <Box sx={{
-                px: 3, py: 1.25,
-                display: 'grid',
-                gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
-                gap: 1.5,
-                borderBottom: '1px solid #eef0f4',
-                bgcolor: '#fafafa',
-              }}>
-                {['DELIVERY ID', 'ENDPOINT', 'EVENT TYPE', 'STATUS', 'CODE', 'DURATION', 'TIME', ''].map((h, i) => (
-                  <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>
-                    {h}
-                  </Typography>
-                ))}
-              </Box>
-
-              {logLoading ? (
-                <Stack>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
-                      <Skeleton variant="rectangular" width={100} height={16} />
-                      <Skeleton variant="rectangular" width="30%" height={16} />
-                      <Skeleton variant="rectangular" width={80} height={16} />
-                      <Skeleton variant="rectangular" width={60} height={16} />
-                    </Box>
-                  ))}
-                </Stack>
-              ) : filteredDeliveries.length === 0 ? (
-                <Box sx={{ py: 6, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                    {logDeliveries.length === 0
-                      ? 'No deliveries yet — send a test event from the Endpoints tab to get started'
-                      : 'No deliveries match the current filters'}
-                  </Typography>
-                </Box>
-              ) : (
-                filteredDeliveries.map(d => (
-                  <LogDeliveryRow key={d.id} d={d} endpointUrl={endpointMap[d.endpointId] ?? `endpoint #${d.endpointId}`} />
-                ))
-              )}
-            </Box>
-
-            {/* Integration guide */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                  Integration Guide
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                  How to receive and verify OpenIV webhooks in your stack. Always verify the HMAC-SHA256 signature before processing.
-                </Typography>
-              </Box>
-
-              {/* Request headers reference */}
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
-                  REQUEST HEADERS
-                </Typography>
-                <Stack gap={0.75}>
-                  {[
-                    ['X-OpenIV-Signature',   'HMAC-SHA256 hex of the raw request body — verify this first'],
-                    ['X-OpenIV-Event',       'Event type: tx.flagged, case.opened, kyc.failed, etc.'],
-                    ['X-OpenIV-Delivery',    'Unique delivery ID (whdl_timestamp_random) for idempotency'],
-                    ['X-OpenIV-Institution', 'Your institution ID for multi-tenant setups'],
-                    ['X-OpenIV-Api-Key',     'Your per-endpoint API key if security rules are configured'],
-                    ['Content-Type',         'application/json; charset=utf-8'],
-                  ].map(([header, desc]) => (
-                    <Box key={header} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, minWidth: 220, flexShrink: 0 }}>
-                        {header}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-
-              {/* Language tabs */}
-              <Box>
-                <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-                  {langs.map((lang, i) => (
-                    <Box
-                      key={lang}
-                      onClick={() => setCodeLang(i)}
-                      sx={{
-                        px: 2.5, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem',
-                        fontFamily: 'Jost', fontWeight: codeLang === i ? 700 : 500,
-                        color: codeLang === i ? colorPalette.primary : '#64748b',
-                        borderBottom: codeLang === i ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
-                        transition: 'all 0.15s',
-                        '&:hover': { color: colorPalette.primary },
-                      }}
-                    >
-                      {lang}
-                    </Box>
-                  ))}
-                </Box>
-                <Box sx={{ p: 3 }}>
-                  <CodeBlock content={codeSamples[langs[codeLang]] ?? ''} copyLabel="Copy code" highlight />
-                  <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 1.5 }}>
-                    Tip: use the delivery ID (<code style={{ fontFamily: 'monospace' }}>X-OpenIV-Delivery</code>) as an idempotency key to safely retry failed processing without duplicating side-effects.
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Payload envelope */}
-              <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid #eef0f4' }}>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
-                  ENVELOPE STRUCTURE
-                </Typography>
-                <CodeBlock highlight content={`{
-  "id":          "whdl_1719000000000_xR4kLmN9",   // Delivery ID — use for idempotency
-  "event":       "tx.flagged",                      // Event type
-  "version":     "2024-01",                         // Payload schema version
-  "timestamp":   "2024-06-21T14:30:00Z",
-  "institution": { "id": 1 },
-  "environment": "production",                      // "production" | "sandbox"
-  "data": {
-    // ── tx.flagged / tx.blocked ──────────────────────
-    "transaction": {
-      "reference":    "TXN-20240621-00001",
-      "amount":       450000.00,
-      "currency":     "NGN",
-      "direction":    "debit",
-      "channel":      "mobile",
-      "status":       "flagged",
-      "firstTimeBeneficiary": true
-    },
-    "risk": {
-      "score":    87,                               // 0–100; ≥75 = high risk
-      "level":    "HIGH",
-      "signals":  [
-        { "code": "VELOCITY_BREACH",  "weight": 0.4 },
-        { "code": "AMOUNT_SPIKE",     "weight": 0.3 },
-        { "code": "NEW_BENEFICIARY",  "weight": 0.2 }
-      ]
-    },
-    "aml": {
-      "indicators": [
-        { "code": "STRUCTURING",    "confidence": 0.72 },
-        { "code": "PEP_EXPOSURE",   "confidence": 0.55 }
-      ]
-    },
-    "pattern": {
-      "velocity":      { "count1h": 3, "count24h": 8 },
-      "avgAmount30d":  120000.00
-    }
-  }
-}`} />
-              </Box>
-            </Box>
-          </Box>
-        )}
 
       </Box>
 
