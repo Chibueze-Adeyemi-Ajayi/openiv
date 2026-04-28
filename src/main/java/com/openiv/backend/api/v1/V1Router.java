@@ -5,6 +5,9 @@ import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.billing.BillingHandlers;
 import com.openiv.backend.billing.BillingRepository;
 import com.openiv.backend.billing.BillingService;
+import com.openiv.backend.nfiu.NfiuHandlers;
+import com.openiv.backend.nfiu.NfiuRepository;
+import com.openiv.backend.nfiu.NfiuService;
 import com.openiv.backend.documents.DocumentHandlers;
 import com.openiv.backend.documents.DocumentRepository;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
@@ -99,6 +102,23 @@ public final class V1Router {
     router.post("/billing/topup").handler(billingAuth).handler(billingHandlers.topup());
     router.post("/billing/card/charge").handler(billingAuth).handler(billingHandlers.chargeCard());
     router.post("/billing/card/challenge").handler(billingAuth).handler(billingHandlers.submitChallenge());
+
+    // NFIU compliance — reports and scheduled filings
+    NfiuService nfiuService = new NfiuService(
+        new NfiuRepository(dbPool), new UserRepository(dbPool), billingService);
+    NfiuHandlers nfiuHandlers = new NfiuHandlers(nfiuService);
+    Handler<RoutingContext> nfiuAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/nfiu/metrics").handler(nfiuAuth).handler(nfiuHandlers.getMetrics());
+    router.get("/nfiu/reports").handler(nfiuAuth).handler(nfiuHandlers.listReports());
+    router.post("/nfiu/reports").handler(nfiuAuth).handler(nfiuHandlers.createReport());
+    router.post("/nfiu/reports/:id/file").handler(nfiuAuth).handler(nfiuHandlers.fileReport());
+    router.get("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.getReport());
+    router.patch("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.updateReport());
+    router.delete("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.deleteReport());
+    router.get("/nfiu/schedules").handler(nfiuAuth).handler(nfiuHandlers.listSchedules());
+    router.post("/nfiu/schedules").handler(nfiuAuth).handler(nfiuHandlers.createSchedule());
+    router.patch("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuHandlers.updateSchedule());
+    router.delete("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuHandlers.deleteSchedule());
 
     // Transactions — two endpoints registered directly to avoid sub-router path-stripping on root.
     TransactionHandlers txnHandlers = new TransactionHandlers(transactionService, billingService);
