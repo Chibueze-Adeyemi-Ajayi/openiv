@@ -164,13 +164,15 @@ function DeveloperSandboxSection() {
   const [localUrl, setLocalUrl] = useState(sandboxUrl)
   const [isApplying, setIsApplying] = useState(false)
 
+  console.log('DeveloperSandboxSection: isLoading=', isLoading, 'isDevOrAdmin=', isDevOrAdmin)
+
   if (isLoading || !isDevOrAdmin) return null
 
   const handleApply = () => {
     setIsApplying(true)
     setSandboxUrl(localUrl)
     setSandboxEnabled(true)
-    
+
     // Smooth transition: give it a moment to save before refreshing
     setTimeout(() => {
       window.location.reload()
@@ -221,6 +223,7 @@ function DeveloperSandboxSection() {
                 sx={{
                   bgcolor: colorPalette.primary,
                   color: '#fff',
+                  height: 24,
                   px: 3,
                   fontSize: '0.8125rem',
                   fontWeight: 700,
@@ -237,49 +240,49 @@ function DeveloperSandboxSection() {
             </Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 5 }}>
-             <Box sx={{ p: 2, bgcolor: sandboxEnabled ? '#fff7ed' : '#f8fafc', border: `1px solid ${sandboxEnabled ? '#ffedd5' : '#e2e8f0'}`, height: '100%' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                   <Box>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: sandboxEnabled ? '#c2410c' : '#64748b', fontFamily: 'Jost' }}>
-                        Sandbox Redirection
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
-                        Currently routing to {sandboxEnabled ? 'Sandbox' : 'Production'}
-                      </Typography>
-                   </Box>
-                   <Box
-                    onClick={() => {
-                      if (sandboxEnabled) {
-                        setSandboxEnabled(false)
-                        window.location.reload()
-                      } else {
-                        handleApply()
-                      }
-                    }}
-                    sx={{
-                      width: 34,
-                      height: 18,
-                      borderRadius: 10,
-                      bgcolor: sandboxEnabled ? '#c2410c' : '#e2e8f0',
-                      position: 'relative',
-                      cursor: 'pointer',
+            <Box sx={{ p: 2, bgcolor: sandboxEnabled ? '#fff7ed' : '#f8fafc', border: `1px solid ${sandboxEnabled ? '#ffedd5' : '#e2e8f0'}`, height: '100%' }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: sandboxEnabled ? '#c2410c' : '#64748b', fontFamily: 'Jost' }}>
+                    Sandbox Redirection
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
+                    Currently routing to {sandboxEnabled ? 'Sandbox' : 'Production'}
+                  </Typography>
+                </Box>
+                <Box
+                  onClick={() => {
+                    if (sandboxEnabled) {
+                      setSandboxEnabled(false)
+                      window.location.reload()
+                    } else {
+                      handleApply()
+                    }
+                  }}
+                  sx={{
+                    width: 34,
+                    height: 18,
+                    borderRadius: 10,
+                    bgcolor: sandboxEnabled ? '#c2410c' : '#e2e8f0',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 2,
+                      left: sandboxEnabled ? 18 : 2,
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      bgcolor: '#fff',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 2,
-                        left: sandboxEnabled ? 18 : 2,
-                        width: 14,
-                        height: 14,
-                        borderRadius: '50%',
-                        bgcolor: '#fff',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      }
-                    }}
-                  />
-                </Stack>
-             </Box>
+                    }
+                  }}
+                />
+              </Stack>
+            </Box>
           </Grid>
         </Grid>
       </Box>

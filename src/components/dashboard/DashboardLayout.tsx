@@ -102,20 +102,16 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   )
 }
 
-import { SandboxProvider, useSandbox } from '@/contexts/SandboxContext'
-
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [eurekaOpen, setEurekaOpen] = useState(false)
 
   return (
-    <SandboxProvider>
-      <EurekaProvider>
-        <DashboardEventsProvider>
-          <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-            {children}
-          </DashboardContent>
-        </DashboardEventsProvider>
-      </EurekaProvider>
-    </SandboxProvider>
+    <EurekaProvider>
+      <DashboardEventsProvider>
+        <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
+          {children}
+        </DashboardContent>
+      </DashboardEventsProvider>
+    </EurekaProvider>
   )
 }

@@ -15,5 +15,6 @@ export interface DashboardStreamState {
 
 export function useDashboardStream(): DashboardStreamState {
   const { stats, connected, error } = useDashboardEvents()
+  console.log('[useDashboardStream] hook called, stats:', stats, 'connected:', connected)
   return { stats, connected, error: error ? 'Reconnecting…' : null }
 }

@@ -14,6 +14,12 @@ export interface BeamRecord {
   payload: string
   status: string
   receivedAt: string
+  // Monitoring fields
+  durationMs?: number | null
+  ip?: string | null
+  userAgent?: string | null
+  responseCode?: number | null
+  bytes?: number | null
 }
 
 export const beamApi = {
@@ -30,4 +36,13 @@ export const beamApi = {
     apiRequest<{ records: BeamRecord[] }>(
       `/api/v1/beam/records${stream ? `?stream=${encodeURIComponent(stream)}` : ''}`,
     ),
+
+  sendTestPayload: (stream: string, payload: any) =>
+    apiRequest<{ ok: boolean; recordId: number }>(`/api/v1/beam/${stream}`, {
+      method: 'POST',
+      body: payload,
+      headers: {
+        'X-Idempotency-Key': Math.floor(Math.random() * 10000000).toString(),
+      },
+    }),
 }

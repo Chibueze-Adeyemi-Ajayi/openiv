@@ -1,6 +1,6 @@
 import {
   Box, Typography, Stack, Button, Chip, IconButton,
-  Skeleton, Dialog, Collapse,
+  Skeleton, Dialog, Collapse, TextField,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
@@ -24,52 +24,55 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
+import { useSandbox } from '@/contexts/SandboxContext'
 
 // ── Syntax highlighting ───────────────────────────────────────────────────────
 
 type Token = { text: string; color: string; italic?: boolean }
 
 const C = {
-  keyword:  '#c792ea',
-  string:   '#c3e88d',
-  number:   '#f78c6c',
-  comment:  '#546e7a',
-  func:     '#82aaff',
-  env:      '#ffcb6b',
-  url:      '#80cbc4',
-  punct:    '#89ddff',
-  plain:    '#e2e8f0',
+  keyword: '#c792ea',
+  string: '#c3e88d',
+  number: '#f78c6c',
+  comment: '#546e7a',
+  func: '#82aaff',
+  env: '#ffcb6b',
+  url: '#80cbc4',
+  punct: '#89ddff',
+  plain: '#e2e8f0',
   operator: '#89ddff',
 }
 
 const KW_RE = new RegExp(
   `^(?:${[
-    'curl','const','let','var','import','from','require','async','await',
-    'function','return','if','else','try','catch','throw','new','class',
-    'export','default','def','for','in','with','pass','raise','as','elif',
-    'True','False','None','func','package','type','struct','interface',
-    'public','private','protected','static','void','final','this',
-    'print','println','true','false','null','undefined','nil',
-    'bytes','json','http','time','net','os','fmt','uuid',
-    'POST','GET','PUT','DELETE','PATCH','HEAD',
+    'curl', 'const', 'let', 'var', 'import', 'from', 'require', 'async', 'await',
+    'function', 'return', 'if', 'else', 'try', 'catch', 'throw', 'new', 'class',
+    'export', 'default', 'def', 'for', 'in', 'with', 'pass', 'raise', 'as', 'elif',
+    'True', 'False', 'None', 'func', 'package', 'type', 'struct', 'interface',
+    'public', 'private', 'protected', 'static', 'void', 'final', 'this',
+    'print', 'println', 'true', 'false', 'null', 'undefined', 'nil',
+    'bytes', 'json', 'http', 'time', 'net', 'os', 'fmt', 'uuid',
+    'POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'HEAD',
   ].join('|')})(?=[^a-zA-Z_0-9]|$)`,
 )
 
 const PATTERNS: Array<{ re: RegExp; color: string; italic?: boolean }> = [
-  { re: /^#[^\n]*/,                           color: C.comment,  italic: true },
-  { re: /^\/\/[^\n]*/,                        color: C.comment,  italic: true },
-  { re: /^"(?:[^"\\]|\\.)*"/,                 color: C.string },
-  { re: /^'(?:[^'\\]|\\.)*'/,                 color: C.string },
-  { re: /^`(?:[^`\\]|\\.)*`/,                 color: C.string },
-  { re: /^\$\{[^}]+\}/,                       color: C.env },
-  { re: /^\$[A-Z_][A-Z_0-9]*/,               color: C.env },
-  { re: /^https?:\/\/[^\s'"\\),`]+/,          color: C.url },
-  { re: KW_RE,                                color: C.keyword },
+  { re: /^#[^\n]*/, color: C.comment, italic: true },
+  { re: /^\/\/[^\n]*/, color: C.comment, italic: true },
+  { re: /^"(?:[^"\\]|\\.)*"/, color: C.string },
+  { re: /^'(?:[^'\\]|\\.)*'/, color: C.string },
+  { re: /^`(?:[^`\\]|\\.)*`/, color: C.string },
+  { re: /^\$\{[^}]+\}/, color: C.env },
+  { re: /^\$[A-Z_][A-Z_0-9]*/, color: C.env },
+  { re: /^https?:\/\/[^\s'"\\),`]+/, color: C.url },
+  { re: KW_RE, color: C.keyword },
   { re: /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, color: C.number },
-  { re: /^[{}[\]();,]/,                       color: C.punct },
-  { re: /^[:=<>+\-*/|&^~%!]/,                color: C.operator },
-  { re: /^[\\]/,                              color: C.punct },
-  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/,    color: C.func },
+  { re: /^[{}[\]();,]/, color: C.punct },
+  { re: /^[:=<>+\-*/|&^~%!]/, color: C.operator },
+  { re: /^[\\]/, color: C.punct },
+  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/, color: C.func },
 ]
 
 function tokenize(code: string): Token[] {
@@ -163,15 +166,25 @@ const streams: Stream[] = [
     why: "The foundational stream. Without transactions, no risk score is possible. Beam the moment your core posts — even before settlement — so we can intercept.",
     powers: 'Risk scoring · STR/SAR · Velocity rules',
     schema: [
-      { field: 'transaction_id', type: 'string',   required: true,  example: 'TXN-48721' },
-      { field: 'timestamp',      type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:08Z' },
-      { field: 'amount',         type: 'number',   required: true,  example: '14250000' },
-      { field: 'currency',       type: 'ISO 4217', required: true,  example: 'NGN' },
-      { field: 'channel',        type: 'enum',     required: true,  example: 'wire | mobile | pos | ussd' },
-      { field: 'from_account',   type: 'string',   required: true,  example: 'ACC-1729' },
-      { field: 'to_account',     type: 'string',   required: true,  example: 'EXT-WIRE' },
-      { field: 'merchant_id',    type: 'string',   required: false, example: 'MCH-2918' },
-      { field: 'narration',      type: 'string',   required: false, example: 'Salary disbursement' },
+      { field: 'customer_id', type: 'string', required: true, example: 'CUS-001' },
+      { field: 'customer_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'amount', type: 'number', required: true, example: '14250000' },
+      { field: 'channel', type: 'string', required: true, example: 'Wire' },
+      { field: 'counterparty', type: 'string', required: true, example: 'Sokoto BDC Ltd' },
+      { field: 'status', type: 'string', required: true, example: 'pending' },
+      { field: 'location', type: 'string', required: true, example: 'Sokoto' },
+      { field: 'lat', type: 'number', required: true, example: '13.0059' },
+      { field: 'lng', type: 'number', required: true, example: '5.2476' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T17:56:29Z' },
+      { field: 'sender_account', type: 'string', required: true, example: '0124567890' },
+      { field: 'sender_bank', type: 'string', required: true, example: 'Access Bank' },
+      { field: 'recipient_name', type: 'string', required: true, example: 'Sokoto BDC Ltd' },
+      { field: 'recipient_account', type: 'string', required: true, example: '0034567891' },
+      { field: 'recipient_bank', type: 'string', required: true, example: 'GTBank' },
+      { field: 'currency', type: 'string', required: true, example: 'NGN' },
+      { field: 'narration', type: 'string', required: true, example: 'FX Settlement — USD Purchase' },
+      { field: 'device_id', type: 'string', required: true, example: 'dev_a1b2c3' },
+      { field: 'ip_address', type: 'string', required: true, example: '102.89.45.67' },
     ],
   },
   {
@@ -181,14 +194,15 @@ const streams: Stream[] = [
     why: 'Login patterns reveal account-takeover precursors. We correlate failed attempts, IP anomalies and device fingerprints to score risk before money moves.',
     powers: 'Account-takeover · MFA bypass detection',
     schema: [
-      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
-      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:21:11Z' },
-      { field: 'outcome',    type: 'enum',     required: true,  example: 'success | failed | 2fa_required' },
-      { field: 'ip_address', type: 'string',   required: true,  example: '102.89.32.18' },
-      { field: 'user_agent', type: 'string',   required: true,  example: 'iOS 17.4 / Chrome 124' },
-      { field: 'device_id',  type: 'string',   required: false, example: 'DVC-8b32a1' },
-      { field: 'geo_lat',    type: 'number',   required: false, example: '6.4541' },
-      { field: 'geo_lng',    type: 'number',   required: false, example: '3.3947' },
+      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:21:11Z' },
+      { field: 'outcome', type: 'enum', required: true, example: 'success | failed | 2fa_required' },
+      { field: 'location', type: 'string', required: true, example: 'Lagos, NG' },
+      { field: 'lat', type: 'number', required: true, example: '6.4541' },
+      { field: 'lng', type: 'number', required: true, example: '3.3947' },
+      { field: 'ip_address', type: 'string', required: true, example: '102.89.32.18' },
+      { field: 'user_agent', type: 'string', required: true, example: 'iOS 17.4 / Chrome 124' },
+      { field: 'device_id', type: 'string', required: false, example: 'DVC-8b32a1' },
     ],
   },
   {
@@ -198,12 +212,16 @@ const streams: Stream[] = [
     why: 'Behavioral fingerprints — typing cadence, navigation flow, time-on-screen — let us spot when a session no longer "feels" like the legitimate user.',
     powers: 'Behavioral fingerprints · Session anomalies',
     schema: [
-      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
-      { field: 'session_id', type: 'string',   required: true,  example: 'SES-3491f' },
-      { field: 'event_name', type: 'string',   required: true,  example: 'beneficiary_added' },
-      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
-      { field: 'screen',     type: 'string',   required: false, example: 'transfer/confirm' },
-      { field: 'metadata',   type: 'object',   required: false, example: '{ "amount": 14250000 }' },
+      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'session_id', type: 'string', required: true, example: 'SES-3491f' },
+      { field: 'event_name', type: 'string', required: true, example: 'beneficiary_added' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
+      { field: 'location', type: 'string', required: true, example: 'Abuja, NG' },
+      { field: 'lat', type: 'number', required: true, example: '9.0765' },
+      { field: 'lng', type: 'number', required: true, example: '7.3986' },
+      { field: 'ip_address', type: 'string', required: true, example: '105.112.34.12' },
+      { field: 'screen', type: 'string', required: false, example: 'transfer/confirm' },
+      { field: 'metadata', type: 'object', required: false, example: '{ "amount": 14250000 }' },
     ],
   },
   {
@@ -213,12 +231,14 @@ const streams: Stream[] = [
     why: "Location is the strongest signal for SIM-swap and account-takeover. We compare every transaction against the customer's recent location footprint.",
     powers: 'OTP holds · Geo-impossibility · SIM-swap',
     schema: [
-      { field: 'user_id',    type: 'string',   required: true,  example: 'USR-8472' },
-      { field: 'timestamp',  type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
-      { field: 'lat',        type: 'number',   required: true,  example: '6.4541' },
-      { field: 'lng',        type: 'number',   required: true,  example: '3.3947' },
-      { field: 'accuracy_m', type: 'number',   required: false, example: '12' },
-      { field: 'source',     type: 'enum',     required: true,  example: 'gps | wifi | ip | cell' },
+      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
+      { field: 'location', type: 'string', required: true, example: 'Ikeja, Lagos' },
+      { field: 'lat', type: 'number', required: true, example: '6.5244' },
+      { field: 'lng', type: 'number', required: true, example: '3.3792' },
+      { field: 'ip_address', type: 'string', required: true, example: '102.89.32.18' },
+      { field: 'accuracy_m', type: 'number', required: false, example: '12' },
+      { field: 'source', type: 'enum', required: true, example: 'gps | wifi | ip | cell' },
     ],
   },
   {
@@ -228,12 +248,16 @@ const streams: Stream[] = [
     why: 'New device detection is a top SIM-swap signal. We track which devices each user has historically used and trigger when an unfamiliar one initiates a high-value action.',
     powers: 'Device-of-record · New-device alerts',
     schema: [
-      { field: 'device_id',            type: 'string',   required: true,  example: 'DVC-8b32a1' },
-      { field: 'user_id',              type: 'string',   required: true,  example: 'USR-8472' },
-      { field: 'os',                   type: 'string',   required: true,  example: 'iOS 17.4' },
-      { field: 'model',                type: 'string',   required: false, example: 'iPhone 14 Pro' },
-      { field: 'first_seen',           type: 'ISO 8601', required: false, example: '2026-01-12T08:30:00Z' },
-      { field: 'rooted_or_jailbroken', type: 'boolean',  required: false, example: 'false' },
+      { field: 'device_id', type: 'string', required: true, example: 'DVC-8b32a1' },
+      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T08:30:00Z' },
+      { field: 'location', type: 'string', required: true, example: 'Port Harcourt, NG' },
+      { field: 'lat', type: 'number', required: true, example: '4.8156' },
+      { field: 'lng', type: 'number', required: true, example: '7.0498' },
+      { field: 'ip_address', type: 'string', required: true, example: '197.210.64.12' },
+      { field: 'os', type: 'string', required: true, example: 'iOS 17.4' },
+      { field: 'model', type: 'string', required: false, example: 'iPhone 14 Pro' },
+      { field: 'rooted_or_jailbroken', type: 'boolean', required: false, example: 'false' },
     ],
   },
   {
@@ -243,26 +267,25 @@ const streams: Stream[] = [
     why: 'OTP retry patterns are how we catch SIM-swappers in real time. Without this stream, we cannot hold suspicious transactions for verification.',
     powers: 'Real-time OTP defense · Hold-and-call',
     schema: [
-      { field: 'user_id',        type: 'string',   required: true,  example: 'USR-8472' },
-      { field: 'phone_msisdn',   type: 'string',   required: true,  example: '+2348031234567' },
-      { field: 'event_type',     type: 'enum',     required: true,  example: 'requested | sent | verified | retry | failed' },
-      { field: 'timestamp',      type: 'ISO 8601', required: true,  example: '2026-04-19T14:22:00Z' },
-      { field: 'transaction_id',    type: 'string',   required: false, example: 'TXN-48721' },
-      { field: 'attempt_count',    type: 'number',   required: false, example: '4' },
-      { field: 'customer_name',    type: 'string',   required: false, example: 'Amaka Okoye' },
-      { field: 'geo_lat',          type: 'number',   required: false, example: '6.4541' },
-      { field: 'geo_lng',          type: 'number',   required: false, example: '3.3947' },
-      { field: 'ip_address',       type: 'string',   required: false, example: '102.89.32.18' },
-      { field: 'amount',           type: 'number',   required: false, example: '150000' },
+      { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
+      { field: 'event_type', type: 'enum', required: true, example: 'requested | sent | verified | retry | failed' },
+      { field: 'location', type: 'string', required: true, example: 'Enugu, NG' },
+      { field: 'lat', type: 'number', required: true, example: '6.4413' },
+      { field: 'lng', type: 'number', required: true, example: '7.4988' },
+      { field: 'ip_address', type: 'string', required: true, example: '102.89.32.18' },
+      { field: 'phone_msisdn', type: 'string', required: true, example: '+2348031234567' },
+      { field: 'transaction_id', type: 'string', required: false, example: 'TXN-48721' },
+      { field: 'attempt_count', type: 'number', required: false, example: '4' },
+      { field: 'amount', type: 'number', required: false, example: '150000' },
       { field: 'beneficiary_account', type: 'string', required: false, example: '0123456789' },
-      { field: 'device_model',     type: 'string',   required: false, example: 'iPhone 14 Pro' },
     ],
   },
 ]
 
 const statusConfig: Record<Stream['status'], { color: string; bg: string; label: string }> = {
-  connected:    { color: '#10b981', bg: '#f0fdf4', label: 'Connected' },
-  partial:      { color: '#f59e0b', bg: '#fffbeb', label: 'Partial' },
+  connected: { color: '#10b981', bg: '#f0fdf4', label: 'Connected' },
+  partial: { color: '#f59e0b', bg: '#fffbeb', label: 'Partial' },
   disconnected: { color: '#dc2626', bg: '#fef2f2', label: 'Not connected' },
 }
 
@@ -363,21 +386,21 @@ ${fields}
 
 const STREAM_LABELS: Record<string, string> = {
   transactions: 'Transactions', logins: 'User Logins', activity: 'In-app Activity',
-  location: 'User Location',   devices: 'Device FP',  otps: 'OTP Events',
+  location: 'User Location', devices: 'Device FP', otps: 'OTP Events',
 }
 const STREAM_COLORS: Record<string, { bg: string; color: string }> = {
   transactions: { bg: '#eff6ff', color: '#2563eb' },
-  logins:       { bg: '#f0fdf4', color: '#16a34a' },
-  activity:     { bg: '#fdf4ff', color: '#9333ea' },
-  location:     { bg: '#fff7ed', color: '#ea580c' },
-  devices:      { bg: '#f8fafc', color: '#475569' },
-  otps:         { bg: '#fef2f2', color: '#dc2626' },
+  logins: { bg: '#f0fdf4', color: '#16a34a' },
+  activity: { bg: '#fdf4ff', color: '#9333ea' },
+  location: { bg: '#fff7ed', color: '#ea580c' },
+  devices: { bg: '#f8fafc', color: '#475569' },
+  otps: { bg: '#fef2f2', color: '#dc2626' },
 }
 
 function fmtRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
-  if (m < 1)  return 'just now'
+  if (m < 1) return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`
@@ -473,12 +496,12 @@ function RecordRow({ record }: { record: BeamRecord }) {
 interface ApiKeyModalProps { open: boolean; onClose: () => void }
 
 function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
-  const [keyInfo,   setKeyInfo]   = useState<BeamApiKey | null>(null)
-  const [loading,   setLoading]   = useState(true)
-  const [newKey,    setNewKey]    = useState<string | null>(null)
+  const [keyInfo, setKeyInfo] = useState<BeamApiKey | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [newKey, setNewKey] = useState<string | null>(null)
   const [keyCopied, setKeyCopied] = useState(false)
 
-  const [genTotpOpen,    setGenTotpOpen]    = useState(false)
+  const [genTotpOpen, setGenTotpOpen] = useState(false)
   const [revokeTotpOpen, setRevokeTotpOpen] = useState(false)
 
   const load = useCallback(async () => {
@@ -651,11 +674,48 @@ function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
 
 export default function DataBeamingPage() {
   const [activeStream, setActiveStream] = useState<StreamId>('transactions')
-  const [activeLang,   setActiveLang]   = useState<Lang>('cURL')
-  const [apiKeyOpen,   setApiKeyOpen]   = useState(false)
+  const [activeLang, setActiveLang] = useState<Lang>('cURL')
+  const [apiKeyOpen, setApiKeyOpen] = useState(false)
+  const { sandboxEnabled } = useSandbox()
+  const [sendingTest, setSendingTest] = useState(false)
+  const [testSuccess, setTestSuccess] = useState(false)
+  const [editablePayload, setEditablePayload] = useState('')
+  const [jsonError, setJsonError] = useState<string | null>(null)
+
+  // Initialize payload when stream changes
+  useEffect(() => {
+    const streamObj = streams.find(s => s.id === activeStream)!
+    const payload: any = {}
+    streamObj.schema.forEach(f => {
+      payload[f.field] = f.type === 'number' ? Number(f.example) : f.example === 'true' ? true : f.example === 'false' ? false : f.example
+    })
+    setEditablePayload(JSON.stringify(payload, null, 2))
+    setJsonError(null)
+  }, [activeStream])
+
+  const handleSendTest = async () => {
+    try {
+      const parsed = JSON.parse(editablePayload)
+      setJsonError(null)
+
+      setSendingTest(true)
+      await beamApi.sendTestPayload(activeStream, parsed)
+      setTestSuccess(true)
+      setTimeout(() => setTestSuccess(false), 3000)
+      loadRecords() // refresh list
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        setJsonError('Invalid JSON format')
+      } else {
+        console.error('Test beam failed', err)
+      }
+    } finally {
+      setSendingTest(false)
+    }
+  }
 
   // ── Live beam records ─────────────────────────────────────────────────────
-  const [allRecords,    setAllRecords]    = useState<import('@/api/beam').BeamRecord[]>([])
+  const [allRecords, setAllRecords] = useState<import('@/api/beam').BeamRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -702,14 +762,28 @@ export default function DataBeamingPage() {
   const stream = streams.find(s => s.id === activeStream)!
   const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
   const codeByLang: Record<Lang, string> = {
-    'cURL':    buildCurl(stream),
+    'cURL': buildCurl(stream),
     'Node.js': buildNode(stream),
-    'Python':  buildPython(stream),
-    'Go':      buildGo(stream),
+    'Python': buildPython(stream),
+    'Go': buildGo(stream),
   }
 
-  const connected    = streams.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
+  const connected = streams.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
   const totalRecords = allRecords.length
+
+  const healthMetrics = useMemo(() => {
+    const durations = allRecords.map(r => r.durationMs).filter((d): d is number => d != null && d > 0).sort((a, b) => a - b)
+    const medianLatency = durations.length > 0 
+      ? `${durations[Math.floor(durations.length / 2)]}ms` 
+      : '—'
+    
+    const rejected = allRecords.filter(r => r.status === 'rejected' || r.status === 'error').length
+    const validity = totalRecords > 0 
+      ? `${((1 - rejected / totalRecords) * 100).toFixed(2)}%` 
+      : '—'
+    
+    return { medianLatency, validity, rejected }
+  }, [allRecords, totalRecords])
 
   return (
     <DashboardLayout>
@@ -733,190 +807,254 @@ export default function DataBeamingPage() {
           </Stack>
         </Box>
 
-            {/* Health KPIs */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
-              {[
-                { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streams.length}`, sub: recordsLoading ? 'Loading…' : connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
-                { label: 'Records received',  value: recordsLoading ? '…' : totalRecords.toLocaleString(),   sub: 'last 100 across all streams' },
-                { label: 'Median latency',    value: '142ms',                          sub: 'from your core to OpenIV' },
-                { label: 'Schema validity',   value: '99.84%',                         sub: '17 rejected today' },
-              ].map(s => (
-                <Box 
-                  key={s.label} 
-                  data-ai-analyzable="true"
-                  data-ai-description={`Ingestion KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
-                  sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>{s.label}</Typography>
-                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
+        {/* Health KPIs */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+          {[
+            { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streams.length}`, sub: recordsLoading ? 'Loading…' : connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
+            { label: 'Records received', value: recordsLoading ? '…' : totalRecords.toLocaleString(), sub: 'last 100 across all streams' },
+            { label: 'Median latency', value: recordsLoading ? '…' : healthMetrics.medianLatency, sub: 'from your core to OpenIV' },
+            { label: 'Schema validity', value: recordsLoading ? '…' : healthMetrics.validity, sub: healthMetrics.rejected > 0 ? `${healthMetrics.rejected} rejected total` : 'No rejections' },
+          ].map(s => (
+            <Box
+              key={s.label}
+              data-ai-analyzable="true"
+              data-ai-description={`Ingestion KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
+              sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>{s.label}</Typography>
+              <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Stream picker */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
+          {streams.map(s => {
+            const isActive = s.id === activeStream
+            const live = liveStreamStats[s.id]
+            const liveCount = live?.count ?? 0
+            const hasData = liveCount > 0
+            const dotColor = recordsLoading ? '#94a3b8' : hasData ? '#10b981' : '#dc2626'
+            const countLabel = recordsLoading ? '…' : hasData ? `${liveCount.toLocaleString()} recv'd` : 'No data'
+            return (
+              <Box
+                key={s.id}
+                onClick={() => setActiveStream(s.id)}
+                data-ai-analyzable="true"
+                data-ai-description={`Data Stream: ${s.title}. status: ${statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
+                sx={{ bgcolor: '#ffffff', border: '1px solid', borderColor: isActive ? colorPalette.primary : '#eef0f4', p: 2, cursor: 'pointer', position: 'relative', transition: 'all 0.18s', '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' }, '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {} }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Box sx={{ width: 32, height: 32, bgcolor: isActive ? colorPalette.primary : `${colorPalette.primary}10`, color: isActive ? '#ffffff' : colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>{s.icon}</Box>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, transition: 'background 0.4s' }} />
+                </Box>
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
+                <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                  {countLabel}
+                </Typography>
+              </Box>
+            )
+          })}
+        </Box>
+
+        {/* Detail panel */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+          <Stack gap={3}>
+            {/* Why box */}
+            <Box
+              data-ai-analyzable="true"
+              data-ai-description={`Eureka Insight: Importance of the ${stream.title} stream. powers: ${stream.powers}. reason: ${stream.why}`}
+              sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
+                <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why beam {stream.title.toLowerCase()}?</Typography>
+              </Box>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.55, mb: 1.5, fontFamily: 'Jost' }}>{stream.why}</Typography>
+              <Box>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Powers</Typography>
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>{stream.powers}</Typography>
+              </Box>
+            </Box>
+
+
+            {/* Schema */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Schema · {stream.title}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{stream.schema.filter(f => f.required).length} required · {stream.schema.length} total fields</Typography>
+                </Box>
+                <Chip label={statusConfig[stream.status].label.toUpperCase()} size="small" sx={{ bgcolor: statusConfig[stream.status].bg, color: statusConfig[stream.status].color, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22 }} />
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                {['Field & example', 'Type', 'Required'].map(h => (
+                  <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
+                ))}
+              </Box>
+              {stream.schema.map((f, i) => (
+                <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' } }}>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{f.field}</Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>e.g. {f.example}</Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600 }}>{f.type}</Typography>
+                  {f.required ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} /> : <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>}
                 </Box>
               ))}
             </Box>
+          </Stack>
 
-            {/* Stream picker */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
-              {streams.map(s => {
-                const isActive = s.id === activeStream
-                const live = liveStreamStats[s.id]
-                const liveCount = live?.count ?? 0
-                const hasData = liveCount > 0
-                const dotColor = recordsLoading ? '#94a3b8' : hasData ? '#10b981' : '#dc2626'
-                const countLabel = recordsLoading ? '…' : hasData ? `${liveCount.toLocaleString()} recv'd` : 'No data'
-                return (
-                  <Box 
-                    key={s.id} 
-                    onClick={() => setActiveStream(s.id)} 
-                    data-ai-analyzable="true"
-                    data-ai-description={`Data Stream: ${s.title}. status: ${statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
-                    sx={{ bgcolor: '#ffffff', border: '1px solid', borderColor: isActive ? colorPalette.primary : '#eef0f4', p: 2, cursor: 'pointer', position: 'relative', transition: 'all 0.18s', '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' }, '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {} }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                      <Box sx={{ width: 32, height: 32, bgcolor: isActive ? colorPalette.primary : `${colorPalette.primary}10`, color: isActive ? '#ffffff' : colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>{s.icon}</Box>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, transition: 'background 0.4s' }} />
-                    </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                      {countLabel}
-                    </Typography>
-                  </Box>
-                )
-              })}
-            </Box>
-
-            {/* Detail panel */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-              <Stack gap={3}>
-                {/* Why box */}
-                <Box 
-                  data-ai-analyzable="true"
-                  data-ai-description={`Eureka Insight: Importance of the ${stream.title} stream. powers: ${stream.powers}. reason: ${stream.why}`}
-                  sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
-                    <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why beam {stream.title.toLowerCase()}?</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.55, mb: 1.5, fontFamily: 'Jost' }}>{stream.why}</Typography>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Powers</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>{stream.powers}</Typography>
-                  </Box>
-                </Box>
-
-                {/* Schema */}
-                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Schema · {stream.title}</Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{stream.schema.filter(f => f.required).length} required · {stream.schema.length} total fields</Typography>
-                    </Box>
-                    <Chip label={statusConfig[stream.status].label.toUpperCase()} size="small" sx={{ bgcolor: statusConfig[stream.status].bg, color: statusConfig[stream.status].color, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22 }} />
-                  </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-                    {['Field & example', 'Type', 'Required'].map(h => (
-                      <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
-                    ))}
-                  </Box>
-                  {stream.schema.map((f, i) => (
-                    <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' } }}>
-                      <Box>
-                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{f.field}</Typography>
-                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>e.g. {f.example}</Typography>
-                      </Box>
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600 }}>{f.type}</Typography>
-                      {f.required ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} /> : <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>}
+          <Stack gap={3}>
+            {/* Code sample */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>How to beam</Typography>
+                <Box sx={{ display: 'flex' }}>
+                  {langs.map(lang => (
+                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
+                      {lang}
                     </Box>
                   ))}
                 </Box>
-              </Stack>
-
-              <Stack gap={3}>
-                {/* Code sample */}
-                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                  <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>How to beam</Typography>
-                    <Box sx={{ display: 'flex' }}>
-                      {langs.map(lang => (
-                        <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
-                          {lang}
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                  <SyntaxCode code={codeByLang[activeLang]} />
-                </Box>
-
-                {/* Recent payloads */}
-                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Recent payloads</Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-                      <Box sx={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        bgcolor: recordsLoading ? '#94a3b8' : activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8',
-                        animation: !recordsLoading && activeStreamRecords.length > 0 ? 'pulse 2s infinite' : 'none',
-                        '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
-                      }} />
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: !recordsLoading && activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        {recordsLoading ? 'loading' : activeStreamRecords.length > 0 ? 'live' : 'idle'}
-                      </Typography>
-                      <IconButton
-                        size="small" onClick={loadRecords} disabled={recordsLoading}
-                        sx={{ ml: 0.5, borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}08` } }}
-                      >
-                        <RefreshRoundedIcon sx={{ fontSize: '0.875rem' }} />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                  <Stack>
-                    {recordsLoading ? (
-                      Array.from({ length: 4 }).map((_, i) => (
-                        <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
-                          <Skeleton variant="rectangular" width={90} height={18} />
-                          <Skeleton variant="rectangular" width="60%" height={18} />
-                          <Skeleton variant="rectangular" width={60} height={18} />
-                        </Box>
-                      ))
-                    ) : activeStreamRecords.length === 0 ? (
-                      <Box sx={{ p: 4, textAlign: 'center' }}>
-                        <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
-                        <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' } }}>
-                          Get API Key
-                        </Button>
-                      </Box>
-                    ) : (
-                      activeStreamRecords.map(r => <RecordRow key={r.id} record={r} />)
-                    )}
-                  </Stack>
-                </Box>
-              </Stack>
+              </Box>
+              <SyntaxCode code={codeByLang[activeLang]} />
             </Box>
 
-            {/* Auth reference */}
-            <Box sx={{ mt: 3, bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Authentication & headers</Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Required on every beam request</Typography>
+            {/* Simulation Box - Beam Test Transaction */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PlayCircleOutlineIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Beam Test Transaction</Typography>
+                </Box>
+                {sandboxEnabled && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.375, bgcolor: '#fff7ed', border: '1px solid #ffedd5' }}>
+                    <ScienceOutlinedIcon sx={{ fontSize: '0.85rem', color: '#c2410c' }} />
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#c2410c', letterSpacing: '0.05em' }}>SANDBOX MODE</Typography>
+                  </Box>
+                )}
               </Box>
-              <Box sx={{ px: 3, py: 2.5 }}>
-                <Stack gap={0}>
-                  {[
-                    { header: 'Authorization',     value: 'Bearer $OPENIV_BEAM_KEY', desc: 'Your institution beam API key.' },
-                    { header: 'Content-Type',      value: 'application/json',        desc: 'All payloads must be JSON.' },
-                    { header: 'X-Idempotency-Key', value: '<uuid-v4>',               desc: 'Unique per request — re-use to safely retry without duplicating records.' },
-                  ].map(({ header, value, desc }) => (
-                    <Box key={header} sx={{ display: 'grid', gridTemplateColumns: '220px 240px 1fr', gap: 2, alignItems: 'flex-start', py: 1.25, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, fontWeight: 600 }}>{header}</Typography>
-                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#ffcb6b', bgcolor: '#0d1117', px: 1, py: 0.25 }}>{value}</Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
-                    </Box>
-                  ))}
-                </Stack>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
+                  Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
+                </Typography>
+                <TextField
+                  multiline
+                  rows={8}
+                  fullWidth
+                  value={editablePayload}
+                  onChange={(e) => setEditablePayload(e.target.value)}
+                  error={!!jsonError}
+                  helperText={jsonError}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      fontSize: '0.75rem',
+                      fontFamily: 'SF Mono, Monaco, monospace',
+                      bgcolor: '#f8fafc',
+                      borderRadius: 0,
+                      '& fieldset': { borderColor: '#e2e8f0' },
+                      '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    }
+                  }}
+                />
               </Box>
+
+              <Button
+                fullWidth
+                disabled={sendingTest}
+                onClick={handleSendTest}
+                startIcon={testSuccess ? <CheckCircleOutlineRoundedIcon /> : <PlayCircleOutlineIcon />}
+                sx={{
+                  bgcolor: testSuccess ? '#10b981' : colorPalette.primary,
+                  color: '#ffffff',
+                  py: 1.25,
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  fontFamily: 'Jost',
+                  textTransform: 'none',
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: testSuccess ? '#10b981' : '#1a3896' },
+                  '&.Mui-disabled': { bgcolor: '#f1f5f9', color: '#94a3b8' }
+                }}
+              >
+                {sendingTest ? 'Beaming...' : testSuccess ? 'Success! Check Logs' : `Beam Test ${stream.title} Record`}
+              </Button>
             </Box>
+
+            {/* Recent payloads */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Recent payloads</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                  <Box sx={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    bgcolor: recordsLoading ? '#94a3b8' : activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8',
+                    animation: !recordsLoading && activeStreamRecords.length > 0 ? 'pulse 2s infinite' : 'none',
+                    '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+                  }} />
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: !recordsLoading && activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    {recordsLoading ? 'loading' : activeStreamRecords.length > 0 ? 'live' : 'idle'}
+                  </Typography>
+                  <IconButton
+                    size="small" onClick={loadRecords} disabled={recordsLoading}
+                    sx={{ ml: 0.5, borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}08` } }}
+                  >
+                    <RefreshRoundedIcon sx={{ fontSize: '0.875rem' }} />
+                  </IconButton>
+                </Box>
+              </Box>
+              <Stack>
+                {recordsLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                      <Skeleton variant="rectangular" width={90} height={18} />
+                      <Skeleton variant="rectangular" width="60%" height={18} />
+                      <Skeleton variant="rectangular" width={60} height={18} />
+                    </Box>
+                  ))
+                ) : activeStreamRecords.length === 0 ? (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
+                    <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' } }}>
+                      Get API Key
+                    </Button>
+                  </Box>
+                ) : (
+                  activeStreamRecords.map(r => <RecordRow key={r.id} record={r} />)
+                )}
+              </Stack>
+            </Box>
+          </Stack>
+        </Box>
+
+        {/* Auth reference */}
+        <Box sx={{ mt: 3, bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Authentication & headers</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Required on every beam request</Typography>
+          </Box>
+          <Box sx={{ px: 3, py: 2.5 }}>
+            <Stack gap={0}>
+              {[
+                { header: 'Authorization', value: 'Bearer $OPENIV_BEAM_KEY', desc: 'Your institution beam API key.' },
+                { header: 'Content-Type', value: 'application/json', desc: 'All payloads must be JSON.' },
+                { header: 'X-Idempotency-Key', value: '<uuid-v4>', desc: 'Unique per request — re-use to safely retry without duplicating records.' },
+              ].map(({ header, value, desc }) => (
+                <Box key={header} sx={{ display: 'grid', gridTemplateColumns: '220px 240px 1fr', gap: 2, alignItems: 'flex-start', py: 1.25, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, fontWeight: 600 }}>{header}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#ffcb6b', bgcolor: '#0d1117', px: 1, py: 0.25 }}>{value}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        </Box>
       </Box>
 
       <ApiKeyModal open={apiKeyOpen} onClose={() => setApiKeyOpen(false)} />

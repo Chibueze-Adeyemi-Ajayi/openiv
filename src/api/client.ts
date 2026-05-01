@@ -27,6 +27,8 @@ export function getBaseUrl(): string {
   )
 }
 
+export const BASE_URL = getBaseUrl()
+
 export class ApiError extends Error {
   status: number
   code: string
@@ -45,6 +47,7 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
+  headers?: Record<string, string>
   /** Internal — prevents infinite retry loop on 401. */
   _retried?: boolean
 }
@@ -52,6 +55,7 @@ interface RequestOptions {
 export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    ...opts.headers,
   }
   if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json'

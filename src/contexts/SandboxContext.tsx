@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/api/auth'
 
 interface SandboxContextValue {
@@ -20,17 +20,24 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(SANDBOX_ENABLED_KEY) === 'true'
   })
   const [sandboxUrl, setSandboxUrlState] = useState<string>(() => {
-    return localStorage.getItem(SANDBOX_URL_KEY) || 'http://localhost:8081'
+    return (
+      localStorage.getItem(SANDBOX_URL_KEY) ||
+      (import.meta.env.VITE_SANDBOX_BASE_URL as string | undefined) ||
+      'http://localhost:8081'
+    )
   })
   const [role, setRole] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    console.log('SandboxProvider: Fetching session...')
     authApi.session()
       .then(res => {
+        console.log('SandboxProvider: Session fetched, role:', res.role)
         setRole(res.role || null)
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('SandboxProvider: Session fetch failed', err)
         setRole(null)
       })
       .finally(() => {
@@ -48,7 +55,16 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SANDBOX_URL_KEY, url)
   }
 
-  const isDevOrAdmin = role === 'ADMIN' || role === 'DEVELOPER' || role === 'SUPER_ADMIN'
+  const r = (role || '').toUpperCase()
+  console.log('SandboxContext: Role check normalized to:', r)
+  
+  // Extremely permissive check for any role containing 'ADMIN' or 'DEV'
+  // Also enable on localhost for development convenience
+  const isDevOrAdmin = 
+    r.includes('ADMIN') || 
+    r.includes('DEV') || 
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
 
   return (
     <SandboxContext.Provider

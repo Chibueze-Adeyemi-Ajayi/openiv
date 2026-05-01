@@ -8,7 +8,7 @@ import ActivityFeed from '@/components/dashboard/ActivityFeed'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import OtpAlertsPanel from '@/components/dashboard/OtpAlertsPanel'
 import { useState, useCallback } from 'react'
-import { useDashboardStream } from '@/hooks/useDashboardStream'
+import { useDashboardData } from '@/hooks/useDashboardData'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
@@ -31,8 +31,15 @@ export default function OverviewPage() {
   const [nfiuLoading, setNfiuLoading]     = useState(false)
   const [snack, setSnack]                 = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
 
-  const { stats } = useDashboardStream()
+  const { stats, activity, otpAlerts, beamEvents, caseEvents, connected } = useDashboardData()
   const currentUser = useCurrentUser()
+
+  // Combine all events into unified activity feed (most recent first)
+  const allActivity = [
+    ...activity,
+    ...beamEvents,
+    ...caseEvents,
+  ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()).slice(0, 50)
 
   const transactionsToday = stats?.totalToday    ?? null
   const flaggedToday      = stats?.flaggedToday   ?? null
@@ -43,6 +50,8 @@ export default function OverviewPage() {
 
   const txnTrend     = stats ? pct(stats.totalToday, stats.totalYesterday) : 0
   const flaggedTrend = stats ? pct(stats.flaggedToday, stats.flaggedYesterday) : 0
+
+  console.log('[OverviewPage] stats:', stats, 'computed values:', { transactionsToday, flaggedToday, openCases, complianceScore })
 
   const handleExport = useCallback(async () => {
     setExportLoading(true)
@@ -219,7 +228,7 @@ export default function OverviewPage() {
             <NigeriaRiskMap />
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}>
-            <ActivityFeed />
+            <ActivityFeed events={allActivity} connected={connected} />
           </Grid>
         </Grid>
 

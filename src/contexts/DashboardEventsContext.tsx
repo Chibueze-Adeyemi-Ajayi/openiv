@@ -27,6 +27,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { DashboardStats } from '@/api/dashboard'
+import { getBaseUrl } from '@/api/client'
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -131,28 +132,45 @@ export function DashboardEventsProvider({ children }: { children: ReactNode }) {
   const retryDelayRef     = useRef(BASE_RETRY_MS)
   const cancelledRef      = useRef(false)
 
+  // Debug: log state changes
+  console.log('[DashboardEventsProvider] RENDER with state:', state)
+  useEffect(() => {
+    console.log('[DashboardEventsProvider] state updated:', state)
+  }, [state])
+
   useEffect(() => {
     cancelledRef.current = false
 
     function connect() {
       if (cancelledRef.current) return
 
-      const es = new EventSource(SSE_URL, { withCredentials: true })
+      const url = `${getBaseUrl()}${SSE_URL}`
+      console.log('[Dashboard SSE] Connecting to:', url)
+      const es = new EventSource(url, { withCredentials: true })
       esRef.current = es
 
       es.onopen = () => {
+        console.log('[Dashboard SSE] Connection opened')
         if (cancelledRef.current) { es.close(); return }
         retryDelayRef.current = BASE_RETRY_MS           // reset back-off on success
         setState(s => ({ ...s, connected: true, error: false }))
       }
 
       // ── Stats ───────────────────────────────────────────────────────────
+      console.log('[Dashboard SSE] Adding stats event listener')
       es.addEventListener('stats', (e: MessageEvent) => {
+        console.log('[Dashboard SSE] stats event received, data:', e.data)
         if (cancelledRef.current) return
         try {
           const stats: DashboardStats = JSON.parse(e.data)
-          setState(s => ({ ...s, stats, connected: true, error: false }))
-        } catch { /* malformed frame — ignore */ }
+          console.log('[Dashboard SSE] stats parsed:', stats)
+          setState(s => {
+            console.log('[Dashboard SSE] setState called with stats:', stats)
+            return { ...s, stats, connected: true, error: false }
+          })
+        } catch (err) {
+          console.error('[Dashboard SSE] stats parse error:', err, 'data:', e.data)
+        }
       })
 
       // ── Activity: full initial batch ────────────────────────────────────
