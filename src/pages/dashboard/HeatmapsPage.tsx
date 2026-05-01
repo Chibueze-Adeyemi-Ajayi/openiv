@@ -262,7 +262,12 @@ export default function HeatmapsPage() {
               { id: 'tx'   as const, label: 'Transaction Density' },
               { id: 'user' as const, label: 'User Activity'       },
             ] as const).map(tab => (
-              <Box key={tab.id} onClick={() => setActiveTab(tab.id)} sx={{
+              <Box 
+                key={tab.id} 
+                onClick={() => setActiveTab(tab.id)} 
+                data-ai-analyzable="true"
+                data-ai-description={`View behavioral heatmap for: ${tab.label}. currently active: ${activeTab === tab.id}.`}
+                sx={{
                 px: 2.5, py: 1.25, cursor: 'pointer',
                 fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
                 color: activeTab === tab.id ? colorPalette.primary : '#64748b',
@@ -283,7 +288,12 @@ export default function HeatmapsPage() {
             display: 'flex', justifyContent: 'flex-end', pb: '1px', px: 1 }}>
             <Box sx={{ display: 'flex', border: '1px solid #eef0f4', overflow: 'hidden', mb: '1px' }}>
               {(['normal', 'abnormal'] as HeatmapMode[]).map(m => (
-                <Box key={m} onClick={() => setMode(m)} sx={{
+                <Box 
+                  key={m} 
+                  onClick={() => setMode(m)} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Switch heatmap to ${m} mode. currently selected: ${mode === m}.`}
+                  sx={{
                   px: 2, py: 0.75, cursor: 'pointer',
                   fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
                   bgcolor: mode === m ? modeStyle[m].bg : '#ffffff',
@@ -331,7 +341,11 @@ export default function HeatmapsPage() {
                 </Box>
 
                 {/* "Last 365 days" rolling pill */}
-                <Box onClick={() => setViewMode('rolling')} sx={{
+                <Box 
+                  onClick={() => setViewMode('rolling')} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`View rolling 365-day heatmap. currently selected: ${viewMode === 'rolling'}.`}
+                  sx={{
                   px: 1.5, py: 0.5, cursor: 'pointer',
                   fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
                   color:   viewMode === 'rolling' ? colorPalette.primary : '#64748b',
@@ -345,9 +359,13 @@ export default function HeatmapsPage() {
                   Last 365 days
                 </Box>
 
-                {/* Year pills */}
-                {Array.from({ length: 5 }, (_, i) => currentYear - 4 + i).map(y => (
-                  <Box key={y} onClick={() => setViewMode(y)} sx={{
+                {[currentYear - 2, currentYear - 1, currentYear].map(y => (
+                  <Box 
+                    key={y} 
+                    onClick={() => setViewMode(y)} 
+                    data-ai-analyzable="true"
+                    data-ai-description={`View calendar year heatmap for: ${y}. currently selected: ${viewMode === y}.`}
+                    sx={{
                     px: 1.25, py: 0.5, cursor: 'pointer',
                     fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
                     color:   viewMode === y ? colorPalette.primary : '#64748b',
@@ -432,6 +450,8 @@ export default function HeatmapsPage() {
                               <Box
                                 onMouseEnter={() => setHovered(day.dateStr)}
                                 onMouseLeave={() => setHovered(null)}
+                                data-ai-analyzable="true"
+                                data-ai-description={`Heatmap cell for ${formatDate(day.dateStr)}. activity: ${day.count === 0 ? 'none' : day.count + ' ' + itemWord}.${day.avgRisk != null ? ' average risk: ' + day.avgRisk.toFixed(1) : ''}`}
                                 sx={{
                                   width: dynCell, height: dynCell,
                                   bgcolor: cellColor(day.count, maxCount, activeTab, mode),
@@ -472,7 +492,11 @@ export default function HeatmapsPage() {
                 { label: 'Active days', value: `${activeDays} / ${totalDays}` },
                 { label: 'Peak month',  value: bestMonth ? `${bestMonth.label} · ${bestMonth.count.toLocaleString()}` : '—' },
               ].map((s, i) => (
-                <Box key={s.label} sx={{ p: 2, borderRight: i < 2 ? '1px solid #eef0f4' : 'none' }}>
+                <Box 
+                  key={s.label} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Summary Statistic: ${s.label}. Value: ${s.value}.`}
+                  sx={{ p: 2, borderRight: i < 2 ? '1px solid #eef0f4' : 'none' }}>
                   <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
                     textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                     {s.label}
@@ -492,7 +516,10 @@ export default function HeatmapsPage() {
           <Stack gap={2}>
 
             {/* Eureka insight */}
-            <Box sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
+            <Box 
+              data-ai-analyzable="true"
+              data-ai-description={`Eureka Behavioral Insight: ${bestMonth ? bestMonth.label + ' was peak month.' : 'Activity summary.'} total active days: ${activeDays} of ${totalDays}.`}
+              sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700,
@@ -552,7 +579,11 @@ export default function HeatmapsPage() {
                   {best5.map((c, i) => {
                     const risk = c.avgRisk != null ? Math.round(c.avgRisk) : null
                     return (
-                      <Box key={i} sx={{
+                      <Box 
+                        key={i} 
+                        data-ai-analyzable="true"
+                        data-ai-description={`High Activity Day: ${formatDate(c.date)}. count: ${c.count.toLocaleString()} ${itemWord}.${risk != null ? ' average risk score: ' + risk : ''}`}
+                        sx={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         pb: 1.5, borderBottom: '1px solid #f4f5f7',
                         '&:last-child': { borderBottom: 'none', pb: 0 },

@@ -118,6 +118,8 @@ export default function OverviewPage() {
             <Button
               onClick={handleExport}
               disabled={exportLoading}
+              data-ai-analyzable="true"
+              data-ai-description="Generates a comprehensive CSV report of the last 24 hours of compliance activity and transaction metrics."
               startIcon={exportLoading
                 ? <CircularProgress size={14} thickness={5} sx={{ color: 'inherit' }} />
                 : <FileDownloadOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
@@ -142,6 +144,8 @@ export default function OverviewPage() {
             <Button
               onClick={() => setFileNFIUOpen(true)}
               disabled={nfiuLoading}
+              data-ai-analyzable="true"
+              data-ai-description="Submits the daily suspicious activity report (SAR) to the Nigerian Financial Intelligence Unit (NFIU) for regulatory compliance."
               sx={{
                 bgcolor: colorPalette.primary,
                 color: '#ffffff',
@@ -231,6 +235,8 @@ export default function OverviewPage() {
 
         {/* Eureka Insight Banner */}
         <Box
+          data-ai-analyzable="true"
+          data-ai-description={`AI Insight Recommendation: Eureka surfaced new transaction patterns matching CBN Circular 2024/14 based on ${flaggedToday} recent flags.`}
           sx={{
             bgcolor: colorPalette.primary,
             color: '#ffffff',

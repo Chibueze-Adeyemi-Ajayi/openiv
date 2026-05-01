@@ -88,7 +88,7 @@ export default function LoginForm({
   const [locationError, setLocationError] = useState<string | null>(null)
   const [loadingLocation, setLoadingLocation] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLocationModalOpen(true)
   }
@@ -113,8 +113,18 @@ export default function LoginForm({
       (error) => {
         setLoadingLocation(false)
         console.error('Location Access Error:', error)
-        setLocationError("Location access is required to proceed because of the sensitivity of this application.")
-      }
+        if (error.code === error.PERMISSION_DENIED) {
+          // User explicitly blocked — hard stop. Check both browser and OS settings.
+          setLocationError(
+            "Location permission was denied. On macOS, go to System Settings → Privacy & Security → Location Services and enable access for your browser, then try again."
+          )
+        } else {
+          // POSITION_UNAVAILABLE or TIMEOUT — hardware/service limitation (common on Mac desktops).
+          // Proceed without coordinates; the backend will fall back to IP-based geolocation.
+          onSubmit?.(email, password)
+        }
+      },
+      { timeout: 15000, maximumAge: 0, enableHighAccuracy: false }
     )
   }
 
@@ -198,27 +208,29 @@ export default function LoginForm({
               placeholder="Enter Your Passcode"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <IconButton
-                    edge="end"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disableRipple
-                    sx={{
-                      color: '#94a3b8',
-                      mr: 0.5,
-                      transition: 'color 0.2s ease',
-                      '&:hover': { color: colorPalette.primary, bgcolor: 'transparent' },
-                    }}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <VisibilityOffOutlinedIcon sx={{ fontSize: '1.25rem' }} />
-                    ) : (
-                      <VisibilityOutlinedIcon sx={{ fontSize: '1.25rem' }} />
-                    )}
-                  </IconButton>
-                ),
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <IconButton
+                      edge="end"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disableRipple
+                      sx={{
+                        color: '#94a3b8',
+                        mr: 0.5,
+                        transition: 'color 0.2s ease',
+                        '&:hover': { color: colorPalette.primary, bgcolor: 'transparent' },
+                      }}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <VisibilityOffOutlinedIcon sx={{ fontSize: '1.25rem' }} />
+                      ) : (
+                        <VisibilityOutlinedIcon sx={{ fontSize: '1.25rem' }} />
+                      )}
+                    </IconButton>
+                  ),
+                },
               }}
               sx={inputSx}
             />

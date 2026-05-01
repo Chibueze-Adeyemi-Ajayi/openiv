@@ -37,7 +37,11 @@ export default function ActivityFeed() {
   const { events, connected } = useActivityStream()
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      data-ai-analyzable="true"
+      data-ai-description="Live activity stream monitoring real-time transaction flags, compliance alerts, and automated investigator actions."
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Header */}
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
@@ -80,6 +84,8 @@ export default function ActivityFeed() {
           return (
             <Box
               key={e.id}
+              data-ai-analyzable="true"
+              data-ai-description={`Compliance Event: ${e.title}. ${e.detail ? `Details: ${e.detail}. ` : ''}Severity: ${e.severity}. Action by: ${e.actor}.`}
               sx={{
                 px: 3, py: 1.75,
                 borderBottom: '1px solid #f4f5f7',

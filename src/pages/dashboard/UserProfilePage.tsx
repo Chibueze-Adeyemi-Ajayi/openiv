@@ -60,7 +60,11 @@ export default function UserProfilePage() {
         </Box>
 
         {/* Header card */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3, p: 3, display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+        <Box
+          data-ai-analyzable="true"
+          data-ai-description="Customer Profile: Adamu Ibrahim. Tier 3 Verified. High Risk status active. Currently monitoring BVN 22148273920."
+          sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3, p: 3, display: 'flex', alignItems: 'flex-start', gap: 3 }}
+        >
           <Box
             sx={{
               width: 80,
@@ -175,7 +179,11 @@ export default function UserProfilePage() {
 
         {/* Risk + Eureka strip */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 3, mb: 3 }}>
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3, textAlign: 'center' }}>
+          <Box
+            data-ai-analyzable="true"
+            data-ai-description="Live Risk Score: 92/100. Trend: +28 in last 24h. Driven by 3 new behavioral anomalies detected today."
+            sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3, textAlign: 'center' }}
+          >
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 1 }}>
               Live Risk Score
             </Typography>
@@ -190,7 +198,11 @@ export default function UserProfilePage() {
             </Typography>
           </Box>
 
-          <Box sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 3, position: 'relative', overflow: 'hidden' }}>
+          <Box
+            data-ai-analyzable="true"
+            data-ai-description="Eureka AI Deep Analysis: Unusual transaction 1,098km from home on a new device. Recommendation: Hold all transactions until verified via phone call."
+            sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 3, position: 'relative', overflow: 'hidden' }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
               <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
@@ -207,7 +219,11 @@ export default function UserProfilePage() {
         </Box>
 
         {/* Personal Heatmap */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
+        <Box
+          data-ai-analyzable="true"
+          data-ai-description="Customer Behavioral Heatmap: Visualizing Adamu's 90-day activity pattern. Red cells indicate high-severity anomalies detected today."
+          sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}
+        >
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
@@ -311,6 +327,8 @@ export default function UserProfilePage() {
               ].map((e, i, arr) => (
                 <Box
                   key={i}
+                  data-ai-analyzable="true"
+                  data-ai-description={`Activity Event: ${e.title} at ${e.time}. Details: ${e.detail}`}
                   sx={{
                     px: 3,
                     py: 1.75,

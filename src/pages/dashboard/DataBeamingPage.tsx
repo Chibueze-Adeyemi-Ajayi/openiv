@@ -5,7 +5,7 @@ import {
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { beamApi, type BeamApiKey, type BeamRecord } from '@/api/beam'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded'
@@ -418,6 +418,8 @@ function RecordRow({ record }: { record: BeamRecord }) {
     <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
+        data-ai-analyzable="true"
+        data-ai-description={`Live Beam Record: ${record.stream.toUpperCase()}. received: ${fmtRelative(record.receivedAt)}. payload: ${preview}`}
         sx={{ px: 3, py: 1.5, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' }, transition: 'background 0.15s' }}
       >
         <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: cfg.bg }}>
@@ -577,18 +579,41 @@ function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  onClick={() => setGenTotpOpen(true)}
-                  startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
-                  sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1a3896' } }}>
-                  <Box component="span" sx={{ color: '#ffffff' }}>{keyInfo ? 'Regenerate key' : 'Generate key'}</Box>
-                </Button>
-                {keyInfo && (
+                {newKey ? (
+                  /* Just generated — copy it, then close */
                   <Button
-                    onClick={() => setRevokeTotpOpen(true)}
-                    startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                    sx={{ border: '1px solid #fecaca', color: '#dc2626', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#fef2f2' } }}>
-                    Revoke
+                    onClick={onClose}
+                    startIcon={<CheckRoundedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                    sx={{ flex: 1, bgcolor: '#10b981', color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#059669' } }}
+                  >
+                    <Box component="span" sx={{ color: '#ffffff' }}>Done</Box>
+                  </Button>
+                ) : keyInfo ? (
+                  /* Pre-existing key — offer management actions */
+                  <>
+                    <Button
+                      onClick={() => setGenTotpOpen(true)}
+                      startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                      sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1a3896' } }}
+                    >
+                      <Box component="span" sx={{ color: '#ffffff' }}>Regenerate key</Box>
+                    </Button>
+                    <Button
+                      onClick={() => setRevokeTotpOpen(true)}
+                      startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                      sx={{ border: '1px solid #fecaca', color: '#dc2626', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#fef2f2' } }}
+                    >
+                      Revoke
+                    </Button>
+                  </>
+                ) : (
+                  /* No key yet — generate first time */
+                  <Button
+                    onClick={() => setGenTotpOpen(true)}
+                    startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                    sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1a3896' } }}
+                  >
+                    <Box component="span" sx={{ color: '#ffffff' }}>Generate key</Box>
                   </Button>
                 )}
               </Box>
@@ -629,6 +654,51 @@ export default function DataBeamingPage() {
   const [activeLang,   setActiveLang]   = useState<Lang>('cURL')
   const [apiKeyOpen,   setApiKeyOpen]   = useState(false)
 
+  // ── Live beam records ─────────────────────────────────────────────────────
+  const [allRecords,    setAllRecords]    = useState<import('@/api/beam').BeamRecord[]>([])
+  const [recordsLoading, setRecordsLoading] = useState(true)
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const loadRecords = useCallback(async () => {
+    try {
+      const res = await beamApi.listRecords()
+      setAllRecords(res.records)
+    } catch {
+      // silent — keep showing whatever we had before
+    } finally {
+      setRecordsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRecords()
+    refreshTimerRef.current = setInterval(loadRecords, 30_000)
+    return () => {
+      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current)
+    }
+  }, [loadRecords])
+
+  // ── Derived per-stream stats from real data ───────────────────────────────
+  const liveStreamStats = useMemo(() => {
+    const map: Record<string, { count: number; lastSeen: string | null }> = {}
+    const streamIds: StreamId[] = ['transactions', 'logins', 'activity', 'location', 'devices', 'otps']
+    streamIds.forEach(id => { map[id] = { count: 0, lastSeen: null } })
+    allRecords.forEach(r => {
+      if (map[r.stream]) {
+        map[r.stream].count++
+        if (!map[r.stream].lastSeen || r.receivedAt > map[r.stream].lastSeen!) {
+          map[r.stream].lastSeen = r.receivedAt
+        }
+      }
+    })
+    return map
+  }, [allRecords])
+
+  const activeStreamRecords = useMemo(
+    () => allRecords.filter(r => r.stream === activeStream).slice(0, 8),
+    [allRecords, activeStream],
+  )
+
   const stream = streams.find(s => s.id === activeStream)!
   const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
   const codeByLang: Record<Lang, string> = {
@@ -638,8 +708,8 @@ export default function DataBeamingPage() {
     'Go':      buildGo(stream),
   }
 
-  const connected    = streams.filter(s => s.status === 'connected').length
-  const totalRecords = streams.reduce((sum, s) => sum + s.recordsToday, 0)
+  const connected    = streams.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
+  const totalRecords = allRecords.length
 
   return (
     <DashboardLayout>
@@ -666,12 +736,16 @@ export default function DataBeamingPage() {
             {/* Health KPIs */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
               {[
-                { label: 'Streams connected', value: `${connected}/${streams.length}`, sub: connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
-                { label: 'Records today',     value: totalRecords.toLocaleString(),    sub: 'across all streams' },
+                { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streams.length}`, sub: recordsLoading ? 'Loading…' : connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
+                { label: 'Records received',  value: recordsLoading ? '…' : totalRecords.toLocaleString(),   sub: 'last 100 across all streams' },
                 { label: 'Median latency',    value: '142ms',                          sub: 'from your core to OpenIV' },
                 { label: 'Schema validity',   value: '99.84%',                         sub: '17 rejected today' },
               ].map(s => (
-                <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+                <Box 
+                  key={s.label} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Ingestion KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
+                  sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
                   <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>{s.label}</Typography>
                   <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
@@ -683,16 +757,25 @@ export default function DataBeamingPage() {
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
               {streams.map(s => {
                 const isActive = s.id === activeStream
-                const cfg = statusConfig[s.status]
+                const live = liveStreamStats[s.id]
+                const liveCount = live?.count ?? 0
+                const hasData = liveCount > 0
+                const dotColor = recordsLoading ? '#94a3b8' : hasData ? '#10b981' : '#dc2626'
+                const countLabel = recordsLoading ? '…' : hasData ? `${liveCount.toLocaleString()} recv'd` : 'No data'
                 return (
-                  <Box key={s.id} onClick={() => setActiveStream(s.id)} sx={{ bgcolor: '#ffffff', border: '1px solid', borderColor: isActive ? colorPalette.primary : '#eef0f4', p: 2, cursor: 'pointer', position: 'relative', transition: 'all 0.18s', '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' }, '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {} }}>
+                  <Box 
+                    key={s.id} 
+                    onClick={() => setActiveStream(s.id)} 
+                    data-ai-analyzable="true"
+                    data-ai-description={`Data Stream: ${s.title}. status: ${statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
+                    sx={{ bgcolor: '#ffffff', border: '1px solid', borderColor: isActive ? colorPalette.primary : '#eef0f4', p: 2, cursor: 'pointer', position: 'relative', transition: 'all 0.18s', '&:hover': { borderColor: isActive ? colorPalette.primary : '#cbd5e1' }, '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {} }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                       <Box sx={{ width: 32, height: 32, bgcolor: isActive ? colorPalette.primary : `${colorPalette.primary}10`, color: isActive ? '#ffffff' : colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>{s.icon}</Box>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cfg.color }} />
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, transition: 'background 0.4s' }} />
                     </Box>
                     <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                      {s.recordsToday > 0 ? `${(s.recordsToday / 1000).toFixed(1)}k today` : 'No data'}
+                      {countLabel}
                     </Typography>
                   </Box>
                 )
@@ -703,7 +786,10 @@ export default function DataBeamingPage() {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
               <Stack gap={3}>
                 {/* Why box */}
-                <Box sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
+                <Box 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Eureka Insight: Importance of the ${stream.title} stream. powers: ${stream.powers}. reason: ${stream.why}`}
+                  sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
                     <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.125rem' }} />
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why beam {stream.title.toLowerCase()}?</Typography>
@@ -766,36 +852,43 @@ export default function DataBeamingPage() {
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: stream.status === 'disconnected' ? '#94a3b8' : '#10b981', animation: stream.status === 'disconnected' ? 'none' : 'pulse 2s infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: stream.status === 'disconnected' ? '#94a3b8' : '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        {stream.status === 'disconnected' ? 'idle' : 'live'}
+                      <Box sx={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        bgcolor: recordsLoading ? '#94a3b8' : activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8',
+                        animation: !recordsLoading && activeStreamRecords.length > 0 ? 'pulse 2s infinite' : 'none',
+                        '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+                      }} />
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: !recordsLoading && activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {recordsLoading ? 'loading' : activeStreamRecords.length > 0 ? 'live' : 'idle'}
                       </Typography>
+                      <IconButton
+                        size="small" onClick={loadRecords} disabled={recordsLoading}
+                        sx={{ ml: 0.5, borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}08` } }}
+                      >
+                        <RefreshRoundedIcon sx={{ fontSize: '0.875rem' }} />
+                      </IconButton>
                     </Box>
                   </Box>
                   <Stack>
-                    {stream.status === 'disconnected' ? (
+                    {recordsLoading ? (
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                          <Skeleton variant="rectangular" width={90} height={18} />
+                          <Skeleton variant="rectangular" width="60%" height={18} />
+                          <Skeleton variant="rectangular" width={60} height={18} />
+                        </Box>
+                      ))
+                    ) : activeStreamRecords.length === 0 ? (
                       <Box sx={{ p: 4, textAlign: 'center' }}>
                         <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>Stream not connected</Typography>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
                         <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
                         <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' } }}>
                           Get API Key
                         </Button>
                       </Box>
                     ) : (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: i === 4 ? 'none' : '1px solid #f4f5f7', display: 'grid', gridTemplateColumns: '90px 1fr 80px', gap: 2, alignItems: 'center', fontFamily: 'SF Mono, Monaco, monospace', '&:hover': { bgcolor: '#fafbfc' } }}>
-                          <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{`14:22:${(8 - i).toString().padStart(2, '0')}`}</Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {stream.id === 'transactions' && `{ "transaction_id": "TXN-${48721 - i}", "amount": ${(14250000 - i * 1200000).toLocaleString()} ... }`}
-                            {stream.id === 'logins' && `{ "user_id": "USR-${8472 - i}", "outcome": "success", "ip": "102.89.${32 + i}.18" }`}
-                            {stream.id === 'activity' && `{ "event_name": "${['transfer_initiated', 'beneficiary_added', 'screen_viewed', 'login_attempt', 'biometric_pass'][i]}" }`}
-                            {stream.id === 'location' && `{ "user_id": "USR-${8472 - i}", "lat": ${(6.45 + i * 0.001).toFixed(4)}, "lng": 3.3947 }`}
-                            {stream.id === 'devices' && `{ "device_id": "DVC-8b32a1", "os": "iOS 17.4", "model": "iPhone 14 Pro" }`}
-                          </Typography>
-                          <Chip label="200 OK" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', borderRadius: 0, height: 18, width: 'fit-content', '& .MuiChip-label': { px: 0.625 } }} />
-                        </Box>
-                      ))
+                      activeStreamRecords.map(r => <RecordRow key={r.id} record={r} />)
                     )}
                   </Stack>
                 </Box>

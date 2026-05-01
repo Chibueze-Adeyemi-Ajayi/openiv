@@ -157,7 +157,10 @@ export default function BillingPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 3 }}>
 
           {/* Balance card */}
-          <Box sx={{
+          <Box 
+            data-ai-analyzable="true"
+            data-ai-description={`Wallet Balance: ${fmtNgn(balanceNgn)}. status: ${inFreePeriod ? 'Welcome credit active' : lowBalance ? 'Low balance alert' : 'Healthy'}.`}
+            sx={{
             bgcolor: colorPalette.primary, color: '#fff', p: 3, position: 'relative', overflow: 'hidden',
             '&::before': { content: '""', position: 'absolute', top: '-40%', right: '-8%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' },
           }}>
@@ -213,7 +216,10 @@ export default function BillingPage() {
           </Box>
 
           {/* Credit usage / pay-as-you-go status */}
-          <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', p: 3 }}>
+          <Box 
+            data-ai-analyzable="true"
+            data-ai-description={inFreePeriod ? `Welcome Credit Status: ${fmtNgn(creditUsedNgn, 2)} used of ₦500k. expires: ${creditExpires ? new Date(creditExpires).toLocaleDateString() : 'N/A'}.` : `Pay-as-you-go Status: ${fmtNgn(unitsToNgn(usage?.totalDebitUnits ?? 0), 2)} spent this billing cycle.`}
+            sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', p: 3 }}>
             {inFreePeriod ? (
               <>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
@@ -306,6 +312,8 @@ export default function BillingPage() {
                 return (
                   <Box
                     key={cat.category}
+                    data-ai-analyzable="true"
+                    data-ai-description={`Billing Category: ${meta.label}. event count: ${cat.eventCount.toLocaleString()}. total cost: ${fmtNgn(costNgn, 2)}. unit rate: ${meta.rate}. percentage of spend: ${pct.toFixed(1)}%.`}
                     sx={{
                       p: 2.5, minWidth: 0,
                       borderRight: isRightCol ? 'none' : '1px solid #eef0f4',
@@ -396,6 +404,8 @@ export default function BillingPage() {
               {methods.map((m, i) => (
                 <Box
                   key={m.id}
+                  data-ai-analyzable="true"
+                  data-ai-description={`Saved Payment Method: ${m.displayName}. last 4 digits: ${m.last4 || 'N/A'}. status: ${m.isDefault ? 'Default auto-debit card' : 'Backup card'}. added: ${new Date(m.createdAt).toLocaleDateString()}.`}
                   sx={{
                     display: 'flex', alignItems: 'center', gap: 2, px: 3, py: 1.75,
                     borderBottom: i === methods.length - 1 ? 'none' : '1px solid #f4f5f7',
@@ -476,6 +486,8 @@ export default function BillingPage() {
             return (
               <Box
                 key={`${row.dayStr}-${row.type}`}
+                data-ai-analyzable="true"
+                data-ai-description={`Ledger Record: ${isCredit ? 'Wallet funding' : 'Service usage charge'}. amount: ${fmtSign(isCredit ? amountNgn : -amountNgn)}. final balance: ${fmtNgn(balNgn)}. date: ${row.dayStr}.`}
                 sx={{
                   display: 'grid', gridTemplateColumns: '120px 1fr 120px 130px 100px',
                   gap: 2, px: 3, py: 1.75, alignItems: 'center',

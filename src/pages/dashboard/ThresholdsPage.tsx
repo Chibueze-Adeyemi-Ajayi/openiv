@@ -114,7 +114,11 @@ export default function ThresholdsPage() {
             {/* Metric cards */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
               {metricCards.map(s => (
-                <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+                <Box 
+                  key={s.label} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Rule Performance Metric: ${s.label}. value: ${s.value ?? 'N/A'}. status: ${s.sub}.`}
+                  sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
                   <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75 }}>
                     {s.label}
                   </Typography>
@@ -162,7 +166,11 @@ export default function ThresholdsPage() {
                 const hasDraft = drafts[rule.id] !== undefined && drafts[rule.id] !== rule.thresholdValue
                 const tagColor = tagColors[rule.tag] ?? '#64748b'
                 return (
-                  <Box key={rule.id} sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f4f5f7', opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s', '&:last-child': { borderBottom: 'none' } }}>
+                  <Box 
+                    key={rule.id} 
+                    data-ai-analyzable="true"
+                    data-ai-description={`Detection Rule: ${rule.name}. category: ${rule.tag}. current threshold: ${fmtThreshold(rule, rule.thresholdValue)}. fired: ${rule.firedCount} times. status: ${rule.isActive ? 'Active' : 'Paused'}.`}
+                    sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f4f5f7', opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s', '&:last-child': { borderBottom: 'none' } }}>
 
                     {/* Row header */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.25 }}>
@@ -255,7 +263,10 @@ export default function ThresholdsPage() {
 
           {/* Right: Eureka sidebar */}
           <Stack gap={3}>
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+            <Box 
+              data-ai-analyzable="true"
+              data-ai-description="Eureka Assist: AI-powered threshold tuning. Describe your business scenario or pick a preset use-case to generate optimal detection parameters."
+              sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
               <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
                 <Box sx={{ width: 32, height: 32, bgcolor: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <AutoAwesomeOutlinedIcon sx={{ color: '#ffffff', fontSize: '1rem' }} />
@@ -276,7 +287,12 @@ export default function ThresholdsPage() {
                 </Typography>
                 <Stack gap={0.5} sx={{ mb: 2.5 }}>
                   {useCases.map((u, i) => (
-                    <Box key={u} onClick={() => setSelectedUseCase(i)} sx={{
+                    <Box 
+                      key={u} 
+                      onClick={() => setSelectedUseCase(i)} 
+                      data-ai-analyzable="true"
+                      data-ai-description={`Tuning Preset: ${u}. selected: ${selectedUseCase === i}.`}
+                      sx={{
                       px: 1.5, py: 1.125, fontSize: '0.8125rem', cursor: 'pointer', fontFamily: 'Jost',
                       color:   selectedUseCase === i ? colorPalette.primary : '#475569',
                       bgcolor: selectedUseCase === i ? `${colorPalette.primary}0a` : 'transparent',

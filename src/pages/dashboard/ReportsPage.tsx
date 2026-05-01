@@ -163,7 +163,11 @@ export default function ReportsPage() {
             { label: 'Filed this month', value: metrics?.filedThisMonth ?? '—', sub: 'Current period' },
             { label: 'Schedules due', value: metrics?.dueThisWeek ?? '—',    sub: 'Within 7 days', alert: (metrics?.dueThisWeek ?? 0) > 0 },
           ].map(s => (
-            <Box key={s.label} sx={{ bgcolor: '#fff', border: `1px solid ${s.alert ? '#fde68a' : '#eef0f4'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : '#fff' }}>
+            <Box 
+              key={s.label} 
+              data-ai-analyzable="true"
+              data-ai-description={`Regulatory Reporting KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
+              sx={{ bgcolor: '#fff', border: `1px solid ${s.alert ? '#fde68a' : '#eef0f4'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : '#fff' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                 {s.label}
               </Typography>
@@ -185,7 +189,12 @@ export default function ReportsPage() {
           <Box sx={{ px: 3, py: 0, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Stack direction="row" gap={0}>
               {TABS.map(t => (
-                <Box key={t} onClick={() => setTab(t)} sx={{
+                <Box 
+                  key={t} 
+                  onClick={() => setTab(t)} 
+                  data-ai-analyzable="true"
+                  data-ai-description={`Filter reports by category: ${t === 'AML_RETURN' ? 'AML Return' : t}.`}
+                  sx={{
                   px: 1.75, py: 1.75, fontSize: '0.8125rem', fontWeight: 600,
                   cursor: 'pointer', fontFamily: 'Jost',
                   color: tab === t ? colorPalette.primary : '#64748b',
@@ -229,7 +238,11 @@ export default function ReportsPage() {
                   {schedules.map((s, i) => {
                     const due = daysUntil(s.nextDue)
                     return (
-                      <Box key={s.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < schedules.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
+                      <Box 
+                        key={s.id} 
+                        data-ai-analyzable="true"
+                        data-ai-description={`Scheduled Report: ${s.name}. type: ${s.reportType}. frequency: ${s.frequency}. next due: ${new Date(s.nextDue).toLocaleDateString('en-GB')}. auto-file enabled: ${s.autoFile}.`}
+                        sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < schedules.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
                         <Box>
                           <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{s.name}</Typography>
                           {s.autoFile && <Typography sx={{ fontSize: '0.625rem', color: colorPalette.primary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Auto-file</Typography>}
@@ -291,7 +304,11 @@ export default function ReportsPage() {
                 const statusCfg  = STATUS_CFG[r.status] ?? STATUS_CFG.draft
                 const priorColor = PRIORITY_CFG[r.priority]?.color ?? '#64748b'
                 return (
-                  <Box key={r.id} sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
+                  <Box 
+                    key={r.id} 
+                    data-ai-analyzable="true"
+                    data-ai-description={`NFIU Report Filing: ${r.reference}. type: ${r.reportType}. status: ${r.status.toUpperCase()}. priority: ${r.priority.toUpperCase()}. title: ${r.title}.${r.subjectName ? ' subject: ' + r.subjectName : ''}.${r.filingDate ? ' filed on: ' + fmtDate(r.filingDate) : ' not yet filed.'}`}
+                    sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
 
                     {/* Reference */}
                     <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>

@@ -1,7 +1,8 @@
 import { Box, Typography, Tooltip, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import SidebarAIBubble from './SidebarAIBubble'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -22,8 +23,21 @@ import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import { authApi } from '@/api/auth'
 import { clearOnboardingState } from '@/onboarding/state'
 import { useNavigate } from 'react-router-dom'
+import { useEureka } from '@/contexts/EurekaContext'
 
-const navGroups = [
+interface NavItem {
+  to: string
+  icon: React.ReactNode
+  label: string
+  badge?: string
+}
+
+interface ActiveNavItem {
+  navItem: NavItem
+  rect: DOMRect
+}
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Monitor',
     items: [
@@ -65,7 +79,50 @@ const navGroups = [
 export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+
+  // AI bubble hover tracking
+  const [activeNavItem,   setActiveNavItem]   = useState<ActiveNavItem | null>(null)
+  const [isBubbleClosing, setIsBubbleClosing] = useState(false)
+  const [hoveringItemTo,  setHoveringItemTo]  = useState<string | null>(null)
+  const hoverTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bubbleCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleNavMouseEnter = (item: NavItem, e: React.MouseEvent<HTMLElement>) => {
+    if (!eurekaEnabled) return
+    setHoveringItemTo(item.to)          // start ripple immediately
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    const elem = e.currentTarget
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = elem.getBoundingClientRect()
+      setHoveringItemTo(null)           // ripple contracts in, bubble appears
+      setActiveNavItem({ navItem: item, rect })
+      setEurekaBuddyOpen(true)
+      hoverTimerRef.current = null
+    }, 2000)
+  }
+
+  const handleNavMouseLeave = () => {
+    setHoveringItemTo(null)             // cancel ripple on leave
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }
+
+  // Play ripple-close-in animation, then actually unmount the bubble
+  const closeBubble = useCallback(() => {
+    if (!activeNavItem) return
+    if (bubbleCloseTimerRef.current) clearTimeout(bubbleCloseTimerRef.current)
+    setIsBubbleClosing(true)
+    bubbleCloseTimerRef.current = setTimeout(() => {
+      setActiveNavItem(null)
+      setEurekaBuddyOpen(false)
+      setIsBubbleClosing(false)
+      bubbleCloseTimerRef.current = null
+    }, 390) // matches animation duration
+  }, [activeNavItem, setEurekaBuddyOpen])
 
   const handleLogout = async () => {
     try {
@@ -159,6 +216,10 @@ export default function Sidebar() {
                   style={{ textDecoration: 'none' }}
                 >
                   <Box
+                    onMouseEnter={e => handleNavMouseEnter(item, e)}
+                    onMouseLeave={handleNavMouseLeave}
+                    data-ai-analyzable="true"
+                    data-ai-description={`Navigate to ${item.label} module. ${item.badge ? `Current attention required: ${item.badge}` : ''}`}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -168,6 +229,7 @@ export default function Sidebar() {
                       mb: 0.25,
                       cursor: 'pointer',
                       position: 'relative',
+                      overflow: 'hidden',
                       color: active ? colorPalette.primary : '#475569',
                       bgcolor: active ? `${colorPalette.primary}0a` : 'transparent',
                       transition: 'all 0.18s ease',
@@ -188,6 +250,29 @@ export default function Sidebar() {
                         : {},
                     }}
                   >
+                    {/* 2-second hover ripple: expands out → contracts in → fades */}
+                    {hoveringItemTo === item.to && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          width: 280,
+                          height: 280,
+                          borderRadius: '50%',
+                          pointerEvents: 'none',
+                          border: `1.5px solid ${colorPalette.primary}35`,
+                          bgcolor: `${colorPalette.primary}07`,
+                          animation: 'navRipple 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+                          '@keyframes navRipple': {
+                            '0%':   { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0.9 },
+                            '72%':  { transform: 'translate(-50%, -50%) scale(1)',    opacity: 0.35 },
+                            '86%':  { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0.18 },
+                            '100%': { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0 },
+                          },
+                        }}
+                      />
+                    )}
                     {item.icon}
                     <Typography
                       sx={{
@@ -277,6 +362,16 @@ export default function Sidebar() {
           </Tooltip>
         </Box>
       </Box>
+
+      {/* AI hover bubble */}
+      {activeNavItem && (
+        <SidebarAIBubble
+          anchorRect={activeNavItem.rect}
+          navItem={activeNavItem.navItem}
+          isClosing={isBubbleClosing}
+          onClose={closeBubble}
+        />
+      )}
 
       {/* Logout Confirmation Dialog */}
       <Dialog

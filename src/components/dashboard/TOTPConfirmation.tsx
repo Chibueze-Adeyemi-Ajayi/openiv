@@ -158,6 +158,8 @@ export default function TOTPConfirmation({
 
       {/* Modal */}
       <Box
+        data-ai-analyzable="true"
+        data-ai-description={`Security step-up authentication required to ${cfg.verb} ${resourceType || 'resource'} "${resourceName || title}". This action is protected by Google Authenticator TOTP.`}
         sx={{
           position: 'fixed',
           top: '50%',

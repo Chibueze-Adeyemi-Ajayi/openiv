@@ -49,6 +49,8 @@ export default function IngestionPage() {
             <Box
               key={s.id}
               onClick={() => setSource(s.id)}
+              data-ai-analyzable="true"
+              data-ai-description={`Data Ingestion Source: ${s.title}. type: ${s.id}. capabilities: ${s.desc}.`}
               sx={{
                 p: 2.5,
                 bgcolor: '#ffffff',
@@ -237,7 +239,10 @@ Content-Type: application/json
               </Box>
 
               {/* Eureka schema insight */}
-              <Box sx={{ bgcolor: `${colorPalette.primary}06`, border: `1px solid ${colorPalette.primary}15`, mx: 3, mt: 2, p: 1.75, display: 'flex', gap: 1.25 }}>
+              <Box 
+                data-ai-analyzable="true"
+                data-ai-description="Eureka Schema Mapping Insight: Automated column detection and mapping recommendations for your uploaded data. Currently proposing map for 'ref_code' to 'internal_reference'."
+                sx={{ bgcolor: `${colorPalette.primary}06`, border: `1px solid ${colorPalette.primary}15`, mx: 3, mt: 2, p: 1.75, display: 'flex', gap: 1.25 }}>
                 <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary, mt: 0.125, flexShrink: 0 }} />
                 <Box>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, mb: 0.25 }}>
@@ -264,6 +269,8 @@ Content-Type: application/json
                   {previewData.map((row, i) => (
                     <Box
                       key={i}
+                      data-ai-analyzable="true"
+                      data-ai-description={`Data Preview Row: ${row.txnId}. amount: ${row.amount}. date: ${row.date}. channel: ${row.channel}. status: ${row.mapped ? 'Mapped successfully' : 'Mapping required'}.`}
                       sx={{
                         display: 'grid',
                         gridTemplateColumns: '130px 110px 130px 100px 100px 90px 80px',

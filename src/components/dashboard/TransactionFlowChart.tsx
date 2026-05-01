@@ -69,7 +69,11 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
   const blockedScale = (n: number) => yScale(n * (maxTotal / Math.max(...data.map(d => d.blocked), 1)) * 0.15)
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+    <Box
+      data-ai-analyzable="true"
+      data-ai-description="Hourly transaction volume chart over the last 24 hours, visualizing total system throughput alongside flagged and blocked suspicious activity."
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}
+    >
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>

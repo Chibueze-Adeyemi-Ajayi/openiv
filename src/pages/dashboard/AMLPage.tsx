@@ -156,7 +156,12 @@ export default function AMLPage() {
         {/* Metric cards */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
           {metricCards.map(s => (
-            <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+            <Box
+              key={s.label}
+              data-ai-analyzable="true"
+              data-ai-description={`AML Performance Metric: ${s.label} currently at ${s.value}.`}
+              sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: s.color }} />
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -269,15 +274,21 @@ export default function AMLPage() {
             const sCfg = STATUS_CFG[c.status]    ?? STATUS_CFG.open
             const pCfg = PRIORITY_CFG[c.priority] ?? PRIORITY_CFG.medium
             return (
-              <Box key={c.id} onClick={() => openWorkspace(c.id)} sx={{
-                display: 'grid',
-                gridTemplateColumns: '130px 1fr 78px 82px 90px 110px 82px',
-                gap: 2, px: 3, py: 1.75,
-                borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none',
-                cursor: 'pointer', transition: 'background 0.15s',
-                '&:hover': { bgcolor: '#fafbfc' },
-                alignItems: 'center',
-              }}>
+              <Box
+                key={c.id}
+                onClick={() => openWorkspace(c.id)}
+                data-ai-analyzable="true"
+                data-ai-description={`AML Investigation: Case ${c.id} for "${c.title}". Priority: ${c.priority}. Risk Score: ${c.riskScore}. SLA: ${sla.label}. Status: ${c.status}. Typology: ${c.typology}.`}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '130px 1fr 78px 82px 90px 110px 82px',
+                  gap: 2, px: 3, py: 1.75,
+                  borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none',
+                  cursor: 'pointer', transition: 'background 0.15s',
+                  '&:hover': { bgcolor: '#fafbfc' },
+                  alignItems: 'center',
+                }}
+              >
                 <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c.id}
                 </Typography>

@@ -140,7 +140,11 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
   const dotKey = (d: FenceInfo) => `${d.point.lat},${d.point.lng}`
 
   return (
-    <Box sx={{ position: 'relative', bgcolor: '#ffffff', border: '1px solid #eef0f4', overflow: 'hidden' }}>
+    <Box
+      data-ai-analyzable="true"
+      data-ai-description={`Geographic risk distribution across Nigeria. Currently monitoring ${highDots.length} high-risk clusters and ${mediumDots.length} suspicious areas.`}
+      sx={{ position: 'relative', bgcolor: '#ffffff', border: '1px solid #eef0f4', overflow: 'hidden' }}
+    >
       {/* Header */}
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
@@ -260,6 +264,8 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
         {/* Detail popup */}
         {selected && (
           <Box
+            data-ai-analyzable="true"
+            data-ai-description={`Detailed analysis of risk cluster at coordinates ${selected.point.lat.toFixed(2)}°N, ${selected.point.lng.toFixed(2)}°E. Cluster includes ${selected.point.count} transactions with an average risk score of ${selected.point.avgRisk?.toFixed(1) || '0'}.`}
             sx={{
               position: 'absolute', top: 16, right: 16, width: 260,
               bgcolor: '#ffffff', border: '1px solid #eef0f4',

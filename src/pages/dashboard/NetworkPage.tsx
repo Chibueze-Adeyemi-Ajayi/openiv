@@ -487,7 +487,10 @@ function HeadersView({ headers }: { headers: Record<string, string> }) {
 
 function KpiCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', px: 2.5, py: 2 }}>
+    <Box 
+      data-ai-analyzable="true"
+      data-ai-description={`Network Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', px: 2.5, py: 2 }}>
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
         textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625 }}>{label}</Typography>
       <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: accent ?? '#0f172a',
@@ -642,7 +645,12 @@ export default function NetworkPage() {
           {/* Source */}
           <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
             {(['all', 'beam', 'webhook'] as SrcFilter[]).map(s => (
-              <Box key={s} onClick={() => setSrcF(s)} sx={filterBtn(srcF === s)}>
+              <Box 
+                key={s} 
+                onClick={() => setSrcF(s)} 
+                data-ai-analyzable="true"
+                data-ai-description={`Filter network traffic by source: ${s === 'all' ? 'All Sources' : s === 'beam' ? 'Inbound Beam SDK' : 'Outbound Webhooks'}.`}
+                sx={filterBtn(srcF === s)}>
                 {s === 'all' ? 'All Sources' : s === 'beam' ? '↑ Beam' : '↓ Webhooks'}
               </Box>
             ))}
@@ -650,7 +658,12 @@ export default function NetworkPage() {
           {/* Status */}
           <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
             {(['all', '2xx', '4xx', '5xx'] as StatusF[]).map(s => (
-              <Box key={s} onClick={() => setStatF(s)} sx={filterBtn(statF === s)}>
+              <Box 
+                key={s} 
+                onClick={() => setStatF(s)} 
+                data-ai-analyzable="true"
+                data-ai-description={`Filter network traffic by HTTP status code: ${s === 'all' ? 'Any Status' : s}.`}
+                sx={filterBtn(statF === s)}>
                 {s === 'all' ? 'Any Status' : s}
               </Box>
             ))}
@@ -708,6 +721,8 @@ export default function NetworkPage() {
             const tag = e.stream ?? e.event ?? ''
             return (
               <Box key={e.id} onClick={() => { setSelected(isSelected ? null : e); setDetailTab(0) }}
+                data-ai-analyzable="true"
+                data-ai-description={`Network Log Entry: ${e.source.toUpperCase()} ${e.method} ${e.endpoint}. status: ${e.status}. duration: ${e.ms}ms. size: ${fmtBytes(e.bytes)}.${e.stream || e.event ? ' tag: ' + (e.stream || e.event) : ''}`}
                 sx={{
                   display: 'grid', gridTemplateColumns: '90px 70px 52px 1fr 58px 130px 72px',
                   px: 2, py: 1.125, alignItems: 'center',

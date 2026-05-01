@@ -11,9 +11,21 @@
  * which removes XSS as a token-theft vector.
  */
 
-export const BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ??
-  ''
+const SANDBOX_ENABLED_KEY = 'openiv_sandbox_enabled'
+const SANDBOX_URL_KEY = 'openiv_sandbox_url'
+
+export function getBaseUrl(): string {
+  const sandboxEnabled = localStorage.getItem(SANDBOX_ENABLED_KEY) === 'true'
+  if (sandboxEnabled) {
+    const sandboxUrl = localStorage.getItem(SANDBOX_URL_KEY)
+    if (sandboxUrl) return sandboxUrl.replace(/\/$/, '')
+  }
+
+  return (
+    (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ??
+    ''
+  )
+}
 
 export class ApiError extends Error {
   status: number
@@ -45,7 +57,7 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
     headers['Content-Type'] = 'application/json'
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${getBaseUrl()}${path}`, {
     method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -66,7 +78,7 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
     !opts._retried
   ) {
     try {
-      const check = await fetch(`${BASE_URL}/api/v1/auth/session`, { credentials: 'include' })
+      const check = await fetch(`${getBaseUrl()}/api/v1/auth/session`, { credentials: 'include' })
       if (check.ok) {
         // Session still valid — transient 401, retry once.
         return apiRequest<T>(path, { ...opts, _retried: true })

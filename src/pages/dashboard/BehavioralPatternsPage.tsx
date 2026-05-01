@@ -141,6 +141,8 @@ export default function BehavioralPatternsPage() {
 
         {/* Eureka summary banner */}
         <Box
+          data-ai-analyzable="true"
+          data-ai-description={`Eureka's Daily Intelligence Brief: ${patterns.length} active patterns affecting ${patterns.reduce((sum, p) => sum + p.affected, 0)} customers. Highest urgency: Mule herding cluster.`}
           sx={{
             bgcolor: colorPalette.primary,
             color: '#ffffff',
@@ -255,7 +257,12 @@ export default function BehavioralPatternsPage() {
             const cat = categoryConfig[p.category]
             const sev = severityConfig[p.severity]
             return (
-              <Box key={p.id} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', overflow: 'hidden' }}>
+              <Box
+                key={p.id}
+                data-ai-analyzable="true"
+                data-ai-description={`Behavioral Pattern: "${p.name}". Affects ${p.affected} customers. Severity: ${p.severity}. Matched Typology: ${p.matchedTypology}. Detected: ${p.emergence}.`}
+                sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', overflow: 'hidden' }}
+              >
                 <Box sx={{ display: 'grid', gridTemplateColumns: '88px 1fr', gap: 0 }}>
                   {/* Severity strip */}
                   <Box

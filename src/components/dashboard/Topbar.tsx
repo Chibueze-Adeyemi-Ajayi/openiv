@@ -1,4 +1,4 @@
-import { Box, InputBase, IconButton, Typography, Badge, Popover, Stack, Chip, Divider } from '@mui/material'
+import { Box, InputBase, IconButton, Typography, Badge, Popover, Stack, Chip, Divider, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
@@ -14,6 +14,14 @@ import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import FlashOnOutlinedIcon from '@mui/icons-material/FlashOnOutlined'
+import FlashOffOutlinedIcon from '@mui/icons-material/FlashOffOutlined'
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
+import PsychologyIcon from '@mui/icons-material/Psychology'
+import { useEureka } from '@/contexts/EurekaContext'
+import { useSandbox } from '@/contexts/SandboxContext'
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 
 interface TopbarProps {
   onOpenEureka?: () => void
@@ -37,6 +45,8 @@ const notifications: { id: number; severity: Severity; icon: React.ReactNode; ti
 ]
 
 export default function Topbar({ onOpenEureka }: TopbarProps) {
+  const { eurekaEnabled, setEurekaEnabled, isLoading } = useEureka()
+  const { sandboxEnabled, isDevOrAdmin } = useSandbox()
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
   const [helpAnchor, setHelpAnchor] = useState<HTMLElement | null>(null)
   const unreadCount = notifications.filter((n) => n.unread).length
@@ -67,6 +77,8 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
     >
       {/* Search */}
       <Box
+        data-ai-analyzable="true"
+        data-ai-description="Intelligent Search: Find transactions, customers, or cases instantly using semantic search logic."
         sx={{
           flex: 1,
           maxWidth: 480,
@@ -116,33 +128,167 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
       </Box>
 
       <Box sx={{ flex: 1 }} />
+      
+      {/* Sandbox Indicator */}
+      {sandboxEnabled && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 1.5,
+            py: 0.5,
+            bgcolor: '#fff7ed',
+            border: '1px solid #ffedd5',
+            borderRadius: '4px',
+            color: '#c2410c',
+            animation: 'pulseSandbox 2s infinite',
+            '@keyframes pulseSandbox': {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: 0.7 },
+            }
+          }}
+        >
+          <ScienceOutlinedIcon sx={{ fontSize: '1rem' }} />
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, fontFamily: 'Jost', letterSpacing: '0.05em' }}>
+            SANDBOX ACTIVE
+          </Typography>
+        </Box>
+      )}
+
+      {/* Eureka AI Companion Indicator */}
+      <Box
+        onClick={() => setEurekaEnabled(!eurekaEnabled)}
+        data-ai-analyzable="true"
+        data-ai-description={`Eureka Realtime Buddy Control. Status: ${eurekaEnabled ? 'Active' : 'Inactive'}. When active, hovering sidebar items triggers AI insights.`}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.25,
+          cursor: 'pointer',
+          userSelect: 'none',
+          opacity: isLoading ? 0.6 : 1,
+          pointerEvents: isLoading ? 'none' : 'auto',
+          px: 1.75,
+          py: 1,
+          borderRadius: '10px',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          position: 'relative',
+          '&:hover': {
+            bgcolor: eurekaEnabled ? `${colorPalette.primary}08` : '#f1f5f9'
+          },
+        }}
+      >
+        {/* AI Companion Avatar */}
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            bgcolor: eurekaEnabled ? colorPalette.primary : '#e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'relative',
+            boxShadow: eurekaEnabled ? `0 0 0 2px ${colorPalette.primary}20, 0 2px 8px ${colorPalette.primary}15` : 'none',
+            '&::after': eurekaEnabled ? {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: `2px solid ${colorPalette.primary}`,
+              opacity: 0.3,
+              animation: 'pulse-ring 2s ease-in-out infinite',
+              '@keyframes pulse-ring': {
+                '0%': {
+                  boxShadow: `0 0 0 0 ${colorPalette.primary}60`,
+                },
+                '70%': {
+                  boxShadow: `0 0 0 10px ${colorPalette.primary}00`,
+                },
+                '100%': {
+                  boxShadow: `0 0 0 0 ${colorPalette.primary}00`,
+                },
+              },
+            } : 'none',
+          }}
+        >
+          <PsychologyIcon sx={{ fontSize: '1.125rem', color: eurekaEnabled ? '#fff' : '#94a3b8' }} />
+        </Box>
+
+        {/* Status Label */}
+        <Stack direction="column" spacing={0.25} alignItems="flex-start">
+          <Typography
+            sx={{
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              color: '#64748b',
+              fontFamily: 'Jost',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            AI Helper
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: eurekaEnabled ? '#10b981' : '#cbd5e1',
+                animation: eurekaEnabled ? 'pulse 2s ease-in-out infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.4 },
+                },
+              }}
+            />
+            <Typography
+              sx={{
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                color: eurekaEnabled ? '#10b981' : '#94a3b8',
+                fontFamily: 'Jost',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {eurekaEnabled ? 'ACTIVE' : 'OFF'}
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
       {/* Eureka Trigger */}
       <Box
         onClick={onOpenEureka}
+        data-ai-analyzable="true"
+        data-ai-description="Instant Eureka Insight: Click to get context-aware analysis of the current screen and active security events."
         sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 1,
           px: 1.75,
           height: 38,
-          bgcolor: `${colorPalette.primary}0a`,
-          border: `1px solid ${colorPalette.primary}25`,
+          bgcolor: colorPalette.primary,
+          border: `1px solid ${colorPalette.primary}`,
           cursor: 'pointer',
           transition: 'all 0.18s ease',
           '&:hover': {
-            bgcolor: `${colorPalette.primary}14`,
-            borderColor: colorPalette.primary,
+            bgcolor: '#1a3896',
+            boxShadow: `0 4px 12px ${colorPalette.primary}30`,
             transform: 'translateY(-1px)',
           },
         }}
       >
-        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
+        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem', color: '#fff' }} />
         <Typography
           sx={{
             fontSize: '0.8125rem',
             fontWeight: 600,
-            color: colorPalette.primary,
+            color: '#fff',
             fontFamily: 'Jost',
           }}
         >

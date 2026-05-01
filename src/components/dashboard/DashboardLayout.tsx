@@ -4,7 +4,9 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import EurekaAssistant from './EurekaAssistant'
 import InactivityGuard from './InactivityGuard'
+import EurekaCompanionGlow from './EurekaCompanionGlow'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
+import { EurekaProvider, useEureka } from '@/contexts/EurekaContext'
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LoginAttemptAlert from './LoginAttemptAlert'
@@ -19,6 +21,7 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   eurekaOpen: boolean
   setEurekaOpen: (v: boolean) => void
 }) {
+  const { eurekaEnabled } = useEureka()
   const { securityEvents, geoAccessRequests } = useDashboardEvents()
   const [dismissed,    setDismissed]    = useState<Set<string>>(new Set())
   const [dismissedGeo, setDismissedGeo] = useState<Set<number>>(new Set())
@@ -41,11 +44,14 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
         </Box>
         <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
         <InactivityGuard />
+        {eurekaEnabled && <EurekaCompanionGlow />}
 
         {!eurekaOpen && (
           <Tooltip title="Ask Eureka" placement="left">
             <Box
               onClick={() => setEurekaOpen(true)}
+              data-ai-analyzable="true"
+              data-ai-description="Eureka AI Companion: Click to open the full chat assistant for deep investigation and system analysis."
               sx={{
                 position: 'fixed', bottom: 28, right: 28, width: 60, height: 60,
                 borderRadius: '50%', bgcolor: colorPalette.primary, color: '#ffffff',
@@ -96,14 +102,20 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   )
 }
 
+import { SandboxProvider, useSandbox } from '@/contexts/SandboxContext'
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [eurekaOpen, setEurekaOpen] = useState(false)
 
   return (
-    <DashboardEventsProvider>
-      <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-        {children}
-      </DashboardContent>
-    </DashboardEventsProvider>
+    <SandboxProvider>
+      <EurekaProvider>
+        <DashboardEventsProvider>
+          <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
+            {children}
+          </DashboardContent>
+        </DashboardEventsProvider>
+      </EurekaProvider>
+    </SandboxProvider>
   )
 }

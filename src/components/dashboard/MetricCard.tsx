@@ -20,6 +20,8 @@ export default function MetricCard({ label, value, trend, trendLabel, invertTren
 
   return (
     <Box
+      data-ai-analyzable="true"
+      data-ai-description={`${label} metric: currently ${value}${trend !== undefined ? ` with a ${trend}% ${trendLabel}` : ''}.`}
       sx={{
         bgcolor: '#ffffff',
         border: '1px solid #eef0f4',

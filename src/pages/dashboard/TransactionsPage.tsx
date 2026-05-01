@@ -219,6 +219,8 @@ export default function TransactionsPage() {
               <Box
                 key={f}
                 onClick={() => setActive(f)}
+                data-ai-analyzable="true"
+                data-ai-description={`Filter transactions by status: ${f}.`}
                 sx={{ px: 1.75, py: 0.875, fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: active === f ? colorPalette.primary : '#64748b', bgcolor: active === f ? `${colorPalette.primary}0a` : 'transparent', fontFamily: 'Jost', transition: 'all 0.15s', '&:hover': { bgcolor: active === f ? `${colorPalette.primary}0f` : '#f8fafc' } }}
               >
                 {f}
@@ -326,6 +328,8 @@ export default function TransactionsPage() {
               return (
                 <Box
                   key={t.id}
+                  data-ai-analyzable="true"
+                  data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. Status: ${badgeCfg.label}. ${t.location ? `Location: ${t.location}` : ''}`}
                   sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', borderBottom: '1px solid #f4f5f7', bgcolor: isSelected ? `${colorPalette.primary}06` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
                 >
                   {/* Checkbox */}

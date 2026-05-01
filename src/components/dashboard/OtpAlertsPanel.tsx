@@ -39,6 +39,8 @@ function AlertRow({ alert }: { alert: OtpAlertItem }) {
   const cfg = ruleConfig[alert.rule]
   return (
     <Box
+      data-ai-analyzable="true"
+      data-ai-description={`OTP Alert: ${cfg.label} for customer ${alert.customerId || 'Unknown'}. Frequency: ${alert.eventCount} events. ${alert.detail ? `Analysis: ${alert.detail}. ` : ''}Fired via ${alert.channel || 'System'}.`}
       sx={{
         px: 2.5,
         py: 1.5,
@@ -121,7 +123,11 @@ export default function OtpAlertsPanel() {
   const warningCount  = alerts.filter(a => a.severity === 'warning').length
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      data-ai-analyzable="true"
+      data-ai-description={`OTP Alerts Monitor: Currently tracking ${criticalCount} critical and ${warningCount} warning anomalies across the authentication stream.`}
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Header */}
       <Box sx={{ px: 2.5, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>

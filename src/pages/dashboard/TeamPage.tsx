@@ -299,6 +299,8 @@ export default function TeamPage() {
             <Box
               key={t.id}
               onClick={() => setTab(t.id)}
+              data-ai-analyzable="true"
+              data-ai-description={`Team Management View: ${t.label}.`}
               sx={{
                 px: 2.5,
                 py: 1.25,
@@ -405,6 +407,8 @@ export default function TeamPage() {
                 return (
                   <Box
                     key={m.email}
+                    data-ai-analyzable="true"
+                    data-ai-description={`Team Member: ${m.name}. role: ${role.name}. email: ${m.email}. last active: ${m.lastActive}.`}
                     sx={{
                       display: 'grid',
                       gridTemplateColumns: '1fr 1fr 200px 140px 32px',
@@ -583,6 +587,8 @@ export default function TeamPage() {
                   return (
                     <Box
                       key={p.email}
+                      data-ai-analyzable="true"
+                      data-ai-description={`Pending Invitation: ${p.email}. role: ${role.name}. invited by: ${p.invitedBy} on ${p.invitedOn}. status: PENDING ACCEPTANCE.`}
                       sx={{
                         display: 'grid',
                         gridTemplateColumns: '1fr 200px 180px 120px 100px',
@@ -743,6 +749,8 @@ export default function TeamPage() {
                     {section.actions.map((action, ai) => (
                       <Box
                         key={action.key}
+                        data-ai-analyzable="true"
+                        data-ai-description={`Permission Audit: ${section.area} - ${action.label}. Analysis of access distribution across all defined roles.`}
                         sx={{
                           display: 'grid',
                           gridTemplateColumns: `260px repeat(${roles.length}, 1fr)`,

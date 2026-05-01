@@ -380,6 +380,8 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
     <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
+        data-ai-analyzable="true"
+        data-ai-description={`Webhook Delivery: ${shortId(d.deliveryId)}. event: ${d.eventType}. status: ${d.status}. response: ${d.responseCode ?? 'N/A'}. duration: ${fmtDuration(d.durationMs)}. queued: ${fmtRelative(d.createdAt)}.`}
         sx={{
           px: 3, py: 1.5,
           display: 'grid',
@@ -429,7 +431,10 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
+    <Box 
+      data-ai-analyzable="true"
+      data-ai-description={`Webhook Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
@@ -551,7 +556,10 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
             </Stack>
           ) : (
             <Stack gap={3}>
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+              <Box 
+                data-ai-analyzable="true"
+                data-ai-description={`Webhook Security: API Key Configuration. status: ${rule?.hasApiKey ? 'Configured' : 'Not set'}. When set, OpenIV sends this key in the X-OpenIV-Api-Key header to verify request origin.`}
+                sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875 }}>
                     <VpnKeyOutlinedIcon sx={{ fontSize: '1rem', color: '#475569' }} />

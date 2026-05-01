@@ -140,7 +140,12 @@ function CustomersView() {
           { label: 'Restricted', value: stats.restricted, sub: 'limited access' },
           { label: 'Unverifiable', value: stats.unverifiable, sub: 'lookup failed or timeout' },
         ].map((s) => (
-          <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+          <Box
+            key={s.label}
+            data-ai-analyzable="true"
+            data-ai-description={`KYC Performance Stat: ${s.label} is currently ${s.value}. ${s.sub}`}
+            sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}
+          >
             <Typography sx={{
               fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
               textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75
@@ -239,13 +244,18 @@ function CustomersView() {
           </Box>
         ) : (
           filtered.map(({ log, advisory }, i) => (
-            <Box key={log.id} sx={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 90px 130px 90px 90px 110px 150px',
-              gap: 2, px: 3, py: 1.625, alignItems: 'center',
-              borderBottom: i === filtered.length - 1 ? 'none' : '1px solid #f4f5f7',
-              '&:hover': { bgcolor: '#fafbfc' },
-            }}>
+            <Box
+              key={log.id}
+              data-ai-analyzable="true"
+              data-ai-description={`KYC Audit Log for customer ${log.customerRef}. Advisory: ${advisory}. Bank status: ${log.kycStatus || 'N/A'}. Performed at: ${fmtTs(log.performedAt)}.`}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 90px 130px 90px 90px 110px 150px',
+                gap: 2, px: 3, py: 1.625, alignItems: 'center',
+                borderBottom: i === filtered.length - 1 ? 'none' : '1px solid #f4f5f7',
+                '&:hover': { bgcolor: '#fafbfc' },
+              }}
+            >
               <Box>
                 <Typography sx={{
                   fontSize: '0.875rem', fontWeight: 600, color: '#0f172a',
