@@ -63,7 +63,7 @@ public final class DashboardHandlers {
       final long[] lastActivityId = { 0L };
       final long[] lastOtpId      = { 0L };
       final long[] institutionId  = { 0L };
-      final int[]  pendingInit    = { 4 };   // stats + activity + otp + institutionId
+      final int[]  pendingInit    = { 6 };   // stats + activity + otp + beam + cases + institutionId
 
       Runnable startTimers = () -> {
         if (sseEnded(resp)) return;
@@ -85,6 +85,16 @@ public final class DashboardHandlers {
             if (sseEnded(resp) || alerts.isEmpty()) return;
             lastOtpId[0] = alerts.get(0).id();
             safeWrite(resp, sseEvent("otpUpdate", otpAlertsJson(alerts)));
+          });
+
+          service.recentBeamEvents(session).onSuccess(events -> {
+            if (sseEnded(resp) || events.isEmpty()) return;
+            safeWrite(resp, sseEvent("beamEvents", eventsJson(events)));
+          });
+
+          service.recentCaseEvents(session).onSuccess(events -> {
+            if (sseEnded(resp) || events.isEmpty()) return;
+            safeWrite(resp, sseEvent("caseEvents", eventsJson(events)));
           });
         });
 
@@ -155,6 +165,20 @@ public final class DashboardHandlers {
             if (sseEnded(resp)) return;
             if (!alerts.isEmpty()) lastOtpId[0] = alerts.get(0).id();
             safeWrite(resp, sseEvent("otpInit", otpAlertsJson(alerts)));
+          })
+          .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
+
+      service.recentBeamEvents(session)
+          .onSuccess(events -> {
+            if (sseEnded(resp)) return;
+            safeWrite(resp, sseEvent("beamEvents", eventsJson(events)));
+          })
+          .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
+
+      service.recentCaseEvents(session)
+          .onSuccess(events -> {
+            if (sseEnded(resp)) return;
+            safeWrite(resp, sseEvent("caseEvents", eventsJson(events)));
           })
           .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
     };

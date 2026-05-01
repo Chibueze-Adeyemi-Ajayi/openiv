@@ -80,15 +80,15 @@ public final class BeamRepository {
 
   public Future<BeamRecord> saveRecord(long institutionId, String stream,
       String idempotencyKey, String payload,
-      String ip, String userAgent, String requestHeadersJson, int bytes) {
+      String ip, String userAgent, String requestHeadersJson, int bytes, Integer durationMs) {
     String sql =
         "INSERT INTO beam_records"
-        + " (institution_id, stream, idempotency_key, payload, ip, user_agent, request_headers, bytes)"
-        + " VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)"
+        + " (institution_id, stream, idempotency_key, payload, ip, user_agent, request_headers, bytes, duration_ms)"
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)"
         + " RETURNING " + RECORD_COLS;
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, stream, idempotencyKey, payload,
-            ip, userAgent, requestHeadersJson, bytes))
+            ip, userAgent, requestHeadersJson, bytes, durationMs))
         .map(rs -> mapRecord(rs.iterator().next()));
   }
 

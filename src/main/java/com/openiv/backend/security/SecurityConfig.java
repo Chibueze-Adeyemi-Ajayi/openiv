@@ -35,7 +35,8 @@ public record SecurityConfig(
         stringList(s.getJsonArray("corsAllowedMethods",
             new JsonArray().add("GET").add("POST").add("PUT").add("PATCH").add("DELETE"))),
         stringList(s.getJsonArray("corsAllowedHeaders",
-            new JsonArray().add("authorization").add("content-type").add("x-request-id"))),
+            new JsonArray().add("authorization").add("content-type").add("x-request-id")
+                .add("x-idempotency-key").add("X-Idempotency-Key").add("X-Requested-With"))),
         s.getBoolean("corsAllowCredentials", false),
         s.getLong("maxBodyBytes", 64L * 1024L),
         s.getInteger("rateLimitRequestsPerMinute", 600),

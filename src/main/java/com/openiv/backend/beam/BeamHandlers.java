@@ -9,7 +9,7 @@ import io.vertx.ext.web.RoutingContext;
 
 public final class BeamHandlers {
 
-  private final BeamService    service;
+  private final BeamService service;
   private final BillingService billing;
 
   public BeamHandlers(BeamService service, BillingService billing) {
@@ -19,14 +19,16 @@ public final class BeamHandlers {
 
   public Handler<RoutingContext> ingest() {
     return ctx -> {
+      long start = System.currentTimeMillis();
       long institutionId = ctx.get(BeamApiKeyHandler.INSTITUTION_ID_KEY);
       String stream = ctx.pathParam("stream");
       JsonObject body = body(ctx);
-      if (body == null) return;
+      if (body == null)
+        return;
       String idempotencyKey = ctx.request().getHeader("X-Idempotency-Key");
 
       // Capture request metadata for network log
-      String ip        = ctx.request().remoteAddress().hostAddress();
+      String ip = ctx.request().remoteAddress().hostAddress();
       String userAgent = ctx.request().getHeader("User-Agent");
       int payloadBytes = ctx.body().buffer() != null ? ctx.body().buffer().length() : 0;
       JsonObject headersJson = new JsonObject();
@@ -37,17 +39,19 @@ public final class BeamHandlers {
       });
 
       service.ingest(institutionId, stream, idempotencyKey, body.encode(),
-              ip, userAgent, headersJson.encode(), payloadBytes)
+          ip, userAgent, headersJson.encode(), payloadBytes, (int)(System.currentTimeMillis() - start))
           .onSuccess(r -> {
-            billing.chargeBeamIngestAsync(institutionId);
+            billing.chargeBeamIngestAsync(institutionId, "beam_" + r.id());
             ok(ctx, new JsonObject()
                 .put("ok", true)
                 .put("recordId", r.id())
                 .put("status", r.status()));
           })
           .onFailure(err -> {
-            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
-            else ctx.fail(err);
+            if (err instanceof IllegalArgumentException)
+              badRequest(ctx, err.getMessage());
+            else
+              ctx.fail(err);
           });
     };
   }
@@ -102,7 +106,11 @@ public final class BeamHandlers {
         .put("idempotencyKey", r.idempotencyKey())
         .put("payload", r.payload())
         .put("status", r.status())
-        .put("receivedAt", r.receivedAt().toString());
+        .put("receivedAt", r.receivedAt().toString())
+        .put("durationMs", r.durationMs())
+        .put("bytes", r.bytes())
+        .put("ip", r.ip())
+        .put("userAgent", r.userAgent());
   }
 
   private static JsonObject apiKeyJson(BeamApiKey k) {
@@ -127,8 +135,14 @@ public final class BeamHandlers {
   private static JsonObject body(RoutingContext ctx) {
     try {
       JsonObject b = ctx.body().asJsonObject();
-      if (b == null) { ctx.fail(400); return null; }
+      if (b == null) {
+        ctx.fail(400);
+        return null;
+      }
       return b;
-    } catch (Exception e) { ctx.fail(400); return null; }
+    } catch (Exception e) {
+      ctx.fail(400);
+      return null;
+    }
   }
 }

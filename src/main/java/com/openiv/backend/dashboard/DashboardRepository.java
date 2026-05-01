@@ -25,31 +25,23 @@ public final class DashboardRepository {
   // ── Dashboard stats ────────────────────────────────────────────────────────
 
   public Future<DashboardStats> stats(long institutionId) {
-    OffsetDateTime now           = OffsetDateTime.now(ZoneOffset.UTC);
-    LocalDate      today         = now.toLocalDate();
-    OffsetDateTime todayStart    = today.atStartOfDay().atOffset(ZoneOffset.UTC);
-    OffsetDateTime tomorrowStart = today.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
-    OffsetDateTime yesterdayStart= today.minusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
-
     String sql = """
         SELECT
-          COALESCE((SELECT COUNT(*)::int FROM transactions
-                    WHERE institution_id = $1 AND occurred_at >= $2 AND occurred_at < $3), 0)   AS total_today,
-          COALESCE((SELECT COUNT(*)::int FROM transactions
-                    WHERE institution_id = $1 AND occurred_at >= $2 AND occurred_at < $3
-                      AND flagged_status IS NOT NULL), 0)                                        AS flagged_today,
-          COALESCE((SELECT COUNT(*)::int FROM transactions
-                    WHERE institution_id = $1 AND occurred_at >= $4 AND occurred_at < $2), 0)   AS total_yesterday,
-          COALESCE((SELECT COUNT(*)::int FROM transactions
-                    WHERE institution_id = $1 AND occurred_at >= $4 AND occurred_at < $2
-                      AND flagged_status IS NOT NULL), 0)                                        AS flagged_yesterday,
-          COALESCE((SELECT COUNT(*)::int FROM cases
-                    WHERE institution_id = $1
-                      AND status NOT IN ('closed')), 0)                                          AS open_cases
+          (SELECT COUNT(*)::int FROM transactions
+           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now()) AND occurred_at < date_trunc('day', now() + interval '1 day')) AS total_today,
+          (SELECT COUNT(*)::int FROM transactions
+           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now()) AND occurred_at < date_trunc('day', now() + interval '1 day')
+             AND flagged_status IS NOT NULL) AS flagged_today,
+          (SELECT COUNT(*)::int FROM transactions
+           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now() - interval '1 day') AND occurred_at < date_trunc('day', now())) AS total_yesterday,
+          (SELECT COUNT(*)::int FROM transactions
+           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now() - interval '1 day') AND occurred_at < date_trunc('day', now())
+             AND flagged_status IS NOT NULL) AS flagged_yesterday,
+          (SELECT COUNT(*)::int FROM cases
+           WHERE institution_id = $1 AND status NOT IN ('closed')) AS open_cases
         """;
 
-    return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, todayStart, tomorrowStart, yesterdayStart))
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
         .map(rows -> {
           var r = rows.iterator().next();
           return new DashboardStats(
@@ -168,6 +160,62 @@ public final class DashboardRepository {
         """;
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, lastId))
+        .map(rows -> {
+          var list = new ArrayList<ActivityEvent>(rows.size());
+          rows.forEach(r -> list.add(mapEvent(r)));
+          return list;
+        });
+  }
+
+  // ── Recent Beam Events (transaction ingestion) ─────────────────────────────
+
+  public Future<List<ActivityEvent>> recentBeamEvents(long institutionId) {
+    String sql = """
+        SELECT
+          ROW_NUMBER() OVER (ORDER BY received_at DESC)::bigint as id,
+          'beam' as source,
+          'info' as severity,
+          stream as title,
+          'Data ingestion: ' || stream || ' stream received' as detail,
+          stream as entity_id,
+          'beam_record' as entity_type,
+          'system' as actor,
+          received_at as occurred_at
+        FROM beam_records
+        WHERE institution_id = $1
+        ORDER BY received_at DESC
+        LIMIT 15
+        """;
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId))
+        .map(rows -> {
+          var list = new ArrayList<ActivityEvent>(rows.size());
+          rows.forEach(r -> list.add(mapEvent(r)));
+          return list;
+        });
+  }
+
+  // ── Recent Cases ────────────────────────────────────────────────────────────
+
+  public Future<List<ActivityEvent>> recentCaseEvents(long institutionId) {
+    String sql = """
+        SELECT
+          id::bigint as id,
+          'case' as source,
+          priority as severity,
+          title as title,
+          'Case ' || status || ': ' || title as detail,
+          id as entity_id,
+          'case' as entity_type,
+          assigned_to::text as actor,
+          created_at as occurred_at
+        FROM cases
+        WHERE institution_id = $1
+        ORDER BY created_at DESC
+        LIMIT 10
+        """;
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId))
         .map(rows -> {
           var list = new ArrayList<ActivityEvent>(rows.size());
           rows.forEach(r -> list.add(mapEvent(r)));

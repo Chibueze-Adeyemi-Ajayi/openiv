@@ -68,6 +68,14 @@ public final class WebhookPayloadBuilder {
         .put("pattern", pattern(5, 12, 34, 1_250_000, false, false, true));
   }
 
+  /** tx.received — transaction data was successfully ingested and registered. */
+  public static JsonObject txReceived(JsonObject transactionData) {
+    return new JsonObject()
+        .put("transaction", transactionData)
+        .put("status", "received")
+        .put("receivedAt", Instant.now().toString());
+  }
+
   /** tx.blocked — transaction was automatically blocked before settlement. */
   public static JsonObject txBlocked(long institutionId) {
     return new JsonObject()

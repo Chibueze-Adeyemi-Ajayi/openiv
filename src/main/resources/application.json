@@ -16,20 +16,22 @@
     "sslMode": "disable"
   },
   "security": {
-    "corsAllowedOrigins": [],
+    "corsAllowedOrigins": ["http://localhost:5173"],
     "corsAllowedMethods": [
       "GET",
       "POST",
       "PUT",
       "PATCH",
-      "DELETE"
+      "DELETE",
+      "OPTIONS"
     ],
     "corsAllowedHeaders": [
       "authorization",
       "content-type",
-      "x-request-id"
+      "x-request-id",
+      "x-institution-id"
     ],
-    "corsAllowCredentials": false,
+    "corsAllowCredentials": true,
     "maxBodyBytes": 65536,
     "rateLimitRequestsPerMinute": 600,
     "requestTimeoutMillis": 30000,

@@ -53,13 +53,17 @@ import org.jooq.impl.DSL;
 /**
  * Versioned API router. Mount new feature routers under {@code /api/v1} here.
  *
- * <p>Ordering note: the auth sub-router is mounted BEFORE the blanket {@link RequireAuth} gate
- * so that public auth endpoints (login, reset) are reachable pre-session. Inside
+ * <p>
+ * Ordering note: the auth sub-router is mounted BEFORE the blanket
+ * {@link RequireAuth} gate
+ * so that public auth endpoints (login, reset) are reachable pre-session.
+ * Inside
  * {@link AuthRouter} each route decides its own session requirements.
  */
 public final class V1Router {
 
-  private V1Router() {}
+  private V1Router() {
+  }
 
   public static Router create(Vertx vertx, Pool dbPool, SecurityConfig security,
       AuthService authService, AccessRequestService accessRequestService,
@@ -76,17 +80,19 @@ public final class V1Router {
         .handler(new AccessRequestHandlers(accessRequestService).submit());
 
     // Auth endpoints mount their own per-route session handlers.
-    // Cookie flags: dev → not-Secure + SameSite=Lax (so :5173 can reach :8080 over HTTP);
-    //               prod → Secure + SameSite=Strict.
+    // Cookie flags: dev → not-Secure + SameSite=Lax (so :5173 can reach :8080 over
+    // HTTP);
+    // prod → Secure + SameSite=Strict.
     router.route("/auth/*").subRouter(AuthRouter.create(vertx, authService, !devMode));
 
     // Team management — requires an authenticated session (gate inside TeamRouter).
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService));
 
-    // Billing — instantiated first; referenced by Transactions, Cases, Beam, KYC, Dashboard
+    // Billing — instantiated first; referenced by Transactions, Cases, Beam, KYC,
+    // Dashboard
     String paystackSecret = System.getenv().getOrDefault("PAYSTACK_SECRET_KEY", "sk_test_placeholder");
     String paystackPublic = System.getenv().getOrDefault("PAYSTACK_PUBLIC_KEY", "pk_test_placeholder");
-    String billingEncKey  = System.getenv("BILLING_ENCRYPTION_KEY"); // null → dev fallback inside service
+    String billingEncKey = System.getenv("BILLING_ENCRYPTION_KEY"); // null → dev fallback inside service
     BillingService billingService = new BillingService(
         new BillingRepository(dbPool), new UserRepository(dbPool),
         vertx, paystackSecret, billingEncKey);
@@ -121,7 +127,8 @@ public final class V1Router {
     router.patch("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuHandlers.updateSchedule());
     router.delete("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuHandlers.deleteSchedule());
 
-    // Transactions — two endpoints registered directly to avoid sub-router path-stripping on root.
+    // Transactions — two endpoints registered directly to avoid sub-router
+    // path-stripping on root.
     TransactionHandlers txnHandlers = new TransactionHandlers(transactionService, billingService);
     Handler<RoutingContext> txnAuth = SessionAuthHandler.authenticated(authService);
     router.get("/transactions").handler(txnAuth).handler(txnHandlers.list());
@@ -152,10 +159,11 @@ public final class V1Router {
 
     // Beam API key auth for ingest endpoints
     BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
-    BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService);
+    BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService, authService);
     Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
 
-    // Beam management — session authenticated (must be before /:stream to avoid param capture)
+    // Beam management — session authenticated (must be before /:stream to avoid
+    // param capture)
     router.get("/beam/records").handler(beamSessionAuth).handler(beamHandlers.listRecords());
     router.get("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.getApiKeyInfo());
     router.post("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.generateApiKey());
@@ -202,14 +210,16 @@ public final class V1Router {
     router.post("/documents/upload").handler(docAuth).handler(docHandlers.upload());
     router.get("/documents/:id").handler(docAuth).handler(docHandlers.download());
 
-    // Heatmaps — day-of-week × hour density from transactions and login beam records
+    // Heatmaps — day-of-week × hour density from transactions and login beam
+    // records
     HeatmapHandlers heatmapHandlers = new HeatmapHandlers(heatmapService);
     Handler<RoutingContext> heatmapAuth = SessionAuthHandler.authenticated(authService);
     router.get("/heatmap/transactions").handler(heatmapAuth).handler(heatmapHandlers.transactions());
     router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
-    DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx, billingService);
+    DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx,
+        billingService);
     Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
     router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
     router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());

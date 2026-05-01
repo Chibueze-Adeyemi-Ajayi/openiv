@@ -46,6 +46,10 @@ public final class TransactionService {
         .compose(institutionId -> repository.importBatch(institutionId, rows));
   }
 
+  public Future<Void> ingestFromBeam(long institutionId, TransactionImport row) {
+    return repository.importBatch(institutionId, List.of(row)).mapEmpty();
+  }
+
   private Future<Long> resolveInstitution(Session session) {
     return users.findById(session.userId()).map(opt -> {
       User u = opt.orElseThrow(() -> AuthException.invalid("session"));

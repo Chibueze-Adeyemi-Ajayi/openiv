@@ -70,6 +70,14 @@ public final class DashboardService {
     return resolveUser(session).compose(u -> repository.updateOtpAlertStatus(id, u.institutionId(), status));
   }
 
+  public Future<List<ActivityEvent>> recentBeamEvents(Session session) {
+    return resolveUser(session).compose(u -> repository.recentBeamEvents(u.institutionId()));
+  }
+
+  public Future<List<ActivityEvent>> recentCaseEvents(Session session) {
+    return resolveUser(session).compose(u -> repository.recentCaseEvents(u.institutionId()));
+  }
+
   private Future<User> resolveUser(Session session) {
     return users.findById(session.userId())
         .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")));

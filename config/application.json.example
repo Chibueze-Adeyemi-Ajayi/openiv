@@ -19,7 +19,7 @@
     "_comment_cors": "Enable credentials so the browser sends the HttpOnly session cookie on cross-origin XHR from Vite (:5173) to the API (:8080).",
     "corsAllowedOrigins": ["http://localhost:5173","http://localhost:5174"],
     "corsAllowedMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    "corsAllowedHeaders": ["authorization", "content-type", "x-request-id"],
+    "corsAllowedHeaders": ["authorization", "content-type", "x-request-id", "x-idempotency-key", "X-Idempotency-Key", "X-Requested-With"],
     "corsAllowCredentials": true,
     "maxBodyBytes": 65536,
     "rateLimitRequestsPerMinute": 600,

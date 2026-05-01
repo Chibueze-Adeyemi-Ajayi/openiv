@@ -17,7 +17,7 @@ import java.util.Set;
 public final class WebhookService {
 
   private static final Set<String> VALID_EVENTS = Set.of(
-      "tx.flagged", "tx.blocked",
+      "tx.received", "tx.flagged", "tx.blocked",
       "case.opened", "case.escalated",
       "kyc.failed", "sar.filed");
 
@@ -147,6 +147,27 @@ public final class WebhookService {
 
   public Future<List<WebhookDelivery>> listAllDeliveries(Session session) {
     return resolveUser(session).compose(u -> repository.listAllDeliveries(u.institutionId()));
+  }
+
+  /**
+   * Broadcasts an event to all active webhook endpoints for an institution.
+   */
+  public Future<Void> broadcast(long institutionId, String eventType, JsonObject data) {
+    if (!VALID_EVENTS.contains(eventType)) {
+      return Future.failedFuture(new IllegalArgumentException("Unknown event type: " + eventType));
+    }
+
+    return repository.listEndpoints(institutionId).compose(endpoints -> {
+      List<Future<WebhookDelivery>> futures = endpoints.stream()
+          .filter(e -> "active".equalsIgnoreCase(e.status()))
+          .filter(e -> e.events().contains(eventType))
+          .map(e -> repository.findOrCreateSecret(institutionId).compose(secret ->
+              repository.findSecurityRule(e.id(), institutionId).compose(ruleOpt ->
+                  deliveryService.deliver(e, secret, ruleOpt.orElse(null), eventType, data))))
+          .toList();
+
+      return Future.all(futures).mapEmpty();
+    });
   }
 
   // ── Signing ───────────────────────────────────────────────────────────────

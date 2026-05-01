@@ -57,11 +57,11 @@ public final class BillingService {
 
   // ── Fire-and-forget charge helpers (called from handlers) ─────────────────
 
-  public void chargeBeamIngestAsync(long institutionId) {
+  public void chargeBeamIngestAsync(long institutionId, String reference) {
     repository.getOrCreateWallet(institutionId)
         .compose(wallet -> repository.debit(
             institutionId, wallet.id(), BillingRates.RATE_BEAM_INGEST,
-            "beam_ingest", "Beam data ingest", null))
+            "beam_ingest", "Beam data ingest" + (reference != null ? " · " + reference : ""), reference))
         .onFailure(err -> log.warn("Beam billing charge failed for institution {}: {}",
             institutionId, err.getMessage()));
   }

@@ -166,7 +166,7 @@ public final class Main {
         BeamRepository beamRepository = new BeamRepository(pool);
         OtpAlertRepository otpAlertRepository = new OtpAlertRepository(pool, vertx);
         OtpAnalyzer otpAnalyzer = new OtpAnalyzer(otpAlertRepository);
-        BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer);
+        BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService, webhookService);
         KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
