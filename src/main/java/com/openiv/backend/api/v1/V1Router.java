@@ -31,6 +31,7 @@ import com.openiv.backend.dashboard.DashboardHandlers;
 import com.openiv.backend.dashboard.DashboardService;
 import com.openiv.backend.geofence.GeoFenceHandlers;
 import com.openiv.backend.geofence.GeoFenceService;
+import com.openiv.backend.settings.EurekaSettingHandlers;
 import com.openiv.backend.heatmap.HeatmapHandlers;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycHandlers;
@@ -234,6 +235,12 @@ public final class V1Router {
     router.patch("/geo-access/requests/:id").handler(geoAuth).handler(geoHandlers.reviewRequest());
     // Watch stream — no session auth; guarded by watchToken query param
     router.get("/geo-access/requests/:id/watch").handler(geoHandlers.watchRequest());
+
+    // Eureka companion setting — per-user toggle, persisted in DB
+    EurekaSettingHandlers eurekaHandlers = new EurekaSettingHandlers(new UserRepository(dbPool));
+    Handler<RoutingContext> eurekaAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/settings/eureka").handler(eurekaAuth).handler(eurekaHandlers.getSetting());
+    router.put("/settings/eureka").handler(eurekaAuth).handler(eurekaHandlers.updateSetting());
 
     if (security.authRequired()) {
       router.route().handler(RequireAuth.notImplemented());

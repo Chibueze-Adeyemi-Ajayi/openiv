@@ -12,14 +12,16 @@ UPDATE transactions SET flagged_status = 'blocked'  WHERE status = 'blocked';
 UPDATE transactions SET flagged_status = 'review'   WHERE status = 'review';
 -- 'cleared' → flagged_status stays NULL (cleared normal transactions were never investigated)
 
--- Step 3: Map old status → new payment outcome status.
+-- Step 3: Drop old constraint so we can update values
+ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
+ALTER TABLE transactions ALTER COLUMN status SET DEFAULT 'pending';
+
+-- Step 4: Map old status → new payment outcome status.
 UPDATE transactions SET status = 'pending'    WHERE status IN ('flagged', 'review');
 UPDATE transactions SET status = 'failed'     WHERE status = 'blocked';
 UPDATE transactions SET status = 'successful' WHERE status = 'cleared';
 
--- Step 4: Replace the old status CHECK constraint with the new one.
-ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
-ALTER TABLE transactions ALTER COLUMN status SET DEFAULT 'pending';
+-- Step 5: Add the new status CHECK constraint
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
     CHECK (status IN ('pending', 'successful', 'failed'));
 

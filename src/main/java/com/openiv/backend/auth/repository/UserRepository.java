@@ -15,7 +15,7 @@ public final class UserRepository {
   private static final String SELECT_COLS =
       "id, email::text, full_name, email_verified, password_hash, password_updated_at, "
       + "must_change_password, status, role, account_type, institution_id, "
-      + "failed_login_attempts, locked_until, created_at, updated_at";
+      + "failed_login_attempts, locked_until, created_at, updated_at, eureka_companion_enabled";
 
   private final Pool pool;
 
@@ -116,6 +116,13 @@ public final class UserRepository {
         .mapEmpty();
   }
 
+  public Future<Void> updateEurekaCompanion(long userId, boolean enabled) {
+    return pool.preparedQuery(
+            "UPDATE users SET eureka_companion_enabled = $1, updated_at = now() WHERE id = $2")
+        .execute(Tuple.of(enabled, userId))
+        .mapEmpty();
+  }
+
   private static User map(Row r) {
     return new User(
         r.getLong("id"),
@@ -132,6 +139,7 @@ public final class UserRepository {
         r.getInteger("failed_login_attempts"),
         r.getOffsetDateTime("locked_until"),
         r.getOffsetDateTime("created_at"),
-        r.getOffsetDateTime("updated_at"));
+        r.getOffsetDateTime("updated_at"),
+        r.getBoolean("eureka_companion_enabled"));
   }
 }

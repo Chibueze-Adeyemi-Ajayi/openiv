@@ -17,7 +17,8 @@ public record User(
     int failedLoginAttempts,
     OffsetDateTime lockedUntil,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    boolean eurekaCompanionEnabled
 ) {
   public boolean isLocked() {
     return lockedUntil != null && lockedUntil.isAfter(OffsetDateTime.now());

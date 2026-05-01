@@ -30,7 +30,7 @@ public final class NetworkRepository {
           received_at                   AS ts
         FROM beam_records
         WHERE institution_id = $1
-          AND ($2 IS NULL OR received_at >= $2)
+          AND ($2::timestamptz IS NULL OR received_at >= $2::timestamptz)
 
         UNION ALL
 
@@ -53,16 +53,16 @@ public final class NetworkRepository {
         FROM webhook_deliveries d
         JOIN webhook_endpoints  e ON e.id = d.endpoint_id
         WHERE d.institution_id = $1
-          AND ($2 IS NULL OR COALESCE(d.delivered_at, d.created_at) >= $2)
+          AND ($2::timestamptz IS NULL OR COALESCE(d.delivered_at, d.created_at) >= $2::timestamptz)
       ) combined
-      WHERE ($3 IS NULL OR source = $3)
-        AND ($4 IS NULL OR (
-              ($4 = '2xx' AND status_code >= 200 AND status_code < 300) OR
-              ($4 = '4xx' AND status_code >= 400 AND status_code < 500) OR
-              ($4 = '5xx' AND status_code >= 500)
+      WHERE ($3::text IS NULL OR source = $3::text)
+        AND ($4::text IS NULL OR (
+              ($4::text = '2xx' AND status_code >= 200 AND status_code < 300) OR
+              ($4::text = '4xx' AND status_code >= 400 AND status_code < 500) OR
+              ($4::text = '5xx' AND status_code >= 500)
             ))
-        AND ($5 IS NULL OR LOWER(endpoint) LIKE '%' || LOWER($5) || '%'
-                        OR LOWER(COALESCE(stream,'')) LIKE '%' || LOWER($5) || '%')
+        AND ($5::text IS NULL OR LOWER(endpoint) LIKE '%' || LOWER($5::text) || '%'
+                        OR LOWER(COALESCE(stream,'')) LIKE '%' || LOWER($5::text) || '%')
       ORDER BY ts DESC
       LIMIT $6 OFFSET $7
       """;
