@@ -1,20 +1,26 @@
 package com.openiv.backend.webhooks;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.auth.service.AuthService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public final class WebhookHandlers {
 
+  private static final Logger log = LoggerFactory.getLogger(WebhookHandlers.class);
   private final WebhookService service;
+  private final AuthService authService;
 
-  public WebhookHandlers(WebhookService service) {
+  public WebhookHandlers(WebhookService service, AuthService authService) {
     this.service = service;
+    this.authService = authService;
   }
 
   // GET /webhooks/secret
@@ -31,9 +37,23 @@ public final class WebhookHandlers {
   public Handler<RoutingContext> rotateSecret() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
-      service.rotateSecret(session)
+      JsonObject body = body(ctx);
+      if (body == null) return;
+      String totpCode = body.getString("totpCode");
+      if (totpCode == null || totpCode.isBlank()) {
+        badRequest(ctx, "TOTP code required for webhook operations");
+        return;
+      }
+      authService.verifyTotpStepUp(session, totpCode)
+          .compose(v -> service.rotateSecret(session))
           .onSuccess(s -> ok(ctx, new JsonObject().put("secret", secretJson(s))))
-          .onFailure(ctx::fail);
+          .onFailure(err -> {
+            if (err.getMessage() != null && err.getMessage().contains("totp")) {
+              badRequest(ctx, "Invalid TOTP code");
+            } else {
+              ctx.fail(err);
+            }
+          });
     };
   }
 
@@ -44,10 +64,22 @@ public final class WebhookHandlers {
       JsonObject body = body(ctx);
       if (body == null) return;
       if (!body.containsKey("autoRotate")) { badRequest(ctx, "autoRotate required"); return; }
+      String totpCode = body.getString("totpCode");
+      if (totpCode == null || totpCode.isBlank()) {
+        badRequest(ctx, "TOTP code required for webhook operations");
+        return;
+      }
       boolean autoRotate = body.getBoolean("autoRotate", true);
-      service.updateAutoRotate(session, autoRotate)
+      authService.verifyTotpStepUp(session, totpCode)
+          .compose(v -> service.updateAutoRotate(session, autoRotate))
           .onSuccess(s -> ok(ctx, new JsonObject().put("secret", secretJson(s))))
-          .onFailure(ctx::fail);
+          .onFailure(err -> {
+            if (err.getMessage() != null && err.getMessage().contains("totp")) {
+              badRequest(ctx, "Invalid TOTP code");
+            } else {
+              ctx.fail(err);
+            }
+          });
     };
   }
 
@@ -73,16 +105,24 @@ public final class WebhookHandlers {
       if (body == null) return;
       String url         = body.getString("url");
       String description = body.getString("description");
+      String totpCode    = body.getString("totpCode");
       JsonArray evArr    = body.getJsonArray("events");
       if (url == null || url.isBlank())         { badRequest(ctx, "url is required"); return; }
       if (evArr == null || evArr.isEmpty())     { badRequest(ctx, "events required"); return; }
+      if (totpCode == null || totpCode.isBlank()) { badRequest(ctx, "TOTP code required for webhook operations"); return; }
       List<String> events = new ArrayList<>();
       evArr.forEach(o -> events.add(o.toString()));
-      service.createEndpoint(session, url, description, events)
+      authService.verifyTotpStepUp(session, totpCode)
+          .compose(v -> service.createEndpoint(session, url, description, events))
           .onSuccess(ep -> ok(ctx, new JsonObject().put("endpoint", endpointJson(ep))))
           .onFailure(err -> {
-            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
-            else ctx.fail(err);
+            if (err.getMessage() != null && err.getMessage().contains("totp")) {
+              badRequest(ctx, "Invalid TOTP code");
+            } else if (err instanceof IllegalArgumentException) {
+              badRequest(ctx, err.getMessage());
+            } else {
+              ctx.fail(err);
+            }
           });
     };
   }
@@ -95,18 +135,29 @@ public final class WebhookHandlers {
       if (id < 0) return;
       JsonObject body = body(ctx);
       if (body == null) return;
+      String totpCode = body.getString("totpCode");
+      if (totpCode == null || totpCode.isBlank()) {
+        badRequest(ctx, "TOTP code required for webhook operations");
+        return;
+      }
       String     status      = body.getString("status");
       String     description = body.getString("description");
       JsonArray  evArr       = body.getJsonArray("events");
       List<String> events    = evArr == null ? null : evArr.stream().map(Object::toString).toList();
-      service.updateEndpoint(session, id, status, events, description)
+      authService.verifyTotpStepUp(session, totpCode)
+          .compose(v -> service.updateEndpoint(session, id, status, events, description))
           .onSuccess(opt -> {
             if (opt.isEmpty()) { ctx.fail(404); return; }
             ok(ctx, new JsonObject().put("endpoint", endpointJson(opt.get())));
           })
           .onFailure(err -> {
-            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
-            else ctx.fail(err);
+            if (err.getMessage() != null && err.getMessage().contains("totp")) {
+              badRequest(ctx, "Invalid TOTP code");
+            } else if (err instanceof IllegalArgumentException) {
+              badRequest(ctx, err.getMessage());
+            } else {
+              ctx.fail(err);
+            }
           });
     };
   }
@@ -117,12 +168,44 @@ public final class WebhookHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = longPath(ctx, "id");
       if (id < 0) return;
-      service.deleteEndpoint(session, id)
+      JsonObject body = body(ctx);
+      if (body == null) return;
+      String totpCode = body.getString("totpCode");
+      if (totpCode == null || totpCode.isBlank()) {
+        badRequest(ctx, "TOTP code required for webhook operations");
+        return;
+      }
+      authService.verifyTotpStepUp(session, totpCode)
+          .compose(v -> service.deleteEndpoint(session, id))
           .onSuccess(deleted -> {
             if (!deleted) { ctx.fail(404); return; }
             ok(ctx, new JsonObject().put("ok", true));
           })
-          .onFailure(ctx::fail);
+          .onFailure(err -> {
+            if (err.getMessage() != null && err.getMessage().contains("totp")) {
+              badRequest(ctx, "Invalid TOTP code");
+            } else {
+              ctx.fail(err);
+            }
+          });
+    };
+  }
+
+  // POST /webhooks/verify
+  public Handler<RoutingContext> verifyEndpoint() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+      String url  = body.getString("url");
+      String type = body.getString("type", "notification");
+      if (url == null || url.isBlank()) { badRequest(ctx, "url is required"); return; }
+      service.verifyEndpoint(session, url, type)
+          .onSuccess(result -> ok(ctx, result))
+          .onFailure(err -> {
+            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
+            else ctx.fail(err);
+          });
     };
   }
 

@@ -233,6 +233,13 @@ public final class CaseRepository {
     return pool.preparedQuery(sql).execute(params).map(rs -> rs.rowCount() > 0);
   }
 
+  public Future<Boolean> updatePriority(String caseId, String priority) {
+    return pool.preparedQuery(
+        "UPDATE cases SET priority=$1, updated_at=now() WHERE id=$2")
+        .execute(Tuple.of(priority, caseId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
   // ── Link transaction ─────────────────────────────────────────────────────
 
   public Future<Boolean> linkTransaction(String caseId, String txnId, long institutionId) {

@@ -87,6 +87,14 @@ public final class WebhookService {
     return resolveUser(session).compose(u -> repository.deleteEndpoint(id, u.institutionId()));
   }
 
+  public Future<JsonObject> verifyEndpoint(Session session, String url, String type) {
+    if (url == null || !url.startsWith("https://"))
+      return Future.failedFuture(new IllegalArgumentException("URL must start with https://"));
+    if (!"notification".equals(type) && !"kyc".equals(type))
+      return Future.failedFuture(new IllegalArgumentException("type must be 'notification' or 'kyc'"));
+    return resolveUser(session).compose(u -> deliveryService.verifyUrl(url, type));
+  }
+
   // ── Security rules ────────────────────────────────────────────────────────
 
   public Future<Optional<WebhookSecurityRule>> getSecurityRule(Session session, long endpointId) {

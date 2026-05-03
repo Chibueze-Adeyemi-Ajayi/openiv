@@ -20,6 +20,10 @@ public final class BillingRepository {
     this.db = db;
   }
 
+  public Pool getPool() {
+    return db;
+  }
+
   // ── Wallet ────────────────────────────────────────────────────────────────
 
   public Future<BillingWallet> getOrCreateWallet(long institutionId) {

@@ -14,11 +14,11 @@ import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.DevDemoBankSeeder;
 import com.openiv.backend.team.TeamService;
 import com.openiv.backend.team.CustomRoleRepository;
-import com.openiv.backend.cases.CaseRepository;
+// import com.openiv.backend.cases.CaseRepository;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionRepository;
 import com.openiv.backend.transactions.TransactionService;
-import com.openiv.backend.thresholds.ThresholdRepository;
+// import com.openiv.backend.thresholds.ThresholdRepository;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamRepository;
 import com.openiv.backend.beam.BeamService;
@@ -35,6 +35,8 @@ import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookDeliveryService;
 import com.openiv.backend.webhooks.WebhookRepository;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.customers.CustomerRepository;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import com.openiv.backend.auth.service.AuthService;
@@ -155,9 +157,13 @@ public final class Main {
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
         TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
-        TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users);
-        CaseService caseService = new CaseService(new CaseRepository(pool), users);
-        ThresholdService thresholdService = new ThresholdService(new ThresholdRepository(pool), users);
+        CustomerRepository customerRepository = new CustomerRepository(pool);
+        CustomerService customerService = new CustomerService(customerRepository);
+        TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users, customerService);
+        var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
+        CaseService caseService = new CaseService(caseRepository, users);
+        var thresholdRepository = new com.openiv.backend.thresholds.ThresholdRepository(pool);
+        ThresholdService thresholdService = new ThresholdService(thresholdRepository, users);
         WebhookRepository webhookRepository = new WebhookRepository(pool);
         WebClient webClient = WebClient.create(vertx,
             new WebClientOptions().setFollowRedirects(false).setSsl(true).setTrustAll(false));
@@ -166,8 +172,27 @@ public final class Main {
         BeamRepository beamRepository = new BeamRepository(pool);
         OtpAlertRepository otpAlertRepository = new OtpAlertRepository(pool, vertx);
         OtpAnalyzer otpAnalyzer = new OtpAnalyzer(otpAlertRepository);
-        BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService, webhookService);
-        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService);
+
+        // Fraud detection services
+        var notificationService = new com.openiv.backend.notifications.NotificationService(pool);
+        var fraudDetectionBillingService = new com.openiv.backend.billing.FraudDetectionBillingService(pool);
+        var autoCaseService = new com.openiv.backend.cases.AutoCaseCreationService(caseRepository);
+
+        // KYC service — needed by fraud pipeline for automatic KYC lookups
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService);
+
+        var hybridAnalysis = new com.openiv.backend.transactions.HybridTransactionAnalysisService(
+            new com.openiv.backend.transactions.TransactionScorer(),
+            autoCaseService,
+            thresholdRepository,
+            pool,
+            kycService);
+        var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
+            hybridAnalysis, fraudDetectionBillingService, notificationService);
+
+        BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
+            webhookService,
+            orchestrator, notificationService, customerService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
         GeoFenceService geoFenceService = new GeoFenceService(
@@ -177,9 +202,9 @@ public final class Main {
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
-                vertx, config, pool, authService, accessRequestService,
+                vertx, config, pool, sessions, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService, geoFenceService, cores))
+                beamService, kycService, heatmapService, dashboardService, geoFenceService, customerService, cores))
             .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
       });
     });
@@ -194,18 +219,19 @@ public final class Main {
   }
 
   private static Future<Void> deployVerticles(Vertx vertx, AppConfig config, Pool pool,
-      AuthService authService, AccessRequestService accessRequestService,
+      SessionRepository sessions, AuthService authService, AccessRequestService accessRequestService,
       TeamService teamService, TransactionService transactionService,
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService, GeoFenceService geoFenceService, int instances) {
+      DashboardService dashboardService, GeoFenceService geoFenceService,
+      CustomerService customerService, int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
-            () -> new MainVerticle(config, pool, authService, accessRequestService,
+            () -> new MainVerticle(config, pool, sessions, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService, geoFenceService),
+                beamService, kycService, heatmapService, dashboardService, geoFenceService, customerService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();

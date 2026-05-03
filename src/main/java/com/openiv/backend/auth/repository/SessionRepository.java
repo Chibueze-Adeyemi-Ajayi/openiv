@@ -11,7 +11,7 @@ import java.util.Optional;
 public final class SessionRepository {
 
   private static final String SELECT_COLS =
-      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at, lat, lon, accuracy, device_id, ip, user_agent";
+      "id, user_id, token_hash, state, expires_at, revoked_at, last_used_at, created_at, lat, lon, accuracy, device_id, ip, user_agent, socket_active, socket_id, socket_connected_at";
 
   private final Pool pool;
 
@@ -80,6 +80,27 @@ public final class SessionRepository {
         .mapEmpty();
   }
 
+  public Future<Void> markSocketConnected(long sessionId, String socketId) {
+    return pool.preparedQuery(
+            "UPDATE sessions SET socket_active = TRUE, socket_id = $2, socket_connected_at = now() WHERE id = $1")
+        .execute(Tuple.of(sessionId, socketId))
+        .mapEmpty();
+  }
+
+  public Future<Void> markSocketDisconnected(String socketId) {
+    return pool.preparedQuery(
+            "UPDATE sessions SET socket_active = FALSE WHERE socket_id = $1 AND revoked_at IS NULL")
+        .execute(Tuple.of(socketId))
+        .mapEmpty();
+  }
+
+  public Future<Optional<Session>> findBySocketId(String socketId) {
+    return pool.preparedQuery(
+            "SELECT " + SELECT_COLS + " FROM sessions WHERE socket_id = $1 AND revoked_at IS NULL")
+        .execute(Tuple.of(socketId))
+        .map(rs -> rs.rowCount() == 0 ? Optional.<Session>empty() : Optional.of(map(rs.iterator().next())));
+  }
+
   private static Session map(Row r) {
     return new Session(
         r.getLong("id"),
@@ -95,6 +116,9 @@ public final class SessionRepository {
         r.getDouble("accuracy"),
         r.getString("device_id"),
         r.getValue("ip") == null ? null : r.getValue("ip").toString(),
-        r.getString("user_agent"));
+        r.getString("user_agent"),
+        Boolean.TRUE.equals(r.getBoolean("socket_active")),
+        r.getString("socket_id"),
+        r.getOffsetDateTime("socket_connected_at"));
   }
 }

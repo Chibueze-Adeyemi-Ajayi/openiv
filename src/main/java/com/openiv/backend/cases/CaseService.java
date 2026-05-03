@@ -122,6 +122,18 @@ public final class CaseService {
         }));
   }
 
+  public Future<Void> addSystemActivity(String caseId, long institutionId,
+      String action, String detail) {
+    return repository.findById(caseId, institutionId).compose(opt -> {
+      if (opt.isEmpty()) return Future.succeededFuture();
+      return repository.addActivity(caseId, 0L, action, detail);
+    });
+  }
+
+  public Future<Void> escalatePriorityBySystem(String caseId, long institutionId, String priority) {
+    return repository.updatePriority(caseId, priority).mapEmpty();
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private Future<User> resolveUser(Session session) {

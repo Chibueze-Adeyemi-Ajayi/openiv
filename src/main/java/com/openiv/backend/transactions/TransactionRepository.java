@@ -208,6 +208,43 @@ public final class TransactionRepository {
         .mapEmpty();
   }
 
+  public Future<double[][]> getHeatmap(long institutionId, String userId, String range) {
+    String rangeClause = switch (range != null ? range : "90d") {
+      case "24h" -> "occurred_at > now() - interval '24 hours'";
+      case "7d"  -> "occurred_at > now() - interval '7 days'";
+      case "30d" -> "occurred_at > now() - interval '30 days'";
+      default    -> "occurred_at > now() - interval '90 days'";
+    };
+    String sql =
+        "SELECT EXTRACT(DOW FROM occurred_at)::int as dow, EXTRACT(HOUR FROM occurred_at)::int as hour, SUM(amount) as volume"
+        + " FROM transactions"
+        + " WHERE institution_id = $1 AND customer_id = $2"
+        + " AND " + rangeClause
+        + " GROUP BY 1, 2";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, userId))
+        .map(rs -> {
+          double[][] heatmap = new double[7][24];
+          double max = 0;
+          for (var row : rs) {
+            int d = row.getInteger("dow");
+            int h = row.getInteger("hour");
+            java.math.BigDecimal vol = row.getBigDecimal("volume");
+            double v = (vol != null) ? vol.doubleValue() : 0.0;
+            heatmap[d][h] = v;
+            if (v > max) max = v;
+          }
+          if (max > 0) {
+            for (int d = 0; d < 7; d++) {
+              for (int h = 0; h < 24; h++) {
+                heatmap[d][h] = heatmap[d][h] / max;
+              }
+            }
+          }
+          return heatmap;
+        });
+  }
+
   private static String rangeClause(String range) {
     return switch (range != null ? range : "30d") {
       case "24h" -> "occurred_at > now() - interval '24 hours'";

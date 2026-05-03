@@ -1,6 +1,8 @@
 package com.openiv.backend.server;
 
 import com.openiv.backend.api.ApiRouter;
+import com.openiv.backend.auth.handler.WebSocketSessionHandler;
+import com.openiv.backend.auth.repository.SessionRepository;
 import com.openiv.backend.auth.service.AccessRequestService;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.config.AppConfig;
@@ -14,6 +16,7 @@ import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -33,6 +36,7 @@ public final class MainVerticle extends AbstractVerticle {
 
   private final AppConfig config;
   private final Pool dbPool;
+  private final SessionRepository sessionRepository;
   private final AuthService authService;
   private final AccessRequestService accessRequestService;
   private final TeamService teamService;
@@ -45,16 +49,19 @@ public final class MainVerticle extends AbstractVerticle {
   private final HeatmapService     heatmapService;
   private final DashboardService   dashboardService;
   private final GeoFenceService    geoFenceService;
+  private final CustomerService    customerService;
   private HttpServer httpServer;
 
-  public MainVerticle(AppConfig config, Pool dbPool, AuthService authService,
-      AccessRequestService accessRequestService, TeamService teamService,
+  public MainVerticle(AppConfig config, Pool dbPool, SessionRepository sessionRepository,
+      AuthService authService, AccessRequestService accessRequestService, TeamService teamService,
       TransactionService transactionService, CaseService caseService,
       ThresholdService thresholdService, WebhookService webhookService,
       BeamService beamService, KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService, GeoFenceService geoFenceService) {
+      DashboardService dashboardService, GeoFenceService geoFenceService,
+      CustomerService customerService) {
     this.config = config;
     this.dbPool = dbPool;
+    this.sessionRepository = sessionRepository;
     this.authService = authService;
     this.accessRequestService = accessRequestService;
     this.teamService = teamService;
@@ -67,11 +74,12 @@ public final class MainVerticle extends AbstractVerticle {
     this.heatmapService = heatmapService;
     this.dashboardService = dashboardService;
     this.geoFenceService = geoFenceService;
+    this.customerService = customerService;
   }
 
   /** Test convenience constructor — no services, DB-less routes only. */
   public MainVerticle(AppConfig config, Pool dbPool) {
-    this(config, dbPool, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(config, dbPool, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Override
@@ -102,14 +110,22 @@ public final class MainVerticle extends AbstractVerticle {
     ApiRouter.mount(vertx, router, dbPool, config.security(),
         authService, accessRequestService, teamService, transactionService,
         caseService, thresholdService, webhookService, config.isDevelopment(), beamService,
-        kycService, heatmapService, dashboardService, geoFenceService);
+        kycService, heatmapService, dashboardService, geoFenceService, customerService);
 
-    return vertx.createHttpServer(
+    var serverBuilder = vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(
                 config.http().port(),
                 config.http().host(),
                 vertx.isNativeTransportEnabled()))
-        .requestHandler(router)
+        .requestHandler(router);
+
+    // WebSocket handler for session liveness tracking.
+    if (sessionRepository != null && authService != null) {
+      var wsHandler = new WebSocketSessionHandler(sessionRepository, authService, vertx);
+      serverBuilder = serverBuilder.webSocketHandler(wsHandler);
+    }
+
+    return serverBuilder
         .listen()
         .onSuccess(server -> {
           httpServer = server;

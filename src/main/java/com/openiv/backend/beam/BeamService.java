@@ -4,10 +4,14 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.transactions.Transaction;
 import com.openiv.backend.transactions.TransactionImport;
+import com.openiv.backend.transactions.TransactionProcessingOrchestrator;
 import com.openiv.backend.transactions.TransactionService;
+import com.openiv.backend.notifications.NotificationService;
 import com.openiv.backend.webhooks.WebhookPayloadBuilder;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -34,13 +38,26 @@ public final class BeamService {
   private final OtpAnalyzer         otpAnalyzer;
   private final TransactionService  transactionService;
   private final WebhookService      webhookService;
+  private final TransactionProcessingOrchestrator orchestrator;
+  private final NotificationService notificationService;
+  private final CustomerService customerService;
 
-  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer, TransactionService transactionService, WebhookService webhookService) {
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer, TransactionService transactionService, WebhookService webhookService, CustomerService customerService) {
+    this(repository, users, otpAnalyzer, transactionService, webhookService, null, null, customerService);
+  }
+
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
+      TransactionService transactionService, WebhookService webhookService,
+      TransactionProcessingOrchestrator orchestrator, NotificationService notificationService,
+      CustomerService customerService) {
     this.repository         = repository;
     this.users              = users;
     this.otpAnalyzer        = otpAnalyzer;
     this.transactionService = transactionService;
     this.webhookService     = webhookService;
+    this.orchestrator       = orchestrator;
+    this.notificationService = notificationService;
+    this.customerService    = customerService;
   }
 
   public Future<BeamRecord> ingest(long institutionId, String stream,
@@ -60,6 +77,9 @@ public final class BeamService {
           ip, userAgent, requestHeaders, bytes, durationMs);
     }
     return saved.map(record -> {
+      if (customerService != null) {
+        processCustomerUpsert(institutionId, payload);
+      }
       if ("otps".equals(stream) && otpAnalyzer != null) {
         otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
       }
@@ -68,6 +88,21 @@ public final class BeamService {
       }
       return record;
     });
+  }
+
+  private void processCustomerUpsert(long institutionId, String payload) {
+    try {
+      JsonObject obj = new JsonObject(payload);
+      String customerId = obj.getString("customer_id", obj.getString("customerId", obj.getString("user_id", obj.getString("userId"))));
+      String name = obj.getString("customer_name", obj.getString("customerName", obj.getString("user_name", obj.getString("userName"))));
+      
+      if (customerId != null && !customerId.isBlank()) {
+        customerService.upsert(institutionId, customerId, name)
+            .onFailure(err -> log.warn("Failed to upsert customer {} for institution {}: {}", customerId, institutionId, err.getMessage()));
+      }
+    } catch (Exception e) {
+      // Best effort
+    }
   }
 
   private void processTransactionStream(long institutionId, String idempotencyKey, String payload) {
@@ -90,9 +125,7 @@ public final class BeamService {
       Double lng           = obj.getDouble("lng");
 
       String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
-      OffsetDateTime occurredAt;
-      try { occurredAt = rawTs != null ? OffsetDateTime.parse(rawTs) : OffsetDateTime.now(); }
-      catch (Exception e) { occurredAt = OffsetDateTime.now(); }
+      final OffsetDateTime occurredAt = parseOccurredAt(rawTs);
 
       String senderAccount    = obj.getString("sender_account", obj.getString("senderAccount"));
       String senderBank       = obj.getString("sender_bank", obj.getString("senderBank"));
@@ -110,7 +143,30 @@ public final class BeamService {
           currency, narration, deviceId, ipAddress);
 
       transactionService.ingestFromBeam(institutionId, imp)
-          .onSuccess(v -> webhookService.broadcast(institutionId, "tx.received", WebhookPayloadBuilder.txReceived(obj)))
+          .onSuccess(v -> {
+            webhookService.broadcast(institutionId, "tx.received", WebhookPayloadBuilder.txReceived(obj));
+
+            // Trigger hybrid fraud detection if orchestrator available
+            if (orchestrator != null) {
+              log.info("[Beam] Triggering hybrid fraud detection for txn {}", id);
+              // Build Transaction from import data
+              OffsetDateTime now = OffsetDateTime.now();
+              Transaction txn = new Transaction(id, institutionId, customerId, customerName,
+                  amount, channel, counterparty, riskScore, status, flaggedStatus,
+                  location, lat, lng, occurredAt, now, now,
+                  senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
+                  currency, narration, deviceId, ipAddress);
+
+              // TODO: Query actual transaction counts from database
+              orchestrator.processTransaction(institutionId, txn, 0, 0, 0, false)
+                  .onSuccess(result -> {
+                    log.info("[Beam] Fraud analysis complete: risk={} case={} ref={}",
+                        result.riskScore(), result.caseId(), result.billingReference());
+                  })
+                  .onFailure(e -> log.error("[Beam] Fraud analysis failed for txn {}: {}",
+                      id, e.getMessage()));
+            }
+          })
           .onFailure(err -> log.warn("Transaction ingest failed for institution {}: {}", institutionId, err.getMessage()));
     } catch (Exception e) {
       // Best effort ingestion; don't fail the beam if parsing fails
@@ -139,6 +195,11 @@ public final class BeamService {
   public Future<List<BeamRecord>> listRecords(Session session, String stream) {
     return resolveUser(session).compose(u ->
         repository.listRecords(u.institutionId(), stream, 100));
+  }
+
+  public Future<BeamRecordsResult> listRecords(Session session, String stream, String q, String range, int page, int pageSize) {
+    return resolveUser(session).compose(u ->
+        repository.listRecords(u.institutionId(), stream, q, range, page, pageSize));
   }
 
   public Future<Long> resolveInstitution(Session session) {
@@ -171,6 +232,15 @@ public final class BeamService {
       return sb.toString();
     } catch (Exception e) {
       throw new RuntimeException("SHA-256 failed", e);
+    }
+  }
+
+  private static OffsetDateTime parseOccurredAt(String rawTs) {
+    if (rawTs == null) return OffsetDateTime.now();
+    try {
+      return OffsetDateTime.parse(rawTs);
+    } catch (Exception e) {
+      return OffsetDateTime.now();
     }
   }
 }

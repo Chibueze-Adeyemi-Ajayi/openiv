@@ -93,22 +93,92 @@ public final class BeamRepository {
   }
 
   public Future<List<BeamRecord>> listRecords(long institutionId, String stream, int limit) {
-    String sql;
-    Tuple params;
-    if (stream == null || stream.isBlank()) {
-      sql = "SELECT " + RECORD_COLS + " FROM beam_records WHERE institution_id = $1"
-          + " ORDER BY received_at DESC LIMIT $2";
-      params = Tuple.of(institutionId, limit);
-    } else {
-      sql = "SELECT " + RECORD_COLS + " FROM beam_records WHERE institution_id = $1 AND stream = $2"
-          + " ORDER BY received_at DESC LIMIT $3";
-      params = Tuple.of(institutionId, stream, limit);
+    return listRecords(institutionId, stream, null, null, 1, limit).map(BeamRecordsResult::records);
+  }
+
+  public Future<BeamRecordsResult> listRecords(long institutionId, String stream, String q, String range, int page, int pageSize) {
+    StringBuilder where = new StringBuilder(" WHERE institution_id = $1");
+    List<Object> params = new ArrayList<>();
+    params.add(institutionId);
+
+    int pIdx = 2;
+    if (stream != null && !stream.isBlank() && !"transactions".equals(stream)) { // We often exclude transactions in the UI monitor
+      where.append(" AND stream = $").append(pIdx++);
+      params.add(stream);
+    } else if (stream == null || stream.isBlank()) {
+      where.append(" AND stream != 'transactions'"); // Keep interaction monitor clean from transactions by default if stream not specified
     }
-    return pool.preparedQuery(sql).execute(params)
+
+    if (q != null && !q.isBlank()) {
+      where.append(" AND (payload ILIKE $").append(pIdx);
+      where.append(" OR id::text = $").append(pIdx).append(")");
+      params.add("%" + q + "%");
+      pIdx++;
+    }
+
+    if ("24h".equals(range)) {
+      where.append(" AND received_at >= now() - interval '24 hours'");
+    } else if ("7d".equals(range)) {
+      where.append(" AND received_at >= now() - interval '7 days'");
+    } else if ("30d".equals(range)) {
+      where.append(" AND received_at >= now() - interval '30 days'");
+    }
+
+    String countSql = "SELECT COUNT(*) FROM beam_records" + where;
+    
+    int offset = (page - 1) * pageSize;
+    String sql = "SELECT " + RECORD_COLS + " FROM beam_records" + where
+        + " ORDER BY received_at DESC LIMIT $" + pIdx++ + " OFFSET $" + pIdx;
+    
+    List<Object> listParams = new ArrayList<>(params);
+    listParams.add(pageSize);
+    listParams.add(offset);
+
+    return pool.preparedQuery(countSql).execute(Tuple.from(params))
+        .compose(countRs -> {
+          long total = countRs.iterator().hasNext() ? countRs.iterator().next().getLong(0) : 0;
+          return pool.preparedQuery(sql).execute(Tuple.from(listParams))
+              .map(rs -> {
+                var list = new ArrayList<BeamRecord>();
+                rs.forEach(r -> list.add(mapRecord(r)));
+                return new BeamRecordsResult(List.copyOf(list), total);
+              });
+        });
+  }
+
+  public Future<double[][]> getHeatmap(long institutionId, String userId, String range) {
+    String rangeClause = switch (range != null ? range : "90d") {
+      case "24h" -> "received_at > now() - interval '24 hours'";
+      case "7d"  -> "received_at > now() - interval '7 days'";
+      case "30d" -> "received_at > now() - interval '30 days'";
+      default    -> "received_at > now() - interval '90 days'";
+    };
+    String sql =
+        "SELECT EXTRACT(DOW FROM received_at)::int as dow, EXTRACT(HOUR FROM received_at)::int as hour, COUNT(*) as count"
+        + " FROM beam_records"
+        + " WHERE institution_id = $1 AND (payload::jsonb->>'user_id' = $2 OR payload::jsonb->>'customer_id' = $2)"
+        + " AND " + rangeClause
+        + " GROUP BY 1, 2";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, userId))
         .map(rs -> {
-          var list = new ArrayList<BeamRecord>();
-          rs.forEach(r -> list.add(mapRecord(r)));
-          return List.copyOf(list);
+          double[][] heatmap = new double[7][24];
+          long max = 0;
+          for (var row : rs) {
+            int d = row.getInteger("dow");
+            int h = row.getInteger("hour");
+            long c = row.getLong("count");
+            heatmap[d][h] = c;
+            if (c > max) max = c;
+          }
+          if (max > 0) {
+            for (int d = 0; d < 7; d++) {
+              for (int h = 0; h < 24; h++) {
+                heatmap[d][h] = heatmap[d][h] / max;
+              }
+            }
+          }
+          return heatmap;
         });
   }
 

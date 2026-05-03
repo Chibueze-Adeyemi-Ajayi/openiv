@@ -5,6 +5,7 @@ import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.cases.CaseService;
+import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
@@ -22,12 +23,15 @@ public final class KycService {
   private final UserRepository users;
   private final WebClient      client;
   private final CaseService    cases;
+  private final NotificationService notifications;
 
-  public KycService(KycRepository repository, UserRepository users, WebClient client, CaseService cases) {
+  public KycService(KycRepository repository, UserRepository users, WebClient client,
+      CaseService cases, NotificationService notifications) {
     this.repository = repository;
     this.users      = users;
     this.client     = client;
     this.cases      = cases;
+    this.notifications = notifications;
   }
 
   // ── Config ────────────────────────────────────────────────────────────────
@@ -135,6 +139,67 @@ public final class KycService {
                 .compose(ignored -> Future.failedFuture(err));
           });
         }));
+  }
+
+  public Future<Void> lookupForPipeline(long institutionId, String customerRef, String caseId) {
+    return repository.findConfig(institutionId).compose(cfgOpt -> {
+      if (cfgOpt.isEmpty() || cfgOpt.get().lookupUrl() == null
+          || cfgOpt.get().lookupUrl().isBlank()) {
+        return notifications.notifyKycWebhookMissing(institutionId).mapEmpty();
+      }
+      KycConfig cfg = cfgOpt.get();
+      String url = cfg.lookupUrl().endsWith("/")
+          ? cfg.lookupUrl() + customerRef
+          : cfg.lookupUrl() + "/" + customerRef;
+      Integer timeout = cfg.lookupTimeout();
+      int timeoutMs = (timeout != null ? timeout : 10) * 1_000;
+
+      var req = client.getAbs(url).timeout(timeoutMs);
+      if (cfg.lookupApiKey() != null && !cfg.lookupApiKey().isBlank())
+        req = req.putHeader("Authorization", "Bearer " + cfg.lookupApiKey());
+      long start = System.currentTimeMillis();
+
+      return req.send()
+          .compose(resp -> {
+            int durationMs = (int) (System.currentTimeMillis() - start);
+            boolean found = resp.statusCode() >= 200 && resp.statusCode() < 300;
+            Integer tier = null;
+            String kycStatus = null;
+            if (found) {
+              try {
+                var body = resp.bodyAsJsonObject();
+                if (body != null) {
+                  tier = body.getInteger("tier");
+                  kycStatus = body.getString("status");
+                }
+              } catch (Exception ignored) {}
+            }
+            final Integer finalTier = tier;
+            final String finalKycStatus = kycStatus;
+            return repository.saveLog(institutionId, customerRef, "fraud_pipeline",
+                found ? "success" : "failed", resp.statusCode(), durationMs, finalTier, finalKycStatus,
+                found ? null : "HTTP " + resp.statusCode())
+                .compose(v -> {
+                  boolean notFound = !found || (finalTier == null && finalKycStatus == null);
+                  if (notFound) {
+                    return cases.escalatePriorityBySystem(caseId, institutionId, "high")
+                        .compose(x -> cases.addSystemActivity(caseId, institutionId, "kyc_flag",
+                            "KYC lookup for customer " + customerRef +
+                            " returned no record. Priority escalated to HIGH — investigate."))
+                        .compose(x -> notifications.notifyKycDataNotFound(
+                            institutionId, customerRef, caseId).mapEmpty());
+                  }
+                  return cases.addSystemActivity(caseId, institutionId, "kyc_verified",
+                      "KYC lookup OK: tier=" + finalTier + ", status=" + finalKycStatus);
+                });
+          })
+          .recover(err -> {
+            int elapsed = (int) (System.currentTimeMillis() - start);
+            return repository.saveLog(institutionId, customerRef, "fraud_pipeline",
+                "failed", null, elapsed, null, null, err.getMessage())
+                .mapEmpty();
+          });
+    });
   }
 
   private static String kycNotes(String customerRef, String kycStatus, Integer tier, String error) {

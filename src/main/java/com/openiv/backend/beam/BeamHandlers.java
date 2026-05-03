@@ -60,11 +60,19 @@ public final class BeamHandlers {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
       String stream = ctx.request().getParam("stream");
-      service.listRecords(session, stream)
-          .onSuccess(list -> {
+      String q = ctx.request().getParam("q");
+      String range = ctx.request().getParam("range");
+      String pageStr = ctx.request().getParam("page");
+      String pageSizeStr = ctx.request().getParam("pageSize");
+      
+      int page = pageStr != null ? Integer.parseInt(pageStr) : 1;
+      int pageSize = pageSizeStr != null ? Integer.parseInt(pageSizeStr) : 20;
+
+      service.listRecords(session, stream, q, range, page, pageSize)
+          .onSuccess(res -> {
             var arr = new JsonArray();
-            list.forEach(r -> arr.add(recordJson(r)));
-            ok(ctx, new JsonObject().put("records", arr));
+            res.records().forEach(r -> arr.add(recordJson(r)));
+            ok(ctx, new JsonObject().put("records", arr).put("total", res.total()));
           })
           .onFailure(ctx::fail);
     };

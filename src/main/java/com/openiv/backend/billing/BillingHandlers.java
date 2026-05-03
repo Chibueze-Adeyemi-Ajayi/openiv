@@ -26,7 +26,7 @@ public final class BillingHandlers {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
       service.getSummary(session)
-          .onSuccess(summary -> ok(ctx, summary))
+          .onSuccess(wallet -> ok(ctx, walletJson(wallet)))
           .onFailure(ctx::fail);
     };
   }
@@ -109,7 +109,10 @@ public final class BillingHandlers {
       if (amountNgn == null || amountNgn <= 0) { badRequest(ctx, "amountNgn must be > 0"); return; }
       if (email == null || email.isBlank())     { badRequest(ctx, "email is required"); return; }
       service.initializePayment(session, amountNgn, email)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            if (result instanceof JsonObject) ok(ctx, (JsonObject) result);
+            else ok(ctx, new JsonObject().put("ok", true));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalStateException) badRequest(ctx, err.getMessage());
             else ctx.fail(err);
@@ -127,7 +130,10 @@ public final class BillingHandlers {
       boolean saveCard  = Boolean.TRUE.equals(body.getBoolean("saveCard"));
       if (reference == null || reference.isBlank()) { badRequest(ctx, "reference is required"); return; }
       service.verifyAndSaveCard(session, reference, saveCard)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            if (result instanceof JsonObject) ok(ctx, (JsonObject) result);
+            else ok(ctx, new JsonObject().put("ok", true));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalStateException) badRequest(ctx, err.getMessage());
             else ctx.fail(err);
@@ -148,7 +154,10 @@ public final class BillingHandlers {
       if (amountNgn == null || amountNgn <= 0)     { badRequest(ctx, "amountNgn must be > 0"); return; }
       if (email == null || email.isBlank())         { badRequest(ctx, "email is required"); return; }
       service.topupWithSavedCard(session, methodId, amountNgn, email)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            if (result instanceof JsonObject) ok(ctx, (JsonObject) result);
+            else ok(ctx, new JsonObject().put("ok", true));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalStateException || err instanceof IllegalArgumentException)
               badRequest(ctx, err.getMessage());
@@ -177,7 +186,10 @@ public final class BillingHandlers {
       if (amountNgn == null || amountNgn < 100) { badRequest(ctx, "amountNgn must be ≥ 100"); return; }
       if (blank(email))       { badRequest(ctx, "email is required"); return; }
       service.chargeCardDirect(session, cardNumber, cvv, expiryMonth, expiryYear, amountNgn, email, saveCard)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            if (result instanceof JsonObject) ok(ctx, (JsonObject) result);
+            else ok(ctx, new JsonObject().put("ok", true));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalStateException || err instanceof IllegalArgumentException)
               badRequest(ctx, err.getMessage());
@@ -207,7 +219,10 @@ public final class BillingHandlers {
         badRequest(ctx, "type must be 'pin' or 'otp'"); return;
       }
       service.submitCardChallenge(session, reference, challengeType, value, amountNgn, email, saveCard)
-          .onSuccess(result -> ok(ctx, result))
+          .onSuccess(result -> {
+            if (result instanceof JsonObject) ok(ctx, (JsonObject) result);
+            else ok(ctx, new JsonObject().put("ok", true));
+          })
           .onFailure(err -> {
             if (err instanceof IllegalStateException || err instanceof IllegalArgumentException)
               badRequest(ctx, err.getMessage());
@@ -237,6 +252,16 @@ public final class BillingHandlers {
         .put("last4",       m.last4())
         .put("isDefault",   m.isDefault())
         .put("createdAt",   m.createdAt().toString());
+  }
+
+  private static JsonObject walletJson(BillingWallet w) {
+    return new JsonObject()
+        .put("id",            w.id())
+        .put("balanceUnits",  w.balanceUnits())
+        .put("balanceNgn",    w.balanceNgn())
+        .put("creditExpiresAt", w.creditExpiresAt() != null ? w.creditExpiresAt().toString() : null)
+        .put("createdAt",     w.createdAt().toString())
+        .put("updatedAt",     w.updatedAt().toString());
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

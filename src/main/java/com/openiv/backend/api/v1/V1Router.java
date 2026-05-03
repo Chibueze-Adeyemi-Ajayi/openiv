@@ -21,11 +21,13 @@ import com.openiv.backend.team.TeamService;
 import com.openiv.backend.cases.CaseHandlers;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.transactions.TransactionHandlers;
+import com.openiv.backend.transactions.TransactionRepository;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdHandlers;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamApiKeyHandler;
 import com.openiv.backend.beam.BeamHandlers;
+import com.openiv.backend.beam.BeamRepository;
 import com.openiv.backend.beam.BeamService;
 import com.openiv.backend.dashboard.DashboardHandlers;
 import com.openiv.backend.dashboard.DashboardService;
@@ -41,6 +43,17 @@ import com.openiv.backend.network.NetworkRepository;
 import com.openiv.backend.network.NetworkService;
 import com.openiv.backend.webhooks.WebhookHandlers;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.behavioral.BehavioralRuleHandlers;
+import com.openiv.backend.behavioral.BehavioralRuleRepository;
+import com.openiv.backend.behavioral.BehavioralRuleService;
+import com.openiv.backend.transactions.TransactionHandlers;
+import com.openiv.backend.transactions.TransactionRepository;
+import com.openiv.backend.transactions.TransactionService;
+import com.openiv.backend.analytics.UserAnalyticsHandlers;
+import com.openiv.backend.analytics.UserAnalyticsService;
+import com.openiv.backend.customers.CustomerHandlers;
+import com.openiv.backend.customers.CustomerRepository;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -71,7 +84,8 @@ public final class V1Router {
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService, GeoFenceService geoFenceService) {
+      DashboardService dashboardService, GeoFenceService geoFenceService,
+      CustomerService customerService) {
     Router router = Router.router(vertx);
 
     // Public, unauthenticated routes go here (if any).
@@ -157,6 +171,14 @@ public final class V1Router {
     router.patch("/thresholds/:id").handler(thresholdAuth).handler(thresholdHandlers.update());
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
 
+    // Behavioral rules
+    BehavioralRuleService behavioralRuleService = new BehavioralRuleService(
+        new BehavioralRuleRepository(dbPool), new UserRepository(dbPool));
+    BehavioralRuleHandlers behavioralRuleHandlers = new BehavioralRuleHandlers(behavioralRuleService);
+    Handler<RoutingContext> behavioralAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/behavioral-rules").handler(behavioralAuth).handler(behavioralRuleHandlers.list());
+    router.patch("/behavioral-rules/:id").handler(behavioralAuth).handler(behavioralRuleHandlers.update());
+
     // Beam API key auth for ingest endpoints
     BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
     BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService, authService);
@@ -173,13 +195,14 @@ public final class V1Router {
     router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
 
     // Webhooks — fixed paths before /:id to avoid collision
-    WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService);
+    WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService, authService);
     Handler<RoutingContext> webhookAuth = SessionAuthHandler.authenticated(authService);
     router.get("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.getSecret());
     router.post("/webhooks/secret/rotate").handler(webhookAuth).handler(webhookHandlers.rotateSecret());
     router.patch("/webhooks/secret").handler(webhookAuth).handler(webhookHandlers.updateSecret());
     router.get("/webhooks/deliveries").handler(webhookAuth).handler(webhookHandlers.listAllDeliveries());
     router.get("/webhooks").handler(webhookAuth).handler(webhookHandlers.listEndpoints());
+    router.post("/webhooks/verify").handler(webhookAuth).handler(webhookHandlers.verifyEndpoint());
     router.post("/webhooks").handler(webhookAuth).handler(webhookHandlers.createEndpoint());
     router.patch("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.updateEndpoint());
     router.delete("/webhooks/:id").handler(webhookAuth).handler(webhookHandlers.deleteEndpoint());
@@ -196,7 +219,7 @@ public final class V1Router {
     router.get("/network/logs").handler(networkAuth).handler(networkHandlers.listLogs());
 
     // KYC — lookup URL config and manual lookup trigger
-    KycHandlers kycHandlers = new KycHandlers(kycService, billingService);
+    KycHandlers kycHandlers = new KycHandlers(kycService, billingService, authService);
     Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
     router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
@@ -210,12 +233,25 @@ public final class V1Router {
     router.post("/documents/upload").handler(docAuth).handler(docHandlers.upload());
     router.get("/documents/:id").handler(docAuth).handler(docHandlers.download());
 
-    // Heatmaps — day-of-week × hour density from transactions and login beam
-    // records
     HeatmapHandlers heatmapHandlers = new HeatmapHandlers(heatmapService);
     Handler<RoutingContext> heatmapAuth = SessionAuthHandler.authenticated(authService);
     router.get("/heatmap/transactions").handler(heatmapAuth).handler(heatmapHandlers.transactions());
     router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
+    
+    // Customers — centralized profile lookup
+    CustomerHandlers customerHandlers = new CustomerHandlers(customerService, new UserRepository(dbPool));
+    Handler<RoutingContext> customerAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/customers/:id").handler(customerAuth).handler(customerHandlers.getCustomer());
+
+    // User-specific detailed analytics
+    UserAnalyticsService userAnalyticsService = new UserAnalyticsService(
+        new BeamRepository(dbPool),
+        new TransactionRepository(dbPool),
+        new UserRepository(dbPool)
+    );
+    UserAnalyticsHandlers userAnalyticsHandlers = new UserAnalyticsHandlers(userAnalyticsService);
+    Handler<RoutingContext> userAnalyticsAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/analytics/users/:userId/heatmap").handler(userAnalyticsAuth).handler(userAnalyticsHandlers::getUserHeatmap);
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
     DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx,

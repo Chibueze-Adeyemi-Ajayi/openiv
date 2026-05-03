@@ -21,19 +21,33 @@ public final class BeamApiKeyHandler {
       String auth = ctx.request().getHeader("Authorization");
       if (auth != null && auth.startsWith("Bearer ")) {
         String key = auth.substring(7).strip();
+
+        // 1. Try to resolve as an API Key
         service.resolveInstitution(key)
             .onSuccess(institutionId -> {
               ctx.put(INSTITUTION_ID_KEY, institutionId);
               ctx.next();
             })
             .onFailure(err -> {
-              ctx.response().setStatusCode(401).putHeader("content-type", "application/json; charset=utf-8")
-                  .end("{\"error\":\"invalid_api_key\"}");
+              // 2. If not a valid API key, try to resolve as a Session Token
+              authService.resolve(key)
+                  .compose(session -> {
+                    ctx.put(SESSION_KEY, session);
+                    return service.resolveInstitution(session);
+                  })
+                  .onSuccess(institutionId -> {
+                    ctx.put(INSTITUTION_ID_KEY, institutionId);
+                    ctx.next();
+                  })
+                  .onFailure(sessionErr -> {
+                    ctx.response().setStatusCode(401).putHeader("content-type", "application/json; charset=utf-8")
+                        .end("{\"error\":\"invalid_api_key_or_session\"}");
+                  });
             });
         return;
       }
 
-      // Fallback to session auth for dashboard simulation
+      // 3. Fallback to session cookie
       String token = com.openiv.backend.auth.handler.SessionCookie.read(ctx);
       if (token != null && !token.isEmpty()) {
         authService.resolve(token)
@@ -47,7 +61,7 @@ public final class BeamApiKeyHandler {
             })
             .onFailure(err -> {
                ctx.response().setStatusCode(401).putHeader("content-type", "application/json; charset=utf-8")
-                  .end("{\"error\":\"invalid_session_or_user\"}");
+                  .end("{\"error\":\"invalid_session_cookie\"}");
             });
         return;
       }

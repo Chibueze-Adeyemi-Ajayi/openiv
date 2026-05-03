@@ -160,11 +160,9 @@ public final class AuthService {
         }
         Session existing = active.get(0);
 
-        // If the active session has been idle longer than the timeout, treat it as
-        // abandoned (user closed the app without logging out) and allow a fresh login.
-        OffsetDateTime idleSince = OffsetDateTime.now(ZoneOffset.UTC)
-            .minusMinutes(SESSION_IDLE_TIMEOUT_MINUTES);
-        if (existing.lastUsedAt() == null || existing.lastUsedAt().isBefore(idleSince)) {
+        // Check if the session has an active WebSocket connection.
+        // If socket_active = false (no connection), the session is dead — revoke and allow login.
+        if (!existing.isSocketAlive()) {
           return sessions.revoke(existing.id())
               .compose(v -> afterPasswordOk(user, deviceId, ip, userAgent, lat, lon, accuracy));
         }

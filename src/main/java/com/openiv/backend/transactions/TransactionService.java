@@ -5,6 +5,7 @@ import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.transactions.TransactionRepository.TransactionPage;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Future;
 
 import java.util.List;
@@ -13,10 +14,12 @@ public final class TransactionService {
 
   private final TransactionRepository repository;
   private final UserRepository users;
+  private final CustomerService customerService;
 
-  public TransactionService(TransactionRepository repository, UserRepository users) {
+  public TransactionService(TransactionRepository repository, UserRepository users, CustomerService customerService) {
     this.repository = repository;
     this.users = users;
+    this.customerService = customerService;
   }
 
   public Future<TransactionPage> list(Session session, String status, String flaggedStatus,
@@ -43,10 +46,18 @@ public final class TransactionService {
 
   public Future<Integer> importTransactions(Session session, List<TransactionImport> rows) {
     return resolveInstitution(session)
-        .compose(institutionId -> repository.importBatch(institutionId, rows));
+        .compose(institutionId -> {
+          if (customerService != null) {
+            rows.forEach(r -> customerService.upsert(institutionId, r.customerId(), r.customerName()));
+          }
+          return repository.importBatch(institutionId, rows);
+        });
   }
 
   public Future<Void> ingestFromBeam(long institutionId, TransactionImport row) {
+    if (customerService != null) {
+      customerService.upsert(institutionId, row.customerId(), row.customerName());
+    }
     return repository.importBatch(institutionId, List.of(row)).mapEmpty();
   }
 

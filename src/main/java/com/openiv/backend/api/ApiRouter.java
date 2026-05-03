@@ -14,6 +14,7 @@ import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.security.ContentTypeGuard;
 import com.openiv.backend.security.Cors;
 import com.openiv.backend.security.MethodGuard;
@@ -82,8 +83,12 @@ public final class ApiRouter {
       CaseService caseService, ThresholdService thresholdService,
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
-      DashboardService dashboardService, GeoFenceService geoFenceService) {
+      DashboardService dashboardService, GeoFenceService geoFenceService,
+      CustomerService customerService) {
     router.route().handler(RequestId.create());
+    if (devMode) {
+      router.route().handler(com.openiv.backend.security.RequestDebugLogger.create());
+    }
     router.route().handler(SecurityHeaders.create(security));
     router.route().handler(MethodGuard.create());
     router.route().handler(Cors.create(security));
@@ -102,7 +107,8 @@ public final class ApiRouter {
           || path.endsWith("/dashboard/stream")
           || path.endsWith("/activity-stream")
           || path.endsWith("/otp-alerts-stream")
-          || path.contains("/geo-access/requests/") && path.endsWith("/watch"))) ctx.next();
+          || path.contains("/geo-access/requests/") && path.endsWith("/watch")
+          || path.endsWith("/ws/session"))) ctx.next();
       else timeout.handle(ctx);
     });
     router.route().handler(ResponseTimeHandler.create());
@@ -111,7 +117,8 @@ public final class ApiRouter {
     router.route("/api/v1/*").subRouter(V1Router.create(
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
-        beamService, kycService, heatmapService, dashboardService, geoFenceService));
+        beamService, kycService, heatmapService, dashboardService, geoFenceService,
+        customerService));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

@@ -16,9 +16,16 @@ public record Session(
     Double accuracy,
     String deviceId,
     String ip,
-    String userAgent
+    String userAgent,
+    boolean socketActive,
+    String socketId,
+    OffsetDateTime socketConnectedAt
 ) {
   public boolean isActive() {
     return revokedAt == null && expiresAt.isAfter(OffsetDateTime.now());
+  }
+
+  public boolean isSocketAlive() {
+    return socketActive;
   }
 }

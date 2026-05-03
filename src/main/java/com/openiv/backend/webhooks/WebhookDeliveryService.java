@@ -112,6 +112,45 @@ public final class WebhookDeliveryService {
     return sb.toString().stripTrailing();
   }
 
+  /**
+   * Fires a lightweight probe to {@code url} to check reachability without creating a
+   * full delivery record. Returns a summary: ok, statusCode, durationMs, error.
+   *
+   * <ul>
+   *   <li>{@code notification} type — HTTP POST with a minimal JSON ping body</li>
+   *   <li>{@code kyc} type — HTTP GET (simulates the pull the fraud pipeline makes)</li>
+   * </ul>
+   */
+  public Future<JsonObject> verifyUrl(String url, String type) {
+    long start = System.currentTimeMillis();
+    if ("kyc".equals(type)) {
+      return client.getAbs(url).timeout(10_000)
+          .send()
+          .map(resp -> verifyResult(resp.statusCode(), start, null))
+          .recover(err -> Future.succeededFuture(verifyResult(null, start, err.getMessage())));
+    } else {
+      var ping = new JsonObject()
+          .put("type",      "openiv.verify")
+          .put("message",   "Endpoint verification ping from OpenIV")
+          .put("timestamp", java.time.Instant.now().toString());
+      return client.postAbs(url).timeout(10_000)
+          .putHeader("Content-Type",       "application/json")
+          .putHeader("X-OpenIV-Event",     "openiv.verify")
+          .sendJsonObject(ping)
+          .map(resp -> verifyResult(resp.statusCode(), start, null))
+          .recover(err -> Future.succeededFuture(verifyResult(null, start, err.getMessage())));
+    }
+  }
+
+  private static JsonObject verifyResult(Integer code, long startMs, String error) {
+    int ms  = (int) (System.currentTimeMillis() - startMs);
+    boolean ok = code != null && code >= 200 && code < 500;
+    var r = new JsonObject().put("ok", ok).put("durationMs", ms);
+    if (code  != null) r.put("statusCode", code); else r.putNull("statusCode");
+    if (error != null) r.put("error", error);     else r.putNull("error");
+    return r;
+  }
+
   static String generateDeliveryId() {
     byte[] bytes = new byte[9];
     RNG.nextBytes(bytes);
