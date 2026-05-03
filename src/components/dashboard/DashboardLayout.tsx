@@ -7,6 +7,7 @@ import InactivityGuard from './InactivityGuard'
 import EurekaCompanionGlow from './EurekaCompanionGlow'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
 import { EurekaProvider, useEureka } from '@/contexts/EurekaContext'
+import { SessionSocketProvider } from '@/contexts/SessionSocketContext'
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LoginAttemptAlert from './LoginAttemptAlert'
@@ -106,12 +107,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [eurekaOpen, setEurekaOpen] = useState(false)
 
   return (
-    <EurekaProvider>
-      <DashboardEventsProvider>
-        <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-          {children}
-        </DashboardContent>
-      </DashboardEventsProvider>
-    </EurekaProvider>
+    <SessionSocketProvider>
+      <EurekaProvider>
+        <DashboardEventsProvider>
+          <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
+            {children}
+          </DashboardContent>
+        </DashboardEventsProvider>
+      </EurekaProvider>
+    </SessionSocketProvider>
   )
 }

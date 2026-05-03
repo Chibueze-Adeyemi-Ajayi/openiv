@@ -1,93 +1,88 @@
 import { Box, Container, Link, Stack, Typography } from '@mui/material'
 import { colorPalette } from '@/theme'
 
-const footerLinks = [
-  { label: 'Security', href: '#' },
-  { label: 'Compliance', href: '#' },
-  { label: 'Privacy', href: '#' },
-  { label: 'Contact', href: '#' },
-]
-
 export default function Footer() {
   return (
-    <Box
-      sx={{
-        bgcolor: colorPalette.surface_container,
-        py: 6,
-      }}
-    >
+    <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #e5e7eb', py: 6 }}>
       <Container maxWidth="lg">
-        <Stack sx={{ gap: 3 }}>
-          {/* Top Row - Logo & Links */}
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', md: 'center' }}
-            sx={{ gap: 3, pb: 3 }}
-          >
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                color: colorPalette.on_surface,
-                fontSize: '1.25rem',
-              }}
-            >
-              OpenIV
-            </Typography>
+        <Stack sx={{ gap: 4 }}>
+          {/* Top Section */}
+          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" sx={{ gap: 4 }}>
+            <Stack sx={{ gap: 2, maxWidth: '300px' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '1.25rem', color: colorPalette.on_surface, fontFamily: 'Jost' }}>
+                OpenIV
+              </Typography>
+              <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
+                Real-time fraud detection and AML compliance for financial institutions across Africa.
+              </Typography>
+            </Stack>
 
-            <Stack direction="row" sx={{ gap: 4 }}>
-              {footerLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  sx={{
-                    color: colorPalette.on_surface_variant,
-                    textDecoration: 'none',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    transition: 'color 0.2s',
-                    '&:hover': {
-                      color: colorPalette.primary,
-                    },
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+            <Stack sx={{ gap: 3, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr' }, gap: 4 }}>
+              <Stack sx={{ gap: 1.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Product
+                </Typography>
+                {['Features', 'Pricing', 'Security'].map((link) => (
+                  <Link
+                    key={link}
+                    href="#"
+                    sx={{
+                      fontSize: '0.875rem',
+                      color: colorPalette.on_surface,
+                      textDecoration: 'none',
+                      transition: 'color 0.2s',
+                      '&:hover': { color: colorPalette.primary },
+                    }}
+                  >
+                    {link}
+                  </Link>
+                ))}
+              </Stack>
+              <Stack sx={{ gap: 1.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Company
+                </Typography>
+                {['About', 'Blog', 'Contact'].map((link) => (
+                  <Link
+                    key={link}
+                    href="#"
+                    sx={{
+                      fontSize: '0.875rem',
+                      color: colorPalette.on_surface,
+                      textDecoration: 'none',
+                      transition: 'color 0.2s',
+                      '&:hover': { color: colorPalette.primary },
+                    }}
+                  >
+                    {link}
+                  </Link>
+                ))}
+              </Stack>
             </Stack>
           </Stack>
 
-          {/* Bottom Row - Copyright */}
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', md: 'center' }}
-            sx={{ pt: 3, gap: 1.5 }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                color: colorPalette.on_surface_variant,
-                fontSize: '0.75rem',
-                opacity: 0.7,
-              }}
-            >
-              © {new Date().getFullYear()} OpenIV Technologies. Fraud intelligence built for African finance.
+          {/* Bottom Section */}
+          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} sx={{ pt: 4, borderTop: '1px solid #e5e7eb', gap: 2 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+              © {new Date().getFullYear()} OpenIV. All rights reserved.
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: colorPalette.on_surface_variant,
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                opacity: 0.6,
-              }}
-            >
-              CBN · NFIU · NDPR · ISO 27001
-            </Typography>
+            <Stack direction="row" spacing={3}>
+              {['Privacy', 'Terms', 'Security'].map((link) => (
+                <Link
+                  key={link}
+                  href="#"
+                  sx={{
+                    fontSize: '0.75rem',
+                    color: '#94a3b8',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s',
+                    '&:hover': { color: colorPalette.on_surface },
+                  }}
+                >
+                  {link}
+                </Link>
+              ))}
+            </Stack>
           </Stack>
         </Stack>
       </Container>

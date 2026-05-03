@@ -199,7 +199,7 @@ export default function IngestionPage() {
 
             {source === 'api' && (
               <Box sx={{ bgcolor: '#0f172a', color: '#e2e8f0', p: 2.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto' }}>
-{`POST https://api.openiv.io/v1/ingest
+                {`POST https://api.openiv.io/api/v1/ingest
 Authorization: Bearer ${'<YOUR_API_KEY>'}
 Content-Type: application/json
 
@@ -239,7 +239,7 @@ Content-Type: application/json
               </Box>
 
               {/* Eureka schema insight */}
-              <Box 
+              <Box
                 data-ai-analyzable="true"
                 data-ai-description="Eureka Schema Mapping Insight: Automated column detection and mapping recommendations for your uploaded data. Currently proposing map for 'ref_code' to 'internal_reference'."
                 sx={{ bgcolor: `${colorPalette.primary}06`, border: `1px solid ${colorPalette.primary}15`, mx: 3, mt: 2, p: 1.75, display: 'flex', gap: 1.25 }}>

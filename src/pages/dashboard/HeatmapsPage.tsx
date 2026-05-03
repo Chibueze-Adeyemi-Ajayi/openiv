@@ -1,8 +1,7 @@
-import { Box, Typography, Stack, Chip, Skeleton, Tooltip } from '@mui/material'
+import { Box, Typography, Skeleton, Tooltip } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { heatmapApi, type HeatmapDayCell, type HeatmapMode } from '@/api/heatmap'
@@ -114,10 +113,6 @@ function cellColor(count: number, max: number, tab: ActiveTab, mode: HeatmapMode
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function topDays(cells: HeatmapDayCell[], n = 5): HeatmapDayCell[] {
-  return [...cells].sort((a, b) => b.count - a.count).slice(0, n)
-}
-
 function peakMonth(cells: HeatmapDayCell[]): { label: string; count: number } | null {
   if (cells.length === 0) return null
   const monthly: Record<number, number> = {}
@@ -197,7 +192,7 @@ export default function HeatmapsPage() {
     return () => ro.disconnect()
   }, [])
 
-  const { fromStr, toStr, label: rangeLabel } = useMemo(() => viewRange(viewMode), [viewMode])
+  const { fromStr, toStr } = useMemo(() => viewRange(viewMode), [viewMode])
 
   useEffect(() => {
     setLoading(true)
@@ -220,7 +215,6 @@ export default function HeatmapsPage() {
     [fromStr, toStr, cellMap]
   )
 
-  const best5      = useMemo(() => topDays(cells), [cells])
   const bestMonth  = useMemo(() => peakMonth(cells), [cells])
   const activeDays = cells.filter(c => c.count > 0).length
   const totalDays  = viewMode === 'rolling' ? 365
@@ -309,7 +303,7 @@ export default function HeatmapsPage() {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 320px' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3 }}>
 
           {/* ── Heatmap panel ─────────────────────────────────────────────── */}
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
@@ -393,9 +387,9 @@ export default function HeatmapsPage() {
             </Box>
 
             {/* Contribution graph */}
-            <Box ref={containerRef} sx={{ px: 3, pt: 2.5, pb: 1 }}>
+            <Box ref={containerRef} sx={{ px: 3, pt: 2.5, pb: 1, overflow: 'hidden' }}>
               {loading ? <SkeletonGrid size={dynCell} /> : (
-                <Box sx={{ display: 'inline-flex', flexDirection: 'column', width: '100%' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
 
                   {/* Month labels */}
                   <Box sx={{ display: 'flex', pl: `${DOW_COL}px`, gap: `${GAP}px`, mb: '4px' }}>
@@ -511,112 +505,6 @@ export default function HeatmapsPage() {
               ))}
             </Box>
           </Box>
-
-          {/* ── Insights sidebar ──────────────────────────────────────────── */}
-          <Stack gap={2}>
-
-            {/* Eureka insight */}
-            <Box 
-              data-ai-analyzable="true"
-              data-ai-description={`Eureka Behavioral Insight: ${bestMonth ? bestMonth.label + ' was peak month.' : 'Activity summary.'} total active days: ${activeDays} of ${totalDays}.`}
-              sx={{ bgcolor: colorPalette.primary, color: '#ffffff', p: 2.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700,
-                  letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                  Eureka insight
-                </Typography>
-              </Box>
-              {loading ? (
-                <Stack gap={0.75}>
-                  <Skeleton variant="text" width="90%" height={16} sx={{ bgcolor: 'rgba(255,255,255,0.18)', borderRadius: 0 }} />
-                  <Skeleton variant="text" width="75%" height={16} sx={{ bgcolor: 'rgba(255,255,255,0.18)', borderRadius: 0 }} />
-                  <Skeleton variant="text" width="55%" height={14} sx={{ bgcolor: 'rgba(255,255,255,0.14)', borderRadius: 0, mt: 0.5 }} />
-                </Stack>
-              ) : cells.length === 0 ? (
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.5 }}>
-                  No {mode} {itemWord} recorded in {rangeLabel.toLowerCase()}.
-                </Typography>
-              ) : (
-                <>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.5, mb: 1 }}>
-                    {bestMonth
-                      ? `${bestMonth.label} was the busiest month — ${bestMonth.count.toLocaleString()} ${itemWord} recorded.`
-                      : `${activeDays} days had ${itemWord} across ${rangeLabel.toLowerCase()}.`}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', opacity: 0.9, lineHeight: 1.55 }}>
-                    {`Activity on ${activeDays} of ${totalDays} days in this period.`}
-                  </Typography>
-                </>
-              )}
-            </Box>
-
-            {/* Most active days */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a',
-                fontFamily: 'Jost', mb: 1.5 }}>
-                Most active days
-              </Typography>
-              {loading ? (
-                <Stack gap={1.5}>
-                  {[0, 1, 2].map(i => (
-                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      pb: 1.5, borderBottom: '1px solid #f4f5f7' }}>
-                      <Box>
-                        <Skeleton variant="text" width={80} height={16} sx={{ borderRadius: 0 }} />
-                        <Skeleton variant="text" width={60} height={13} sx={{ borderRadius: 0, mt: 0.25 }} />
-                      </Box>
-                      <Skeleton variant="rectangular" width={36} height={22} sx={{ borderRadius: 0 }} />
-                    </Box>
-                  ))}
-                </Stack>
-              ) : best5.length === 0 ? (
-                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', textAlign: 'center', py: 2 }}>
-                  No activity data for this period
-                </Typography>
-              ) : (
-                <Stack gap={1.5}>
-                  {best5.map((c, i) => {
-                    const risk = c.avgRisk != null ? Math.round(c.avgRisk) : null
-                    return (
-                      <Box 
-                        key={i} 
-                        data-ai-analyzable="true"
-                        data-ai-description={`High Activity Day: ${formatDate(c.date)}. count: ${c.count.toLocaleString()} ${itemWord}.${risk != null ? ' average risk score: ' + risk : ''}`}
-                        sx={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        pb: 1.5, borderBottom: '1px solid #f4f5f7',
-                        '&:last-child': { borderBottom: 'none', pb: 0 },
-                      }}>
-                        <Box>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700,
-                            color: '#0f172a', fontFamily: 'Jost' }}>
-                            {formatDate(c.date)}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
-                            {c.count.toLocaleString()} {itemWord}
-                          </Typography>
-                        </Box>
-                        {risk != null ? (
-                          <Chip label={String(risk)} size="small" sx={{
-                            bgcolor: risk >= 70 ? '#fef2f2' : '#fffbeb',
-                            color:   risk >= 70 ? '#dc2626'  : '#f59e0b',
-                            fontWeight: 700, fontSize: '0.6875rem',
-                            borderRadius: 0, height: 22, minWidth: 36,
-                          }} />
-                        ) : (
-                          <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace',
-                            fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>
-                            #{i + 1}
-                          </Typography>
-                        )}
-                      </Box>
-                    )
-                  })}
-                </Stack>
-              )}
-            </Box>
-          </Stack>
         </Box>
       </Box>
     </DashboardLayout>

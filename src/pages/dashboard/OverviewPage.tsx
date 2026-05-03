@@ -1,4 +1,4 @@
-import { Box, Typography, Stack, Grid, Button, Snackbar, Alert, CircularProgress } from '@mui/material'
+import { Box, Typography, Stack, Grid, Button, Snackbar, Alert, CircularProgress, IconButton } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import MetricCard from '@/components/dashboard/MetricCard'
@@ -7,14 +7,17 @@ import TransactionFlowChart from '@/components/dashboard/TransactionFlowChart'
 import ActivityFeed from '@/components/dashboard/ActivityFeed'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import OtpAlertsPanel from '@/components/dashboard/OtpAlertsPanel'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { kycApi, type KycConfig } from '@/api/kyc'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 
 function pct(a: number, b: number) {
   if (b === 0) return 0
@@ -26,13 +29,22 @@ function fmt(n: number) {
 }
 
 export default function OverviewPage() {
+  const navigate = useNavigate()
   const [fileNFIUOpen, setFileNFIUOpen]   = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
   const [nfiuLoading, setNfiuLoading]     = useState(false)
   const [snack, setSnack]                 = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
+  const [kycConfig, setKycConfig] = useState<KycConfig | null | undefined>(undefined)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
-  const { stats, activity, otpAlerts, beamEvents, caseEvents, connected } = useDashboardData()
+  const { stats, activity, beamEvents, caseEvents, connected } = useDashboardData()
   const currentUser = useCurrentUser()
+
+  useEffect(() => {
+    kycApi.getConfig()
+      .then(r => setKycConfig(r.config))
+      .catch(() => setKycConfig(null))
+  }, [])
 
   // Combine all events into unified activity feed (most recent first)
   const allActivity = [
@@ -175,6 +187,45 @@ export default function OverviewPage() {
             </Button>
           </Stack>
         </Box>
+
+        {/* KYC Warning Banner */}
+        {kycConfig !== undefined && !kycConfig?.lookupUrl && !bannerDismissed && (
+          <Box sx={{ mb: 3, p: 2.5, bgcolor: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#92400e', mb: 0.5 }}>
+                Set up KYC data source to improve fraud detection
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', mb: 1.5 }}>
+                Institutions with a KYC webhook configured see{' '}
+                <strong>37% faster case resolution</strong> and{' '}
+                <strong>62% fewer false positives</strong>. OpenIV automatically checks
+                customer identity when flagging transactions, escalating unknown customers immediately.
+              </Typography>
+              <Stack direction="row" gap={1.5}>
+                <Button
+                  size="small" variant="contained"
+                  onClick={() => navigate('/dashboard/webhooks')}
+                  sx={{ bgcolor: '#d97706', borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
+                    fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: '#b45309' } }}
+                >
+                  Setup Now
+                </Button>
+                <Button
+                  size="small" variant="outlined"
+                  href="https://docs.openiv.io/kyc-webhook" target="_blank"
+                  sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
+                    fontSize: '0.8125rem', borderColor: '#d97706', color: '#92400e',
+                    '&:hover': { bgcolor: '#fff8f0' } }}
+                >
+                  Learn More
+                </Button>
+              </Stack>
+            </Box>
+            <IconButton size="small" onClick={() => setBannerDismissed(true)} sx={{ color: '#92400e' }}>
+              <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
+          </Box>
+        )}
 
         {/* KPI Row */}
         <Grid container spacing={2} sx={{ mb: 3 }}>

@@ -42,6 +42,7 @@ export interface KycConfigInput {
   lookupUrl?: string | null
   lookupApiKey?: string | null
   lookupTimeout?: number
+  totpCode?: string
 }
 
 export const kycApi = {

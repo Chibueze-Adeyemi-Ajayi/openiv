@@ -15,6 +15,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
+        ws: true,
         // Disable response buffering so SSE frames flush to the browser immediately.
         // Without this, http-proxy buffers the chunked stream and the client
         // never receives events until the buffer fills or the connection closes.

@@ -169,7 +169,7 @@ const streams: Stream[] = [
       { field: 'customer_id', type: 'string', required: true, example: 'CUS-001' },
       { field: 'customer_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
       { field: 'amount', type: 'number', required: true, example: '14250000' },
-      { field: 'channel', type: 'string', required: true, example: 'Wire' },
+      { field: 'channel', type: 'string', required: true, example: 'Wire | Transfer | Mobile | ATM | POS' },
       { field: 'counterparty', type: 'string', required: true, example: 'Sokoto BDC Ltd' },
       { field: 'status', type: 'string', required: true, example: 'pending' },
       { field: 'location', type: 'string', required: true, example: 'Sokoto' },
@@ -195,6 +195,9 @@ const streams: Stream[] = [
     powers: 'Account-takeover · MFA bypass detection',
     schema: [
       { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'user_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'activity_name', type: 'string', required: true, example: 'user login' },
+      { field: 'note', type: 'string', required: true, example: 'User successfully logged into mobile app' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:21:11Z' },
       { field: 'outcome', type: 'enum', required: true, example: 'success | failed | 2fa_required' },
       { field: 'location', type: 'string', required: true, example: 'Lagos, NG' },
@@ -213,6 +216,9 @@ const streams: Stream[] = [
     powers: 'Behavioral fingerprints · Session anomalies',
     schema: [
       { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'user_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'activity_name', type: 'string', required: true, example: 'in-app activity' },
+      { field: 'note', type: 'string', required: true, example: 'User viewed transfer confirmation screen' },
       { field: 'session_id', type: 'string', required: true, example: 'SES-3491f' },
       { field: 'event_name', type: 'string', required: true, example: 'beneficiary_added' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
@@ -232,6 +238,9 @@ const streams: Stream[] = [
     powers: 'OTP holds · Geo-impossibility · SIM-swap',
     schema: [
       { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'user_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'activity_name', type: 'string', required: true, example: 'user location update' },
+      { field: 'note', type: 'string', required: true, example: 'Location ping derived from GPS' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
       { field: 'location', type: 'string', required: true, example: 'Ikeja, Lagos' },
       { field: 'lat', type: 'number', required: true, example: '6.5244' },
@@ -250,6 +259,9 @@ const streams: Stream[] = [
     schema: [
       { field: 'device_id', type: 'string', required: true, example: 'DVC-8b32a1' },
       { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'user_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'activity_name', type: 'string', required: true, example: 'device registration' },
+      { field: 'note', type: 'string', required: true, example: 'New device hardware footprint established' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T08:30:00Z' },
       { field: 'location', type: 'string', required: true, example: 'Port Harcourt, NG' },
       { field: 'lat', type: 'number', required: true, example: '4.8156' },
@@ -268,6 +280,9 @@ const streams: Stream[] = [
     powers: 'Real-time OTP defense · Hold-and-call',
     schema: [
       { field: 'user_id', type: 'string', required: true, example: 'USR-8472' },
+      { field: 'user_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
+      { field: 'activity_name', type: 'string', required: true, example: 'otp verification' },
+      { field: 'note', type: 'string', required: true, example: 'User completed OTP challenge for transfer' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
       { field: 'event_type', type: 'enum', required: true, example: 'requested | sent | verified | retry | failed' },
       { field: 'location', type: 'string', required: true, example: 'Enugu, NG' },
@@ -297,8 +312,8 @@ function buildCurl(s: Stream) {
   const fields = s.schema.filter(f => f.required)
     .map(f => `    "${f.field}": ${f.type === 'number' || f.type === 'boolean' ? f.example : `"${f.example}"`}`)
     .join(',\n')
-  return `curl -X POST https://api.openiv.io/v1/beam/${s.id} \\
-  -H "Authorization: Bearer $OPENIV_BEAM_KEY" \\
+  return `curl -X POST https://api.openiv.io/api/v1/beam/${s.id} \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "X-Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -315,7 +330,7 @@ function buildNode(s: Stream) {
 const { v4: uuid } = require('uuid')
 
 const client = axios.create({
-  baseURL: 'https://api.openiv.io/v1/beam',
+  baseURL: 'https://api.openiv.io/api/v1/beam',
   headers: { 'Authorization': \`Bearer \${process.env.OPENIV_BEAM_KEY}\` },
 })
 
@@ -334,7 +349,7 @@ function buildPython(s: Stream) {
   return `import httpx, uuid, os
 
 client = httpx.Client(
-    base_url='https://api.openiv.io/v1/beam',
+    base_url='https://api.openiv.io/api/v1/beam',
     headers={'Authorization': f'Bearer {os.environ["OPENIV_BEAM_KEY"]}'},
 )
 
@@ -367,7 +382,7 @@ func Beam${fn}(data map[string]any) error {
 ${fields}
     })
     req, _ := http.NewRequest("POST",
-        "https://api.openiv.io/v1/beam/${s.id}",
+        "https://api.openiv.io/api/v1/beam/${s.id}",
         bytes.NewReader(payload))
     req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENIV_BEAM_KEY"))
     req.Header.Set("Content-Type", "application/json")
@@ -493,35 +508,33 @@ function RecordRow({ record }: { record: BeamRecord }) {
 
 // ── API key modal ─────────────────────────────────────────────────────────────
 
-interface ApiKeyModalProps { open: boolean; onClose: () => void }
+interface ApiKeyModalProps { 
+  open: boolean; 
+  onClose: () => void;
+  keyInfo: BeamApiKey | null;
+  onKeyUpdated: () => void;
+}
 
-function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
-  const [keyInfo, setKeyInfo] = useState<BeamApiKey | null>(null)
-  const [loading, setLoading] = useState(true)
+function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps) {
+  const [loading, setLoading] = useState(false)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [keyCopied, setKeyCopied] = useState(false)
 
   const [genTotpOpen, setGenTotpOpen] = useState(false)
   const [revokeTotpOpen, setRevokeTotpOpen] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try { setKeyInfo((await beamApi.getApiKeyInfo()).key) }
-    finally { setLoading(false) }
-  }, [])
-
-  useEffect(() => { if (open) { load(); setNewKey(null) } }, [open, load])
+  useEffect(() => { if (open) { setNewKey(null) } }, [open])
 
   const handleGenerate = async () => {
     try {
       const res = await beamApi.generateApiKey()
       setNewKey(res.apiKey)
-      setKeyInfo({ prefix: res.apiKey.slice(0, 12), createdAt: new Date().toISOString(), lastUsedAt: null })
+      onKeyUpdated()
     } finally { setGenTotpOpen(false) }
   }
 
   const handleRevoke = async () => {
-    try { await beamApi.revokeApiKey(); setKeyInfo(null); setNewKey(null) }
+    try { await beamApi.revokeApiKey(); setNewKey(null); onKeyUpdated() }
     finally { setRevokeTotpOpen(false) }
   }
 
@@ -574,7 +587,9 @@ function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
                     </Typography>
                   </>
                 ) : (
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No API key set. Generate one to start beaming data.</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontStyle: 'italic' }}>
+                    No API key set. You can still use the "Beam Test" tool below via your dashboard session, or generate a key to integrate your server.
+                  </Typography>
                 )}
               </Box>
 
@@ -673,10 +688,24 @@ function ApiKeyModal({ open, onClose }: ApiKeyModalProps) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DataBeamingPage() {
+  const [keyInfo, setKeyInfo] = useState<BeamApiKey | null>(null)
+  const [loadingKey, setLoadingKey] = useState(true)
+
+  const loadKey = useCallback(async () => {
+    try {
+      const res = await beamApi.getApiKeyInfo()
+      setKeyInfo(res.key)
+    } finally {
+      setLoadingKey(false)
+    }
+  }, [])
+
+  useEffect(() => { loadKey() }, [loadKey])
+
   const [activeStream, setActiveStream] = useState<StreamId>('transactions')
   const [activeLang, setActiveLang] = useState<Lang>('cURL')
   const [apiKeyOpen, setApiKeyOpen] = useState(false)
-  const { sandboxEnabled } = useSandbox()
+  const { sandboxEnabled, setSandboxEnabled } = useSandbox()
   const [sendingTest, setSendingTest] = useState(false)
   const [testSuccess, setTestSuccess] = useState(false)
   const [editablePayload, setEditablePayload] = useState('')
@@ -694,6 +723,16 @@ export default function DataBeamingPage() {
   }, [activeStream])
 
   const handleSendTest = async () => {
+    if (!sandboxEnabled) {
+      setSandboxEnabled(true)
+      return
+    }
+
+    if (!keyInfo) {
+      setApiKeyOpen(true)
+      return
+    }
+
     try {
       const parsed = JSON.parse(editablePayload)
       setJsonError(null)
@@ -707,6 +746,8 @@ export default function DataBeamingPage() {
       if (err instanceof SyntaxError) {
         setJsonError('Invalid JSON format')
       } else {
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        setJsonError(`Test beam failed: ${msg}`)
         console.error('Test beam failed', err)
       }
     } finally {
@@ -773,15 +814,15 @@ export default function DataBeamingPage() {
 
   const healthMetrics = useMemo(() => {
     const durations = allRecords.map(r => r.durationMs).filter((d): d is number => d != null && d > 0).sort((a, b) => a - b)
-    const medianLatency = durations.length > 0 
-      ? `${durations[Math.floor(durations.length / 2)]}ms` 
+    const medianLatency = durations.length > 0
+      ? `${durations[Math.floor(durations.length / 2)]}ms`
       : '—'
-    
+
     const rejected = allRecords.filter(r => r.status === 'rejected' || r.status === 'error').length
-    const validity = totalRecords > 0 
-      ? `${((1 - rejected / totalRecords) * 100).toFixed(2)}%` 
+    const validity = totalRecords > 0
+      ? `${((1 - rejected / totalRecords) * 100).toFixed(2)}%`
       : '—'
-    
+
     return { medianLatency, validity, rejected }
   }, [allRecords, totalRecords])
 
@@ -963,10 +1004,19 @@ export default function DataBeamingPage() {
                 fullWidth
                 disabled={sendingTest}
                 onClick={handleSendTest}
-                startIcon={testSuccess ? <CheckCircleOutlineRoundedIcon /> : <PlayCircleOutlineIcon />}
+                startIcon={
+                  !sandboxEnabled 
+                    ? <ScienceOutlinedIcon /> 
+                    : !keyInfo 
+                      ? <VpnKeyOutlinedIcon /> 
+                      : testSuccess 
+                        ? <CheckCircleOutlineRoundedIcon /> 
+                        : <PlayCircleOutlineIcon />
+                }
                 sx={{
-                  bgcolor: testSuccess ? '#10b981' : colorPalette.primary,
-                  color: '#ffffff',
+                  bgcolor: (!sandboxEnabled || !keyInfo) ? '#fff7ed' : testSuccess ? '#10b981' : colorPalette.primary,
+                  color: (!sandboxEnabled || !keyInfo) ? '#c2410c' : '#ffffff',
+                  border: (!sandboxEnabled || !keyInfo) ? '1px solid #ffedd5' : 'none',
                   py: 1.25,
                   fontSize: '0.875rem',
                   fontWeight: 700,
@@ -974,11 +1024,19 @@ export default function DataBeamingPage() {
                   textTransform: 'none',
                   borderRadius: 0,
                   boxShadow: 'none',
-                  '&:hover': { bgcolor: testSuccess ? '#10b981' : '#1a3896' },
+                  '&:hover': { bgcolor: (!sandboxEnabled || !keyInfo) ? '#ffedd5' : testSuccess ? '#10b981' : '#1a3896' },
                   '&.Mui-disabled': { bgcolor: '#f1f5f9', color: '#94a3b8' }
                 }}
               >
-                {sendingTest ? 'Beaming...' : testSuccess ? 'Success! Check Logs' : `Beam Test ${stream.title} Record`}
+                {!sandboxEnabled 
+                  ? 'Switch to Sandbox to Test' 
+                  : !keyInfo 
+                    ? 'Get API Key to Get Started'
+                    : sendingTest 
+                      ? 'Beaming...' 
+                      : testSuccess 
+                        ? 'Success! Check Logs' 
+                        : `Beam Test ${stream.title} Record`}
               </Button>
             </Box>
 
@@ -1057,7 +1115,12 @@ export default function DataBeamingPage() {
         </Box>
       </Box>
 
-      <ApiKeyModal open={apiKeyOpen} onClose={() => setApiKeyOpen(false)} />
+      <ApiKeyModal 
+        open={apiKeyOpen} 
+        onClose={() => setApiKeyOpen(false)} 
+        keyInfo={keyInfo}
+        onKeyUpdated={loadKey}
+      />
     </DashboardLayout>
   )
 }

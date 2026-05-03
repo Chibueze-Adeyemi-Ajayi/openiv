@@ -163,11 +163,11 @@ export default function ReportsPage() {
             { label: 'Filed this month', value: metrics?.filedThisMonth ?? '—', sub: 'Current period' },
             { label: 'Schedules due', value: metrics?.dueThisWeek ?? '—',    sub: 'Within 7 days', alert: (metrics?.dueThisWeek ?? 0) > 0 },
           ].map(s => (
-            <Box 
-              key={s.label} 
+            <Box
+              key={s.label}
               data-ai-analyzable="true"
               data-ai-description={`Regulatory Reporting KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
-              sx={{ bgcolor: '#fff', border: `1px solid ${s.alert ? '#fde68a' : '#eef0f4'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : '#fff' }}>
+              sx={{ border: `1px solid ${s.alert ? '#fde68a' : '#eef0f4'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : '#fff' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                 {s.label}
               </Typography>

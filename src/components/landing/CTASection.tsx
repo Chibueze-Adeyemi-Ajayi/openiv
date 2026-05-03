@@ -1,84 +1,174 @@
-import { Box, Button, Container, Stack, Typography } from '@mui/material'
+import { Box, Button, Container, Grid, Stack, Typography } from '@mui/material'
 import { colorPalette } from '@/theme'
+import { keyframes } from '@mui/system'
+import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const fadeInLeft = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`
 
 export default function CTASection() {
+  const { ref, isVisible } = useIntersectionAnimation()
+
   return (
-    <Box
-      sx={{
-        background: `linear-gradient(135deg, ${colorPalette.primary} 0%, ${colorPalette.primary_container} 100%)`,
-        py: { xs: 6, md: 12 },
-        textAlign: 'center',
-      }}
-    >
-      <Container maxWidth="md">
-        <Stack sx={{ gap: 3, alignItems: 'center' }}>
-          <Typography
-            variant="h2"
-            sx={{
-              color: '#ffffff',
-              maxWidth: '92%',
-              fontWeight: 700,
-              fontSize: { xs: '2rem', md: '2.625rem' },
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-            }}
-          >
-            Bring fraud losses to zero. Stay ahead of every audit.
-          </Typography>
+    <Box ref={ref} sx={{ bgcolor: '#ffffff', py: { xs: 8, md: 12 }, borderBottom: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <Container maxWidth="lg">
+        <Grid container spacing={6} sx={{ alignItems: 'center' }}>
+          {/* Left - Content */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Stack sx={{ gap: 4 }}>
+              <Typography
+                sx={{
+                  fontSize: { xs: '2rem', md: '2.75rem' },
+                  fontWeight: 700,
+                  color: colorPalette.on_surface,
+                  lineHeight: 1.2,
+                  letterSpacing: '-0.01em',
+                  fontFamily: 'Jost',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out both` : 'none',
+                }}
+              >
+                Ready to eliminate fraud losses?
+              </Typography>
 
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'rgba(255,255,255,0.85)',
-              maxWidth: '85%',
-              fontSize: '1.0625rem',
-              lineHeight: 1.6,
-            }}
-          >
-            See how OpenIV stops account takeovers, SIM-swap fraud, and mule activity — and turns NFIU and CBN reporting into a one-click workflow.
-          </Typography>
+              <Typography
+                sx={{
+                  fontSize: '1.05rem',
+                  color: '#64748b',
+                  lineHeight: 1.7,
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
+                }}
+              >
+                See how OpenIV protects hundreds of institutions. Get started in 2 weeks with zero operational friction.
+              </Typography>
 
-          {/* CTA Buttons */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 2, mt: 2 }}>
-            <Button
-              variant="contained"
-              size="large"
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                sx={{ gap: 2, animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.2s both` : 'none' }}
+              >
+                <Button
+                  sx={{
+                    bgcolor: colorPalette.primary,
+                    color: '#ffffff',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    px: 4,
+                    py: 1.5,
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    '&:hover': {
+                      bgcolor: '#001a4d',
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 12px 24px rgba(0, 40, 142, 0.2)',
+                    },
+                  }}
+                >
+                  Start Free Trial
+                </Button>
+                <Button
+                  variant="outlined"
+                  sx={{
+                    borderColor: '#cbd5e1',
+                    color: colorPalette.on_surface,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    px: 4,
+                    py: 1.5,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: colorPalette.primary,
+                      bgcolor: '#f8fafc',
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  Schedule Demo
+                </Button>
+              </Stack>
+
+              {/* Trust Indicators */}
+              <Stack
+                direction="row"
+                spacing={3}
+                sx={{
+                  pt: 4,
+                  borderTop: '1px solid #e5e7eb',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.3s both` : 'none',
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: colorPalette.on_surface, mb: 0.5 }}>
+                    ✓ No credit card required
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: colorPalette.on_surface }}>
+                    ✓ Full feature access
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+          </Grid>
+
+          {/* Right - Visual */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Box
               sx={{
-                bgcolor: '#ffffff',
-                color: colorPalette.primary,
-                fontWeight: 600,
-                textTransform: 'none',
-                fontSize: '1rem',
-                px: 4,
+                width: '100%',
+                height: '400px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e5e7eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                animation: isVisible ? `${fadeInLeft} 0.8s ease-out 0.2s both` : 'none',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.95)',
+                  borderColor: colorPalette.primary,
+                  boxShadow: '0 20px 40px rgba(0, 40, 142, 0.12)',
+                  '& img': {
+                    transform: 'scale(1.02)',
+                  },
                 },
-                borderRadius: '0.375rem',
               }}
             >
-              Book a 30-min demo
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              sx={{
-                borderColor: '#ffffff',
-                color: '#ffffff',
-                fontWeight: 500,
-                textTransform: 'none',
-                fontSize: '1rem',
-                px: 4,
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                  borderColor: '#ffffff',
-                },
-                borderRadius: '0.375rem',
-              }}
-            >
-              Talk to sales
-            </Button>
-          </Stack>
-        </Stack>
+              <img
+                alt="OpenIV case management dashboard showing active fraud investigations, risk scores, and compliance status"
+                src="https://via.placeholder.com/500x400/f8fafc/cbd5e1?text=Case+Management+View"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transition: 'transform 0.3s ease',
+                }}
+              />
+            </Box>
+          </Grid>
+        </Grid>
       </Container>
     </Box>
   )

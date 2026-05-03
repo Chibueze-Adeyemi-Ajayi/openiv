@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 
-export interface RolePermissions {
+export interface RolePermissions extends Record<string, any> {
   monitor: { view: boolean; act: boolean }
   cases: { view: boolean; assign: boolean; close: boolean }
   rules: { view: boolean; modify: boolean }

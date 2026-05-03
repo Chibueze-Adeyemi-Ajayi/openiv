@@ -16,7 +16,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+// import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 
 
@@ -85,7 +85,7 @@ export default function TeamPage() {
     authApi.session().then(res => {
       setCurrentUserEmail(res.email ?? null)
       setCurrentUserRole(res.role ?? null)
-    }).catch(() => {})
+    }).catch(() => { })
   }, [])
 
   const loadRoles = async () => {
@@ -109,17 +109,17 @@ export default function TeamPage() {
     setEditorOpen(true)
   }
 
-  const openEditRole = (role: TeamRole) => {
-    setEditorMode('edit')
-    setEditorInitial({
-      id: role.id,
-      name: role.name,
-      description: role.description,
-      color: role.color,
-      permissions: JSON.parse(JSON.stringify(role.permissions)),
-    })
-    setEditorOpen(true)
-  }
+  // const openEditRole = (role: TeamRole) => {
+  //   setEditorMode('edit')
+  //   setEditorInitial({
+  //     id: role.id,
+  //     name: role.name,
+  //     description: role.description,
+  //     color: role.color,
+  //     permissions: JSON.parse(JSON.stringify(role.permissions)),
+  //   })
+  //   setEditorOpen(true)
+  // }
 
   const handleRoleSubmit = (draft: RoleDraft) => {
     setEditorOpen(false)
@@ -129,36 +129,36 @@ export default function TeamPage() {
   const finalizeRoleSave = () => {
     if (!pendingRoleSave) return
     const roleToAdd = { ...pendingRoleSave, members: pendingRoleSave.members || 0 }
-    
+
     // OPTIMISTIC UPDATE: Update UI immediately
     setRoles((prev) => {
       const exists = prev.find((r) => r.id === roleToAdd.id)
       if (exists) return prev.map((r) => (r.id === roleToAdd.id ? roleToAdd : r))
       return [...prev, roleToAdd]
     })
-    
+
     // SYNC BACKGROUND
     teamApi.saveRole(roleToAdd).catch(err => {
       setApiError('Failed to sync role to server. Please refresh.')
       console.error(err)
     })
-    
+
     setPendingRoleSave(null)
   }
 
   const finalizeRoleDelete = () => {
     if (!removeRole) return
     const idToDelete = removeRole.id
-    
+
     // OPTIMISTIC UPDATE
     setRoles((prev) => prev.filter((r) => r.id !== idToDelete))
-    
+
     // SYNC BACKGROUND
     teamApi.deleteRole(idToDelete).catch(err => {
       setApiError('Failed to delete role on server.')
       console.error(err)
     })
-    
+
     setRemoveRole(null)
   }
 

@@ -1,4 +1,5 @@
 import { Box, Typography, Stack, Button, InputBase, Chip, IconButton, Alert, Popover } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
@@ -61,6 +62,7 @@ const RISK_TO_RANGE: Record<RiskFilter, { min?: number; max?: number }> = {
 const GRID = '32px 100px 1fr 1fr 110px 75px 70px 88px 110px 32px'
 
 export default function TransactionsPage() {
+  const navigate = useNavigate()
   const [active,          setActive]          = useState<string>('All')
   const [search,          setSearch]          = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -344,7 +346,10 @@ export default function TransactionsPage() {
 
                   {/* Sender */}
                   <Box sx={{ overflow: 'hidden' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/users/${t.customerId}`) }}
+                      sx={{ fontSize: '0.8125rem', fontWeight: 600, color: colorPalette.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                    >
                       {t.customer}
                     </Typography>
                     {senderSub && (

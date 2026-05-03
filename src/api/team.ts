@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
 import type { AccountType } from './auth'
+import type { RolePermissions } from '@/components/dashboard/RoleEditor'
 
 export type TeamRoleId = string // Support custom- prefixes
 
@@ -32,7 +33,7 @@ export interface TeamRole {
   description: string
   color: string
   members?: number
-  permissions?: Record<string, boolean>
+  permissions?: RolePermissions
 }
 
 export const teamApi = {

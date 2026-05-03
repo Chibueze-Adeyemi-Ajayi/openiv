@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Box, Typography, Stack, Button, TextField, Switch,
-  IconButton, Popover, Skeleton, Collapse, Dialog,
+  IconButton, Popover, Skeleton, Collapse, Dialog, CircularProgress, Alert,
+  Tabs, Tab, MenuItem,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
@@ -13,6 +14,7 @@ import {
   type WebhookDelivery,
   type WebhookSecurityRule,
 } from '@/api/webhooks'
+import { kycApi, type KycConfig } from '@/api/kyc'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -25,6 +27,11 @@ import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined'
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined'
 
 // ── Style constants ───────────────────────────────────────────────────────────
 
@@ -1220,6 +1227,257 @@ app.MapPost("/webhooks/openiv", async (HttpContext ctx) =>
 app.Run();`,
 }
 
+// ── VerifyButton ──────────────────────────────────────────────────────────────
+
+function VerifyButton({ url, type }: { url: string; type: 'notification' | 'kyc' }) {
+  const [state, setState] = useState<'idle' | 'loading' | 'ok' | 'fail'>('idle')
+  const [ms, setMs] = useState<number | null>(null)
+
+  const run = async () => {
+    if (!url || !url.startsWith('https://')) return
+    setState('loading')
+    try {
+      const r = await webhookApi.verify(url, type)
+      setMs(r.durationMs)
+      setState(r.ok ? 'ok' : 'fail')
+    } catch {
+      setState('fail')
+    }
+  }
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
+      <Button
+        size="small"
+        startIcon={state === 'loading'
+          ? <CircularProgress size={12} sx={{ color: colorPalette.primary }} />
+          : <LinkOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+        onClick={run}
+        disabled={state === 'loading' || !url.startsWith('https://')}
+        sx={{
+          bgcolor: '#f8fafc', color: '#475569', border: '1px solid #e5e7eb',
+          px: 1.75, py: 0.75, fontSize: '0.75rem', fontWeight: 600,
+          fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
+          '&:hover': { bgcolor: '#f1f5f9' },
+        }}
+      >
+        Verify URL
+      </Button>
+      {state === 'ok' && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <CheckCircleOutlineRoundedIcon sx={{ fontSize: '0.875rem', color: '#10b981' }} />
+          <Typography sx={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
+            Reachable {ms != null ? `· ${ms}ms` : ''}
+          </Typography>
+        </Box>
+      )}
+      {state === 'fail' && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <ErrorOutlineRoundedIcon sx={{ fontSize: '0.875rem', color: '#dc2626' }} />
+          <Typography sx={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600 }}>
+            Unreachable — check the URL and CORS
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+// ── KycWebhookTab ────────────────────────────────────────────────────────────
+
+function KycWebhookTab() {
+  const [kycUrl, setKycUrl] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [timeout, setTimeout_] = useState(10)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [totpOpen, setTotpOpen] = useState(false)
+
+  useEffect(() => {
+    kycApi.getConfig()
+      .then(r => {
+        setKycUrl(r.config?.lookupUrl ?? '')
+        setTimeout_(r.config?.lookupTimeout ?? 10)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const isFormValid = kycUrl && kycUrl.trim().length > 0
+
+  const handleSaveClick = () => {
+    if (!isFormValid) return
+    setTotpOpen(true)
+  }
+
+  const handleSaveWithTotp = async () => {
+    setSaving(true)
+    setSaveMsg(null)
+    setTotpOpen(false)
+    try {
+      await kycApi.saveConfig({
+        lookupUrl: kycUrl || null,
+        lookupApiKey: apiKey || null,
+        lookupTimeout: timeout,
+      })
+      setSaveMsg({ ok: true, text: 'KYC webhook configuration saved' })
+      setTimeout(() => setSaveMsg(null), 2500)
+    } catch (e: any) {
+      setSaveMsg({ ok: false, text: e?.detail ?? e?.message ?? 'Failed to save' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Stack gap={3}>
+        {/* Explainer box */}
+        <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', p: 2.5 }}>
+          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#16a34a', mb: 0.5 }}>
+            What is a KYC data source?
+          </Typography>
+          <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6 }}>
+            OpenIV queries your KYC webhook endpoint when a flagged transaction is detected. If the customer record is found and verified, the case proceeds normally. If not found, the case is automatically escalated to HIGH priority for immediate investigation.
+          </Typography>
+          <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6, mt: 1 }}>
+            <strong>Request format:</strong> OpenIV sends a GET request to your URL with the customer reference ID in the path, plus optional Bearer token authentication.
+          </Typography>
+        </Box>
+
+        {/* Config form */}
+        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>
+            KYC Lookup Configuration
+          </Typography>
+
+          <Stack gap={2.5}>
+            {/* URL field */}
+            <Box>
+              <Typography sx={labelSx}>Lookup URL</Typography>
+              <TextField fullWidth
+                placeholder="https://api.kyc-provider.com/verify"
+                value={kycUrl}
+                onChange={e => setKycUrl(e.target.value)}
+                disabled={loading || saving}
+                sx={inputSx}
+              />
+              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
+                OpenIV will append the customer reference ID to this URL: GET {'{url}/{customerRef}'}
+              </Typography>
+              {kycUrl && <VerifyButton url={kycUrl} type="kyc" />}
+            </Box>
+
+            {/* API Key field */}
+            <Box>
+              <Typography sx={labelSx}>
+                API Key <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>(optional)</Typography>
+              </Typography>
+              <TextField fullWidth
+                type="password"
+                placeholder="Bearer token for KYC provider authentication"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                disabled={loading || saving}
+                sx={inputSx}
+              />
+            </Box>
+
+            {/* Timeout field */}
+            <Box>
+              <Typography sx={labelSx}>Lookup Timeout</Typography>
+              <TextField
+                select
+                value={timeout}
+                onChange={e => setTimeout_(Number(e.target.value))}
+                disabled={loading || saving}
+                sx={selectSx}
+              >
+                {[5, 10, 15, 20, 30].map(v => (
+                  <MenuItem key={v} value={v}>{v}s</MenuItem>
+                ))}
+              </TextField>
+            </Box>
+
+            {/* Save message */}
+            {saveMsg && (
+              <Box sx={{ px: 2, py: 1.5, bgcolor: saveMsg.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${saveMsg.ok ? '#bbf7d0' : '#fecaca'}` }}>
+                <Typography sx={{ fontSize: '0.75rem', color: saveMsg.ok ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                  {saveMsg.text}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Save button */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                onClick={handleSaveClick}
+                disabled={!isFormValid || saving || loading}
+                startIcon={saving && <CircularProgress size={16} sx={{ color: '#ffffff' }} />}
+                sx={{
+                  bgcolor: colorPalette.primary, color: '#ffffff',
+                  px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
+                  borderRadius: 0, textTransform: 'none', boxShadow: 'none',
+                  '&:hover': { bgcolor: '#1a3896' },
+                  '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+                }}
+              >
+                Save Configuration
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+
+        {/* TOTP Confirmation */}
+        <TOTPConfirmation
+          open={totpOpen}
+          onClose={() => setTotpOpen(false)}
+          onConfirm={handleSaveWithTotp}
+          operation="update"
+          title="Confirm KYC Configuration"
+          description="Saving KYC webhook configuration requires identity verification. Enter your TOTP code to proceed."
+          resourceType="KYC Data Source"
+          resourceName={kycUrl || 'Not configured'}
+        />
+
+        {/* Sample payloads */}
+        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>
+            Sample Request & Response
+          </Typography>
+
+          <Stack gap={2.5}>
+            {/* Request */}
+            <Box>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+                REQUEST FORMAT
+              </Typography>
+              <CodeBlock highlight content={`GET https://api.kyc-provider.com/verify/CUST-12345
+Authorization: Bearer sk_test_...`} copyLabel="Copy request" />
+            </Box>
+
+            {/* Response */}
+            <Box>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+                EXPECTED RESPONSE
+              </Typography>
+              <CodeBlock highlight content={`{
+  "tier": 2,
+  "status": "active",
+  "name": "John Doe",
+  "bvn": "22*********",
+  "idType": "NIN",
+  "verifiedAt": "2024-09-14T08:22:00Z"
+}`} copyLabel="Copy response" />
+            </Box>
+          </Stack>
+        </Box>
+      </Stack>
+    </Box>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
@@ -1238,6 +1496,7 @@ export default function WebhooksPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
   const [codeLang,   setCodeLang]   = useState(0)
+  const [tabValue,   setTabValue]   = useState(0)
 
   const langs = Object.keys(codeSamples)
 
@@ -1320,7 +1579,27 @@ export default function WebhooksPage() {
           </Typography>
         </Box>
 
-        {/* ── Endpoints view ───────────────────────────────────────────────── */}
+        {/* Tab switcher */}
+        <Tabs
+          value={tabValue}
+          onChange={(_, v) => setTabValue(v)}
+          sx={{
+            borderBottom: '1px solid #eef0f4', mb: 3, minHeight: 36,
+            '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
+            '& .MuiTab-root': {
+              fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
+              textTransform: 'none', minHeight: 36, py: 0, px: 2.5,
+              color: '#94a3b8',
+              '&.Mui-selected': { color: colorPalette.primary },
+            },
+          }}
+        >
+          <Tab label="Notification Webhooks" />
+          <Tab label="KYC Data Source" />
+        </Tabs>
+
+        {/* Tab 0: Notification Webhooks ────────────────────────────────────── */}
+        {tabValue === 0 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
             <Stack gap={3}>
               {/* New endpoint form */}
@@ -1574,6 +1853,10 @@ if (sig !== hash) return res.sendStatus(401)`}
               </Box>
             </Stack>
           </Box>
+        )}
+
+        {/* Tab 1: KYC Data Source ──────────────────────────────────────────── */}
+        {tabValue === 1 && <KycWebhookTab />}
 
       </Box>
 

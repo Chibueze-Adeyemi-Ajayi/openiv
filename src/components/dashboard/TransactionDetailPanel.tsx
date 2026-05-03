@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Box, Typography, Stack, IconButton } from '@mui/material'
+import { Box, Typography, Stack, IconButton, Button } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import { transactionApi, type Transaction, type FlaggedStatus } from '@/api/transactions'
 import { authApi } from '@/api/auth'
@@ -14,6 +15,7 @@ import FlagRoundedIcon from '@mui/icons-material/FlagRounded'
 import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined'
 
 interface Props {
   transaction: Transaction | null
@@ -84,6 +86,8 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
   const [activeCaseId,    setActiveCaseId]    = useState<string | null>(null)
   const [creating,        setCreating]        = useState(false)
   const [createErr,       setCreateErr]       = useState<string | null>(null)
+
+  const navigate = useNavigate()
 
   const currentFlagged = (actionFlaggedStatus ?? txn?.flaggedStatus ?? null) as FlaggedStatus | null
   const flaggedCfg     = currentFlagged ? FLAGGED_STATUS_CFG[currentFlagged] : null
@@ -202,6 +206,22 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                     </Typography>
                   </Box>
                 )}
+                <Button
+                  size="small"
+                  startIcon={<AccountCircleOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
+                  onClick={() => navigate(`/dashboard/users/${txn.customerId}`)}
+                  sx={{
+                    ml: 1,
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    color: colorPalette.primary,
+                    textTransform: 'none',
+                    fontFamily: 'Jost',
+                    '&:hover': { bgcolor: `${colorPalette.primary}0a` }
+                  }}
+                >
+                  View Profile
+                </Button>
                 <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
                   <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
                 </IconButton>

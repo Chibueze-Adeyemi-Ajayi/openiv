@@ -1,124 +1,231 @@
-import { Box, Button, Container, Stack, Typography } from '@mui/material'
-import { colorPalette, shadows } from '@/theme'
-import { styled } from '@mui/material/styles'
+import { Box, Button, Container, Grid, Stack, Typography } from '@mui/material'
+import { colorPalette } from '@/theme'
+import { keyframes } from '@mui/system'
+import { useState, useEffect } from 'react'
+import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
 
-const ImagePlaceholder = styled(Box)({
-  backgroundColor: colorPalette.inverse_surface,
-  borderRadius: '1rem',
-  height: '100%',
-  minHeight: 500,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: colorPalette.inverse_surface,
-  fontSize: '0.875rem',
-  overflow: 'hidden',
-  boxShadow: shadows.lg,
-})
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const fadeInRight = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`
+
+const StatCounter = ({ target, shouldCount }: { target: number; shouldCount: boolean }) => {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!shouldCount || count >= target) return
+    const increment = Math.ceil(target / 30)
+    const timer = setTimeout(() => setCount(prev => Math.min(prev + increment, target)), 30)
+    return () => clearTimeout(timer)
+  }, [count, target, shouldCount])
+
+  return <>{count.toLocaleString()}</>
+}
 
 export default function HeroSection() {
+  const { ref, isVisible } = useIntersectionAnimation()
+
   return (
-    <Box sx={{ bgcolor: colorPalette.surface, py: { xs: 6, md: 12 } }}>
+    <Box ref={ref} sx={{ bgcolor: '#ffffff', py: { xs: 6, md: 10 }, borderBottom: '1px solid #e5e7eb', overflow: 'hidden' }}>
       <Container maxWidth="lg">
-        <Stack direction={{ xs: 'column', lg: 'row' }} sx={{ gap: 6, alignItems: 'center' }}>
-          {/* Left Column - Text & CTAs */}
-          <Box sx={{ flex: '1', display: 'flex', flexDirection: 'column' }}>
-            {/* <BadgePill>Financial Intelligence Layer</BadgePill> */}
-
-            <Typography
-              sx={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                letterSpacing: '0.18em',
-                color: colorPalette.primary,
-                mb: 2.5,
-                textTransform: 'uppercase',
-              }}
-            >
-              Fraud Intelligence for Nigerian Financial Institutions
-            </Typography>
-
-            <Typography
-              variant="h1"
-              sx={{
-                color: colorPalette.on_surface,
-                mb: 3,
-                fontWeight: 700,
-                fontSize: { xs: '2rem', md: '3rem' },
-                lineHeight: 1.1,
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Stop fraud before it settles.
-            </Typography>
-
-            <Typography
-              variant="body1"
-              sx={{
-                mb: 4,
-                fontSize: '1rem',
-                maxWidth: '92%',
-                color: '#444653',
-                lineHeight: 1.65,
-              }}
-            >
-              OpenIV inspects every transaction in under 14ms — flagging suspicious flows, mapping behavioral fingerprints, and auto-generating CBN- and NFIU-aligned reports. Built for the security teams of Nigeria's banks, fintechs, and MFBs.
-            </Typography>
-
-            {/* CTA Buttons */}
-            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 2 }}>
-              <Button
+        <Grid container spacing={6} sx={{ alignItems: 'center' }}>
+          {/* Left - Text */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Stack sx={{ gap: 4 }}>
+              <Typography
                 sx={{
-                  background: `linear-gradient(90deg, ${colorPalette.primary} 0%, ${colorPalette.primary_container} 100%)`,
-                  color: '#ffffff',
-                  textTransform: 'none',
                   fontSize: '0.75rem',
-                  fontWeight: 400,
-                  fontFamily: 'Jost',
-                  borderRadius: '4px',
-                  px: '32px',
-                  py: '12px',
-                  boxShadow: '0 4px 12px rgba(0, 40, 142, 0.25)',
-                  '&:hover': {
-                    background: `linear-gradient(90deg, ${colorPalette.primary} 0%, ${colorPalette.primary_container} 100%)`,
-                    opacity: 0.9,
-                  },
+                  fontWeight: 700,
+                  letterSpacing: '0.15em',
+                  color: colorPalette.primary,
+                  textTransform: 'uppercase',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
                 }}
               >
-                Request Demo
-              </Button>
-              <Button
-                variant="text"
-                size="large"
-                sx={{
-                  bgcolor: colorPalette.surface_container_high,
-                  color: colorPalette.on_surface,
-                  borderRadius: '0.375rem',
-                  textTransform: 'none',
-                  fontSize: '1rem',
-                  fontWeight: 500,
-                  px: 4,
-                  '&:hover': {
-                    bgcolor: colorPalette.surface_container,
-                  },
-                }}
-              >
-                Talk to our team
-              </Button>
-            </Stack>
-          </Box>
+                Real-Time Intelligence
+              </Typography>
 
-          {/* Right Column - Image Placeholder */}
-          <Box sx={{ flex: '1' }}>
-            <ImagePlaceholder>
+              <Typography
+                sx={{
+                  fontSize: { xs: '2.5rem', md: '3.25rem' },
+                  fontWeight: 700,
+                  color: colorPalette.on_surface,
+                  lineHeight: 1.15,
+                  letterSpacing: '-0.02em',
+                  fontFamily: 'Jost',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.2s both` : 'none',
+                }}
+              >
+                Catch fraud before it costs millions. Automate AML.
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: '1.05rem',
+                  color: '#64748b',
+                  lineHeight: 1.7,
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.3s both` : 'none',
+                }}
+              >
+                OpenIV analyzes every transaction in real time. Detect behavioral anomalies, block account takeovers, and auto-generate SAR/STR filings—all in milliseconds.
+              </Typography>
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                sx={{ gap: 2, pt: 2, animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.4s both` : 'none' }}
+              >
+                <Button
+                  sx={{
+                    bgcolor: colorPalette.primary,
+                    color: '#ffffff',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    px: 4,
+                    py: 1.5,
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    '&:hover': {
+                      bgcolor: '#001a4d',
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 12px 24px rgba(0, 40, 142, 0.2)',
+                    },
+                  }}
+                >
+                  Request Demo
+                </Button>
+                <Button
+                  variant="outlined"
+                  sx={{
+                    borderColor: '#cbd5e1',
+                    color: colorPalette.on_surface,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    px: 4,
+                    py: 1.5,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: colorPalette.primary,
+                      bgcolor: '#f8fafc',
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  Learn More
+                </Button>
+              </Stack>
+
+              {/* Animated Stats */}
+              <Stack
+                direction="row"
+                spacing={4}
+                sx={{
+                  pt: 4,
+                  borderTop: '1px solid #e5e7eb',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.5s both` : 'none',
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: '1.75rem',
+                      fontWeight: 700,
+                      color: colorPalette.primary,
+                      mb: 0.5,
+                    }}
+                  >
+                    &lt;14ms
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>Detection latency</Typography>
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: '1.75rem',
+                      fontWeight: 700,
+                      color: colorPalette.primary,
+                      mb: 0.5,
+                    }}
+                  >
+                    {isVisible && <StatCounter target={62} shouldCount={isVisible} />}%
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>False positives reduced</Typography>
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: '1.75rem',
+                      fontWeight: 700,
+                      color: colorPalette.primary,
+                      mb: 0.5,
+                    }}
+                  >
+                    {isVisible && <StatCounter target={50} shouldCount={isVisible} />}M+
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>Daily transactions</Typography>
+                </Box>
+              </Stack>
+            </Stack>
+          </Grid>
+
+          {/* Right - Image with hover animation */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Box
+              sx={{
+                width: '100%',
+                height: '450px',
+                bgcolor: '#f8fafc',
+                border: '1px solid #e5e7eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                position: 'relative',
+                animation: isVisible ? `${fadeInRight} 0.8s ease-out 0.3s both` : 'none',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: colorPalette.primary,
+                  boxShadow: '0 20px 40px rgba(0, 40, 142, 0.12)',
+                  '& img': {
+                    transform: 'scale(1.02)',
+                  },
+                },
+              }}
+            >
               <img
-                alt="3D Data Visualization"
-                src="https://via.placeholder.com/600x500/2f3037/ffffff?text=3D+Data+Visualization"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                alt="OpenIV dashboard showing real-time transaction analysis with fraud detection metrics, risk scores, and case management interface"
+                src="https://via.placeholder.com/600x450/f8fafc/94a3b8?text=Dashboard+Screenshot"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transition: 'transform 0.3s ease',
+                }}
               />
-            </ImagePlaceholder>
-          </Box>
-        </Stack>
+            </Box>
+          </Grid>
+        </Grid>
       </Container>
     </Box>
   )
