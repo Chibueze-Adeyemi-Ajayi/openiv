@@ -89,6 +89,67 @@ public final class ThresholdHandlers {
     };
   }
 
+  // GET /thresholds/kyc-status
+  public Handler<RoutingContext> kycStatus() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.getKycStatus(session)
+          .onSuccess(status -> ok(ctx, status))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /thresholds/kyc-suppress
+  public Handler<RoutingContext> suppressKyc() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.suppressKycWarning(session)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /thresholds/kyc-tiers
+  public Handler<RoutingContext> listKycTiers() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.listKycTierThresholds(session)
+          .onSuccess(tiers -> {
+            var arr = new JsonArray();
+            tiers.forEach(t -> arr.add(tierJson(t)));
+            ok(ctx, new JsonObject().put("tiers", arr));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // PATCH /thresholds/kyc-tiers/:tier
+  public Handler<RoutingContext> updateKycTier() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      int tier;
+      try { tier = Integer.parseInt(ctx.pathParam("tier")); }
+      catch (NumberFormatException e) { ctx.fail(400); return; }
+
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      String field = body.getString("field");
+      Long value   = body.getLong("value");
+
+      if (field == null || value == null) {
+        badRequest(ctx, "provide 'field' and 'value'"); return;
+      }
+
+      service.updateKycTierThreshold(session, tier, field, value)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(err -> {
+            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
+            else ctx.fail(err);
+          });
+    };
+  }
+
   // ── JSON serialisers ──────────────────────────────────────────────────────
 
   private static JsonObject ruleJson(ThresholdRecord r) {
@@ -119,6 +180,28 @@ public final class ThresholdHandlers {
         .put("oldValue",      c.oldValue())
         .put("newValue",      c.newValue())
         .put("createdAt",     c.createdAt().toString());
+  }
+
+  private static JsonObject tierJson(KycTierRecord t) {
+    return new JsonObject()
+        .put("id",                                 t.id())
+        .put("kycTier",                            t.kycTier())
+        .put("dailyLimitWire",                     t.dailyLimitWire())
+        .put("dailyLimitMobile",                   t.dailyLimitMobile())
+        .put("dailyLimitUssd",                     t.dailyLimitUssd())
+        .put("dailyLimitBdc",                      t.dailyLimitBdc())
+        .put("dailyLimitOther",                    t.dailyLimitOther())
+        .put("singleTxnLimitWire",                 t.singleTxnLimitWire())
+        .put("singleTxnLimitMobile",               t.singleTxnLimitMobile())
+        .put("singleTxnLimitUssd",                 t.singleTxnLimitUssd())
+        .put("singleTxnLimitBdc",                  t.singleTxnLimitBdc())
+        .put("singleTxnLimitOther",                t.singleTxnLimitOther())
+        .put("maxTxnsPerHour",                     t.maxTxnsPerHour())
+        .put("maxTxnsPerDay",                      t.maxTxnsPerDay())
+        .put("riskScoreBoost",                     t.riskScoreBoost())
+        .put("requiresAdditionalVerification",     t.requiresAdditionalVerification())
+        .put("createdAt",                          t.createdAt().toString())
+        .put("updatedAt",                          t.updatedAt().toString());
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

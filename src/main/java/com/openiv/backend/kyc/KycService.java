@@ -40,6 +40,10 @@ public final class KycService {
     return resolveUser(session).compose(u -> repository.findConfig(u.institutionId()));
   }
 
+  public Future<Boolean> hasConfigForInstitution(long institutionId) {
+    return repository.hasConfig(institutionId);
+  }
+
   public Future<KycConfig> saveConfig(Session session,
       String lookupUrl, String lookupApiKey, Integer lookupTimeout,
       String listenerUrl, String listenerApiKey) {

@@ -41,42 +41,51 @@ public class FraudDetectionBillingService {
 
   private Future<BillingRecord> chargeInstitution(long instId, String txnId,
       String type, BigDecimal amount) {
-    return pool.preparedQuery("SELECT balance FROM institution_balances WHERE institution_id = $1")
+    long amountUnits = amount.multiply(new BigDecimal("10000")).longValue();
+    return pool.preparedQuery("SELECT bw.id, bw.balance_units FROM billing_wallets bw WHERE bw.institution_id = $1")
         .execute(Tuple.of(instId))
         .compose(rs -> {
           if (rs.size() == 0) return Future.failedFuture(
               new IllegalStateException("No balance for institution " + instId));
-          BigDecimal before = rs.iterator().next().getBigDecimal(0);
-          BigDecimal after = before.subtract(amount);
-          if (after.compareTo(BigDecimal.ZERO) < 0) return Future.failedFuture(
+          var row = rs.iterator().next();
+          long walletId = row.getLong("id");
+          long beforeUnits = row.getLong("balance_units");
+          long afterUnits = beforeUnits - amountUnits;
+          if (afterUnits < 0) return Future.failedFuture(
               new IllegalStateException("Insufficient balance"));
           return pool.preparedQuery(
-              "UPDATE institution_balances SET balance = $1 WHERE institution_id = $2")
-              .execute(Tuple.of(after, instId))
-              .compose(v -> createLedger(instId, txnId, type, amount, before, after));
+              "UPDATE billing_wallets SET balance_units = $1 WHERE id = $2")
+              .execute(Tuple.of(afterUnits, walletId))
+              .compose(v -> createLedger(instId, walletId, txnId, type, amountUnits,
+                  new BigDecimal(beforeUnits).divide(new BigDecimal("10000")),
+                  new BigDecimal(afterUnits).divide(new BigDecimal("10000"))));
         });
   }
 
-  private Future<BillingRecord> createLedger(long instId, String txnId, String type,
-      BigDecimal amt, BigDecimal before, BigDecimal after) {
+  private Future<BillingRecord> createLedger(long instId, long walletId, String txnId, String type,
+      long amountUnits, BigDecimal before, BigDecimal after) {
     String ref = "LEDGER-" + YearMonth.now() + "-" + txnId;
-    return pool.preparedQuery("INSERT INTO institution_ledger " +
-        "(institution_id, transaction_id, type, amount, balance_before, balance_after, reference) " +
-        "VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *")
-        .execute(Tuple.of(instId, txnId, type, amt, before, after, ref))
+    return pool.preparedQuery("INSERT INTO billing_ledger " +
+        "(institution_id, wallet_id, type, category, amount_units, balance_units, description, ref) " +
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at")
+        .execute(Tuple.of(instId, walletId, "debit", type, amountUnits,
+            after.multiply(new BigDecimal("10000")).longValue(), type + " charge for " + txnId, ref))
         .map(rs -> {
           var r = rs.iterator().next();
-          return new BillingRecord(r.getLong("id"), r.getLong("institution_id"),
-              r.getString("transaction_id"), r.getString("type"), r.getBigDecimal("amount"),
-              r.getBigDecimal("balance_before"), r.getBigDecimal("balance_after"),
-              r.getString("reference"), r.getOffsetDateTime("created_at"));
+          return new BillingRecord(r.getLong("id"), instId, txnId, type,
+              new BigDecimal(amountUnits).divide(new BigDecimal("10000")), before, after, ref,
+              r.getOffsetDateTime("created_at"));
         });
   }
 
   public Future<BigDecimal> getBalance(long instId) {
-    return pool.preparedQuery("SELECT balance FROM institution_balances WHERE institution_id = $1")
+    return pool.preparedQuery("SELECT balance_units FROM billing_wallets WHERE institution_id = $1")
         .execute(Tuple.of(instId))
-        .map(rs -> rs.size() > 0 ? rs.iterator().next().getBigDecimal(0) : BigDecimal.ZERO);
+        .map(rs -> {
+          if (rs.size() == 0) return BigDecimal.ZERO;
+          long units = rs.iterator().next().getLong("balance_units");
+          return new BigDecimal(units).divide(new BigDecimal("10000"));
+        });
   }
 
   public void chargeBeamIngestAsync(long institutionId, String recordId) {

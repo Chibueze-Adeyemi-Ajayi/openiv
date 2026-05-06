@@ -38,6 +38,7 @@ import com.openiv.backend.heatmap.HeatmapHandlers;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycHandlers;
 import com.openiv.backend.kyc.KycService;
+import com.openiv.backend.aml.AmlHandlers;
 import com.openiv.backend.network.NetworkHandlers;
 import com.openiv.backend.network.NetworkRepository;
 import com.openiv.backend.network.NetworkService;
@@ -155,6 +156,7 @@ public final class V1Router {
     Handler<RoutingContext> caseAuth = SessionAuthHandler.authenticated(authService);
     router.get("/transactions/:id/case").handler(txnAuth).handler(caseHandlers.forTransaction());
     router.get("/cases/metrics").handler(caseAuth).handler(caseHandlers.metrics());
+    router.get("/cases/pending-approval").handler(caseAuth).handler(caseHandlers.listPendingApproval());
     router.get("/cases").handler(caseAuth).handler(caseHandlers.list());
     router.post("/cases").handler(caseAuth).handler(caseHandlers.create());
     router.get("/cases/:id").handler(caseAuth).handler(caseHandlers.detail());
@@ -167,6 +169,10 @@ public final class V1Router {
     ThresholdHandlers thresholdHandlers = new ThresholdHandlers(thresholdService);
     Handler<RoutingContext> thresholdAuth = SessionAuthHandler.authenticated(authService);
     router.get("/thresholds/metrics").handler(thresholdAuth).handler(thresholdHandlers.metrics());
+    router.get("/thresholds/kyc-status").handler(thresholdAuth).handler(thresholdHandlers.kycStatus());
+    router.post("/thresholds/kyc-suppress").handler(thresholdAuth).handler(thresholdHandlers.suppressKyc());
+    router.get("/thresholds/kyc-tiers").handler(thresholdAuth).handler(thresholdHandlers.listKycTiers());
+    router.patch("/thresholds/kyc-tiers/:tier").handler(thresholdAuth).handler(thresholdHandlers.updateKycTier());
     router.get("/thresholds").handler(thresholdAuth).handler(thresholdHandlers.list());
     router.patch("/thresholds/:id").handler(thresholdAuth).handler(thresholdHandlers.update());
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
@@ -219,12 +225,20 @@ public final class V1Router {
     router.get("/network/logs").handler(networkAuth).handler(networkHandlers.listLogs());
 
     // KYC — lookup URL config and manual lookup trigger
-    KycHandlers kycHandlers = new KycHandlers(kycService, billingService, authService);
+    KycHandlers kycHandlers = new KycHandlers(kycService, billingService);
     Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
     router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
     router.post("/kyc/lookup").handler(kycAuth).handler(kycHandlers.lookup());
     router.get("/kyc/logs").handler(kycAuth).handler(kycHandlers.listLogs());
+
+    // AML Settings — institution-level configuration for auto case opening
+    AmlHandlers amlHandlers = new AmlHandlers(caseService);
+    Handler<RoutingContext> amlAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/aml-settings").handler(amlAuth).handler(amlHandlers.getSettings());
+    router.put("/aml-settings").handler(amlAuth).handler(amlHandlers.updateSettings());
+    router.post("/aml-settings/notifications/email").handler(amlAuth).handler(amlHandlers.addNotificationEmail());
+    router.delete("/aml-settings/notifications/email").handler(amlAuth).handler(amlHandlers.removeNotificationEmail());
 
     // Documents — compliance evidence files (upload + download)
     DocumentHandlers docHandlers = new DocumentHandlers(
@@ -253,9 +267,18 @@ public final class V1Router {
     Handler<RoutingContext> userAnalyticsAuth = SessionAuthHandler.authenticated(authService);
     router.get("/analytics/users/:userId/heatmap").handler(userAnalyticsAuth).handler(userAnalyticsHandlers::getUserHeatmap);
 
+    // Notifications
+    var notificationService  = new com.openiv.backend.notifications.NotificationService(dbPool, vertx);
+    var notificationHandlers = new com.openiv.backend.notifications.NotificationHandlers(
+        notificationService, new com.openiv.backend.auth.repository.UserRepository(dbPool));
+    Handler<RoutingContext> notifAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/notifications").handler(notifAuth).handler(notificationHandlers.list());
+    router.patch("/notifications/read-all").handler(notifAuth).handler(notificationHandlers.markAllRead());
+    router.patch("/notifications/:id/read").handler(notifAuth).handler(notificationHandlers.markRead());
+
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
     DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx,
-        billingService);
+        billingService, notificationService);
     Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
     router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
     router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());

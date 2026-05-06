@@ -58,6 +58,30 @@ public final class CaseHandlers {
     };
   }
 
+  // GET /cases/pending-approval
+  public Handler<RoutingContext> listPendingApproval() {
+    return ctx -> {
+      var session  = SessionAuthHandler.require(ctx);
+      String status   = first(ctx, "status");
+      String priority = first(ctx, "priority");
+      String q        = first(ctx, "q");
+      int page        = intParam(ctx, "page", 1);
+      int pageSize    = Math.min(intParam(ctx, "pageSize", 20), 100);
+
+      service.listUnavailable(session, status, priority, q, page, pageSize)
+          .onSuccess(result -> {
+            var arr = new JsonArray();
+            result.cases().forEach(c -> arr.add(caseJson(c)));
+            ok(ctx, new JsonObject()
+                .put("cases",    arr)
+                .put("total",    result.total())
+                .put("page",     result.page())
+                .put("pageSize", result.pageSize()));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
   // POST /cases
   public Handler<RoutingContext> create() {
     return ctx -> {

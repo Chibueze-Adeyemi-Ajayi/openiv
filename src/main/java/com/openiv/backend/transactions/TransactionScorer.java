@@ -121,7 +121,7 @@ public class TransactionScorer {
   /**
    * Determine if transaction should auto-create a case.
    */
-  public static boolean shouldCreateCase(int riskScore) {
-    return riskScore >= 40;
+  public static boolean shouldCreateCase(int riskScore, int caseThreshold) {
+    return riskScore >= caseThreshold;
   }
 }

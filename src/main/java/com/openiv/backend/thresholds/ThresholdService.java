@@ -5,6 +5,7 @@ import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 import java.util.Optional;
@@ -72,6 +73,27 @@ public final class ThresholdService {
   public Future<List<ThresholdChange>> history(Session session, long id) {
     return resolveUser(session).compose(u ->
         repository.history(id, u.institutionId()));
+  }
+
+  public Future<JsonObject> getKycStatus(Session session) {
+    return resolveUser(session).compose(u ->
+        repository.getKycSuppressed(u.institutionId()).map(suppressed ->
+            new JsonObject().put("suppressed", suppressed)));
+  }
+
+  public Future<Void> suppressKycWarning(Session session) {
+    return resolveUser(session).compose(u ->
+        repository.setKycSuppressed(u.institutionId(), true));
+  }
+
+  public Future<List<KycTierRecord>> listKycTierThresholds(Session session) {
+    return resolveUser(session).compose(u ->
+        repository.listKycTierThresholds(u.institutionId()));
+  }
+
+  public Future<Void> updateKycTierThreshold(Session session, int tier, String field, long value) {
+    return resolveUser(session).compose(u ->
+        repository.updateKycTierThreshold(u.institutionId(), tier, field, value));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

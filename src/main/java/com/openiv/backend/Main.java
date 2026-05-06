@@ -32,6 +32,7 @@ import com.openiv.backend.heatmap.HeatmapRepository;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycRepository;
 import com.openiv.backend.kyc.KycService;
+import com.openiv.backend.aml.AmlSettingsRepository;
 import com.openiv.backend.webhooks.WebhookDeliveryService;
 import com.openiv.backend.webhooks.WebhookRepository;
 import com.openiv.backend.webhooks.WebhookService;
@@ -89,6 +90,8 @@ public final class Main {
   public static void main(String[] args) {
     System.setProperty("vertx.logger-delegate-factory-class-name",
         "io.vertx.core.logging.SLF4JLogDelegateFactory");
+    System.setProperty("user.timezone", "Africa/Lagos");
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Africa/Lagos"));
 
     int cores = Runtime.getRuntime().availableProcessors();
 
@@ -98,8 +101,8 @@ public final class Main {
         .setPreferNativeTransport(true);
 
     Vertx vertx = Vertx.vertx(vertxOptions);
-    log.info("Vert.x started: cores={}, nativeTransport={}",
-        cores, vertx.isNativeTransportEnabled());
+    log.info("Vert.x started: cores={}, nativeTransport={}, timezone={}",
+        cores, vertx.isNativeTransportEnabled(), java.util.TimeZone.getDefault().getID());
 
     startup(vertx, cores)
         .onFailure(err -> {
@@ -161,7 +164,8 @@ public final class Main {
         CustomerService customerService = new CustomerService(customerRepository);
         TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users, customerService);
         var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
-        CaseService caseService = new CaseService(caseRepository, users);
+        AmlSettingsRepository amlSettingsRepository = new AmlSettingsRepository(pool);
+        CaseService caseService = new CaseService(caseRepository, users, amlSettingsRepository);
         var thresholdRepository = new com.openiv.backend.thresholds.ThresholdRepository(pool);
         ThresholdService thresholdService = new ThresholdService(thresholdRepository, users);
         WebhookRepository webhookRepository = new WebhookRepository(pool);
@@ -174,7 +178,7 @@ public final class Main {
         OtpAnalyzer otpAnalyzer = new OtpAnalyzer(otpAlertRepository);
 
         // Fraud detection services
-        var notificationService = new com.openiv.backend.notifications.NotificationService(pool);
+        var notificationService = new com.openiv.backend.notifications.NotificationService(pool, vertx);
         var fraudDetectionBillingService = new com.openiv.backend.billing.FraudDetectionBillingService(pool);
         var autoCaseService = new com.openiv.backend.cases.AutoCaseCreationService(caseRepository);
 
@@ -186,7 +190,10 @@ public final class Main {
             autoCaseService,
             thresholdRepository,
             pool,
-            kycService);
+            kycService,
+            amlSettingsRepository,
+            emailSender,
+            new com.openiv.backend.behavioral.BehavioralRuleRepository(pool));
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
             hybridAnalysis, fraudDetectionBillingService, notificationService);
 

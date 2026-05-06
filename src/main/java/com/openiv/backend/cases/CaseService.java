@@ -1,5 +1,7 @@
 package com.openiv.backend.cases;
 
+import com.openiv.backend.aml.AmlSettings;
+import com.openiv.backend.aml.AmlSettingsRepository;
 import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
@@ -17,10 +19,12 @@ public final class CaseService {
 
   private final CaseRepository repository;
   private final UserRepository users;
+  private final AmlSettingsRepository amlSettingsRepository;
 
-  public CaseService(CaseRepository repository, UserRepository users) {
+  public CaseService(CaseRepository repository, UserRepository users, AmlSettingsRepository amlSettingsRepository) {
     this.repository = repository;
     this.users = users;
+    this.amlSettingsRepository = amlSettingsRepository;
   }
 
   public Future<CaseMetrics> metrics(Session session) {
@@ -33,6 +37,12 @@ public final class CaseService {
         .compose(u -> repository.list(u.institutionId(), status, priority, q, page, pageSize));
   }
 
+  public Future<CasePage> listUnavailable(Session session, String status, String priority,
+      String q, int page, int pageSize) {
+    return resolveUser(session)
+        .compose(u -> repository.listUnavailable(u.institutionId(), status, priority, q, page, pageSize));
+  }
+
   public Future<CaseRecord> create(Session session, String title, String typology,
       String priority, int riskScore, Long assignedTo, String notes, String transactionId,
       String reason, Long documentId) {
@@ -42,7 +52,7 @@ public final class CaseService {
         String id = "CASE-"
             + YearMonth.now().format(DateTimeFormatter.ofPattern("yyyyMM"))
             + "-" + String.format("%06d", seq);
-        return repository.create(id, u.institutionId(), title, typology,
+        return repository.create(id, u.institutionId(), title, title, typology,
                 priority, riskScore, assignedTo, notes, sla, u.id(), reason, documentId)
             .compose(cas -> {
               Future<Void> linkFuture = (transactionId != null && !transactionId.isBlank())
@@ -132,6 +142,43 @@ public final class CaseService {
 
   public Future<Void> escalatePriorityBySystem(String caseId, long institutionId, String priority) {
     return repository.updatePriority(caseId, priority).mapEmpty();
+  }
+
+  public Future<Optional<AmlSettings>> getAmlSettings(Session session) {
+    return resolveUser(session).compose(u -> amlSettingsRepository.getByInstitution(u.institutionId()));
+  }
+
+  public Future<AmlSettings> updateAmlSettings(Session session, boolean autoOpenCase, Integer flagThreshold, Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold, Integer normalThreshold, Integer behNormalThreshold) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.upsert(u.institutionId(), autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold));
+  }
+
+  public Future<AmlSettings> addCaseNotificationEmail(Session session, String email) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.getByInstitution(u.institutionId())
+            .compose(opt -> {
+              if (opt.isEmpty()) {
+                return amlSettingsRepository.upsert(u.institutionId(), true, null, null, null, null, null, null)
+                    .compose(settings -> amlSettingsRepository.addNotificationEmail(settings.id(), email)
+                        .map(v -> settings));
+              }
+              AmlSettings settings = opt.get();
+              return amlSettingsRepository.addNotificationEmail(settings.id(), email)
+                  .compose(v -> amlSettingsRepository.getByInstitution(u.institutionId()))
+                  .map(newOpt -> newOpt.orElse(settings));
+            }));
+  }
+
+  public Future<AmlSettings> removeCaseNotificationEmail(Session session, String email) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.getByInstitution(u.institutionId())
+            .compose(opt -> {
+              if (opt.isEmpty()) return Future.failedFuture(new IllegalArgumentException("AML settings not found"));
+              AmlSettings settings = opt.get();
+              return amlSettingsRepository.removeNotificationEmail(settings.id(), email)
+                  .compose(v -> amlSettingsRepository.getByInstitution(u.institutionId()))
+                  .map(newOpt -> newOpt.orElse(settings));
+            }));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

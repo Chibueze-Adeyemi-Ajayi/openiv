@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 public record CaseActivity(
     long id,
     String caseId,
-    long actorId,
+    Long actorId,
     String actorName,
     String actorRole,
     String action,

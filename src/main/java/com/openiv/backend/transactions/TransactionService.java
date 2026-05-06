@@ -54,6 +54,10 @@ public final class TransactionService {
         });
   }
 
+  public Future<Void> markFlagged(String transactionId, long institutionId) {
+    return repository.markFlagged(transactionId, institutionId);
+  }
+
   public Future<Void> ingestFromBeam(long institutionId, TransactionImport row) {
     if (customerService != null) {
       customerService.upsert(institutionId, row.customerId(), row.customerName());

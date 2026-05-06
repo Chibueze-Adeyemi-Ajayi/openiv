@@ -196,6 +196,14 @@ public final class TransactionRepository {
         });
   }
 
+  public Future<Void> markFlagged(String transactionId, long institutionId) {
+    return pool.preparedQuery(
+            "UPDATE transactions SET flagged_status = 'flagged', updated_at = now()"
+            + " WHERE id = $1 AND institution_id = $2")
+        .execute(Tuple.of(transactionId, institutionId))
+        .mapEmpty();
+  }
+
   public Future<Void> bulkUpdateFlaggedStatus(List<String> ids, long institutionId,
       String newFlaggedStatus, String reason, long documentId) {
     if (ids.isEmpty()) return Future.succeededFuture();

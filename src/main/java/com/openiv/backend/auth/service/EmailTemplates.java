@@ -65,6 +65,31 @@ public final class EmailTemplates {
     );
   }
 
+  public static String caseNotification(String caseId, String caseTitle, String priority, String brief) {
+    String priorityColor = switch (priority) {
+      case "critical" -> "#dc2626";
+      case "high" -> "#f59e0b";
+      case "medium" -> "#f97316";
+      default -> "#6b7280";
+    };
+
+    return wrap("Fraud Investigation Case Created",
+        "<p style=\"font-size:15px;margin-bottom:20px;\">A new fraud investigation case has been created and is awaiting review.</p>"
+        + "<div style=\"border:1px solid #e5e7eb;margin:20px 0;overflow:hidden;\">"
+        + "  <div style=\"background:" + priorityColor + ";padding:12px 16px;\">"
+        + "    <p style=\"color:#ffffff;font-weight:700;margin:0;font-size:13px;text-transform:uppercase;letter-spacing:0.1em;\">Case Opened</p>"
+        + "  </div>"
+        + "  <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">"
+        + "    <tr style=\"background:#fafbfc;\"><td style=\"padding:10px 16px;color:#94a3b8;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;width:120px;\">Case ID</td><td style=\"padding:10px 16px;color:#0f172a;font-family:monospace;font-weight:600;\">" + caseId + "</td></tr>"
+        + "    <tr><td style=\"padding:10px 16px;color:#94a3b8;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Priority</td><td style=\"padding:10px 16px;color:" + priorityColor + ";font-weight:600;text-transform:uppercase;\">" + priority + "</td></tr>"
+        + "    <tr style=\"background:#fafbfc;\"><td style=\"padding:10px 16px;color:#94a3b8;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;vertical-align:top;\">Title</td><td style=\"padding:10px 16px;color:#0f172a;font-weight:600;\">" + caseTitle + "</td></tr>"
+        + "    <tr><td colspan=\"2\" style=\"padding:10px 16px;color:#0f172a;border-top:1px solid #e5e7eb;font-size:14px;\">" + brief + "</td></tr>"
+        + "  </table>"
+        + "</div>"
+        + "<p style=\"font-size:15px;\">Log in to the <strong>openIV dashboard</strong> to review the case details and begin your investigation.</p>"
+    );
+  }
+
   private static String wrap(String title, String body) {
     return "<!DOCTYPE html><html><body style=\"margin:0;padding:0;background-color:" + BACKGROUND_COLOR + ";\">"
         + "<div style=\"padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; color: " + TEXT_COLOR + ";\">"

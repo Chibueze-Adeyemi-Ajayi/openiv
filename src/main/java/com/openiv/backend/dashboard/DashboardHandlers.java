@@ -7,6 +7,7 @@ import com.openiv.backend.beam.OtpAlertRepository;
 import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.geofence.GeoFenceRepository;
 import com.openiv.backend.geofence.GeoFenceService;
+import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerResponse;
@@ -23,16 +24,18 @@ import java.util.Set;
 
 public final class DashboardHandlers {
 
-  private final DashboardService service;
-  private final GeoFenceService  geoFenceService;
-  private final Vertx            vertx;
-  private final BillingService   billing;
+  private final DashboardService  service;
+  private final GeoFenceService   geoFenceService;
+  private final Vertx             vertx;
+  private final BillingService    billing;
+  private final NotificationService notifications;
 
   public DashboardHandlers(DashboardService service, GeoFenceService geoFenceService, Vertx vertx,
-      BillingService billing) {
+      BillingService billing, NotificationService notifications) {
     this.service         = service;
     this.billing         = billing;
     this.geoFenceService = geoFenceService;
+    this.notifications   = notifications;
     this.vertx           = vertx;
   }
 
@@ -63,7 +66,7 @@ public final class DashboardHandlers {
       final long[] lastActivityId = { 0L };
       final long[] lastOtpId      = { 0L };
       final long[] institutionId  = { 0L };
-      final int[]  pendingInit    = { 6 };   // stats + activity + otp + beam + cases + institutionId
+      final int[]  pendingInit    = { 7 };   // stats + activity + otp + beam + cases + institutionId + notifications
 
       Runnable startTimers = () -> {
         if (sseEnded(resp)) return;
@@ -131,12 +134,20 @@ public final class DashboardHandlers {
           safeWrite(resp, sseEvent("geoRequestInit", arr));
         });
 
+        // ── Real-time notification push ───────────────────────────────────
+        var notifConsumer = vertx.eventBus().<JsonObject>consumer(
+            NotificationService.busAddress(institutionId[0]), msg -> {
+          if (!sseEnded(resp))
+            safeWrite(resp, sseEvent("notifUpdate", new JsonArray().add(msg.body())));
+        });
+
         ctx.request().connection().closeHandler(v -> {
           vertx.cancelTimer(pollId);
           vertx.cancelTimer(hbId);
           consumer.unregister();
           otpConsumer.unregister();
           geoConsumer.unregister();
+          notifConsumer.unregister();
         });
       };
 
@@ -181,6 +192,16 @@ public final class DashboardHandlers {
             safeWrite(resp, sseEvent("caseEvents", eventsJson(events)));
           })
           .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
+
+      // ── notifInit: last 50 notifications on connect ───────────────────────
+      service.resolveInstitutionId(session).compose(iid ->
+          notifications.listRecent(iid, 50)
+      ).onSuccess(list -> {
+        if (sseEnded(resp)) return;
+        var arr = new JsonArray();
+        list.forEach(n -> arr.add(NotificationService.toJson(n)));
+        safeWrite(resp, sseEvent("notifInit", arr));
+      }).onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
     };
   }
 

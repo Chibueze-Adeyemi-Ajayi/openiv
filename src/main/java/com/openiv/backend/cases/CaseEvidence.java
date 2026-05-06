@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 public record CaseEvidence(
     long           id,
     String         caseId,
-    long           addedBy,
+    Long           addedBy,
     String         addedByName,
     String         category,
     String         title,

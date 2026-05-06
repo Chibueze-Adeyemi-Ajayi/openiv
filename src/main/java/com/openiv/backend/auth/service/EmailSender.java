@@ -17,4 +17,7 @@ public interface EmailSender {
 
   Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
       String userName, String userEmail, String timestamp);
+
+  Future<Void> sendCaseNotification(String toEmail, String caseId, String caseTitle,
+      String priority, String brief);
 }

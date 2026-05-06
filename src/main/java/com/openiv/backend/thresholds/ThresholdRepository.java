@@ -181,6 +181,54 @@ public final class ThresholdRepository {
         });
   }
 
+  // ── KYC Suppression ───────────────────────────────────────────────────────
+
+  public Future<Boolean> getKycSuppressed(long institutionId) {
+    String sql = "SELECT kyc_warning_suppressed FROM institutions WHERE id = $1";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
+        .map(rs -> {
+          var it = rs.iterator();
+          return it.hasNext() && it.next().getBoolean("kyc_warning_suppressed");
+        });
+  }
+
+  public Future<Void> setKycSuppressed(long institutionId, boolean suppressed) {
+    String sql = "UPDATE institutions SET kyc_warning_suppressed = $1, updated_at = now() WHERE id = $2";
+    return pool.preparedQuery(sql).execute(Tuple.of(suppressed, institutionId)).mapEmpty();
+  }
+
+  // ── KYC Tier Thresholds ────────────────────────────────────────────────────
+
+  public Future<List<KycTierRecord>> listKycTierThresholds(long institutionId) {
+    String sql = "SELECT id, institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, daily_limit_ussd, "
+        + "daily_limit_bdc, daily_limit_other, single_txn_limit_wire, single_txn_limit_mobile, "
+        + "single_txn_limit_ussd, single_txn_limit_bdc, single_txn_limit_other, max_txns_per_hour, "
+        + "max_txns_per_day, risk_score_boost, requires_additional_verification, created_at, updated_at "
+        + "FROM threshold_by_kyc_tier WHERE institution_id = $1 ORDER BY kyc_tier ASC";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
+        .map(rs -> {
+          var list = new ArrayList<KycTierRecord>();
+          rs.forEach(r -> list.add(mapKycTierRow(r)));
+          return List.copyOf(list);
+        });
+  }
+
+  public Future<Void> updateKycTierThreshold(long institutionId, int tier, String field, long value) {
+    // Basic SQL injection protection by only allowing known fields
+    List<String> allowedFields = List.of(
+        "daily_limit_wire", "daily_limit_mobile", "daily_limit_ussd", "daily_limit_bdc", "daily_limit_other",
+        "single_txn_limit_wire", "single_txn_limit_mobile", "single_txn_limit_ussd", "single_txn_limit_bdc", "single_txn_limit_other",
+        "max_txns_per_hour", "max_txns_per_day", "risk_score_boost"
+    );
+    if (!allowedFields.contains(field)) {
+      return Future.failedFuture(new IllegalArgumentException("Invalid field: " + field));
+    }
+
+    String sql = "UPDATE threshold_by_kyc_tier SET " + field + " = $1, updated_at = now() "
+        + "WHERE institution_id = $2 AND kyc_tier = $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(value, institutionId, tier)).mapEmpty();
+  }
+
   // ── Mapper ────────────────────────────────────────────────────────────────
 
   private static ThresholdRecord mapRow(Row r) {
@@ -198,6 +246,30 @@ public final class ThresholdRepository {
         r.getLong("step_value"),
         r.getBoolean("is_active"),
         r.getInteger("fired_count"),
+        r.getOffsetDateTime("created_at"),
+        r.getOffsetDateTime("updated_at")
+    );
+  }
+
+  private static KycTierRecord mapKycTierRow(Row r) {
+    return new KycTierRecord(
+        r.getLong("id"),
+        r.getLong("institution_id"),
+        r.getInteger("kyc_tier"),
+        r.getLong("daily_limit_wire"),
+        r.getLong("daily_limit_mobile"),
+        r.getLong("daily_limit_ussd"),
+        r.getLong("daily_limit_bdc"),
+        r.getLong("daily_limit_other"),
+        r.getLong("single_txn_limit_wire"),
+        r.getLong("single_txn_limit_mobile"),
+        r.getLong("single_txn_limit_ussd"),
+        r.getLong("single_txn_limit_bdc"),
+        r.getLong("single_txn_limit_other"),
+        r.getInteger("max_txns_per_hour"),
+        r.getInteger("max_txns_per_day"),
+        r.getInteger("risk_score_boost"),
+        r.getBoolean("requires_additional_verification"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at")
     );

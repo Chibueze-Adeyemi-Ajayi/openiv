@@ -71,6 +71,13 @@ public final class KycRepository {
         .map(rs -> mapLog(rs.iterator().next()));
   }
 
+  public Future<Boolean> hasConfig(long institutionId) {
+    return pool.preparedQuery(
+        "SELECT 1 FROM kyc_config WHERE institution_id = $1 LIMIT 1")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> rs.iterator().hasNext());
+  }
+
   public Future<List<KycLookupLog>> listLogs(long institutionId) {
     String sql =
         "SELECT id, institution_id, customer_ref, trigger_source, status,"

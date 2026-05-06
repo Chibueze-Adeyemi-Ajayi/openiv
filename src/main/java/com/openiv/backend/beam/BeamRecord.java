@@ -10,6 +10,7 @@ public record BeamRecord(
     String         payload,
     String         status,
     OffsetDateTime receivedAt,
+    OffsetDateTime occurredAt,
     // Network monitoring fields (null for rows pre-dating V30 migration)
     String         ip,
     String         userAgent,

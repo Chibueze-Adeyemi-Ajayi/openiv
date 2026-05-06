@@ -12,7 +12,7 @@ import java.util.Optional;
 public final class BeamRepository {
 
   private static final String RECORD_COLS =
-      "id, institution_id, stream, idempotency_key, payload, status, received_at,"
+      "id, institution_id, stream, idempotency_key, payload, status, received_at, occurred_at,"
       + " ip, user_agent, request_headers, response_code, response_body, duration_ms, bytes";
 
   private final Pool pool;
@@ -80,15 +80,16 @@ public final class BeamRepository {
 
   public Future<BeamRecord> saveRecord(long institutionId, String stream,
       String idempotencyKey, String payload,
-      String ip, String userAgent, String requestHeadersJson, int bytes, Integer durationMs) {
+      String ip, String userAgent, String requestHeadersJson, int bytes, Integer durationMs,
+      java.time.OffsetDateTime occurredAt) {
     String sql =
         "INSERT INTO beam_records"
-        + " (institution_id, stream, idempotency_key, payload, ip, user_agent, request_headers, bytes, duration_ms)"
-        + " VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)"
+        + " (institution_id, stream, idempotency_key, payload, ip, user_agent, request_headers, bytes, duration_ms, occurred_at)"
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)"
         + " RETURNING " + RECORD_COLS;
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, stream, idempotencyKey, payload,
-            ip, userAgent, requestHeadersJson, bytes, durationMs))
+            ip, userAgent, requestHeadersJson, bytes, durationMs, occurredAt))
         .map(rs -> mapRecord(rs.iterator().next()));
   }
 
@@ -102,11 +103,9 @@ public final class BeamRepository {
     params.add(institutionId);
 
     int pIdx = 2;
-    if (stream != null && !stream.isBlank() && !"transactions".equals(stream)) { // We often exclude transactions in the UI monitor
+    if (stream != null && !stream.isBlank()) {
       where.append(" AND stream = $").append(pIdx++);
       params.add(stream);
-    } else if (stream == null || stream.isBlank()) {
-      where.append(" AND stream != 'transactions'"); // Keep interaction monitor clean from transactions by default if stream not specified
     }
 
     if (q != null && !q.isBlank()) {
@@ -197,6 +196,7 @@ public final class BeamRepository {
         r.getString("payload"),
         r.getString("status"),
         r.getOffsetDateTime("received_at"),
+        r.getOffsetDateTime("occurred_at"),
         r.getString("ip"),
         r.getString("user_agent"),
         requestHeaders,

@@ -38,4 +38,12 @@ public final class LogEmailSender implements EmailSender {
         adminName, userName, userEmail, timestamp);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendCaseNotification(String toEmail, String caseId, String caseTitle,
+      String priority, String brief) {
+    log.warn("[DEV EMAIL] case-notification to {}: {} [{}] {} - {}",
+        toEmail, caseId, priority, caseTitle, brief);
+    return Future.succeededFuture();
+  }
 }

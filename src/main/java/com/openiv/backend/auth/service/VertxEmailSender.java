@@ -92,4 +92,19 @@ public final class VertxEmailSender implements EmailSender {
         .onFailure(err -> log.error("Failed to send step-up lockout admin email to {}: {}", toEmail, err.getMessage()))
         .mapEmpty();
   }
+
+  @Override
+  public Future<Void> sendCaseNotification(String toEmail, String caseId, String caseTitle,
+      String priority, String brief) {
+    MailMessage message = new MailMessage()
+        .setFrom(from)
+        .setTo(toEmail)
+        .setSubject("OpenIV — Fraud Investigation Case Created: " + caseId)
+        .setText("A new fraud investigation case " + caseId + " has been created. Priority: " + priority + ". " + caseTitle)
+        .setHtml(EmailTemplates.caseNotification(caseId, caseTitle, priority, brief));
+
+    return client.sendMail(message)
+        .onFailure(err -> log.error("Failed to send case notification email to {}: {}", toEmail, err.getMessage()))
+        .mapEmpty();
+  }
 }

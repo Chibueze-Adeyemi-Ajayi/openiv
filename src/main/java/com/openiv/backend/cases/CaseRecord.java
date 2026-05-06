@@ -6,6 +6,7 @@ public record CaseRecord(
     String id,
     long institutionId,
     String title,
+    String brief,
     String typology,
     String status,
     String priority,
@@ -14,10 +15,11 @@ public record CaseRecord(
     String assigneeName,
     String notes,
     String resolution,
-    long createdBy,
+    Long createdBy,
     String createdByName,
     OffsetDateTime slaDeadline,
     OffsetDateTime closedAt,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    boolean isAvailableForInvestigation
 ) {}

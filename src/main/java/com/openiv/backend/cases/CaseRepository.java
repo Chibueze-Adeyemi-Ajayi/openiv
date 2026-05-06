@@ -22,10 +22,10 @@ public final class CaseRepository {
   public record CasePage(List<CaseRecord> cases, long total, int page, int pageSize) {}
 
   private static final String CASE_SELECT =
-      "SELECT c.id, c.institution_id, c.title, c.typology, c.status, c.priority, c.risk_score, "
+      "SELECT c.id, c.institution_id, c.title, c.brief, c.typology, c.status, c.priority, c.risk_score, "
       + "c.assigned_to, COALESCE(u1.full_name, u1.email) AS assignee_name, "
       + "c.notes, c.resolution, c.created_by, COALESCE(u2.full_name, u2.email) AS created_by_name, "
-      + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at "
+      + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at, c.is_available_for_investigation "
       + "FROM cases c "
       + "LEFT JOIN users u1 ON c.assigned_to = u1.id "
       + "LEFT JOIN users u2 ON c.created_by = u2.id";
@@ -42,7 +42,7 @@ public final class CaseRepository {
   public Future<CasePage> list(long institutionId, String status, String priority,
       String q, int page, int pageSize) {
 
-    var where  = new StringBuilder("c.institution_id = $1");
+    var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = true");
     var params = new ArrayList<Object>();
     params.add(institutionId);
 
@@ -97,16 +97,16 @@ public final class CaseRepository {
 
   // ── Create ───────────────────────────────────────────────────────────────
 
-  public Future<CaseRecord> create(String id, long institutionId, String title, String typology,
+  public Future<CaseRecord> create(String id, long institutionId, String title, String brief, String typology,
       String priority, int riskScore, Long assignedTo, String notes,
-      OffsetDateTime slaDeadline, long createdBy, String openReason, Long openDocumentId) {
+      OffsetDateTime slaDeadline, Long createdBy, String openReason, Long openDocumentId) {
 
     String sql = "INSERT INTO cases "
-        + "(id, institution_id, title, typology, priority, risk_score, assigned_to, notes,"
+        + "(id, institution_id, title, brief, typology, priority, risk_score, assigned_to, notes,"
         + " created_by, sla_deadline, open_reason, open_document_id) "
-        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)";
+        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)";
     var p = new ArrayList<>();
-    p.add(id); p.add(institutionId); p.add(title); p.add(typology);
+    p.add(id); p.add(institutionId); p.add(title); p.add(brief); p.add(typology);
     p.add(priority); p.add(riskScore); p.add(assignedTo); p.add(notes);
     p.add(createdBy); p.add(slaDeadline); p.add(openReason); p.add(openDocumentId);
     return pool.preparedQuery(sql).execute(buildTuple(p))
@@ -122,6 +122,57 @@ public final class CaseRepository {
           var it = rs.iterator();
           return it.hasNext() ? Optional.of(mapCase(it.next())) : Optional.empty();
         });
+  }
+
+  // ── Unavailable cases ────────────────────────────────────────────────────
+
+  public Future<CasePage> listUnavailable(long institutionId, String status, String priority,
+      String q, int page, int pageSize) {
+
+    var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = false");
+    var params = new ArrayList<Object>();
+    params.add(institutionId);
+
+    if (status != null && !status.isBlank()) {
+      where.append(" AND c.status = $").append(params.size() + 1);
+      params.add(status);
+    }
+    if (priority != null && !priority.isBlank()) {
+      where.append(" AND c.priority = $").append(params.size() + 1);
+      params.add(priority);
+    }
+    if (q != null && !q.isBlank()) {
+      String like = "%" + q.toLowerCase() + "%";
+      int n = params.size() + 1;
+      where.append(" AND (LOWER(c.id) LIKE $").append(n)
+           .append(" OR LOWER(c.title) LIKE $").append(n + 1)
+           .append(" OR LOWER(c.typology) LIKE $").append(n + 2).append(")");
+      params.add(like); params.add(like); params.add(like);
+    }
+
+    String order =
+        " ORDER BY CASE c.status WHEN 'escalated' THEN 0 WHEN 'investigating' THEN 1"
+        + " WHEN 'open' THEN 2 ELSE 3 END, c.sla_deadline ASC";
+
+    String countSql = "SELECT COUNT(*) FROM cases c WHERE " + where;
+    String listSql  = CASE_SELECT + " WHERE " + where + order
+        + " LIMIT $"  + (params.size() + 1)
+        + " OFFSET $" + (params.size() + 2);
+
+    Tuple base = buildTuple(params);
+    var lp = new ArrayList<>(params);
+    lp.add(pageSize);
+    lp.add((long) (page - 1) * pageSize);
+    Tuple listTuple = buildTuple(lp);
+
+    return pool.preparedQuery(countSql).execute(base)
+        .map(rs -> rs.iterator().next().getLong(0))
+        .compose(total -> pool.preparedQuery(listSql).execute(listTuple)
+            .map(rs -> {
+              var list = new ArrayList<CaseRecord>();
+              rs.forEach(r -> list.add(mapCase(r)));
+              return new CasePage(List.copyOf(list), total, page, pageSize);
+            }));
   }
 
   // ── Detail ───────────────────────────────────────────────────────────────
@@ -175,7 +226,7 @@ public final class CaseRepository {
 
   // ── Evidence ─────────────────────────────────────────────────────────────
 
-  public Future<CaseEvidence> addEvidence(String caseId, long addedBy,
+  public Future<CaseEvidence> addEvidence(String caseId, Long addedBy,
       String category, String title, String detail, String refId) {
     String sql =
         "INSERT INTO case_evidence (case_id, added_by, category, title, detail, ref_id)"
@@ -193,24 +244,27 @@ public final class CaseRepository {
   public Future<List<CaseEvidence>> findEvidence(String caseId) {
     String sql =
         "SELECT e.id, e.case_id, e.added_by,"
-        + " COALESCE(u.full_name, u.email) AS added_by_name,"
+        + " COALESCE(u.full_name, u.email, 'System') AS added_by_name,"
         + " e.category, e.title, e.detail, e.ref_id, e.created_at"
-        + " FROM case_evidence e JOIN users u ON u.id = e.added_by"
+        + " FROM case_evidence e LEFT JOIN users u ON u.id = e.added_by"
         + " WHERE e.case_id = $1 ORDER BY e.created_at ASC";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(caseId))
         .map(rs -> {
           var list = new ArrayList<CaseEvidence>();
-          rs.forEach(r -> list.add(new CaseEvidence(
-              r.getLong("id"),
-              r.getString("case_id"),
-              r.getLong("added_by"),
-              r.getString("added_by_name"),
-              r.getString("category"),
-              r.getString("title"),
-              r.getString("detail"),
-              r.getString("ref_id"),
-              r.getOffsetDateTime("created_at"))));
+          rs.forEach(r -> {
+            Object addedByVal = r.getValue("added_by");
+            list.add(new CaseEvidence(
+                r.getLong("id"),
+                r.getString("case_id"),
+                addedByVal != null ? ((Number) addedByVal).longValue() : null,
+                r.getString("added_by_name"),
+                r.getString("category"),
+                r.getString("title"),
+                r.getString("detail"),
+                r.getString("ref_id"),
+                r.getOffsetDateTime("created_at")));
+          });
           return List.copyOf(list);
         });
   }
@@ -240,6 +294,13 @@ public final class CaseRepository {
         .map(rs -> rs.rowCount() > 0);
   }
 
+  public Future<Boolean> markAvailableForInvestigation(String caseId, long institutionId) {
+    return pool.preparedQuery(
+        "UPDATE cases SET is_available_for_investigation=true, updated_at=now() WHERE id=$1 AND institution_id=$2")
+        .execute(Tuple.of(caseId, institutionId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
   // ── Link transaction ─────────────────────────────────────────────────────
 
   public Future<Boolean> linkTransaction(String caseId, String txnId, long institutionId) {
@@ -256,14 +317,14 @@ public final class CaseRepository {
 
   // ── Activity ─────────────────────────────────────────────────────────────
 
-  public Future<Void> addActivity(String caseId, long actorId, String action, String detail) {
+  public Future<Void> addActivity(String caseId, Long actorId, String action, String detail) {
     return pool.preparedQuery(
             "INSERT INTO case_activity(case_id,actor_id,action,detail) VALUES($1,$2,$3,$4)")
         .execute(Tuple.of(caseId, actorId, action, detail))
         .mapEmpty();
   }
 
-  public Future<Void> addActivity(String caseId, long actorId, String action, String detail, Long documentId) {
+  public Future<Void> addActivity(String caseId, Long actorId, String action, String detail, Long documentId) {
     return pool.preparedQuery(
             "INSERT INTO case_activity(case_id,actor_id,action,detail,document_id) VALUES($1,$2,$3,$4,$5)")
         .execute(Tuple.of(caseId, actorId, action, detail, documentId))
@@ -296,10 +357,12 @@ public final class CaseRepository {
 
   private static CaseRecord mapCase(Row r) {
     Object assignedToVal = r.getValue("assigned_to");
+    Object createdByVal = r.getValue("created_by");
     return new CaseRecord(
         r.getString("id"),
         r.getLong("institution_id"),
         r.getString("title"),
+        r.getString("brief"),
         r.getString("typology"),
         r.getString("status"),
         r.getString("priority"),
@@ -308,19 +371,21 @@ public final class CaseRepository {
         r.getString("assignee_name"),
         r.getString("notes"),
         r.getString("resolution"),
-        r.getLong("created_by"),
+        createdByVal != null ? ((Number) createdByVal).longValue() : null,
         r.getString("created_by_name"),
         r.getOffsetDateTime("sla_deadline"),
         r.getOffsetDateTime("closed_at"),
         r.getOffsetDateTime("created_at"),
-        r.getOffsetDateTime("updated_at"));
+        r.getOffsetDateTime("updated_at"),
+        r.getBoolean("is_available_for_investigation"));
   }
 
   private static CaseActivity mapActivity(Row r) {
+    Object actorIdVal = r.getValue("actor_id");
     return new CaseActivity(
         r.getLong("id"),
         r.getString("case_id"),
-        r.getLong("actor_id"),
+        actorIdVal != null ? ((Number) actorIdVal).longValue() : null,
         r.getString("actor_name"),
         r.getString("actor_role"),
         r.getString("action"),

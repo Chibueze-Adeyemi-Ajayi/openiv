@@ -28,14 +28,14 @@ public final class DashboardRepository {
     String sql = """
         SELECT
           (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now()) AND occurred_at < date_trunc('day', now() + interval '1 day')) AS total_today,
+           WHERE institution_id = $1 AND occurred_at > now() - interval '24 hours') AS total_today,
           (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now()) AND occurred_at < date_trunc('day', now() + interval '1 day')
+           WHERE institution_id = $1 AND occurred_at > now() - interval '24 hours'
              AND flagged_status IS NOT NULL) AS flagged_today,
           (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now() - interval '1 day') AND occurred_at < date_trunc('day', now())) AS total_yesterday,
+           WHERE institution_id = $1 AND occurred_at > now() - interval '48 hours' AND occurred_at <= now() - interval '24 hours') AS total_yesterday,
           (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at >= date_trunc('day', now() - interval '1 day') AND occurred_at < date_trunc('day', now())
+           WHERE institution_id = $1 AND occurred_at > now() - interval '48 hours' AND occurred_at <= now() - interval '24 hours'
              AND flagged_status IS NOT NULL) AS flagged_yesterday,
           (SELECT COUNT(*)::int FROM cases
            WHERE institution_id = $1 AND status NOT IN ('closed')) AS open_cases

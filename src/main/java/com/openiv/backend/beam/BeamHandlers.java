@@ -6,6 +6,9 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class BeamHandlers {
 
@@ -40,12 +43,20 @@ public final class BeamHandlers {
 
       service.ingest(institutionId, stream, idempotencyKey, body.encode(),
           ip, userAgent, headersJson.encode(), payloadBytes, (int)(System.currentTimeMillis() - start))
-          .onSuccess(r -> {
-            billing.chargeBeamIngestAsync(institutionId, "beam_" + r.id());
-            ok(ctx, new JsonObject()
+          .onSuccess(res -> {
+            billing.chargeBeamIngestAsync(institutionId, "beam_" + res.record().id());
+
+            var response = new JsonObject()
                 .put("ok", true)
-                .put("recordId", r.id())
-                .put("status", r.status()));
+                .put("record_id", res.record().id())
+                .put("stream", res.record().stream())
+                .put("status", res.record().status());
+
+            if (res.analysis() != null) {
+              response.put("analysis", res.analysis());
+            }
+
+            ok(ctx, response);
           })
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException)

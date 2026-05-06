@@ -1,7 +1,6 @@
 package com.openiv.backend.kyc;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
-import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
@@ -12,12 +11,10 @@ public final class KycHandlers {
 
   private final KycService     service;
   private final BillingService billing;
-  private final AuthService    authService;
 
-  public KycHandlers(KycService service, BillingService billing, AuthService authService) {
+  public KycHandlers(KycService service, BillingService billing) {
     this.service = service;
     this.billing = billing;
-    this.authService = authService;
   }
 
   // GET /kyc/config
@@ -37,27 +34,16 @@ public final class KycHandlers {
       var session = SessionAuthHandler.require(ctx);
       JsonObject body = body(ctx);
       if (body == null) return;
-      String totpCode = body.getString("totpCode");
-      if (totpCode == null || totpCode.isBlank()) {
-        badRequest(ctx, "TOTP code required for KYC configuration");
-        return;
-      }
       String  lookupUrl      = body.getString("lookupUrl");
       String  lookupApiKey   = body.getString("lookupApiKey");
       Integer lookupTimeout  = body.getInteger("lookupTimeout");
       String  listenerUrl    = body.getString("listenerUrl");
       String  listenerApiKey = body.getString("listenerApiKey");
-      authService.verifyTotpStepUp(session, totpCode)
-          .compose(v -> service.saveConfig(session, lookupUrl, lookupApiKey, lookupTimeout, listenerUrl, listenerApiKey))
+      service.saveConfig(session, lookupUrl, lookupApiKey, lookupTimeout, listenerUrl, listenerApiKey)
           .onSuccess(cfg -> ok(ctx, new JsonObject().put("config", configJson(cfg))))
           .onFailure(err -> {
-            if (err.getMessage() != null && err.getMessage().contains("totp")) {
-              badRequest(ctx, "Invalid TOTP code");
-            } else if (err instanceof IllegalArgumentException) {
-              badRequest(ctx, err.getMessage());
-            } else {
-              ctx.fail(err);
-            }
+            if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
+            else ctx.fail(err);
           });
     };
   }
@@ -68,25 +54,17 @@ public final class KycHandlers {
       var session = SessionAuthHandler.require(ctx);
       JsonObject body = body(ctx);
       if (body == null) return;
-      String totpCode = body.getString("totpCode");
-      if (totpCode == null || totpCode.isBlank()) {
-        badRequest(ctx, "TOTP code required for KYC lookup");
-        return;
-      }
       String  customerRef   = body.getString("customerRef");
       String  triggerSource = body.getString("triggerSource");
       boolean openCase      = Boolean.TRUE.equals(body.getBoolean("openCase"));
       if (customerRef == null || customerRef.isBlank()) { badRequest(ctx, "customerRef is required"); return; }
-      authService.verifyTotpStepUp(session, totpCode)
-          .compose(v -> service.lookup(session, customerRef, triggerSource, openCase))
+      service.lookup(session, customerRef, triggerSource, openCase)
           .onSuccess(result -> {
             billing.chargeKycLookupAsync(session, customerRef);
             ok(ctx, result);
           })
           .onFailure(err -> {
-            if (err.getMessage() != null && err.getMessage().contains("totp")) {
-              badRequest(ctx, "Invalid TOTP code");
-            } else if (err instanceof IllegalArgumentException || err instanceof IllegalStateException) {
+            if (err instanceof IllegalArgumentException || err instanceof IllegalStateException) {
               badRequest(ctx, err.getMessage());
             } else {
               ctx.fail(err);
