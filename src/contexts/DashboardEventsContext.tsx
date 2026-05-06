@@ -27,6 +27,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { DashboardStats } from '@/api/dashboard'
+import type { NotificationItem } from '@/api/notifications'
 import { getBaseUrl } from '@/api/client'
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -105,13 +106,14 @@ export interface DashboardEventsState {
   otpAlerts:          OtpAlertItem[]
   securityEvents:     SecurityEvent[]
   geoAccessRequests:  GeoAccessRequestItem[]
+  notifications:      NotificationItem[]
   connected:          boolean
   error:              boolean
 }
 
 const INITIAL: DashboardEventsState = {
   stats: null, activity: [], otpAlerts: [], securityEvents: [],
-  geoAccessRequests: [], connected: false, error: false,
+  geoAccessRequests: [], notifications: [], connected: false, error: false,
 }
 
 const DashboardEventsContext = createContext<DashboardEventsState>(INITIAL)
@@ -252,6 +254,30 @@ export function DashboardEventsProvider({ children }: { children: ReactNode }) {
         } catch { /* ignore */ }
       })
 
+      // ── Notifications: full initial batch on connect ─────────────────
+      es.addEventListener('notifInit', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const items: NotificationItem[] = JSON.parse(e.data)
+          setState(s => ({ ...s, notifications: items.slice(0, MAX_ITEMS) }))
+        } catch { /* ignore */ }
+      })
+
+      // ── Notifications: new notification pushed in real-time ──────────
+      es.addEventListener('notifUpdate', (e: MessageEvent) => {
+        if (cancelledRef.current) return
+        try {
+          const incoming: NotificationItem[] = JSON.parse(e.data)
+          if (!incoming.length) return
+          setState(s => {
+            const seen  = new Set(s.notifications.map(x => x.id))
+            const fresh = incoming.filter(x => !seen.has(x.id))
+            if (!fresh.length) return s
+            return { ...s, notifications: [...fresh, ...s.notifications].slice(0, MAX_ITEMS) }
+          })
+        } catch { /* ignore */ }
+      })
+
       // ── Error / reconnect ───────────────────────────────────────────────
       es.onerror = () => {
         es.close()
@@ -274,15 +300,38 @@ export function DashboardEventsProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const markNotifRead = (id: number) =>
+    setState(s => ({
+      ...s,
+      notifications: s.notifications.map(n => n.id === id ? { ...n, status: 'read' } : n),
+    }))
+
+  const markAllNotifsRead = () =>
+    setState(s => ({
+      ...s,
+      notifications: s.notifications.map(n => ({ ...n, status: 'read' })),
+    }))
+
   return (
     <DashboardEventsContext.Provider value={state}>
-      {children}
+      <DashboardEventsMutContext.Provider value={{ markNotifRead, markAllNotifsRead }}>
+        {children}
+      </DashboardEventsMutContext.Provider>
     </DashboardEventsContext.Provider>
   )
 }
 
-// ── Consumer hook (internal — use the typed slice hooks below) ────────────────
+// ── Consumer hook ─────────────────────────────────────────────────────────────
 
 export function useDashboardEvents(): DashboardEventsState {
   return useContext(DashboardEventsContext)
+}
+
+const DashboardEventsMutContext = createContext<{
+  markNotifRead: (id: number) => void
+  markAllNotifsRead: () => void
+}>({ markNotifRead: () => {}, markAllNotifsRead: () => {} })
+
+export function useDashboardEventsMut() {
+  return useContext(DashboardEventsMutContext)
 }

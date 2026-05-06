@@ -1,6 +1,5 @@
 import { Box, Typography, Stack, Grid, Button, Snackbar, Alert, CircularProgress, IconButton } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import MetricCard from '@/components/dashboard/MetricCard'
 import NigeriaRiskMap from '@/components/dashboard/NigeriaRiskMap'
 import TransactionFlowChart from '@/components/dashboard/TransactionFlowChart'
@@ -30,10 +29,10 @@ function fmt(n: number) {
 
 export default function OverviewPage() {
   const navigate = useNavigate()
-  const [fileNFIUOpen, setFileNFIUOpen]   = useState(false)
+  const [fileNFIUOpen, setFileNFIUOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
-  const [nfiuLoading, setNfiuLoading]     = useState(false)
-  const [snack, setSnack]                 = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
+  const [nfiuLoading, setNfiuLoading] = useState(false)
+  const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
   const [kycConfig, setKycConfig] = useState<KycConfig | null | undefined>(undefined)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
@@ -53,14 +52,14 @@ export default function OverviewPage() {
     ...caseEvents,
   ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()).slice(0, 50)
 
-  const transactionsToday = stats?.totalToday    ?? null
-  const flaggedToday      = stats?.flaggedToday   ?? null
-  const openCases         = stats?.openCases      ?? null
-  const complianceScore   = stats
+  const transactionsToday = stats?.totalToday ?? null
+  const flaggedToday = stats?.flaggedToday ?? null
+  const openCases = stats?.openCases ?? null
+  const complianceScore = stats
     ? Math.max(0, 100 - (stats.totalToday > 0 ? (stats.flaggedToday / stats.totalToday) * 100 : 0)).toFixed(1) + '%'
     : null
 
-  const txnTrend     = stats ? pct(stats.totalToday, stats.totalYesterday) : 0
+  const txnTrend = stats ? pct(stats.totalToday, stats.totalYesterday) : 0
   const flaggedTrend = stats ? pct(stats.flaggedToday, stats.flaggedYesterday) : 0
 
   console.log('[OverviewPage] stats:', stats, 'computed values:', { transactionsToday, flaggedToday, openCases, complianceScore })
@@ -68,17 +67,17 @@ export default function OverviewPage() {
   const handleExport = useCallback(async () => {
     setExportLoading(true)
     try {
-      const to   = new Date().toISOString()
+      const to = new Date().toISOString()
       const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const res  = await fetch(
+      const res = await fetch(
         `/api/v1/dashboard/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         { credentials: 'include' }
       )
       if (!res.ok) throw new Error('Export failed')
       const blob = await res.blob()
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
       a.download = `openiv-report-${new Date().toISOString().split('T')[0]}.csv`
       a.click()
       URL.revokeObjectURL(url)
@@ -93,7 +92,7 @@ export default function OverviewPage() {
     setNfiuLoading(true)
     try {
       const today = new Date().toISOString().split('T')[0]
-      const res   = await fetch('/api/v1/dashboard/nfiu-return', {
+      const res = await fetch('/api/v1/dashboard/nfiu-return', {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
@@ -110,7 +109,7 @@ export default function OverviewPage() {
     }
   }, [])
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {/* Page Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
@@ -193,29 +192,31 @@ export default function OverviewPage() {
           <Box sx={{ mb: 3, p: 2.5, bgcolor: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
               <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#92400e', mb: 0.5 }}>
-                Set up KYC data source to improve fraud detection
+                As mandated by CBN — set up your customer database
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', mb: 1.5 }}>
-                Institutions with a KYC webhook configured see{' '}
-                <strong>37% faster case resolution</strong> and{' '}
-                <strong>62% fewer false positives</strong>. OpenIV automatically checks
-                customer identity when flagging transactions, escalating unknown customers immediately.
+                Connect your customer database to enable automatic identity verification during fraud investigations.
+                This ensures compliance with CBN AML/CFT requirements and delivers faster, more accurate case outcomes.
               </Typography>
               <Stack direction="row" gap={1.5}>
                 <Button
                   size="small" variant="contained"
                   onClick={() => navigate('/dashboard/webhooks')}
-                  sx={{ bgcolor: '#d97706', borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
-                    fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: '#b45309' } }}
+                  sx={{
+                    bgcolor: '#d97706', borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
+                    fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: '#b45309' }
+                  }}
                 >
                   Setup Now
                 </Button>
                 <Button
                   size="small" variant="outlined"
                   href="https://docs.openiv.io/kyc-webhook" target="_blank"
-                  sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
+                  sx={{
+                    borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
                     fontSize: '0.8125rem', borderColor: '#d97706', color: '#92400e',
-                    '&:hover': { bgcolor: '#fff8f0' } }}
+                    '&:hover': { bgcolor: '#fff8f0' }
+                  }}
                 >
                   Learn More
                 </Button>
@@ -365,34 +366,34 @@ export default function OverviewPage() {
             </Button>
           </Stack>
         </Box>
-      </Box>
 
-      <TOTPConfirmation
-        open={fileNFIUOpen}
-        onClose={() => setFileNFIUOpen(false)}
-        onConfirm={handleNfiuConfirm}
-        operation="create"
-        title="File NFIU return"
-        description="Filing the daily NFIU return submits today's aggregated suspicious activity data to the Nigerian Financial Intelligence Unit. This is a regulated submission and cannot be retracted."
-        resourceType="NFIU daily return"
-        resourceName={`Today · ${flaggedToday !== null ? fmt(flaggedToday) : '—'} flagged transactions`}
-      />
+        <TOTPConfirmation
+          open={fileNFIUOpen}
+          onClose={() => setFileNFIUOpen(false)}
+          onConfirm={handleNfiuConfirm}
+          operation="create"
+          title="File NFIU return"
+          description="Filing the daily NFIU return submits today's aggregated suspicious activity data to the Nigerian Financial Intelligence Unit. This is a regulated submission and cannot be retracted."
+          resourceType="NFIU daily return"
+          resourceName={`Today · ${flaggedToday !== null ? fmt(flaggedToday) : '—'} flagged transactions`}
+        />
 
-      <Snackbar
-        open={!!snack}
-        autoHideDuration={6000}
-        onClose={() => setSnack(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+        <Snackbar
+          open={!!snack}
+          autoHideDuration={6000}
           onClose={() => setSnack(null)}
-          severity={snack?.sev ?? 'info'}
-          variant="filled"
-          sx={{ borderRadius: 0, fontFamily: 'Jost', fontSize: '0.875rem' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snack?.msg}
-        </Alert>
-      </Snackbar>
-    </DashboardLayout>
+          <Alert
+            onClose={() => setSnack(null)}
+            severity={snack?.sev ?? 'info'}
+            variant="filled"
+            sx={{ borderRadius: 0, fontFamily: 'Jost', fontSize: '0.875rem' }}
+          >
+            {snack?.msg}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </>
   )
 }

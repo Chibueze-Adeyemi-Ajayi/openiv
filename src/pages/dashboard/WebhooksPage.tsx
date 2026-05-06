@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Box, Typography, Stack, Button, TextField, Switch,
-  IconButton, Popover, Skeleton, Collapse, Dialog, CircularProgress, Alert,
+  IconButton, Popover, Skeleton, Collapse, Dialog, CircularProgress,
   Tabs, Tab, MenuItem,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import {
   webhookApi,
@@ -14,7 +14,7 @@ import {
   type WebhookDelivery,
   type WebhookSecurityRule,
 } from '@/api/webhooks'
-import { kycApi, type KycConfig } from '@/api/kyc'
+import { kycApi } from '@/api/kyc'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -27,8 +27,6 @@ import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined'
@@ -71,12 +69,12 @@ const selectSx = {
 }
 
 const eventTypes = [
-  { id: 'tx.flagged',     label: 'Transaction flagged',     desc: 'Fires when a transaction crosses a risk threshold' },
-  { id: 'tx.blocked',     label: 'Transaction blocked',     desc: 'Fires when an inbound transaction is auto-blocked' },
-  { id: 'case.opened',    label: 'Case opened',             desc: 'Fires when an investigation case is created' },
-  { id: 'case.escalated', label: 'Case escalated',          desc: 'Fires when a case is escalated to a senior officer' },
-  { id: 'kyc.failed',     label: 'KYC verification failed', desc: 'Fires when a customer fails identity verification' },
-  { id: 'sar.filed',      label: 'SAR/STR filed',           desc: 'Fires after an NFIU report is successfully filed' },
+  { id: 'tx.flagged', label: 'Transaction flagged', desc: 'Fires when a transaction crosses a risk threshold' },
+  { id: 'tx.blocked', label: 'Transaction blocked', desc: 'Fires when an inbound transaction is auto-blocked' },
+  { id: 'case.opened', label: 'Case opened', desc: 'Fires when an investigation case is created' },
+  { id: 'case.escalated', label: 'Case escalated', desc: 'Fires when a case is escalated to a senior officer' },
+  { id: 'kyc.failed', label: 'KYC verification failed', desc: 'Fires when a customer fails identity verification' },
+  { id: 'sar.filed', label: 'SAR/STR filed', desc: 'Fires after an NFIU report is successfully filed' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,7 +88,7 @@ function fmtRelative(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
-  if (m < 1)  return 'just now'
+  if (m < 1) return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
@@ -130,8 +128,8 @@ function statusBadge(status: 'active' | 'paused') {
 function deliveryStatusBadge(status: 'pending' | 'delivered' | 'failed') {
   const colors: Record<string, { bg: string; text: string }> = {
     delivered: { bg: '#f0fdf4', text: '#10b981' },
-    failed:    { bg: '#fef2f2', text: '#dc2626' },
-    pending:   { bg: '#f8fafc', text: '#64748b' },
+    failed: { bg: '#fef2f2', text: '#dc2626' },
+    pending: { bg: '#f8fafc', text: '#64748b' },
   }
   const c = colors[status]
   return (
@@ -146,8 +144,8 @@ function deliveryStatusBadge(status: 'pending' | 'delivered' | 'failed') {
 function DeliveryStatusBadge({ status }: { status: 'pending' | 'delivered' | 'failed' }) {
   const config = {
     delivered: { bg: '#f0fdf4', color: '#10b981', dot: '#10b981' },
-    failed:    { bg: '#fef2f2', color: '#dc2626', dot: '#dc2626' },
-    pending:   { bg: '#f8fafc', color: '#64748b', dot: '#94a3b8' },
+    failed: { bg: '#fef2f2', color: '#dc2626', dot: '#dc2626' },
+    pending: { bg: '#f8fafc', color: '#64748b', dot: '#94a3b8' },
   }[status]
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.375, bgcolor: config.bg }}>
@@ -164,46 +162,46 @@ function DeliveryStatusBadge({ status }: { status: 'pending' | 'delivered' | 'fa
 type SToken = { text: string; color: string; italic?: boolean }
 
 const SC = {
-  keyword:  '#c792ea',
-  string:   '#c3e88d',
-  number:   '#f78c6c',
-  comment:  '#546e7a',
-  func:     '#82aaff',
-  env:      '#ffcb6b',
-  url:      '#80cbc4',
-  punct:    '#89ddff',
-  plain:    '#e2e8f0',
+  keyword: '#c792ea',
+  string: '#c3e88d',
+  number: '#f78c6c',
+  comment: '#546e7a',
+  func: '#82aaff',
+  env: '#ffcb6b',
+  url: '#80cbc4',
+  punct: '#89ddff',
+  plain: '#e2e8f0',
   operator: '#89ddff',
 }
 
 const SKW = [
-  'curl','const','let','var','import','from','require','async','await',
-  'function','return','if','else','try','catch','throw','new','class',
-  'export','default','def','for','in','with','pass','raise','as','elif',
-  'True','False','None','func','package','type','struct','interface',
-  'public','private','protected','static','void','final','this',
-  'print','println','true','false','null','undefined','nil',
-  'bytes','json','http','time','net','os','fmt','uuid',
-  'POST','GET','PUT','DELETE','PATCH','HEAD',
+  'curl', 'const', 'let', 'var', 'import', 'from', 'require', 'async', 'await',
+  'function', 'return', 'if', 'else', 'try', 'catch', 'throw', 'new', 'class',
+  'export', 'default', 'def', 'for', 'in', 'with', 'pass', 'raise', 'as', 'elif',
+  'True', 'False', 'None', 'func', 'package', 'type', 'struct', 'interface',
+  'public', 'private', 'protected', 'static', 'void', 'final', 'this',
+  'print', 'println', 'true', 'false', 'null', 'undefined', 'nil',
+  'bytes', 'json', 'http', 'time', 'net', 'os', 'fmt', 'uuid',
+  'POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'HEAD',
 ].join('|')
 
 const SKW_RE = new RegExp(`^(?:${SKW})(?=[^a-zA-Z_0-9]|$)`)
 
 const SPATTERNS: Array<{ re: RegExp; color: string; italic?: boolean }> = [
-  { re: /^#[^\n]*/,                           color: SC.comment,  italic: true },
-  { re: /^\/\/[^\n]*/,                        color: SC.comment,  italic: true },
-  { re: /^"(?:[^"\\]|\\.)*"/,                 color: SC.string },
-  { re: /^'(?:[^'\\]|\\.)*'/,                 color: SC.string },
-  { re: /^`(?:[^`\\]|\\.)*`/,                 color: SC.string },
-  { re: /^\$\{[^}]+\}/,                       color: SC.env },
-  { re: /^\$[A-Z_][A-Z_0-9]*/,               color: SC.env },
-  { re: /^https?:\/\/[^\s'"\\),`]+/,          color: SC.url },
-  { re: SKW_RE,                               color: SC.keyword },
+  { re: /^#[^\n]*/, color: SC.comment, italic: true },
+  { re: /^\/\/[^\n]*/, color: SC.comment, italic: true },
+  { re: /^"(?:[^"\\]|\\.)*"/, color: SC.string },
+  { re: /^'(?:[^'\\]|\\.)*'/, color: SC.string },
+  { re: /^`(?:[^`\\]|\\.)*`/, color: SC.string },
+  { re: /^\$\{[^}]+\}/, color: SC.env },
+  { re: /^\$[A-Z_][A-Z_0-9]*/, color: SC.env },
+  { re: /^https?:\/\/[^\s'"\\),`]+/, color: SC.url },
+  { re: SKW_RE, color: SC.keyword },
   { re: /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, color: SC.number },
-  { re: /^[{}[\]();,]/,                       color: SC.punct },
-  { re: /^[:=<>+\-*/|&^~%!]/,                color: SC.operator },
-  { re: /^[\\]/,                              color: SC.punct },
-  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/,    color: SC.func },
+  { re: /^[{}[\]();,]/, color: SC.punct },
+  { re: /^[:=<>+\-*/|&^~%!]/, color: SC.operator },
+  { re: /^[\\]/, color: SC.punct },
+  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/, color: SC.func },
 ]
 
 function syntaxTokenize(code: string): SToken[] {
@@ -275,8 +273,8 @@ function CodeBlock({ content, copyLabel, highlight = false }: { content: string;
       }}>
         {tokens
           ? tokens.map((t, i) => (
-              <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>{t.text}</Box>
-            ))
+            <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>{t.text}</Box>
+          ))
           : <Box component="span" sx={{ color: '#e2e8f0' }}>{content || '(empty)'}</Box>
         }
       </Box>
@@ -291,7 +289,7 @@ function CodeBlock({ content, copyLabel, highlight = false }: { content: string;
 
 function DeliveryDetail({ d }: { d: WebhookDelivery }) {
   const [tab, setTab] = useState(0)
-  const reqBody  = prettyJson(d.requestBody)
+  const reqBody = prettyJson(d.requestBody)
   const respBody = prettyJson(d.responseBody)
 
   return (
@@ -353,14 +351,14 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
         {tab === 2 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             {[
-              ['Delivery ID',   d.deliveryId ?? '—'],
-              ['Event type',    d.eventType],
-              ['Status',        d.status],
-              ['HTTP code',     d.responseCode != null ? String(d.responseCode) : '—'],
-              ['Duration',      fmtDuration(d.durationMs)],
+              ['Delivery ID', d.deliveryId ?? '—'],
+              ['Event type', d.eventType],
+              ['Status', d.status],
+              ['HTTP code', d.responseCode != null ? String(d.responseCode) : '—'],
+              ['Duration', fmtDuration(d.durationMs)],
               ['Attempt count', String(d.attemptCount)],
-              ['Delivered at',  d.deliveredAt ? new Date(d.deliveredAt).toLocaleString() : '—'],
-              ['Queued at',     new Date(d.createdAt).toLocaleString()],
+              ['Delivered at', d.deliveredAt ? new Date(d.deliveredAt).toLocaleString() : '—'],
+              ['Queued at', new Date(d.createdAt).toLocaleString()],
             ].map(([label, value]) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>
@@ -413,7 +411,7 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
           fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600,
           color: d.responseCode == null ? '#94a3b8'
             : d.responseCode < 300 ? '#10b981'
-            : d.responseCode < 500 ? '#f59e0b' : '#dc2626',
+              : d.responseCode < 500 ? '#f59e0b' : '#dc2626',
         }}>
           {d.responseCode ?? '—'}
         </Typography>
@@ -438,7 +436,7 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <Box 
+    <Box
       data-ai-analyzable="true"
       data-ai-description={`Webhook Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
       sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
@@ -464,18 +462,18 @@ interface SecurityRulesModalProps {
 }
 
 function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
-  const [rule,         setRule]         = useState<WebhookSecurityRule | null>(null)
-  const [loading,      setLoading]      = useState(true)
-  const [ipAllowlist,  setIpAllowlist]  = useState('')
-  const [timeout,      setTimeout_]     = useState(10)
-  const [maxRetries,   setMaxRetries]   = useState(3)
-  const [requireAck,   setRequireAck]   = useState(false)
-  const [saving,       setSaving]       = useState(false)
-  const [saveMsg,      setSaveMsg]      = useState<{ ok: boolean; text: string } | null>(null)
+  const [rule, setRule] = useState<WebhookSecurityRule | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [ipAllowlist, setIpAllowlist] = useState('')
+  const [timeout, setTimeout_] = useState(10)
+  const [maxRetries, setMaxRetries] = useState(3)
+  const [requireAck, setRequireAck] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
-  const [keyTotpOpen, setKeyTotpOpen]  = useState(false)
-  const [newKey,      setNewKey]       = useState<string | null>(null)
-  const [keyCopied,   setKeyCopied]    = useState(false)
+  const [keyTotpOpen, setKeyTotpOpen] = useState(false)
+  const [newKey, setNewKey] = useState<string | null>(null)
+  const [keyCopied, setKeyCopied] = useState(false)
 
   const loadRule = useCallback(async () => {
     setLoading(true)
@@ -517,7 +515,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
       setNewKey(res.apiKey)
       setRule(prev => prev ? { ...prev, hasApiKey: true } : null)
       setKeyTotpOpen(false)
-    } catch {}
+    } catch { }
   }
 
   const copyKey = () => {
@@ -563,7 +561,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
             </Stack>
           ) : (
             <Stack gap={3}>
-              <Box 
+              <Box
                 data-ai-analyzable="true"
                 data-ai-description={`Webhook Security: API Key Configuration. status: ${rule?.hasApiKey ? 'Configured' : 'Not set'}. When set, OpenIV sends this key in the X-OpenIV-Api-Key header to verify request origin.`}
                 sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
@@ -749,18 +747,18 @@ interface EndpointRowProps {
 
 function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [expanded,   setExpanded]   = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([])
-  const [dlLoading,  setDlLoading]  = useState(false)
-  const [testing,    setTesting]    = useState(false)
-  const [testNote,   setTestNote]   = useState<string | null>(null)
+  const [dlLoading, setDlLoading] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testNote, setTestNote] = useState<string | null>(null)
 
-  const [totpOpen,   setTotpOpen]   = useState(false)
+  const [totpOpen, setTotpOpen] = useState(false)
   const [totpAction, setTotpAction] = useState<RowAction | null>(null)
   const [secRulesOpen, setSecRulesOpen] = useState(false)
 
   const total = ep.successCount + ep.failureCount
-  const rate  = total === 0 ? 100 : Math.round((ep.successCount / total) * 1000) / 10
+  const rate = total === 0 ? 100 : Math.round((ep.successCount / total) * 1000) / 10
 
   const loadDeliveries = useCallback(async () => {
     setDlLoading(true)
@@ -792,7 +790,7 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
         await webhookApi.update(ep.id, { status: 'active' })
       }
       onUpdate()
-    } catch {}
+    } catch { }
     setTotpAction(null)
   }
 
@@ -1285,7 +1283,8 @@ function VerifyButton({ url, type }: { url: string; type: 'notification' | 'kyc'
 
 // ── KycWebhookTab ────────────────────────────────────────────────────────────
 
-function KycWebhookTab() {
+function KycWebhookTab({ bounce = false }: { bounce?: boolean }) {
+  const configBoxRef = useRef<HTMLDivElement>(null)
   const [kycUrl, setKycUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [timeout, setTimeout_] = useState(10)
@@ -1300,9 +1299,15 @@ function KycWebhookTab() {
         setKycUrl(r.config?.lookupUrl ?? '')
         setTimeout_(r.config?.lookupTimeout ?? 10)
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!bounce || !configBoxRef.current) return
+    const el = configBoxRef.current
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [bounce])
 
   const isFormValid = kycUrl && kycUrl.trim().length > 0
 
@@ -1314,7 +1319,6 @@ function KycWebhookTab() {
   const handleSaveWithTotp = async () => {
     setSaving(true)
     setSaveMsg(null)
-    setTotpOpen(false)
     try {
       await kycApi.saveConfig({
         lookupUrl: kycUrl || null,
@@ -1327,6 +1331,7 @@ function KycWebhookTab() {
       setSaveMsg({ ok: false, text: e?.detail ?? e?.message ?? 'Failed to save' })
     } finally {
       setSaving(false)
+      setTotpOpen(false)
     }
   }
 
@@ -1336,28 +1341,41 @@ function KycWebhookTab() {
         {/* Explainer box */}
         <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', p: 2.5 }}>
           <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#16a34a', mb: 0.5 }}>
-            What is a KYC data source?
+            Connect your customer database
           </Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6 }}>
-            OpenIV queries your KYC webhook endpoint when a flagged transaction is detected. If the customer record is found and verified, the case proceeds normally. If not found, the case is automatically escalated to HIGH priority for immediate investigation.
+            OpenIV queries your customer database when a transaction is flagged. If the customer is found and verified in your system, the case proceeds normally. If not found, the case is automatically escalated to HIGH priority for immediate investigation.
           </Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6, mt: 1 }}>
-            <strong>Request format:</strong> OpenIV sends a GET request to your URL with the customer reference ID in the path, plus optional Bearer token authentication.
+            <strong>Request format:</strong> OpenIV sends a GET request to your endpoint with the customer reference ID in the path, plus optional Bearer token authentication.
           </Typography>
         </Box>
 
         {/* Config form */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
+        <Box
+          ref={configBoxRef}
+          sx={{
+            bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3,
+            ...(bounce && {
+              animation: 'kycBounce 0.6s ease 0.3s 3',
+              '@keyframes kycBounce': {
+                '0%,100%': { transform: 'translateY(0)', boxShadow: 'none' },
+                '30%': { transform: 'translateY(-6px)', boxShadow: '0 8px 24px rgba(79,70,229,0.18)' },
+                '60%': { transform: 'translateY(-3px)', boxShadow: '0 4px 12px rgba(79,70,229,0.12)' },
+              },
+            }),
+          }}
+        >
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>
-            KYC Lookup Configuration
+            Customer Database Configuration
           </Typography>
 
           <Stack gap={2.5}>
             {/* URL field */}
             <Box>
-              <Typography sx={labelSx}>Lookup URL</Typography>
+              <Typography sx={labelSx}>Database Endpoint URL</Typography>
               <TextField fullWidth
-                placeholder="https://api.kyc-provider.com/verify"
+                placeholder="https://your-bank.com/api/customers/verify"
                 value={kycUrl}
                 onChange={e => setKycUrl(e.target.value)}
                 disabled={loading || saving}
@@ -1453,7 +1471,7 @@ function KycWebhookTab() {
               <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
                 REQUEST FORMAT
               </Typography>
-              <CodeBlock highlight content={`GET https://api.kyc-provider.com/verify/CUST-12345
+              <CodeBlock highlight content={`GET https://your-bank.com/api/customers/verify/CUST-12345
 Authorization: Bearer sk_test_...`} copyLabel="Copy request" />
             </Box>
 
@@ -1482,23 +1500,36 @@ Authorization: Bearer sk_test_...`} copyLabel="Copy request" />
 
 export default function WebhooksPage() {
   // Endpoints view state
-  const [secret,        setSecret]        = useState<WebhookSecret | null>(null)
+  const [secret, setSecret] = useState<WebhookSecret | null>(null)
   const [secretLoading, setSecretLoading] = useState(true)
-  const [endpoints,     setEndpoints]     = useState<WebhookEndpoint[]>([])
-  const [epLoading,     setEpLoading]     = useState(true)
-  const [showSecret,    setShowSecret]    = useState(false)
-  const [copied,        setCopied]        = useState(false)
-  const [url,            setUrl]            = useState('')
-  const [description,    setDescription]    = useState('')
+  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([])
+  const [epLoading, setEpLoading] = useState(true)
+  const [showSecret, setShowSecret] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
   const [selectedEvents, setSelectedEvents] = useState<string[]>(['tx.flagged', 'case.opened'])
-  const [formError,      setFormError]      = useState<string | null>(null)
-  const [submitting,     setSubmitting]     = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
-  const [codeLang,   setCodeLang]   = useState(0)
-  const [tabValue,   setTabValue]   = useState(0)
+  const location = useLocation()
+  const [tabValue, setTabValue] = useState(0)
+  const [kycConfigured, setKycConfigured] = useState(true) // optimistic — flip after load
+  const [kycBounce, setKycBounce] = useState(false)
 
-  const langs = Object.keys(codeSamples)
+  useEffect(() => {
+    if ((location.state as any)?.openKycTab) {
+      setTabValue(1)
+      setKycBounce(true)
+    }
+  }, [location.state])
+
+  useEffect(() => {
+    kycApi.getConfig()
+      .then(r => setKycConfigured(!!(r.config?.lookupUrl)))
+      .catch(() => {})
+  }, [])
 
   // ── Loaders ─────────────────────────────────────────────────────────────────
 
@@ -1552,18 +1583,18 @@ export default function WebhooksPage() {
     try {
       setSecret((await webhookApi.rotateSecret()).secret)
       setRotateOpen(false)
-    } catch {}
+    } catch { }
   }
 
   const handleAutoRotateChange = async (checked: boolean) => {
-    try { setSecret((await webhookApi.updateSecret(checked)).secret) } catch {}
+    try { setSecret((await webhookApi.updateSecret(checked)).secret) } catch { }
   }
 
-  const rotationDays    = secret ? daysUntil(secret.nextRotation) : null
+  const rotationDays = secret ? daysUntil(secret.nextRotation) : null
   const rotationOverdue = rotationDays !== null && rotationDays <= 0
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
 
         {/* Header */}
@@ -1595,12 +1626,37 @@ export default function WebhooksPage() {
           }}
         >
           <Tab label="Notification Webhooks" />
-          <Tab label="KYC Data Source" />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                Customer Database
+                {!kycConfigured && (
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 7, height: 7,
+                      borderRadius: '50%',
+                      bgcolor: '#dc2626',
+                      flexShrink: 0,
+                      display: 'inline-block',
+                      mb: 0.75,
+                      boxShadow: '0 0 0 2px #fff',
+                      animation: 'kycPulse 2s ease-in-out infinite',
+                      '@keyframes kycPulse': {
+                        '0%,100%': { opacity: 1, transform: 'scale(1)' },
+                        '50%': { opacity: 0.55, transform: 'scale(0.8)' },
+                      },
+                    }}
+                  />
+                )}
+              </Box>
+            }
+          />
         </Tabs>
 
         {/* Tab 0: Notification Webhooks ────────────────────────────────────── */}
         {tabValue === 0 && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
             <Stack gap={3}>
               {/* New endpoint form */}
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
@@ -1621,6 +1677,7 @@ export default function WebhooksPage() {
                       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
                         Must be HTTPS. We retry with exponential backoff for up to 24 hours on 5xx responses.
                       </Typography>
+                      {url && <VerifyButton url={url} type="notification" />}
                     </Box>
                     <Box>
                       <Typography sx={labelSx}>
@@ -1678,7 +1735,7 @@ export default function WebhooksPage() {
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Button
                         onClick={handleCreateClick}
-                        disabled={submitting}
+                        disabled={submitting || !url.trim() || !url.startsWith('https://') || selectedEvents.length === 0}
                         startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important', color: '#ffffff' }} />}
                         sx={{
                           bgcolor: colorPalette.primary, color: '#ffffff',
@@ -1842,7 +1899,7 @@ export default function WebhooksPage() {
                   fontSize: '0.6875rem', lineHeight: 1.6,
                   overflowX: 'auto', whiteSpace: 'pre',
                 }}>
-{`const sig = req.headers['x-openiv-signature']
+                  {`const sig = req.headers['x-openiv-signature']
 const hash = crypto
   .createHmac('sha256', process.env.OPENIV_SECRET)
   .update(req.rawBody)
@@ -1856,7 +1913,7 @@ if (sig !== hash) return res.sendStatus(401)`}
         )}
 
         {/* Tab 1: KYC Data Source ──────────────────────────────────────────── */}
-        {tabValue === 1 && <KycWebhookTab />}
+        {tabValue === 1 && <KycWebhookTab bounce={kycBounce} />}
 
       </Box>
 
@@ -1884,6 +1941,6 @@ if (sig !== hash) return res.sendStatus(401)`}
         resourceName="Webhook signing secret"
         changes={[{ field: 'Secret', from: 'Current secret', to: 'New generated secret' }]}
       />
-    </DashboardLayout>
+    </>
   )
 }

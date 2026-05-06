@@ -14,6 +14,7 @@ export interface BeamRecord {
   payload: string
   status: string
   receivedAt: string
+  occurredAt?: string | null
   riskScore?: number | null
   // Monitoring fields
   durationMs?: number | null
@@ -47,7 +48,19 @@ export const beamApi = {
   },
 
   sendTestPayload: (stream: string, payload: any) =>
-    apiRequest<{ ok: boolean; recordId: number }>(`/api/v1/beam/${stream}`, {
+    apiRequest<{
+      ok: boolean;
+      record_id: number;
+      analysis?: {
+        transaction_id: string;
+        risk_score: number;
+        risk_level: string;
+        recommended_action: string;
+        case_id: string | null;
+        priority: string | null;
+        processed_at: string;
+      };
+    }>(`/api/v1/beam/${stream}`, {
       method: 'POST',
       body: payload,
       headers: {

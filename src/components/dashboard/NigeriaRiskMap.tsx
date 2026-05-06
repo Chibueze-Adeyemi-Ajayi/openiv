@@ -1,4 +1,4 @@
-import { Box, Typography, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
+import { Box, Typography, Stack, Chip, IconButton, CircularProgress, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import nigeriaUrl from '@/assets/nigeria.svg'
@@ -6,7 +6,9 @@ import DateRangeFilter, { type DateRange } from './DateRangeFilter'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined'
+import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined'
 import type { RiskPoint } from '@/api/dashboard'
+import ClusterTransactionsDrawer, { type ClusterDrawerSource } from './ClusterTransactionsDrawer'
 
 type RiskLevel = 'high' | 'medium' | 'low' | 'none'
 
@@ -39,9 +41,8 @@ function geoToSvg(lat: number, lng: number) {
 }
 
 function classifyRisk(p: RiskPoint): RiskLevel {
-  if (p.hasFlag)                    return 'high'
-  if ((p.avgRisk ?? 0) >= 60)       return 'high'
-  if ((p.avgRisk ?? 0) >= 25)       return 'medium'
+  if ((p.avgRisk ?? 0) >= 60) return 'high'
+  if ((p.avgRisk ?? 0) >= 25) return 'medium'
   return 'low'
 }
 
@@ -83,6 +84,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
   const [loading, setLoading]           = useState(false)
   const [selected, setSelected]         = useState<FenceInfo | null>(null)
   const [hovered, setHovered]           = useState<string | null>(null)
+  const [drawerSource, setDrawerSource] = useState<ClusterDrawerSource | null>(null)
 
   const fetchPoints = useCallback(async () => {
     setLoading(true)
@@ -132,9 +134,33 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
   const mediumDots = txnDots.filter(d => d.level === 'medium')
   const lowDots    = txnDots.filter(d => d.level === 'low')
 
-  const handleDotClick = (info: FenceInfo) => {
+  const [mousePos, setMousePos] = useState<{ x: number, y: number } | null>(null)
+
+  const handleDotClick = (info: FenceInfo, e: React.MouseEvent) => {
     setSelected(info)
+    const svg = (e.currentTarget as any).ownerSVGElement as SVGSVGElement
+    if (svg) {
+      const rect = svg.getBoundingClientRect()
+      // Capture position relative to SVG container
+      setMousePos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      })
+    }
     onFenceSelect?.(info)
+  }
+
+  const handleViewTransactions = () => {
+    if (!selected) return
+    setDrawerSource({
+      type: 'cluster',
+      lat: selected.point.lat,
+      lng: selected.point.lng,
+      range: range,
+      count: selected.point.count,
+      avgRisk: selected.point.avgRisk ?? null,
+      hasFlag: selected.point.hasFlag
+    })
   }
 
   const dotKey = (d: FenceInfo) => `${d.point.lat},${d.point.lng}`
@@ -205,7 +231,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 opacity={hovered === dotKey(d) ? 1 : 0.8}
                 onMouseEnter={() => setHovered(dotKey(d))}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => handleDotClick(d)}
+                onClick={(e) => handleDotClick(d, e)}
                 style={{ cursor: 'pointer' }}
               />
             ))}
@@ -222,7 +248,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 opacity={hovered === dotKey(d) ? 1 : 0.9}
                 onMouseEnter={() => setHovered(dotKey(d))}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => handleDotClick(d)}
+                onClick={(e) => handleDotClick(d, e)}
                 style={{ cursor: 'pointer' }}
               />
             ))}
@@ -239,7 +265,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 opacity={1}
                 onMouseEnter={() => setHovered(dotKey(d))}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => handleDotClick(d)}
+                onClick={(e) => handleDotClick(d, e)}
                 style={{ cursor: 'pointer' }}
               />
             ))}
@@ -262,16 +288,20 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
         </Box>
 
         {/* Detail popup */}
-        {selected && (
+        {selected && mousePos && (
           <Box
             data-ai-analyzable="true"
             data-ai-description={`Detailed analysis of risk cluster at coordinates ${selected.point.lat.toFixed(2)}°N, ${selected.point.lng.toFixed(2)}°E. Cluster includes ${selected.point.count} transactions with an average risk score of ${selected.point.avgRisk?.toFixed(1) || '0'}.`}
             sx={{
-              position: 'absolute', top: 16, right: 16, width: 260,
+              position: 'absolute', 
+              top: mousePos.y > 300 ? mousePos.y - 280 : mousePos.y + 12, 
+              left: mousePos.x > 500 ? mousePos.x - 270 : mousePos.x + 12,
+              width: 260,
               bgcolor: '#ffffff', border: '1px solid #eef0f4',
-              boxShadow: '0 14px 40px rgba(15,23,42,0.1)', p: 2.5,
-              animation: 'slideIn 0.22s ease',
-              '@keyframes slideIn': { from: { opacity: 0, transform: 'translateX(8px)' }, to: { opacity: 1, transform: 'translateX(0)' } },
+              boxShadow: '0 20px 50px rgba(15,23,42,0.15)', p: 2.5,
+              zIndex: 20,
+              animation: 'popIn 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+              '@keyframes popIn': { from: { opacity: 0, transform: 'scale(0.95)' }, to: { opacity: 1, transform: 'scale(1)' } },
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
@@ -321,10 +351,27 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 <AutoAwesomeOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary, mt: 0.125, flexShrink: 0 }} />
                 <Typography sx={{ fontSize: '0.75rem', color: '#334155', lineHeight: 1.55 }}>
                   Average risk score: <strong>{selected.point.avgRisk.toFixed(1)}</strong>
-                  {selected.point.hasFlag ? ' · Contains flagged transactions.' : ' · No flagged transactions in this cluster.'}
+                  {selected.point.hasFlag ? ' · Contains flagged transactions.' : ' · No flagged transactions.'}
                 </Typography>
               </Box>
             )}
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="small"
+              onClick={handleViewTransactions}
+              startIcon={<TableRowsOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+              sx={{
+                bgcolor: colorPalette.primary, color: '#fff',
+                borderRadius: 0, textTransform: 'none',
+                fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 700,
+                boxShadow: 'none', py: 1,
+                '&:hover': { bgcolor: colorPalette.primary, opacity: 0.9, boxShadow: 'none' },
+              }}
+            >
+              View Transactions
+            </Button>
           </Box>
         )}
         </Box>{/* /SVG area */}
@@ -401,6 +448,12 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
           </Typography>
         </Box>
       </Box>
+
+      {/* Drill-down drawer */}
+      <ClusterTransactionsDrawer 
+        source={drawerSource} 
+        onClose={() => setDrawerSource(null)} 
+      />
     </Box>
   )
 }

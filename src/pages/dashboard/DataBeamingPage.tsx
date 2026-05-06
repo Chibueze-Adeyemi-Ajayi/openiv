@@ -3,7 +3,6 @@ import {
   Skeleton, Dialog, Collapse, TextField,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { beamApi, type BeamApiKey, type BeamRecord } from '@/api/beam'
@@ -508,8 +507,8 @@ function RecordRow({ record }: { record: BeamRecord }) {
 
 // ── API key modal ─────────────────────────────────────────────────────────────
 
-interface ApiKeyModalProps { 
-  open: boolean; 
+interface ApiKeyModalProps {
+  open: boolean;
   onClose: () => void;
   keyInfo: BeamApiKey | null;
   onKeyUpdated: () => void;
@@ -687,6 +686,23 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+function generateStreamsWithCurrentTimestamps() {
+  const now = new Date()
+  const ts1 = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
+  const ts2 = new Date(now.getTime() - 2 * 60 * 1000).toISOString()
+  const ts3 = new Date(now.getTime() - 1 * 60 * 1000).toISOString()
+  const ts4 = new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString()
+
+  return streams.map(stream => ({
+    ...stream,
+    schema: stream.schema.map(field =>
+      field.field === 'occurred_at'
+        ? { ...field, example: stream.id === 'transactions' ? ts1 : stream.id === 'logins' ? ts2 : stream.id === 'activity' ? ts3 : stream.id === 'location' ? ts3 : stream.id === 'devices' ? ts4 : ts3 }
+        : field
+    ),
+  }))
+}
+
 export default function DataBeamingPage() {
   const [keyInfo, setKeyInfo] = useState<BeamApiKey | null>(null)
   const [loadingKey, setLoadingKey] = useState(true)
@@ -702,9 +718,11 @@ export default function DataBeamingPage() {
 
   useEffect(() => { loadKey() }, [loadKey])
 
+  const streamsWithTimestamps = useMemo(() => generateStreamsWithCurrentTimestamps(), [])
   const [activeStream, setActiveStream] = useState<StreamId>('transactions')
   const [activeLang, setActiveLang] = useState<Lang>('cURL')
   const [apiKeyOpen, setApiKeyOpen] = useState(false)
+  const [testResponse, setTestResponse] = useState<any>(null)
   const { sandboxEnabled, setSandboxEnabled } = useSandbox()
   const [sendingTest, setSendingTest] = useState(false)
   const [testSuccess, setTestSuccess] = useState(false)
@@ -713,14 +731,14 @@ export default function DataBeamingPage() {
 
   // Initialize payload when stream changes
   useEffect(() => {
-    const streamObj = streams.find(s => s.id === activeStream)!
+    const streamObj = streamsWithTimestamps.find(s => s.id === activeStream)!
     const payload: any = {}
     streamObj.schema.forEach(f => {
       payload[f.field] = f.type === 'number' ? Number(f.example) : f.example === 'true' ? true : f.example === 'false' ? false : f.example
     })
     setEditablePayload(JSON.stringify(payload, null, 2))
     setJsonError(null)
-  }, [activeStream])
+  }, [activeStream, streamsWithTimestamps])
 
   const handleSendTest = async () => {
     if (!sandboxEnabled) {
@@ -738,7 +756,8 @@ export default function DataBeamingPage() {
       setJsonError(null)
 
       setSendingTest(true)
-      await beamApi.sendTestPayload(activeStream, parsed)
+      const res = await beamApi.sendTestPayload(activeStream, parsed)
+      setTestResponse(res)
       setTestSuccess(true)
       setTimeout(() => setTestSuccess(false), 3000)
       loadRecords() // refresh list
@@ -800,7 +819,7 @@ export default function DataBeamingPage() {
     [allRecords, activeStream],
   )
 
-  const stream = streams.find(s => s.id === activeStream)!
+  const stream = streamsWithTimestamps.find(s => s.id === activeStream)!
   const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
   const codeByLang: Record<Lang, string> = {
     'cURL': buildCurl(stream),
@@ -809,7 +828,7 @@ export default function DataBeamingPage() {
     'Go': buildGo(stream),
   }
 
-  const connected = streams.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
+  const connected = streamsWithTimestamps.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
   const totalRecords = allRecords.length
 
   const healthMetrics = useMemo(() => {
@@ -820,14 +839,14 @@ export default function DataBeamingPage() {
 
     const rejected = allRecords.filter(r => r.status === 'rejected' || r.status === 'error').length
     const validity = totalRecords > 0
-      ? `${((1 - rejected / totalRecords) * 100).toFixed(2)}%`
+      ? `${((1 - rejected / totalRecords) * 100).toFixed(1)}%`
       : '—'
 
     return { medianLatency, validity, rejected }
   }, [allRecords, totalRecords])
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, gap: 2, flexWrap: 'wrap' }}>
@@ -851,7 +870,7 @@ export default function DataBeamingPage() {
         {/* Health KPIs */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
           {[
-            { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streams.length}`, sub: recordsLoading ? 'Loading…' : connected === streams.length ? 'Full coverage' : `${streams.length - connected} pending` },
+            { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streamsWithTimestamps.length}`, sub: recordsLoading ? 'Loading…' : connected === streamsWithTimestamps.length ? 'Full coverage' : `${streamsWithTimestamps.length - connected} pending` },
             { label: 'Records received', value: recordsLoading ? '…' : totalRecords.toLocaleString(), sub: 'last 100 across all streams' },
             { label: 'Median latency', value: recordsLoading ? '…' : healthMetrics.medianLatency, sub: 'from your core to OpenIV' },
             { label: 'Schema validity', value: recordsLoading ? '…' : healthMetrics.validity, sub: healthMetrics.rejected > 0 ? `${healthMetrics.rejected} rejected total` : 'No rejections' },
@@ -870,7 +889,7 @@ export default function DataBeamingPage() {
 
         {/* Stream picker */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1.5, mb: 3 }}>
-          {streams.map(s => {
+          {streamsWithTimestamps.map(s => {
             const isActive = s.id === activeStream
             const live = liveStreamStats[s.id]
             const liveCount = live?.count ?? 0
@@ -918,7 +937,7 @@ export default function DataBeamingPage() {
 
 
             {/* Schema */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
               <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Schema · {stream.title}</Typography>
@@ -942,105 +961,8 @@ export default function DataBeamingPage() {
                 </Box>
               ))}
             </Box>
-          </Stack>
 
-          <Stack gap={3}>
-            {/* Code sample */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>How to beam</Typography>
-                <Box sx={{ display: 'flex' }}>
-                  {langs.map(lang => (
-                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
-                      {lang}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-              <SyntaxCode code={codeByLang[activeLang]} />
-            </Box>
-
-            {/* Simulation Box - Beam Test Transaction */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <PlayCircleOutlineIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Beam Test Transaction</Typography>
-                </Box>
-                {sandboxEnabled && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.375, bgcolor: '#fff7ed', border: '1px solid #ffedd5' }}>
-                    <ScienceOutlinedIcon sx={{ fontSize: '0.85rem', color: '#c2410c' }} />
-                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#c2410c', letterSpacing: '0.05em' }}>SANDBOX MODE</Typography>
-                  </Box>
-                )}
-              </Box>
-
-              <Box sx={{ mb: 2 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
-                  Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
-                </Typography>
-                <TextField
-                  multiline
-                  rows={8}
-                  fullWidth
-                  value={editablePayload}
-                  onChange={(e) => setEditablePayload(e.target.value)}
-                  error={!!jsonError}
-                  helperText={jsonError}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      fontSize: '0.75rem',
-                      fontFamily: 'SF Mono, Monaco, monospace',
-                      bgcolor: '#f8fafc',
-                      borderRadius: 0,
-                      '& fieldset': { borderColor: '#e2e8f0' },
-                      '&:hover fieldset': { borderColor: '#cbd5e1' },
-                    }
-                  }}
-                />
-              </Box>
-
-              <Button
-                fullWidth
-                disabled={sendingTest}
-                onClick={handleSendTest}
-                startIcon={
-                  !sandboxEnabled 
-                    ? <ScienceOutlinedIcon /> 
-                    : !keyInfo 
-                      ? <VpnKeyOutlinedIcon /> 
-                      : testSuccess 
-                        ? <CheckCircleOutlineRoundedIcon /> 
-                        : <PlayCircleOutlineIcon />
-                }
-                sx={{
-                  bgcolor: (!sandboxEnabled || !keyInfo) ? '#fff7ed' : testSuccess ? '#10b981' : colorPalette.primary,
-                  color: (!sandboxEnabled || !keyInfo) ? '#c2410c' : '#ffffff',
-                  border: (!sandboxEnabled || !keyInfo) ? '1px solid #ffedd5' : 'none',
-                  py: 1.25,
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  fontFamily: 'Jost',
-                  textTransform: 'none',
-                  borderRadius: 0,
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: (!sandboxEnabled || !keyInfo) ? '#ffedd5' : testSuccess ? '#10b981' : '#1a3896' },
-                  '&.Mui-disabled': { bgcolor: '#f1f5f9', color: '#94a3b8' }
-                }}
-              >
-                {!sandboxEnabled 
-                  ? 'Switch to Sandbox to Test' 
-                  : !keyInfo 
-                    ? 'Get API Key to Get Started'
-                    : sendingTest 
-                      ? 'Beaming...' 
-                      : testSuccess 
-                        ? 'Success! Check Logs' 
-                        : `Beam Test ${stream.title} Record`}
-              </Button>
-            </Box>
-
-            {/* Recent payloads */}
+            {/* Recent payloads (Moved here) */}
             <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
               <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
@@ -1089,38 +1011,333 @@ export default function DataBeamingPage() {
               </Stack>
             </Box>
           </Stack>
-        </Box>
 
-        {/* Auth reference */}
-        <Box sx={{ mt: 3, bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Authentication & headers</Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Required on every beam request</Typography>
-          </Box>
-          <Box sx={{ px: 3, py: 2.5 }}>
-            <Stack gap={0}>
-              {[
-                { header: 'Authorization', value: 'Bearer $OPENIV_BEAM_KEY', desc: 'Your institution beam API key.' },
-                { header: 'Content-Type', value: 'application/json', desc: 'All payloads must be JSON.' },
-                { header: 'X-Idempotency-Key', value: '<uuid-v4>', desc: 'Unique per request — re-use to safely retry without duplicating records.' },
-              ].map(({ header, value, desc }) => (
-                <Box key={header} sx={{ display: 'grid', gridTemplateColumns: '220px 240px 1fr', gap: 2, alignItems: 'flex-start', py: 1.25, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, fontWeight: 600 }}>{header}</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#ffcb6b', bgcolor: '#0d1117', px: 1, py: 0.25 }}>{value}</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
+          <Stack gap={3}>
+            {/* Code sample */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>How to beam</Typography>
+                <Box sx={{ display: 'flex' }}>
+                  {langs.map(lang => (
+                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
+                      {lang}
+                    </Box>
+                  ))}
                 </Box>
-              ))}
-            </Stack>
-          </Box>
+              </Box>
+              <SyntaxCode code={codeByLang[activeLang]} />
+            </Box>
+
+            {/* Expected Result Documentation */}
+            {(() => {
+              const expectedResultConfig: Record<StreamId, {
+                intro: string
+                fields: { label: string; desc: string }[]
+                label: string
+                json: string
+              }> = {
+                transactions: {
+                  intro: 'OpenIV returns a synchronous risk analysis for every transaction beam. Your backend can act immediately — hold, decline, or allow — without waiting for a webhook.',
+                  fields: [
+                    { label: 'risk_score', desc: 'A value from 0–100 indicating the probability of fraud. Higher means riskier.' },
+                    { label: 'risk_level', desc: 'Categorical threat level: LOW, MEDIUM, HIGH, or CRITICAL.' },
+                    { label: 'recommended_action', desc: 'Automated guidance based on your configured thresholds: ALLOW, REVIEW, HOLD, or DECLINE.' },
+                    { label: 'case_id', desc: 'ID of the compliance case auto-created for your team to review, if applicable.' },
+                  ],
+                  label: 'Transaction response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "analysis": {\n    "risk_score": 74,\n    "risk_level": "HIGH",\n    "recommended_action": "HOLD",\n    "case_id": "CASE-9201"\n  }\n}`,
+                },
+                logins: {
+                  intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload was accepted and validated against the login schema.' },
+                    { label: 'record_id', desc: 'Unique ID assigned to this login event in the OpenIV system.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 quantifying the account-takeover probability for this login attempt. Used to decide whether to challenge the user.' },
+                    { label: 'session_risk', desc: 'Categorical label derived from risk_score: NORMAL, SUSPICIOUS, or BLOCKED.' },
+                    { label: 'status', desc: 'Always "received" for successful ingestions.' },
+                  ],
+                  label: 'Login event response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 204512,\n  "stream": "logins",\n  "risk_score": 57,\n  "session_risk": "SUSPICIOUS",\n  "status": "received"\n}`,
+                },
+                activity: {
+                  intro: 'In-app behaviour is a direct input to the fraud prediction engine. OpenIV processes every session event against the user\'s baseline and returns a behavioural risk score you can act on immediately.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload passed schema validation.' },
+                    { label: 'record_id', desc: 'Unique ID of this activity record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 representing the predicted fraud probability derived from behavioural pattern matching. Higher means more anomalous.' },
+                    { label: 'recommended_action', desc: 'Automated guidance: ALLOW, MONITOR, HOLD, or FLAG. Use this to decide whether to let the session continue or challenge the user.' },
+                    { label: 'profile_updated', desc: 'True if this event updated the user\'s long-term behavioural baseline.' },
+                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
+                  ],
+                  label: 'In-app activity response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 305871,\n  "stream": "activity",\n  "risk_score": 68,\n  "recommended_action": "HOLD",\n  "profile_updated": true,\n  "status": "received"\n}`,
+                },
+                location: {
+                  intro: 'Location signals are matched against the customer\'s recent geo-footprint in real time. OpenIV returns an acknowledgment, a geo-anomaly flag, and a location-derived risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload was accepted.' },
+                    { label: 'record_id', desc: 'Unique ID of this location ping.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the impossibility of the travel path. A score above 70 typically indicates a SIM-swap or account takeover.' },
+                    { label: 'geo_anomaly', desc: 'True if this location is impossible given the customer\'s previous ping — potential SIM-swap or account takeover indicator.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'Location signal response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 406230,\n  "stream": "location",\n  "risk_score": 82,\n  "geo_anomaly": true,\n  "status": "received"\n}`,
+                },
+                devices: {
+                  intro: 'Device fingerprints are checked against the customer\'s device-of-record history. OpenIV returns an acknowledgment, a new-device flag, and a device-context risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the fingerprint payload was accepted.' },
+                    { label: 'record_id', desc: 'Unique ID of this device fingerprint record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 based on device novelty, jailbreak status, and historical device patterns for this account.' },
+                    { label: 'new_device', desc: 'True if this device has never been seen on this account — a key SIM-swap and account-takeover signal.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'Device fingerprint response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 507441,\n  "stream": "devices",\n  "risk_score": 63,\n  "new_device": true,\n  "status": "received"\n}`,
+                },
+                otps: {
+                  intro: 'OTP events are processed in real time to detect SIM-swap patterns. OpenIV returns an acknowledgment, hold status, and an OTP-pattern risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the OTP event was accepted and processed.' },
+                    { label: 'record_id', desc: 'Unique ID of this OTP event record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the suspicion level of the OTP pattern — high retry counts and cross-device OTPs score near 100.' },
+                    { label: 'transaction_held', desc: 'True if an associated transaction was automatically held pending OTP verification outcome.' },
+                    { label: 'retry_alert', desc: 'True if retry count exceeded your configured threshold, triggering a real-time alert.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'OTP event response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 608992,\n  "stream": "otps",\n  "risk_score": 91,\n  "transaction_held": true,\n  "retry_alert": true,\n  "status": "received"\n}`,
+                },
+              }
+
+              // Parse risk_score from the example json for the visual bar
+              const cfg = expectedResultConfig[activeStream]
+              let riskScore: number | null = null
+              try {
+                const parsed = JSON.parse(cfg.json)
+                const score = parsed?.risk_score ?? parsed?.analysis?.risk_score
+                if (typeof score === 'number') riskScore = score
+              } catch { /* ignore */ }
+
+              const riskColor = riskScore == null ? '#94a3b8'
+                : riskScore >= 75 ? '#dc2626'
+                : riskScore >= 50 ? '#f59e0b'
+                : '#10b981'
+
+              const riskLabel = riskScore == null ? '—'
+                : riskScore >= 75 ? 'HIGH RISK'
+                : riskScore >= 50 ? 'MODERATE'
+                : 'LOW RISK'
+
+              return (
+                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                      <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Expected Result</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>What your server receives after a successful {stream.title.toLowerCase()} beam</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box sx={{ p: 3 }}>
+                    <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+                      {cfg.intro}
+                    </Typography>
+
+                    {/* Risk score percentage visual */}
+                    {riskScore !== null && (
+                      <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
+                          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Example risk_score
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
+                              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
+                                {riskLabel}
+                              </Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
+                              {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
+                            </Typography>
+                          </Box>
+                        </Box>
+                        {/* Segmented bar: 0-50 green, 50-75 amber, 75-100 red */}
+                        <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                          <Box sx={{
+                            position: 'absolute', inset: 0, width: `${riskScore}%`,
+                            background: riskScore >= 75
+                              ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
+                              : riskScore >= 50
+                              ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
+                              : '#10b981',
+                            borderRadius: '4px',
+                            transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          }} />
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
+                          <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
+                          <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
+                        </Box>
+                      </Box>
+                    )}
+
+                    <Stack gap={2}>
+                      {cfg.fields.map(item => (
+                        <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
+                            {item.label}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                            {item.desc}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                    <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', mb: 1, fontFamily: 'Jost' }}>
+                        {cfg.label}
+                      </Typography>
+                      <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre' }}>
+                        {cfg.json}
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              )
+            })()}
+
+            {/* Simulation Box - Beam Test Transaction */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PlayCircleOutlineIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Beam Test Transaction</Typography>
+                </Box>
+                {sandboxEnabled && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.375, bgcolor: '#fff7ed', border: '1px solid #ffedd5' }}>
+                    <ScienceOutlinedIcon sx={{ fontSize: '0.85rem', color: '#c2410c' }} />
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#c2410c', letterSpacing: '0.05em' }}>SANDBOX MODE</Typography>
+                  </Box>
+                )}
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
+                  Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
+                </Typography>
+                <TextField
+                  multiline
+                  rows={8}
+                  fullWidth
+                  value={editablePayload}
+                  onChange={(e) => setEditablePayload(e.target.value)}
+                  error={!!jsonError}
+                  helperText={jsonError}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      fontSize: '0.75rem',
+                      fontFamily: 'SF Mono, Monaco, monospace',
+                      bgcolor: '#f8fafc',
+                      borderRadius: 0,
+                      '& fieldset': { borderColor: '#e2e8f0' },
+                      '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    }
+                  }}
+                />
+              </Box>
+
+              <Button
+                fullWidth
+                disabled={sendingTest}
+                onClick={handleSendTest}
+                startIcon={
+                  !sandboxEnabled
+                    ? <ScienceOutlinedIcon />
+                    : !keyInfo
+                      ? <VpnKeyOutlinedIcon />
+                      : testSuccess
+                        ? <CheckCircleOutlineRoundedIcon />
+                        : <PlayCircleOutlineIcon />
+                }
+                sx={{
+                  bgcolor: (!sandboxEnabled || !keyInfo) ? '#fff7ed' : testSuccess ? '#10b981' : colorPalette.primary,
+                  color: (!sandboxEnabled || !keyInfo) ? '#c2410c' : '#ffffff',
+                  border: (!sandboxEnabled || !keyInfo) ? '1px solid #ffedd5' : 'none',
+                  py: 1.25,
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  fontFamily: 'Jost',
+                  textTransform: 'none',
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: (!sandboxEnabled || !keyInfo) ? '#ffedd5' : testSuccess ? '#10b981' : '#1a3896' },
+                  '&.Mui-disabled': { bgcolor: '#f1f5f9', color: '#94a3b8' }
+                }}
+              >
+                {!sandboxEnabled
+                  ? 'Switch to Sandbox to Test'
+                  : !keyInfo
+                    ? 'Get API Key to Get Started'
+                    : sendingTest
+                      ? 'Beaming...'
+                      : testSuccess
+                        ? 'Success! Check Logs'
+                        : `Beam Test ${stream.title} Record`}
+              </Button>
+
+              {testResponse && (
+                <Box sx={{ mt: 3, p: 2, bgcolor: '#0f172a', border: '1px solid #1e293b' }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 1.5, textTransform: 'uppercase' }}>
+                    Standard Response (developer insight)
+                  </Typography>
+                  <Box sx={{
+                    fontFamily: 'SF Mono, Monaco, monospace',
+                    fontSize: '0.75rem',
+                    color: '#e2e8f0',
+                    lineHeight: 1.6,
+                    maxHeight: 240,
+                    overflowY: 'auto'
+                  }}>
+                    <Box component="pre" sx={{ m: 0 }}>
+                      {JSON.stringify(testResponse, null, 2)}
+                    </Box>
+                  </Box>
+                  {testResponse.analysis && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #1e293b' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <AutoAwesomeOutlinedIcon sx={{ fontSize: '0.875rem', color: colorPalette.primary }} />
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost' }}>
+                          Risk Analysis Applied
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                        Score: <Box component="span" sx={{ color: testResponse.analysis.risk_score >= 60 ? '#ef4444' : '#10b981', fontWeight: 700 }}>{testResponse.analysis.risk_score}</Box> ·
+                        Level: <Box component="span" sx={{ color: '#ffffff', fontWeight: 600 }}>{testResponse.analysis.risk_level}</Box> ·
+                        Action: <Box component="span" sx={{ color: colorPalette.primary, fontWeight: 700 }}>{testResponse.analysis.recommended_action}</Box>
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+          </Stack>
         </Box>
       </Box>
 
-      <ApiKeyModal 
-        open={apiKeyOpen} 
-        onClose={() => setApiKeyOpen(false)} 
+
+
+      <ApiKeyModal
+        open={apiKeyOpen}
+        onClose={() => setApiKeyOpen(false)}
         keyInfo={keyInfo}
         onKeyUpdated={loadKey}
       />
-    </DashboardLayout>
+    </>
   )
 }

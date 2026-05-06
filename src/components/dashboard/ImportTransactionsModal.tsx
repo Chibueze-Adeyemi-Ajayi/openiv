@@ -89,7 +89,7 @@ function mapRow(raw: Record<string, unknown>): ParsedRow {
   const counterparty = col(raw, 'counterparty', 'Counterparty')
   const riskStr      = col(raw, 'risk_score', 'Risk Score', 'riskScore', 'risk')
   const riskScore    = riskStr ? Number(riskStr) : 0
-  const status       = col(raw, 'status', 'Status') || 'pending'
+  const status       = (col(raw, 'status', 'Status') || 'pending') as any
   const location     = col(raw, 'location', 'Location') || undefined
   const latStr       = col(raw, 'lat', 'Lat', 'Latitude')
   const lngStr       = col(raw, 'lng', 'Lng', 'Longitude')

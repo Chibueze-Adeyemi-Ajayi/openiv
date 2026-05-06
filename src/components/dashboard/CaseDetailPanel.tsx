@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Box, Typography, Stack, IconButton, InputBase } from '@mui/material'
+import { Box, Typography, Stack, IconButton, InputBase, Tabs, Tab } from '@mui/material'
 import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
 import { colorPalette } from '@/theme'
 import { caseApi, type Case, type CaseDetail, type CaseStatus, type CaseResolution } from '@/api/cases'
@@ -100,6 +100,9 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
     status: CaseStatus; resolution?: CaseResolution; label: string; color: string
   } | null>(null)
 
+  // Tab management
+  const [tabIndex, setTabIndex] = useState(0)
+
   const cas: Case | null = data?.case ?? null
   const currentStatus = localStatus ?? cas?.status ?? null
 
@@ -116,7 +119,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
   }, [caseId])
 
   useEffect(() => {
-    if (open && caseId) { setData(null); setNote(''); setClosePickerOpen(false); setLocalStatus(null); loadDetail() }
+    if (open && caseId) { setData(null); setNote(''); setClosePickerOpen(false); setLocalStatus(null); setTabIndex(0); loadDetail() }
   }, [open, caseId, loadDetail])
 
   const requestTransition = (status: CaseStatus, resolution: CaseResolution | undefined,
@@ -272,6 +275,32 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
           )}
         </Box>
 
+        {/* ── Tab header ──────────────────────────────────────────────────── */}
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
+          <Tabs
+            value={tabIndex}
+            onChange={(_, v) => setTabIndex(v)}
+            sx={{
+              px: 2.5,
+              '& .MuiTabs-indicator': { bgcolor: colorPalette.primary },
+              '& .MuiTab-root': {
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                fontFamily: 'Jost',
+                color: '#94a3b8',
+                textTransform: 'none',
+                minHeight: 44,
+                px: 0,
+                mr: 2.5,
+                '&.Mui-selected': { color: colorPalette.primary },
+              },
+            }}
+          >
+            <Tab label="Details & Notes" />
+            <Tab label="Activity & Evidence" />
+          </Tabs>
+        </Box>
+
         {/* ── Scrollable body ─────────────────────────────────────────────── */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 
@@ -283,107 +312,122 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
             </Box>
           )}
 
-          {/* Case details */}
-          {cas && !loading && (
-            <Section title="Details">
-              <Field label="Typology"   value={cas.typology} />
-              <Field label="Risk Score" value={String(cas.riskScore)} />
-              {cas.assigneeName && <Field label="Assigned To" value={cas.assigneeName} />}
-              <Field label="Opened By"  value={cas.createdByName} />
-              <Field label="Opened"     value={fmtDate(cas.createdAt)} />
-              {cas.closedAt && <Field label="Closed"  value={fmtDate(cas.closedAt)} />}
-              {cas.resolution && <Field label="Resolution" value={cas.resolution.replace('_', ' ')} />}
-              {cas.notes && <Field label="Notes" value={cas.notes} />}
-            </Section>
+          {/* TAB 0: Details & Notes */}
+          {tabIndex === 0 && cas && !loading && (
+            <>
+              <Section title="Details">
+                <Field label="Typology"   value={cas.typology} />
+                <Field label="Risk Score" value={String(cas.riskScore)} />
+                {cas.assigneeName && <Field label="Assigned To" value={cas.assigneeName} />}
+                <Field label="Opened By"  value={cas.createdByName} />
+                <Field label="Opened"     value={fmtDate(cas.createdAt)} />
+                {cas.closedAt && <Field label="Closed"  value={fmtDate(cas.closedAt)} />}
+                {cas.resolution && <Field label="Resolution" value={cas.resolution.replace('_', ' ')} />}
+              </Section>
+
+              {cas.notes && (
+                <Box>
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
+                    Notes
+                  </Typography>
+                  <Box sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderRadius: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {cas.notes}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </>
           )}
 
-          {/* Linked transactions */}
-          {!loading && (
-            <Box>
-              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
-                Linked Transactions ({data?.transactions.length ?? 0})
-              </Typography>
-              <Box sx={{ border: '1px solid #eef0f4' }}>
-                {(!data?.transactions || data.transactions.length === 0) ? (
-                  <Box sx={{ p: 2, textAlign: 'center' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions linked yet</Typography>
-                  </Box>
-                ) : data.transactions.map((t, i) => (
-                  <Box key={t.id} onClick={() => onTransactionClick?.(t)} sx={{
-                    display: 'grid', gridTemplateColumns: '1fr auto', gap: 1,
-                    px: 1.5, py: 1.25, borderBottom: i < data.transactions.length - 1 ? '1px solid #f4f5f7' : 'none',
-                    cursor: onTransactionClick ? 'pointer' : 'default',
-                    '&:hover': onTransactionClick ? { bgcolor: '#fafbfc' } : {},
-                  }}>
-                    <Box sx={{ overflow: 'hidden' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.id}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
-                        {t.customer} · {t.channel}
-                      </Typography>
+          {/* TAB 1: Activity & Evidence */}
+          {tabIndex === 1 && !loading && (
+            <>
+              {/* Linked transactions */}
+              <Box>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
+                  Linked Transactions ({data?.transactions.length ?? 0})
+                </Typography>
+                <Box sx={{ border: '1px solid #eef0f4' }}>
+                  {(!data?.transactions || data.transactions.length === 0) ? (
+                    <Box sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions linked yet</Typography>
                     </Box>
-                    <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                        {t.amount.toLocaleString()}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.625rem', color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981', fontWeight: 700, mt: 0.25 }}>
-                        Risk {t.risk}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Activity timeline */}
-          {!loading && (
-            <Box>
-              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
-                Activity Timeline
-              </Typography>
-              {(!data?.activity || data.activity.length === 0) ? (
-                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No activity yet</Typography>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  {data.activity.map((a, i) => (
-                    <Box key={a.id} sx={{ display: 'flex', gap: 1.5, pb: i < data.activity.length - 1 ? 2 : 0, position: 'relative' }}>
-                      {/* Vertical connector */}
-                      {i < data.activity.length - 1 && (
-                        <Box sx={{ position: 'absolute', left: 13, top: 28, bottom: 0, width: 1, bgcolor: '#e2e8f0' }} />
-                      )}
-                      <Avatar name={a.actorName} size={28} />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
-                            {a.actorName}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {ACTION_LABELS[a.action] ?? a.action}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>
-                            {fmtDate(a.createdAt)}
-                          </Typography>
-                        </Box>
-                        {a.detail && (
-                          <Box sx={{ mt: 0.5, p: 1, bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5 }}>
-                              {a.detail}
-                            </Typography>
-                          </Box>
-                        )}
+                  ) : data.transactions.map((t, i) => (
+                    <Box key={t.id} onClick={() => onTransactionClick?.(t)} sx={{
+                      display: 'grid', gridTemplateColumns: '1fr auto', gap: 1,
+                      px: 1.5, py: 1.25, borderBottom: i < data.transactions.length - 1 ? '1px solid #f4f5f7' : 'none',
+                      cursor: onTransactionClick ? 'pointer' : 'default',
+                      '&:hover': onTransactionClick ? { bgcolor: '#fafbfc' } : {},
+                    }}>
+                      <Box sx={{ overflow: 'hidden' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t.id}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
+                          {t.customer} · {t.channel}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                          {t.amount.toLocaleString()}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.625rem', color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981', fontWeight: 700, mt: 0.25 }}>
+                          Risk {t.risk}
+                        </Typography>
                       </Box>
                     </Box>
                   ))}
                 </Box>
-              )}
-            </Box>
+              </Box>
+
+              {/* Activity timeline */}
+              <Box>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
+                  Activity Timeline
+                </Typography>
+                {(!data?.activity || data.activity.length === 0) ? (
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No activity yet</Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {data.activity.map((a, i) => (
+                      <Box key={a.id} sx={{ display: 'flex', gap: 1.5, pb: i < data.activity.length - 1 ? 2 : 0, position: 'relative' }}>
+                        {/* Vertical connector */}
+                        {i < data.activity.length - 1 && (
+                          <Box sx={{ position: 'absolute', left: 13, top: 28, bottom: 0, width: 1, bgcolor: '#e2e8f0' }} />
+                        )}
+                        <Avatar name={a.actorName} size={28} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                              {a.actorName}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              {ACTION_LABELS[a.action] ?? a.action}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>
+                              {fmtDate(a.createdAt)}
+                            </Typography>
+                          </Box>
+                          {a.detail && (
+                            <Box sx={{ mt: 0.5, p: 1, bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {a.detail}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            </>
           )}
         </Box>
 
         {/* ── Add note footer ──────────────────────────────────────────────── */}
-        {cas && !loading && (
+        {cas && !loading && tabIndex === 0 && (
           <Box sx={{ flexShrink: 0, borderTop: '1px solid #eef0f4', p: 2 }}>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
               <Box sx={{

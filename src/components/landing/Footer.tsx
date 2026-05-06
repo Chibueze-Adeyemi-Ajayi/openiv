@@ -17,7 +17,7 @@ export default function Footer() {
               </Typography>
             </Stack>
 
-            <Stack sx={{ gap: 3, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr' }, gap: 4 }}>
+            <Stack sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr' }, gap: 4 }}>
               <Stack sx={{ gap: 1.5 }}>
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Product

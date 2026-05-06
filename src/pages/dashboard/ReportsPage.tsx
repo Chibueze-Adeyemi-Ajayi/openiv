@@ -2,7 +2,6 @@ import {
   Box, Typography, Stack, Button, Chip, IconButton, CircularProgress, Tooltip,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import FileReportDialog from '@/components/dashboard/FileReportDialog'
 import ScheduleReportDialog from '@/components/dashboard/ScheduleReportDialog'
 import { useState, useEffect, useCallback } from 'react'
@@ -123,7 +122,7 @@ export default function ReportsPage() {
   })
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4, maxWidth: 1200 }}>
 
         {/* ── Header ── */}
@@ -376,7 +375,6 @@ export default function ReportsPage() {
             </Box>
           )}
         </Box>
-      </Box>
 
       <FileReportDialog
         open={fileOpen}
@@ -392,6 +390,7 @@ export default function ReportsPage() {
         onClose={() => setSchedOpen(false)}
         onCreated={s => setSchedules(prev => [...prev, s])}
       />
-    </DashboardLayout>
+      </Box>
+    </>
   )
 }

@@ -1,6 +1,6 @@
 import { Box, Typography, Stack, Button, Chip, CircularProgress, Tabs, Tab, IconButton, Drawer, Tooltip } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
+// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import InteractionDetailPanel from '@/components/dashboard/InteractionDetailPanel'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -185,7 +185,7 @@ export default function UserProfilePage() {
     const items: any[] = []
     transactions.forEach(t => {
       items.push({
-        type: 'tx', time: new Date(t.occurredAt).getTime(),
+        type: 'tx', time: new Date(t.occurredAt || new Date()).getTime(),
         icon: <ReceiptLongOutlinedIcon />, color: t.risk >= 70 ? '#dc2626' : colorPalette.primary,
         title: `Transfer to ${t.recipientName || t.counterparty}`,
         detail: `₦${t.amount.toLocaleString()} · ${t.status} · Risk: ${t.risk}`,
@@ -235,11 +235,9 @@ export default function UserProfilePage() {
 
   if (loading && !transactions.length && !beams.length) {
     return (
-      <DashboardLayout>
-        <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
-          <CircularProgress sx={{ color: colorPalette.primary }} />
-        </Box>
-      </DashboardLayout>
+      <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+        <CircularProgress sx={{ color: colorPalette.primary }} />
+      </Box>
     )
   }
 
@@ -250,7 +248,7 @@ export default function UserProfilePage() {
   const tHeatmap = heatmapData?.transactions || Array(7).fill(0).map(() => Array(24).fill(0))
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <Box
@@ -549,7 +547,7 @@ export default function UserProfilePage() {
                     </Box>
                     {transactions.map(t => (
                       <Box key={t.id} onClick={() => setDetailTx(t)} sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', cursor: 'pointer', '&:hover': { bgcolor: '#fafbfc' } }}>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(t.occurredAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(t.occurredAt || new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }}>{t.risk}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>₦{t.amount.toLocaleString()}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.recipientName || t.counterparty}</Typography>
@@ -638,6 +636,6 @@ export default function UserProfilePage() {
       </Drawer>
 
       <TOTPConfirmation open={freezeOpen} onClose={() => setFreezeOpen(false)} onConfirm={() => setFreezeOpen(false)} operation="delete" title="Freeze customer account" description="Freezing will immediately block all transactions and login attempts." resourceType="Customer account" resourceName={`${userDetails.name} · ${id}`} itemsAffected={['All inbound/outbound transfers blocked', 'Mobile and web login disabled', 'Customer notified via SMS', 'Audit log entry created']} />
-    </DashboardLayout>
+    </>
   )
 }

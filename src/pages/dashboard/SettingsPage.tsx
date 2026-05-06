@@ -1,10 +1,11 @@
-import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid } from '@mui/material'
+import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton } from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+// import { colorPalette } from '@/theme'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import GeoFenceDialog from '@/components/dashboard/GeoFenceDialog'
 import EurekaLearnMoreModal from '@/components/dashboard/EurekaLearnMoreModal'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -12,6 +13,7 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
 import { useEureka } from '@/contexts/EurekaContext'
 import { useSandbox } from '@/contexts/SandboxContext'
+import { amlApi, type AmlSettings } from '@/api/aml'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -156,6 +158,242 @@ function EurekaCompanionSection() {
       </Box>
       <EurekaLearnMoreModal open={eurekaLearnOpen} onClose={() => setEurekaLearnOpen(false)} />
     </>
+  )
+}
+
+function AmlSettingsSection() {
+  const [settings, setSettings] = useState<AmlSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [autoOpenCase, setAutoOpenCase] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [isAddingEmail, setIsAddingEmail] = useState(false)
+  const [emails, setEmails] = useState<string[]>([])
+
+  useEffect(() => {
+    amlApi.getSettings()
+      .then(res => {
+        if (res.settings) {
+          setSettings(res.settings)
+          setAutoOpenCase(res.settings.autoOpenCase)
+          setEmails(res.settings.caseNotificationEmails || [])
+        }
+      })
+      .catch(err => console.error('Failed to load AML settings:', err))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleToggle = async () => {
+    setIsSaving(true)
+    try {
+      const res = await amlApi.updateSettings({ autoOpenCase: !autoOpenCase })
+      setSettings(res.settings)
+      setAutoOpenCase(res.settings.autoOpenCase)
+      setEmails(res.settings.caseNotificationEmails || [])
+    } catch (err) {
+      console.error('Failed to update AML settings:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const isValidEmail = (email: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
+  const handleAddEmail = async () => {
+    if (!newEmail.trim()) return
+    if (!isValidEmail(newEmail)) {
+      alert('Please enter a valid email address')
+      return
+    }
+    if (emails.includes(newEmail.trim())) {
+      alert('This email is already added')
+      return
+    }
+
+    setIsAddingEmail(true)
+    try {
+      const res = await amlApi.addNotificationEmail(newEmail.trim())
+      setSettings(res.settings)
+      setEmails(res.settings.caseNotificationEmails || [])
+      setNewEmail('')
+    } catch (err) {
+      console.error('Failed to add email:', err)
+      alert('Failed to add email. Please try again.')
+    } finally {
+      setIsAddingEmail(false)
+    }
+  }
+
+  const handleRemoveEmail = async (emailToRemove: string) => {
+    setIsAddingEmail(true)
+    try {
+      const res = await amlApi.removeNotificationEmail(emailToRemove)
+      setSettings(res.settings)
+      setEmails(res.settings.caseNotificationEmails || [])
+    } catch (err) {
+      console.error('Failed to remove email:', err)
+      alert('Failed to remove email. Please try again.')
+    } finally {
+      setIsAddingEmail(false)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          AML Case Settings
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+          Configure automatic case creation behavior and notifications for fraud detection
+        </Typography>
+      </Box>
+
+      {/* Auto-open cases toggle */}
+      <Box
+        sx={{
+          px: 3,
+          py: 2.25,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 2,
+          borderBottom: '1px solid #f4f5f7',
+        }}
+      >
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+            Auto-open investigation cases
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+            When enabled, fraud detection automatically creates investigation cases for transactions above the risk threshold.
+          </Typography>
+        </Box>
+        <Box
+          onClick={handleToggle}
+          sx={{
+            width: 34,
+            height: 18,
+            borderRadius: 10,
+            bgcolor: autoOpenCase ? colorPalette.primary : '#e2e8f0',
+            position: 'relative',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            flexShrink: 0,
+            opacity: isSaving ? 0.6 : 1,
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 2,
+              left: autoOpenCase ? 18 : 2,
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              bgcolor: '#fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }
+          }}
+        />
+      </Box>
+
+      {/* Email notifications section */}
+      <Box sx={{ px: 3, py: 2.5 }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+          Send case notifications to
+        </Typography>
+        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 2 }}>
+          When a case is raised for review, send notifications to these team members' email addresses.
+        </Typography>
+
+        {/* Email input */}
+        <Stack direction="row" spacing={1} sx={{ mb: 2.5 }}>
+          <TextField
+            size="small"
+            placeholder="name@company.com"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleAddEmail()
+              }
+            }}
+            disabled={isAddingEmail}
+            sx={{
+              flex: 1,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: '#f5f3fb',
+                borderRadius: 0,
+                fontSize: '0.875rem',
+                fontFamily: 'Jost',
+                '& fieldset': { border: '1px solid transparent' },
+                '&:hover fieldset': { borderColor: '#e4dff2' },
+                '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+              },
+              '& .MuiOutlinedInput-input': {
+                py: '10px',
+                px: '14px',
+              }
+            }}
+          />
+          <Button
+            onClick={handleAddEmail}
+            disabled={isAddingEmail || !newEmail.trim()}
+            sx={{
+              bgcolor: colorPalette.primary,
+              color: '#fff',
+              px: 2,
+              py: 1,
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              borderRadius: 0,
+              fontFamily: 'Jost',
+              '&:hover': { bgcolor: '#1a3896' },
+              '&:disabled': { bgcolor: '#cbd5e1', color: '#94a3b8' }
+            }}
+          >
+            {isAddingEmail ? 'Adding...' : 'Add'}
+          </Button>
+        </Stack>
+
+        {/* Email list */}
+        {emails.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {emails.map((email) => (
+              <Chip
+                key={email}
+                label={email}
+                onDelete={() => handleRemoveEmail(email)}
+                sx={{
+                  bgcolor: '#f0f9ff',
+                  borderColor: '#bae6fd',
+                  border: '1px solid #bae6fd',
+                  color: '#0369a1',
+                  fontWeight: 500,
+                  fontSize: '0.8125rem',
+                  fontFamily: 'Jost',
+                  '& .MuiChip-deleteIcon': {
+                    color: '#0369a1',
+                    '&:hover': { color: '#0c4a6e' }
+                  }
+                }}
+              />
+            ))}
+          </Box>
+        )}
+        {emails.length === 0 && (
+          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+            No email addresses added yet
+          </Typography>
+        )}
+      </Box>
+    </Box>
   )
 }
 
@@ -315,7 +553,7 @@ export default function SettingsPage() {
   const [saveOpen, setSaveOpen] = useState(false)
   const [geoFenceOpen, setGeoFenceOpen] = useState(false)
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
@@ -422,6 +660,9 @@ export default function SettingsPage() {
             </Stack>
           </Box>
 
+          {/* AML Case Settings */}
+          <AmlSettingsSection />
+
           {/* Eureka Companion */}
           <EurekaCompanionSection />
 
@@ -489,6 +730,6 @@ export default function SettingsPage() {
       />
 
       <GeoFenceDialog open={geoFenceOpen} onClose={() => setGeoFenceOpen(false)} />
-    </DashboardLayout>
+    </>
   )
 }

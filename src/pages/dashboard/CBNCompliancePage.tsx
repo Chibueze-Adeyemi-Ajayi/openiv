@@ -1,6 +1,6 @@
 import { Box, Typography, Stack, Button, Chip } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
+// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { useState } from 'react'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -116,7 +116,7 @@ export default function CBNCompliancePage() {
   const score = Math.round((coveredCount / pillars.length) * 100)
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {/* Header */}
         <Box sx={{ mb: 4 }}>
@@ -464,27 +464,27 @@ export default function CBNCompliancePage() {
             </Box>
           )}
         </Box>
-      </Box>
 
-      <TOTPConfirmation
-        open={submitOpen}
-        onClose={() => setSubmitOpen(false)}
-        onConfirm={() => {
-          setSubmitOpen(false)
-          setSubmitted(true)
-        }}
-        operation="create"
-        title="Submit implementation plan to CBN"
-        description="This action submits the 24-page implementation plan to the CBN Compliance Portal under your CCO sign-off. Once submitted, the plan cannot be retracted — only superseded by a new submission."
-        resourceType="CBN Implementation Plan"
-        resourceName="First City Monument Bank · Drafted 19 April 2026"
-        itemsAffected={[
-          'Plan submitted to CBN Compliance Portal',
-          'CCO digital signature applied (Adaeze Chukwu)',
-          'NFIU notified of plan submission',
-          'Internal audit log entry created',
-        ]}
-      />
-    </DashboardLayout>
+        <TOTPConfirmation
+          open={submitOpen}
+          onClose={() => setSubmitOpen(false)}
+          onConfirm={() => {
+            setSubmitOpen(false)
+            setSubmitted(true)
+          }}
+          operation="create"
+          title="Submit implementation plan to CBN"
+          description="This action submits the 24-page implementation plan to the CBN Compliance Portal under your CCO sign-off. Once submitted, the plan cannot be retracted — only superseded by a new submission."
+          resourceType="CBN Implementation Plan"
+          resourceName="First City Monument Bank · Drafted 19 April 2026"
+          itemsAffected={[
+            'Plan submitted to CBN Compliance Portal',
+            'CCO digital signature applied (Adaeze Chukwu)',
+            'NFIU notified of plan submission',
+            'Internal audit log entry created',
+          ]}
+        />
+      </Box>
+    </>
   )
 }

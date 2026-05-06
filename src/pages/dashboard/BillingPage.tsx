@@ -2,7 +2,6 @@ import {
   Box, Typography, Stack, Button, Chip, IconButton, CircularProgress, Divider,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import FundWalletDialog from '@/components/dashboard/FundWalletDialog'
@@ -120,7 +119,7 @@ export default function BillingPage() {
   const noPaymentMethod = methods.length === 0
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4, maxWidth: 1200 }}>
 
         {/* ── Header ── */}
@@ -534,7 +533,6 @@ export default function BillingPage() {
             </Typography>
           </Box>
         </Box>
-      </Box>
 
       {/* ── Add Card dialog ── */}
       <AddCardDialog
@@ -568,6 +566,7 @@ export default function BillingPage() {
         resourceType="Subscription"
         resourceName=""
       />
-    </DashboardLayout>
+      </Box>
+    </>
   )
 }

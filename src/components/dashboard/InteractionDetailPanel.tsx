@@ -59,10 +59,22 @@ function Field({ label, value, mono = false }: { label: string; value?: string |
 }
 
 function determineStatus(record: BeamRecord) {
-  const hash = record.id * 17
-  if (hash % 10 === 0) return { label: 'FRAUDULENT', bg: '#fef2f2', color: '#dc2626', score: 85 + (hash % 15) }
-  if (hash % 10 === 1 || hash % 10 === 2) return { label: 'SUSPICIOUS', bg: '#fffbeb', color: '#f59e0b', score: 50 + (hash % 30) }
-  return { label: 'NORMAL', bg: '#f0fdf4', color: '#10b981', score: 10 + (hash % 30) }
+  let score: number | null = null
+  try {
+    const payload = JSON.parse(record.payload)
+    score = payload.risk_score ?? payload.riskScore ?? payload.score ?? payload.fraud_score ?? null
+  } catch {}
+
+  if (score === null) {
+    return { label: 'UNSCORED', bg: '#f8fafc', color: '#94a3b8', score: 0 }
+  }
+  if (score >= 70) {
+    return { label: 'FRAUDULENT', bg: '#fef2f2', color: '#dc2626', score }
+  }
+  if (score >= 40) {
+    return { label: 'SUSPICIOUS', bg: '#fffbeb', color: '#f59e0b', score }
+  }
+  return { label: 'NORMAL', bg: '#f0fdf4', color: '#10b981', score }
 }
 
 export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
@@ -153,7 +165,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
             <Field label="User Name" value={parsed.user_name} />
             <Field label="Stream" value={beam.stream} />
             <Field label="Status" value={beam.status} />
-            <Field label="Date & Time" value={fmtDate(beam.receivedAt)} />
+            <Field label="Date & Time" value={fmtDate(beam.occurredAt || parsed.occurred_at || parsed.occurredAt || beam.receivedAt)} />
           </Section>
 
           <Section title="Client & Network">

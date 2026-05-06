@@ -1,10 +1,9 @@
 import { Box, Typography, Stack, Button, InputBase, Chip, IconButton, Alert, Popover } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { transactionApi, type Transaction, type FlaggedStatus, type TransactionStatus } from '@/api/transactions'
+import { transactionApi, type Transaction, type FlaggedStatus } from '@/api/transactions'
 import ImportTransactionsModal from '@/components/dashboard/ImportTransactionsModal'
 import TransactionDetailPanel from '@/components/dashboard/TransactionDetailPanel'
 import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
@@ -17,12 +16,6 @@ import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 
 const PAGE_SIZE = 20
-
-const paymentStatusCfg: Record<string, { color: string; bg: string; label: string }> = {
-  pending:    { color: '#f59e0b', bg: '#fffbeb',                              label: 'Pending'    },
-  successful: { color: '#10b981', bg: '#f0fdf4',                              label: 'Successful' },
-  failed:     { color: '#dc2626', bg: '#fef2f2',                              label: 'Failed'     },
-}
 
 const flaggedStatusCfg: Record<FlaggedStatus, { color: string; bg: string; label: string }> = {
   flagged: { color: '#f59e0b', bg: '#fffbeb',                              label: 'Flagged'   },
@@ -70,16 +63,14 @@ export default function TransactionsPage() {
   const [range,           setRange]           = useState<DateRange>('30d')
   const [page,            setPage]            = useState(1)
 
-  const [channel,              setChannel]              = useState<string | null>(null)
-  const [appliedRisk,          setAppliedRisk]          = useState<RiskFilter>('any')
-  const [appliedPaymentStatus, setAppliedPaymentStatus] = useState<TransactionStatus | null>(null)
+  const [channel,    setChannel]    = useState<string | null>(null)
+  const [appliedRisk, setAppliedRisk] = useState<RiskFilter>('any')
 
-  const [importOpen,   setImportOpen]   = useState(false)
-  const [exporting,    setExporting]    = useState(false)
-  const [filterOpen,   setFilterOpen]   = useState(false)
-  const [draftChannel,       setDraftChannel]       = useState<string | null>(null)
-  const [draftRisk,          setDraftRisk]          = useState<RiskFilter>('any')
-  const [draftPaymentStatus, setDraftPaymentStatus] = useState<TransactionStatus | null>(null)
+  const [importOpen,  setImportOpen]  = useState(false)
+  const [exporting,   setExporting]   = useState(false)
+  const [filterOpen,  setFilterOpen]  = useState(false)
+  const [draftChannel, setDraftChannel] = useState<string | null>(null)
+  const [draftRisk,    setDraftRisk]    = useState<RiskFilter>('any')
   const filterBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const [detailTxn,  setDetailTxn]  = useState<Transaction | null>(null)
@@ -102,7 +93,6 @@ export default function TransactionsPage() {
       const riskRange = RISK_TO_RANGE[appliedRisk]
       const res = await transactionApi.list({
         flaggedStatus: filterToFlagged[active],
-        status:        appliedPaymentStatus || undefined,
         q:             debouncedSearch || undefined,
         page,
         pageSize: PAGE_SIZE,
@@ -118,7 +108,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [active, debouncedSearch, page, range, channel, appliedRisk, appliedPaymentStatus])
+  }, [active, debouncedSearch, page, range, channel, appliedRisk])
 
   useEffect(() => { load() }, [load])
   useEffect(() => { setPage(1) }, [active, range])
@@ -140,14 +130,14 @@ export default function TransactionsPage() {
   }
 
   const openFilter = () => {
-    setDraftChannel(channel); setDraftRisk(appliedRisk); setDraftPaymentStatus(appliedPaymentStatus); setFilterOpen(true)
+    setDraftChannel(channel); setDraftRisk(appliedRisk); setFilterOpen(true)
   }
 
   const applyFilter = () => {
-    setChannel(draftChannel); setAppliedRisk(draftRisk); setAppliedPaymentStatus(draftPaymentStatus); setPage(1); setFilterOpen(false)
+    setChannel(draftChannel); setAppliedRisk(draftRisk); setPage(1); setFilterOpen(false)
   }
 
-  const clearFilter = () => { setDraftChannel(null); setDraftRisk('any'); setDraftPaymentStatus(null) }
+  const clearFilter = () => { setDraftChannel(null); setDraftRisk('any') }
 
   const handleExport = async () => {
     setExporting(true)
@@ -155,7 +145,6 @@ export default function TransactionsPage() {
       const riskRange = RISK_TO_RANGE[appliedRisk]
       await transactionApi.exportCsv({
         flaggedStatus: filterToFlagged[active],
-        status:        appliedPaymentStatus || undefined,
         q:             debouncedSearch || undefined,
         range,
         channel:       channel || undefined,
@@ -171,11 +160,11 @@ export default function TransactionsPage() {
 
   const openDetail = (t: Transaction) => { setDetailTxn(t); setDetailOpen(true) }
 
-  const filterCount = (channel ? 1 : 0) + (appliedRisk !== 'any' ? 1 : 0) + (appliedPaymentStatus ? 1 : 0)
+  const filterCount = (channel ? 1 : 0) + (appliedRisk !== 'any' ? 1 : 0)
   const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
@@ -268,12 +257,8 @@ export default function TransactionsPage() {
               <Chip label={`Risk: ${RISK_OPTIONS.find(r => r.key === appliedRisk)?.label}`} size="small" onDelete={() => { setAppliedRisk('any'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
                 sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
             )}
-            {appliedPaymentStatus && (
-              <Chip label={`Payment: ${paymentStatusCfg[appliedPaymentStatus]?.label}`} size="small" onDelete={() => { setAppliedPaymentStatus(null); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
-                sx={{ bgcolor: `${paymentStatusCfg[appliedPaymentStatus].color}12`, color: paymentStatusCfg[appliedPaymentStatus].color, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: paymentStatusCfg[appliedPaymentStatus].color } }} />
-            )}
             <Box sx={{ flex: 1 }} />
-            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setAppliedPaymentStatus(null); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
               Clear all
             </Box>
           </Box>
@@ -295,7 +280,7 @@ export default function TransactionsPage() {
             {/* Header */}
             <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4', alignItems: 'center' }}>
               <Box />
-              {['Reference', 'Sender', 'Recipient', 'Amount (₦)', 'Channel', 'Risk', 'Status', 'Date / Time', ''].map(h => (
+              {['Reference', 'Sender', 'Recipient', 'Amount (₦)', 'Channel', 'Risk', '', 'Date / Time', ''].map(h => (
                 <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: ['Amount (₦)', 'Risk'].includes(h) ? 'right' : 'left' }}>
                   {h}
                 </Typography>
@@ -322,8 +307,6 @@ export default function TransactionsPage() {
             {!loading && rows.map(t => {
               const isSelected = selected.includes(t.id)
               const fCfg = t.flaggedStatus ? flaggedStatusCfg[t.flaggedStatus] : null
-              const pCfg = paymentStatusCfg[t.status] ?? paymentStatusCfg.pending
-              const badgeCfg = fCfg ?? pCfg
               const senderSub  = [t.senderAccount,  t.senderBank].filter(Boolean).join('  ·  ')
               const recipName  = t.recipientName ?? t.counterparty
               const recipSub   = [t.recipientAccount, t.recipientBank].filter(Boolean).join('  ·  ')
@@ -331,7 +314,7 @@ export default function TransactionsPage() {
                 <Box
                   key={t.id}
                   data-ai-analyzable="true"
-                  data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. Status: ${badgeCfg.label}. ${t.location ? `Location: ${t.location}` : ''}`}
+                  data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. ${fCfg ? `Status: ${fCfg.label}.` : ''} ${t.location ? `Location: ${t.location}` : ''}`}
                   sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', borderBottom: '1px solid #f4f5f7', bgcolor: isSelected ? `${colorPalette.primary}06` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
                 >
                   {/* Checkbox */}
@@ -396,12 +379,12 @@ export default function TransactionsPage() {
                     </Typography>
                   </Box>
 
-                  {/* Status: flaggedStatus (if set) takes priority; otherwise payment status */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.375 }}>
-                    <Chip label={badgeCfg.label} size="small" sx={{ bgcolor: badgeCfg.bg, color: badgeCfg.color, fontWeight: 700, fontSize: '0.5625rem', letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 0, height: 18, '& .MuiChip-label': { px: 0.75 } }} />
-                    {fCfg && (
-                      <Chip label={pCfg.label} size="small" sx={{ bgcolor: pCfg.bg, color: pCfg.color, fontWeight: 600, fontSize: '0.5rem', letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: 0, height: 15, '& .MuiChip-label': { px: 0.625 } }} />
-                    )}
+                  {/* AML status badge */}
+                  <Box>
+                    {fCfg
+                      ? <Chip label={fCfg.label} size="small" sx={{ bgcolor: fCfg.bg, color: fCfg.color, fontWeight: 700, fontSize: '0.5625rem', letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 0, height: 18, '& .MuiChip-label': { px: 0.75 } }} />
+                      : <Typography sx={{ fontSize: '0.6875rem', color: '#cbd5e1' }}>—</Typography>
+                    }
                   </Box>
 
                   {/* Date / Time */}
@@ -449,7 +432,6 @@ export default function TransactionsPage() {
             </Box>
           </Box>
         </Box>
-      </Box>
 
       <ImportTransactionsModal
         open={importOpen}
@@ -511,25 +493,14 @@ export default function TransactionsPage() {
               )
             })}
           </Box>
-          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Payment Status</Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.625, mb: 2.5 }}>
-            {(['pending', 'successful', 'failed'] as TransactionStatus[]).map(s => {
-              const on  = draftPaymentStatus === s
-              const cfg = paymentStatusCfg[s]
-              return (
-                <Box key={s} onClick={() => setDraftPaymentStatus(on ? null : s)} sx={{ px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: on ? cfg.color : '#e2e8f0', color: on ? cfg.color : '#64748b', bgcolor: on ? cfg.bg : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: cfg.color, color: cfg.color } }}>
-                  {cfg.label}
-                </Box>
-              )
-            })}
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
             <Button disableRipple onClick={clearFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
             <Button disableRipple onClick={applyFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
           </Box>
         </Box>
       </Popover>
-    </DashboardLayout>
+      </Box>
+    </>
   )
 }
 

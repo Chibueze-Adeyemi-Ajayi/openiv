@@ -8,7 +8,7 @@ export const SurfaceContainer = styled('div')(({ theme }) => ({
   backgroundColor: colorPalette.surface_container,
   borderRadius: theme.shape.borderRadius,
   padding: theme.spacing(2),
-  transition: `background-color ${theme.transitions.standard}`,
+  transition: `background-color ${theme.transitions.duration.standard}ms`,
 }));
 
 // Card-like container with elevated surface
@@ -17,7 +17,7 @@ export const ElevatedCard = styled('div')(({ theme }) => ({
   borderRadius: theme.shape.borderRadius,
   padding: theme.spacing(3),
   boxShadow: `0px 20px 40px ${colorPalette.scrim}0f`,
-  transition: `box-shadow ${theme.transitions.standard}`,
+  transition: `box-shadow ${theme.transitions.duration.standard}ms`,
 
   '&:hover': {
     boxShadow: `0px 20px 40px ${colorPalette.scrim}14`,

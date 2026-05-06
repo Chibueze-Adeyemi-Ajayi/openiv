@@ -1,18 +1,17 @@
 import {
   Box, Typography, Stack, InputBase,
-  TextField, CircularProgress, Alert, Tooltip, Checkbox, Button,
+  CircularProgress, Tooltip, Button, Tabs, Tab,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
-import { useState, useEffect, useCallback } from 'react'
+// import { colorPalette } from '@/theme'
+import { useState, useEffect } from 'react'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined'
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
-import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
-import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
-import { kycApi, type KycLookupLog } from '@/api/kyc'
+import { useNavigate } from 'react-router-dom'
+import { kycApi, type KycLookupLog, type KycConfig } from '@/api/kyc'
 
 // ── Advisory logic ────────────────────────────────────────────────────────────
 // OpenIV pulls KYC from the bank, cross-references against PEP/sanctions,
@@ -289,46 +288,52 @@ function CustomersView() {
 
 // ── Integration view ──────────────────────────────────────────────────────────
 
-const EXPECTED_FORMAT = `{
-  "customerId": "CUS-22148273920",
-  "ref": "22148273920",
-  "tier": 3,
-  "status": "verified",
-  "bvn": "22148273920",
-  "name": "Adamu Ibrahim",
-  "dob": "1985-03-15",
-  "nin": "12345678901",
-  "address": "14 Broad Street, Lagos",
-  "pepFlag": false,
-  "verifiedAt": "2024-01-15T10:30:00Z"
-}`
+function IntegrationView() {
+  const [config, setConfig] = useState<KycConfig | null>(null)
+  const navigate = useNavigate()
 
-function CodeBlock({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  useEffect(() => {
+    kycApi.getConfig()
+      .then(r => setConfig(r.config))
+      .catch(() => { })
+  }, [])
+
   return (
-    <Box sx={{ position: 'relative', bgcolor: '#0f172a' }}>
-      <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
-        <Tooltip title={copied ? 'Copied!' : 'Copy'} placement="left">
-          <Box onClick={copy} sx={{
-            cursor: 'pointer', color: copied ? '#10b981' : '#64748b',
-            transition: 'color 0.15s', '&:hover': { color: '#94a3b8' }
-          }}>
-            <ContentCopyOutlinedIcon sx={{ fontSize: '0.875rem' }} />
-          </Box>
-        </Tooltip>
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ bgcolor: '#fff8f0', border: '1px solid #fed7aa', p: 2.5, mb: 3 }}>
+        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#c2410c', mb: 0.5 }}>
+          Customer database integration
+        </Typography>
+        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 1.5 }}>
+          Connect your customer database endpoint under Webhooks → KYC Data Source
+          to enable automatic verification during fraud investigations.
+        </Typography>
+        <Button
+          variant="outlined" size="small"
+          onClick={() => navigate('/dashboard/webhooks')}
+          sx={{
+            borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontSize: '0.8125rem',
+            borderColor: '#c2410c', color: '#c2410c', '&:hover': { bgcolor: '#fff8f0' }
+          }}
+        >
+          Configure in Webhooks →
+        </Button>
       </Box>
-      <Typography component="pre" sx={{
-        fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem',
-        color: '#e2e8f0', m: 0, p: 2, whiteSpace: 'pre', overflowX: 'auto',
-        lineHeight: 1.7,
-      }}>
-        {code}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, border: '1px solid #eef0f4', bgcolor: '#fff' }}>
+        {config?.lookupUrl
+          ? <>
+            <CheckCircleOutlineRoundedIcon sx={{ color: '#10b981' }} />
+            <Box>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600 }}>Customer database connected</Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>{config.lookupUrl}</Typography>
+            </Box>
+          </>
+          : <>
+            <CancelOutlinedIcon sx={{ color: '#94a3b8' }} />
+            <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>No customer database connected</Typography>
+          </>
+        }
+      </Box>
     </Box>
   )
 }
@@ -336,29 +341,48 @@ function CodeBlock({ code }: { code: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KYCPage() {
-  return (
-    <DashboardLayout>
-      <Box sx={{ p: 4 }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{
-            fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary,
-            letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75
-          }}>
-            Customer Due Diligence
-          </Typography>
-          <Typography sx={{
-            fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
-            fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
-          }}>
-            KYC
-          </Typography>
-          <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Pull customer KYC from your bank, cross-check against PEP/sanctions lists, and receive a compliance advisory
-          </Typography>
-        </Box>
+  const [tabValue, setTabValue] = useState(0)
 
-        <CustomersView />
+  return (
+    <Box sx={{ p: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography sx={{
+          fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary,
+          letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75
+        }}>
+          Customer Due Diligence
+        </Typography>
+        <Typography sx={{
+          fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+          fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
+        }}>
+          KYC
+        </Typography>
+        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
+          Connect your customer database to verify customer identity during fraud investigations and maintain compliance
+        </Typography>
       </Box>
-    </DashboardLayout>
+
+      <Tabs
+        value={tabValue}
+        onChange={(_, v) => setTabValue(v)}
+        sx={{
+          borderBottom: '1px solid #eef0f4', mb: 3, minHeight: 36,
+          '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
+          '& .MuiTab-root': {
+            fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
+            textTransform: 'none', minHeight: 36, py: 0, px: 2.5,
+            color: '#94a3b8',
+            '&.Mui-selected': { color: colorPalette.primary },
+          },
+        }}
+      >
+        <Tab label="Lookup History" />
+        <Tab label="Webhook Integration" />
+      </Tabs>
+
+      {tabValue === 0 && <CustomersView />}
+      {tabValue === 1 && <IntegrationView />}
+    </Box>
   )
 }

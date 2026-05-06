@@ -8,6 +8,7 @@ export type CaseResolution = 'cleared' | 'sar_filed' | 'referred'
 export interface Case {
   id: string
   title: string
+  brief: string
   typology: string
   status: CaseStatus
   priority: CasePriority
@@ -22,6 +23,7 @@ export interface Case {
   closedAt?: string
   createdAt: string
   updatedAt: string
+  isAvailableForInvestigation: boolean
 }
 
 export interface CaseActivityEntry {
@@ -101,6 +103,17 @@ export const caseApi = {
     if (params.pageSize) qs.set('pageSize', String(params.pageSize))
     const query = qs.toString()
     return apiRequest<CasePage>(`/api/v1/cases${query ? '?' + query : ''}`)
+  },
+
+  listPendingApproval: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number } = {}) => {
+    const qs = new URLSearchParams()
+    if (params.status)   qs.set('status',   params.status)
+    if (params.priority) qs.set('priority', params.priority)
+    if (params.q)        qs.set('q',        params.q)
+    if (params.page)     qs.set('page',     String(params.page))
+    if (params.pageSize) qs.set('pageSize', String(params.pageSize))
+    const query = qs.toString()
+    return apiRequest<CasePage>(`/api/v1/cases/pending-approval${query ? '?' + query : ''}`)
   },
 
   create: (data: CreateCaseInput) =>

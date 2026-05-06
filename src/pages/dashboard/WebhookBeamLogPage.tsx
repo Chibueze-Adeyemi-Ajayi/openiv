@@ -4,7 +4,6 @@ import {
   Select, MenuItem, FormControl, Tabs, Tab, Collapse,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { webhookApi, type WebhookDelivery, type WebhookEndpoint } from '@/api/webhooks'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
@@ -25,7 +24,7 @@ function fmtRelative(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
-  if (m < 1)  return 'just now'
+  if (m < 1) return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
@@ -49,8 +48,8 @@ function shortId(id: string | null): string {
 function StatusBadge({ status }: { status: 'pending' | 'delivered' | 'failed' }) {
   const config = {
     delivered: { bg: '#f0fdf4', color: '#10b981', dot: '#10b981' },
-    failed:    { bg: '#fef2f2', color: '#dc2626', dot: '#dc2626' },
-    pending:   { bg: '#f8fafc', color: '#64748b', dot: '#94a3b8' },
+    failed: { bg: '#fef2f2', color: '#dc2626', dot: '#dc2626' },
+    pending: { bg: '#f8fafc', color: '#64748b', dot: '#94a3b8' },
   }[status]
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.375, bgcolor: config.bg }}>
@@ -96,46 +95,46 @@ function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
 type SToken = { text: string; color: string; italic?: boolean }
 
 const SC = {
-  keyword:  '#c792ea',
-  string:   '#c3e88d',
-  number:   '#f78c6c',
-  comment:  '#546e7a',
-  func:     '#82aaff',
-  env:      '#ffcb6b',
-  url:      '#80cbc4',
-  punct:    '#89ddff',
-  plain:    '#e2e8f0',
+  keyword: '#c792ea',
+  string: '#c3e88d',
+  number: '#f78c6c',
+  comment: '#546e7a',
+  func: '#82aaff',
+  env: '#ffcb6b',
+  url: '#80cbc4',
+  punct: '#89ddff',
+  plain: '#e2e8f0',
   operator: '#89ddff',
 }
 
 const SKW = [
-  'curl','const','let','var','import','from','require','async','await',
-  'function','return','if','else','try','catch','throw','new','class',
-  'export','default','def','for','in','with','pass','raise','as','elif',
-  'True','False','None','func','package','type','struct','interface',
-  'public','private','protected','static','void','final','this',
-  'print','println','true','false','null','undefined','nil',
-  'bytes','json','http','time','net','os','fmt','uuid',
-  'POST','GET','PUT','DELETE','PATCH','HEAD',
+  'curl', 'const', 'let', 'var', 'import', 'from', 'require', 'async', 'await',
+  'function', 'return', 'if', 'else', 'try', 'catch', 'throw', 'new', 'class',
+  'export', 'default', 'def', 'for', 'in', 'with', 'pass', 'raise', 'as', 'elif',
+  'True', 'False', 'None', 'func', 'package', 'type', 'struct', 'interface',
+  'public', 'private', 'protected', 'static', 'void', 'final', 'this',
+  'print', 'println', 'true', 'false', 'null', 'undefined', 'nil',
+  'bytes', 'json', 'http', 'time', 'net', 'os', 'fmt', 'uuid',
+  'POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'HEAD',
 ].join('|')
 
 const SKW_RE = new RegExp(`^(?:${SKW})(?=[^a-zA-Z_0-9]|$)`)
 
 const SPATTERNS: Array<{ re: RegExp; color: string; italic?: boolean }> = [
-  { re: /^#[^\n]*/,                           color: SC.comment,  italic: true },
-  { re: /^\/\/[^\n]*/,                        color: SC.comment,  italic: true },
-  { re: /^"(?:[^"\\]|\\.)*"/,                 color: SC.string },
-  { re: /^'(?:[^'\\]|\\.)*'/,                 color: SC.string },
-  { re: /^`(?:[^`\\]|\\.)*`/,                 color: SC.string },
-  { re: /^\$\{[^}]+\}/,                       color: SC.env },
-  { re: /^\$[A-Z_][A-Z_0-9]*/,               color: SC.env },
-  { re: /^https?:\/\/[^\s'"\\),`]+/,          color: SC.url },
-  { re: SKW_RE,                               color: SC.keyword },
+  { re: /^#[^\n]*/, color: SC.comment, italic: true },
+  { re: /^\/\/[^\n]*/, color: SC.comment, italic: true },
+  { re: /^"(?:[^"\\]|\\.)*"/, color: SC.string },
+  { re: /^'(?:[^'\\]|\\.)*'/, color: SC.string },
+  { re: /^`(?:[^`\\]|\\.)*`/, color: SC.string },
+  { re: /^\$\{[^}]+\}/, color: SC.env },
+  { re: /^\$[A-Z_][A-Z_0-9]*/, color: SC.env },
+  { re: /^https?:\/\/[^\s'"\\),`]+/, color: SC.url },
+  { re: SKW_RE, color: SC.keyword },
   { re: /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, color: SC.number },
-  { re: /^[{}[\]();,]/,                       color: SC.punct },
-  { re: /^[:=<>+\-*/|&^~%!]/,                color: SC.operator },
-  { re: /^[\\]/,                              color: SC.punct },
-  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/,    color: SC.func },
+  { re: /^[{}[\]();,]/, color: SC.punct },
+  { re: /^[:=<>+\-*/|&^~%!]/, color: SC.operator },
+  { re: /^[\\]/, color: SC.punct },
+  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/, color: SC.func },
 ]
 
 function syntaxTokenize(code: string): SToken[] {
@@ -180,8 +179,8 @@ function CodeBlock({ content, copyLabel, highlight = false }: { content: string;
       }}>
         {tokens
           ? tokens.map((t, i) => (
-              <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>{t.text}</Box>
-            ))
+            <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>{t.text}</Box>
+          ))
           : <Box component="span" sx={{ color: '#e2e8f0' }}>{content || '(empty)'}</Box>
         }
       </Box>
@@ -199,7 +198,7 @@ function CodeBlock({ content, copyLabel, highlight = false }: { content: string;
 function DeliveryDetail({ d }: { d: WebhookDelivery }) {
   const [tab, setTab] = useState(0)
 
-  const reqBody  = prettyJson(d.requestBody)
+  const reqBody = prettyJson(d.requestBody)
   const respBody = prettyJson(d.responseBody)
 
   return (
@@ -269,14 +268,14 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
         {tab === 2 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             {[
-              ['Delivery ID',    d.deliveryId ?? '—'],
-              ['Event type',     d.eventType],
-              ['Status',         d.status],
-              ['HTTP code',      d.responseCode != null ? String(d.responseCode) : '—'],
-              ['Duration',       fmtDuration(d.durationMs)],
-              ['Attempt count',  String(d.attemptCount)],
-              ['Delivered at',   d.deliveredAt ? new Date(d.deliveredAt).toLocaleString() : '—'],
-              ['Queued at',      new Date(d.createdAt).toLocaleString()],
+              ['Delivery ID', d.deliveryId ?? '—'],
+              ['Event type', d.eventType],
+              ['Status', d.status],
+              ['HTTP code', d.responseCode != null ? String(d.responseCode) : '—'],
+              ['Duration', fmtDuration(d.durationMs)],
+              ['Attempt count', String(d.attemptCount)],
+              ['Delivered at', d.deliveredAt ? new Date(d.deliveredAt).toLocaleString() : '—'],
+              ['Queued at', new Date(d.createdAt).toLocaleString()],
             ].map(([label, value]) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>
@@ -341,7 +340,7 @@ function DeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: stri
           fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600,
           color: d.responseCode == null ? '#94a3b8'
             : d.responseCode < 300 ? '#10b981'
-            : d.responseCode < 500 ? '#f59e0b' : '#dc2626',
+              : d.responseCode < 500 ? '#f59e0b' : '#dc2626',
         }}>
           {d.responseCode ?? '—'}
         </Typography>
@@ -677,13 +676,13 @@ export default function WebhookBeamLogPage() {
   const navigate = useNavigate()
 
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([])
-  const [endpoints,  setEndpoints]  = useState<WebhookEndpoint[]>([])
-  const [loading,    setLoading]    = useState(true)
+  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Filters
   const [filterEndpoint, setFilterEndpoint] = useState<string>('all')
-  const [filterEvent,    setFilterEvent]    = useState<string>('all')
-  const [filterStatus,   setFilterStatus]   = useState<string>('all')
+  const [filterEvent, setFilterEvent] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
 
   // Code samples
   const [codeLang, setCodeLang] = useState(0)
@@ -723,20 +722,20 @@ export default function WebhookBeamLogPage() {
   const filtered = useMemo(() => {
     return deliveries.filter(d => {
       if (filterEndpoint !== 'all' && String(d.endpointId) !== filterEndpoint) return false
-      if (filterEvent    !== 'all' && d.eventType !== filterEvent) return false
-      if (filterStatus   !== 'all' && d.status    !== filterStatus) return false
+      if (filterEvent !== 'all' && d.eventType !== filterEvent) return false
+      if (filterStatus !== 'all' && d.status !== filterStatus) return false
       return true
     })
   }, [deliveries, filterEndpoint, filterEvent, filterStatus])
 
   // Stats
   const stats = useMemo(() => {
-    const total     = deliveries.length
+    const total = deliveries.length
     const delivered = deliveries.filter(d => d.status === 'delivered').length
-    const failed    = deliveries.filter(d => d.status === 'failed').length
-    const rate      = total === 0 ? 100 : Math.round((delivered / total) * 1000) / 10
+    const failed = deliveries.filter(d => d.status === 'failed').length
+    const rate = total === 0 ? 100 : Math.round((delivered / total) * 1000) / 10
     const durations = deliveries.filter(d => d.durationMs != null).map(d => d.durationMs!)
-    const avgMs     = durations.length === 0 ? null
+    const avgMs = durations.length === 0 ? null
       : Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
     return { total, delivered, failed, rate, avgMs }
   }, [deliveries])
@@ -750,211 +749,210 @@ export default function WebhookBeamLogPage() {
   }
 
   return (
-    <DashboardLayout>
-      <Box sx={{ p: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Button
-            startIcon={<ArrowBackRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
-            onClick={() => navigate('/dashboard/webhooks')}
-            sx={{
-              fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 600,
-              color: '#64748b', textTransform: 'none', px: 0, mb: 1.5,
-              '&:hover': { bgcolor: 'transparent', color: colorPalette.primary },
-            }}
-          >
-            Back to Webhooks
-          </Button>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
-            Developer Console
-          </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
-            Beam Log
-          </Typography>
-          <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Full request/response history for every outbound event delivery from OpenIV
-          </Typography>
+    <Box sx={{ p: 4 }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Button
+          startIcon={<ArrowBackRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+          onClick={() => navigate('/dashboard/webhooks')}
+          sx={{
+            fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 600,
+            color: '#64748b', textTransform: 'none', px: 0, mb: 1.5,
+            '&:hover': { bgcolor: 'transparent', color: colorPalette.primary },
+          }}
+        >
+          Back to Webhooks
+        </Button>
+        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
+          Developer Console
+        </Typography>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          Beam Log
+        </Typography>
+        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
+          Full request/response history for every outbound event delivery from OpenIV
+        </Typography>
+      </Box>
+
+      {/* Stats */}
+      <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+              <Skeleton height={16} width="60%" />
+              <Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
+            </Box>
+          ))
+        ) : (
+          <>
+            <StatCard label="TOTAL BEAMS" value={String(stats.total)} />
+            <StatCard label="DELIVERED" value={String(stats.delivered)} sub={`${stats.rate}% success rate`} color="#10b981" />
+            <StatCard label="FAILED" value={String(stats.failed)} color={stats.failed > 0 ? '#dc2626' : '#0f172a'} />
+            <StatCard label="SUCCESS RATE" value={`${stats.rate}%`} color={stats.rate >= 99 ? '#10b981' : stats.rate >= 95 ? '#f59e0b' : '#dc2626'} />
+            <StatCard label="AVG DURATION" value={stats.avgMs != null ? fmtDuration(stats.avgMs) : '—'} sub="of successful deliveries" />
+          </>
+        )}
+      </Stack>
+
+      {/* Filter toolbar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <Select value={filterEndpoint} onChange={e => setFilterEndpoint(e.target.value)} sx={selectSx} displayEmpty>
+            <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All endpoints</MenuItem>
+            {endpoints.map(ep => (
+              <MenuItem key={ep.id} value={String(ep.id)} sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', maxWidth: 360 }}>
+                <Typography sx={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {ep.url}
+                </Typography>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select value={filterEvent} onChange={e => setFilterEvent(e.target.value)} sx={selectSx} displayEmpty>
+            <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All events</MenuItem>
+            {uniqueEvents.map(ev => (
+              <MenuItem key={ev} value={ev} sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace' }}>{ev}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} sx={selectSx} displayEmpty>
+            <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All statuses</MenuItem>
+            <MenuItem value="delivered" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Delivered</MenuItem>
+            <MenuItem value="failed" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Failed</MenuItem>
+            <MenuItem value="pending" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Pending</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Box sx={{ flex: 1 }} />
+        <Button
+          startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />}
+          onClick={load}
+          disabled={loading}
+          sx={{
+            borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
+            fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff',
+            px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' },
+          }}
+        >
+          Refresh
+        </Button>
+      </Box>
+
+      {/* Delivery table */}
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 4 }}>
+        {/* Column headers */}
+        <Box sx={{
+          px: 3, py: 1.25,
+          display: 'grid',
+          gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
+          gap: 1.5,
+          borderBottom: '1px solid #eef0f4',
+          bgcolor: '#fafafa',
+        }}>
+          {['DELIVERY ID', 'ENDPOINT', 'EVENT TYPE', 'STATUS', 'CODE', 'DURATION', 'TIME', ''].map((h, i) => (
+            <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>
+              {h}
+            </Typography>
+          ))}
         </Box>
 
-        {/* Stats */}
-        <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
-                <Skeleton height={16} width="60%" />
-                <Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
+        {loading ? (
+          <Stack>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                <Skeleton variant="rectangular" width={100} height={16} />
+                <Skeleton variant="rectangular" width="30%" height={16} />
+                <Skeleton variant="rectangular" width={80} height={16} />
+                <Skeleton variant="rectangular" width={60} height={16} />
               </Box>
-            ))
-          ) : (
-            <>
-              <StatCard label="TOTAL BEAMS" value={String(stats.total)} />
-              <StatCard label="DELIVERED" value={String(stats.delivered)} sub={`${stats.rate}% success rate`} color="#10b981" />
-              <StatCard label="FAILED" value={String(stats.failed)} color={stats.failed > 0 ? '#dc2626' : '#0f172a'} />
-              <StatCard label="SUCCESS RATE" value={`${stats.rate}%`} color={stats.rate >= 99 ? '#10b981' : stats.rate >= 95 ? '#f59e0b' : '#dc2626'} />
-              <StatCard label="AVG DURATION" value={stats.avgMs != null ? fmtDuration(stats.avgMs) : '—'} sub="of successful deliveries" />
-            </>
-          )}
-        </Stack>
+            ))}
+          </Stack>
+        ) : filtered.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+              {deliveries.length === 0 ? 'No deliveries yet — send a test event to get started' : 'No deliveries match the current filters'}
+            </Typography>
+          </Box>
+        ) : (
+          filtered.map(d => (
+            <DeliveryRow key={d.id} d={d} endpointUrl={endpointMap[d.endpointId] ?? `endpoint #${d.endpointId}`} />
+          ))
+        )}
+      </Box>
 
-        {/* Filter toolbar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <Select value={filterEndpoint} onChange={e => setFilterEndpoint(e.target.value)} sx={selectSx} displayEmpty>
-              <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All endpoints</MenuItem>
-              {endpoints.map(ep => (
-                <MenuItem key={ep.id} value={String(ep.id)} sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', maxWidth: 360 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ep.url}
-                  </Typography>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <Select value={filterEvent} onChange={e => setFilterEvent(e.target.value)} sx={selectSx} displayEmpty>
-              <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All events</MenuItem>
-              {uniqueEvents.map(ev => (
-                <MenuItem key={ev} value={ev} sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace' }}>{ev}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} sx={selectSx} displayEmpty>
-              <MenuItem value="all" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>All statuses</MenuItem>
-              <MenuItem value="delivered" sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Delivered</MenuItem>
-              <MenuItem value="failed"    sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Failed</MenuItem>
-              <MenuItem value="pending"   sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }}>Pending</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Box sx={{ flex: 1 }} />
-          <Button
-            startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-            onClick={load}
-            disabled={loading}
-            sx={{
-              borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
-              fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff',
-              px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' },
-            }}
-          >
-            Refresh
-          </Button>
+      {/* Integration guide */}
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            Integration Guide
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            How to receive and verify OpenIV beams in your stack. Always verify the HMAC-SHA256 signature before processing.
+          </Typography>
         </Box>
 
-        {/* Delivery table */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 4 }}>
-          {/* Column headers */}
-          <Box sx={{
-            px: 3, py: 1.25,
-            display: 'grid',
-            gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
-            gap: 1.5,
-            borderBottom: '1px solid #eef0f4',
-            bgcolor: '#fafafa',
-          }}>
-            {['DELIVERY ID', 'ENDPOINT', 'EVENT TYPE', 'STATUS', 'CODE', 'DURATION', 'TIME', ''].map((h, i) => (
-              <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>
-                {h}
-              </Typography>
+        {/* Key headers reference */}
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
+            REQUEST HEADERS
+          </Typography>
+          <Stack gap={0.75}>
+            {[
+              ['X-OpenIV-Signature', 'HMAC-SHA256 hex of the raw request body — verify this first'],
+              ['X-OpenIV-Event', 'Event type: tx.flagged, case.opened, kyc.failed, etc.'],
+              ['X-OpenIV-Delivery', 'Unique delivery ID (beam_timestamp_random) for idempotency'],
+              ['X-OpenIV-Institution', 'Your institution ID for multi-tenant setups'],
+              ['X-OpenIV-Api-Key', 'Your per-endpoint API key if security rules are configured'],
+              ['Content-Type', 'application/json; charset=utf-8'],
+            ].map(([header, desc]) => (
+              <Box key={header} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, minWidth: 220, flexShrink: 0 }}>
+                  {header}
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+
+        {/* Language tabs */}
+        <Box>
+          <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
+            {langs.map((lang, i) => (
+              <Box
+                key={lang}
+                onClick={() => setCodeLang(i)}
+                sx={{
+                  px: 2.5, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem',
+                  fontFamily: 'Jost', fontWeight: codeLang === i ? 700 : 500,
+                  color: codeLang === i ? colorPalette.primary : '#64748b',
+                  borderBottom: codeLang === i ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
+                  transition: 'all 0.15s',
+                  '&:hover': { color: colorPalette.primary },
+                }}
+              >
+                {lang}
+              </Box>
             ))}
           </Box>
-
-          {loading ? (
-            <Stack>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
-                  <Skeleton variant="rectangular" width={100} height={16} />
-                  <Skeleton variant="rectangular" width="30%" height={16} />
-                  <Skeleton variant="rectangular" width={80} height={16} />
-                  <Skeleton variant="rectangular" width={60} height={16} />
-                </Box>
-              ))}
-            </Stack>
-          ) : filtered.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                {deliveries.length === 0 ? 'No deliveries yet — send a test event to get started' : 'No deliveries match the current filters'}
-              </Typography>
-            </Box>
-          ) : (
-            filtered.map(d => (
-              <DeliveryRow key={d.id} d={d} endpointUrl={endpointMap[d.endpointId] ?? `endpoint #${d.endpointId}`} />
-            ))
-          )}
+          <Box sx={{ p: 3 }}>
+            <CodeBlock content={codeSamples[langs[codeLang]] ?? ''} copyLabel="Copy code" highlight />
+            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 1.5 }}>
+              Tip: use the delivery ID (<code style={{ fontFamily: 'monospace' }}>X-OpenIV-Delivery</code>) as an idempotency key to safely retry failed processing without duplicating side-effects.
+            </Typography>
+          </Box>
         </Box>
 
-        {/* Integration guide */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-              Integration Guide
-            </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-              How to receive and verify OpenIV beams in your stack. Always verify the HMAC-SHA256 signature before processing.
-            </Typography>
-          </Box>
-
-          {/* Key headers reference */}
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
-              REQUEST HEADERS
-            </Typography>
-            <Stack gap={0.75}>
-              {[
-                ['X-OpenIV-Signature',    'HMAC-SHA256 hex of the raw request body — verify this first'],
-                ['X-OpenIV-Event',        'Event type: tx.flagged, case.opened, kyc.failed, etc.'],
-                ['X-OpenIV-Delivery',     'Unique delivery ID (beam_timestamp_random) for idempotency'],
-                ['X-OpenIV-Institution',  'Your institution ID for multi-tenant setups'],
-                ['X-OpenIV-Api-Key',      'Your per-endpoint API key if security rules are configured'],
-                ['Content-Type',          'application/json; charset=utf-8'],
-              ].map(([header, desc]) => (
-                <Box key={header} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary, minWidth: 220, flexShrink: 0 }}>
-                    {header}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{desc}</Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-
-          {/* Language tabs */}
-          <Box>
-            <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-              {langs.map((lang, i) => (
-                <Box
-                  key={lang}
-                  onClick={() => setCodeLang(i)}
-                  sx={{
-                    px: 2.5, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem',
-                    fontFamily: 'Jost', fontWeight: codeLang === i ? 700 : 500,
-                    color: codeLang === i ? colorPalette.primary : '#64748b',
-                    borderBottom: codeLang === i ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
-                    transition: 'all 0.15s',
-                    '&:hover': { color: colorPalette.primary },
-                  }}
-                >
-                  {lang}
-                </Box>
-              ))}
-            </Box>
-            <Box sx={{ p: 3 }}>
-              <CodeBlock content={codeSamples[langs[codeLang]] ?? ''} copyLabel="Copy code" highlight />
-              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 1.5 }}>
-                Tip: use the delivery ID (<code style={{ fontFamily: 'monospace' }}>X-OpenIV-Delivery</code>) as an idempotency key to safely retry failed processing without duplicating side-effects.
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Payload structure */}
-          <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
-              ENVELOPE STRUCTURE
-            </Typography>
-            <CodeBlock highlight content={`{
+        {/* Payload structure */}
+        <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid #eef0f4' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
+            ENVELOPE STRUCTURE
+          </Typography>
+          <CodeBlock highlight content={`{
   "id":          "beam_1719000000000_xR4kLmN9",   // Delivery ID — use for idempotency
   "event":       "tx.flagged",                      // Event type
   "version":     "2024-01",                         // Payload schema version
@@ -993,9 +991,8 @@ export default function WebhookBeamLogPage() {
     }
   }
 }`} />
-          </Box>
         </Box>
       </Box>
-    </DashboardLayout>
+    </Box>
   )
 }

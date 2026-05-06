@@ -17,7 +17,7 @@ interface TOTPConfirmationProps {
   onConfirm: () => void
   operation: TOTPOperation
   title: string
-  description: string
+  description: string | React.ReactNode
   resourceName?: string
   resourceType?: string
   /** Show changes for update operations */

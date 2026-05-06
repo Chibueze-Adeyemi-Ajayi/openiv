@@ -42,7 +42,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: 'Monitor',
     items: [
       { to: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Overview' },
-      { to: '/dashboard/otp-alerts', icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'OTP Defense', badge: '3' },
+      { to: '/dashboard/otp-alerts', icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'OTP Defense' },
       { to: '/dashboard/transactions', icon: <ReceiptLongOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transactions' },
       { to: '/dashboard/patterns', icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Behavioral Patterns' },
       { to: '/dashboard/aml', icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'AML & Cases' },

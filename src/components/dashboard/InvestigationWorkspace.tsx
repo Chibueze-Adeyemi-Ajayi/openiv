@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Box, Typography, Stack, InputBase } from '@mui/material'
+import { Box, Typography, Stack, InputBase, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import {
   caseApi,
   type Case, type CaseDetail, type CaseStatus, type CaseResolution,
@@ -168,11 +169,13 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
   const [note,          setNote]          = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
 
+  const [mainTab,      setMainTab]      = useState<'details' | 'evidence' | 'timeline'>('details')
   const [evidenceOpen,     setEvidenceOpen]     = useState(false)
   const [totpOpen,         setTotpOpen]         = useState(false)
   const [closeSideOpen,    setCloseSideOpen]    = useState(false)
   const pendingRef   = useRef<PendingAction | null>(null)
   const pendingEvRef = useRef<EvidencePayload | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const cas: Case | null = data?.case ?? null
   const currentStatus = (localStatus ?? cas?.status ?? null) as CaseStatus | null
@@ -186,6 +189,15 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
     } finally { setLoading(false) }
   }, [caseId])
 
+  // State persistence: save and restore scroll position and tab selection
+  useEffect(() => {
+    if (!open && caseId) {
+      // Save state when closing
+      const state = { mainTab, scrollPos: scrollRef.current?.scrollTop ?? 0 }
+      sessionStorage.setItem(`case-workspace-${caseId}`, JSON.stringify(state))
+    }
+  }, [open, caseId, mainTab])
+
   useEffect(() => {
     if (open && caseId) {
       setData(null)
@@ -193,7 +205,32 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
       setAddEvOpen(false)
       setCloseSideOpen(false)
       setActiveTab('evidence')
+
+      // Restore saved state
+      const saved = sessionStorage.getItem(`case-workspace-${caseId}`)
+      if (saved) {
+        try {
+          const { mainTab: savedTab } = JSON.parse(saved)
+          setMainTab(savedTab ?? 'details')
+        } catch {}
+      } else {
+        setMainTab('details')
+      }
+
       loadDetail()
+
+      // Restore scroll position after content loads
+      if (scrollRef.current) {
+        setTimeout(() => {
+          const saved = sessionStorage.getItem(`case-workspace-${caseId}`)
+          if (saved) {
+            try {
+              const { scrollPos } = JSON.parse(saved)
+              scrollRef.current!.scrollTop = scrollPos
+            } catch {}
+          }
+        }, 50)
+      }
     }
   }, [open, caseId, loadDetail])
 
@@ -453,12 +490,12 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
 
           {/* Tab bar */}
           <Box sx={{ flexShrink: 0, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', px: 3 }}>
-            {([['evidence', `Evidence (${evCount})`, '🔍'], ['timeline', `Timeline (${actCount})`, '📋']] as const).map(([tab, label, icon]) => (
-              <Box key={tab} onClick={() => setActiveTab(tab)} sx={{
+            {([['details', 'Details & Notes', '📋'], ['evidence', `Evidence (${evCount})`, '🔍'], ['timeline', `Timeline (${actCount})`, '⏱']] as const).map(([tab, label, icon]) => (
+              <Box key={tab} onClick={() => setMainTab(tab)} sx={{
                 display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25, py: 1.5, mr: 3,
                 cursor: 'pointer', borderBottom: '2px solid',
-                borderBottomColor: activeTab === tab ? colorPalette.primary : 'transparent',
-                color: activeTab === tab ? colorPalette.primary : '#64748b',
+                borderBottomColor: mainTab === tab ? colorPalette.primary : 'transparent',
+                color: mainTab === tab ? colorPalette.primary : '#64748b',
                 transition: 'all 0.15s',
               }}>
                 <Typography sx={{ fontSize: '0.875rem', lineHeight: 1 }}>{icon}</Typography>
@@ -467,8 +504,93 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
             ))}
           </Box>
 
+          {/* ── Details & Notes tab ───────────────────────────────────── */}
+          {mainTab === 'details' && (
+            <Box ref={scrollRef} sx={{ flex: 1, overflowY: 'auto', p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              {loading ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  {[100, 160, 80, 120, 160].map((w, i) => (
+                    <Box key={i} sx={{ height: 10, width: `${w}px`, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                  ))}
+                </Box>
+              ) : cas ? (
+                <>
+                  {/* Brief summary */}
+                  {cas.brief && (
+                    <Box sx={{ p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.875rem', color: '#0369a1', lineHeight: 1.6, fontWeight: 500, fontFamily: 'Jost' }}>
+                        {cas.brief}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Risk score */}
+                  <Box sx={{ p: 1.5, border: '1px solid #eef0f4', bgcolor: cas.riskScore >= 70 ? '#fef2f200' : '#fafbfc' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.875, mb: 0.875 }}>
+                      <Typography sx={{ fontSize: '2rem', fontWeight: 800, color: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', fontFamily: 'Jost', lineHeight: 1 }}>
+                        {cas.riskScore}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {cas.riskScore >= 70 ? 'HIGH' : cas.riskScore >= 40 ? 'MEDIUM' : 'LOW'} RISK
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
+                    </Box>
+                    <Box sx={{ height: 5, bgcolor: '#f1f5f9', position: 'relative' }}>
+                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${cas.riskScore}%`, bgcolor: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', transition: 'width 0.5s ease' }} />
+                    </Box>
+                  </Box>
+
+                  {/* Details */}
+                  <Box sx={{ border: '1px solid #eef0f4', p: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
+                      Case Details
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <DetailField label="Typology"  value={cas.typology} />
+                      <DetailField label="Priority"  value={PRIORITY_CFG[cas.priority]?.label ?? cas.priority} valueColor={PRIORITY_CFG[cas.priority]?.color} />
+                      {cas.assigneeName && <DetailField label="Analyst" value={cas.assigneeName} />}
+                      <DetailField label="Opened by" value={cas.createdByName} />
+                      <DetailField label="Opened"    value={fmtDate(cas.createdAt)} />
+                      {cas.closedAt && <DetailField label="Closed" value={fmtDate(cas.closedAt)} />}
+                      {cas.resolution && <DetailField label="Resolution" value={cas.resolution.replace('_', ' ')} />}
+                    </Box>
+                  </Box>
+
+                  {/* Notes - Parse and display in sections */}
+                  {cas.notes && <CaseNotesSection notes={cas.notes} customerId={cas.id} />}
+
+                  {/* Linked Transactions */}
+                  <Box>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
+                      Linked Transactions ({data?.transactions.length ?? 0})
+                    </Typography>
+                    <Box sx={{ border: '1px solid #eef0f4' }}>
+                      {!data?.transactions.length ? (
+                        <Box sx={{ p: 1.5, textAlign: 'center' }}>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>None linked</Typography>
+                        </Box>
+                      ) : data!.transactions.map((t, i) => (
+                        <Box key={t.id} sx={{ px: 1.25, py: 1, borderBottom: i < data!.transactions.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {t.id}
+                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
+                            <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{t.customer}</Typography>
+                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                              {t.amount.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </>
+              ) : null}
+            </Box>
+          )}
+
           {/* ── Evidence tab ──────────────────────────────────────────── */}
-          {activeTab === 'evidence' && (
+          {mainTab === 'evidence' && (
             <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
 
               {/* Add evidence button / form */}
@@ -611,7 +733,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
           )}
 
           {/* ── Timeline tab ──────────────────────────────────────────── */}
-          {activeTab === 'timeline' && (
+          {mainTab === 'timeline' && (
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
                 {loading ? (
@@ -771,4 +893,134 @@ function SideField({ label, value, valueColor }: { label: string; value?: string
 
 function MiniLabel({ children }: { children: React.ReactNode }) {
   return <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625 }}>{children}</Typography>
+}
+
+function DetailField({ label, value, valueColor }: { label: string; value?: string | null; valueColor?: string }) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1.5 }}>
+      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, lineHeight: 1.4 }}>{label}</Typography>
+      <Typography sx={{ fontSize: '0.8125rem', color: valueColor ?? '#0f172a', fontFamily: 'Jost', lineHeight: 1.4 }}>{value ?? '—'}</Typography>
+    </Box>
+  )
+}
+
+function CaseNotesSection({ notes, customerId }: { notes: string; customerId: string }) {
+  const sections = notes.split('\n\n').map(s => s.trim()).filter(s => s.length > 0)
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {sections.map((section, idx) => {
+        const lines = section.split('\n')
+        const header = lines[0]
+        const isHeader = header.includes('WHY') || header.includes('WHAT') || header.includes('TRANSACTION') || header.includes('RISK') || header.includes('NEXT')
+
+        if (!isHeader) {
+          return (
+            <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderRadius: 0.5 }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {section}
+              </Typography>
+            </Box>
+          )
+        }
+
+        return (
+          <Box key={idx}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 1 }}>
+              {header}
+            </Typography>
+
+            {header.includes('WHY THIS CASE') && (
+              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 0.5, mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.875rem', color: '#b91c1c', lineHeight: 1.6, fontWeight: 500 }}>
+                  {lines.slice(2).join('\n')}
+                </Typography>
+              </Box>
+            )}
+
+            {header.includes('WHAT OUR SYSTEM DETECTED') && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1.5 }}>
+                {lines.slice(2).map((line, i) => (
+                  line.trim() && (
+                    <Box key={i} sx={{ p: 1, bgcolor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#92400e', lineHeight: 1.5 }}>
+                        {line.replace('• ', '')}
+                      </Typography>
+                    </Box>
+                  )
+                ))}
+              </Box>
+            )}
+
+            {header.includes('TRANSACTION DETAILS') && (
+              <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 0.5, mb: 1.5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {lines.slice(2).map((line, i) => (
+                    line.trim() && (
+                      <Typography key={i} sx={{ fontSize: '0.8125rem', color: '#15803d', lineHeight: 1.4 }}>
+                        {line}
+                      </Typography>
+                    )
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {header.includes('RISK LEVEL') && (
+              <Box sx={{ p: 1.5, bgcolor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 0.5, mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#5b21b6', lineHeight: 1.6, fontWeight: 500 }}>
+                  {lines.slice(2).join('\n')}
+                </Typography>
+              </Box>
+            )}
+
+            {header.includes('NEXT STEPS') && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {lines.slice(2).map((line, i) => (
+                  line.trim() && (
+                    <ActionableStep key={i} step={line} customerId={customerId} />
+                  )
+                ))}
+              </Box>
+            )}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+function ActionableStep({ step, customerId }: { step: string; customerId: string }) {
+  const isCustomerStep = step.toLowerCase().includes('profile') || step.toLowerCase().includes('kyc')
+  const isHistoryStep = step.toLowerCase().includes('history') || step.toLowerCase().includes('recent')
+
+  return (
+    <Box sx={{ p: 1.25, bgcolor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+      <Typography sx={{ fontSize: '0.8125rem', color: '#047857', flex: 1, lineHeight: 1.4 }}>
+        {step}
+      </Typography>
+      {(isCustomerStep || isHistoryStep) && (
+        <Button
+          size="small"
+          endIcon={<OpenInNewRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+          href={isCustomerStep ? `/dashboard/customers?id=${customerId}` : `/dashboard/transactions?customer=${customerId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            flexShrink: 0,
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            fontFamily: 'Jost',
+            textTransform: 'none',
+            color: '#047857',
+            borderColor: '#a7f3d0',
+            '&:hover': { bgcolor: '#d1fae5' },
+          }}
+          variant="outlined"
+        >
+          Go
+        </Button>
+      )}
+    </Box>
+  )
 }

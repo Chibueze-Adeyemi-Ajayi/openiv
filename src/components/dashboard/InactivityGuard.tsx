@@ -121,8 +121,8 @@ export default function InactivityGuard() {
   const [submitting, setSubmitting] = useState(false)
   const [attempts, setAttempts]     = useState(0)
 
-  const idleTimer      = useRef<ReturnType<typeof setTimeout>>()
-  const countdownTimer = useRef<ReturnType<typeof setInterval>>()
+  const idleTimer      = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const guardStateRef  = useRef<GuardState>('active')
   const channelRef     = useRef<BroadcastChannel | null>(null)
 

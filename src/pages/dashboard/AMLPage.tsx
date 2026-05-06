@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Box, Typography, Stack, InputBase } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
+// import { colorPalette } from '@/theme'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
 import InvestigationWorkspace from '@/components/dashboard/InvestigationWorkspace'
 import { caseApi, type Case, type CaseMetrics } from '@/api/cases'
@@ -10,28 +10,30 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
+import AssignmentIcon from '@mui/icons-material/Assignment'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 
 const PAGE_SIZE = 20
 
 const STATUS_TABS = [
-  { value: '',              label: 'All'          },
-  { value: 'open',          label: 'Open'         },
+  { value: '', label: 'All' },
+  { value: 'open', label: 'Open' },
   { value: 'investigating', label: 'Investigating' },
-  { value: 'escalated',     label: 'Escalated'    },
-  { value: 'closed',        label: 'Closed'       },
+  { value: 'escalated', label: 'Escalated' },
+  { value: 'closed', label: 'Closed' },
 ]
 
 const STATUS_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  open:          { color: '#f59e0b',           bg: '#fffbeb',                             label: 'Open'          },
-  investigating: { color: colorPalette.primary, bg: `${colorPalette.primary}0f`,          label: 'Investigating' },
-  escalated:     { color: '#dc2626',           bg: '#fef2f2',                             label: 'Escalated'     },
-  closed:        { color: '#64748b',           bg: '#f8fafc',                             label: 'Closed'        },
+  open: { color: '#f59e0b', bg: '#fffbeb', label: 'Open' },
+  investigating: { color: colorPalette.primary, bg: `${colorPalette.primary}0f`, label: 'Investigating' },
+  escalated: { color: '#dc2626', bg: '#fef2f2', label: 'Escalated' },
+  closed: { color: '#64748b', bg: '#f8fafc', label: 'Closed' },
 }
 
 const PRIORITY_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  low:      { color: '#64748b', bg: '#f8fafc', label: 'Low'      },
-  medium:   { color: '#f59e0b', bg: '#fffbeb', label: 'Med'      },
-  high:     { color: '#ea580c', bg: '#fff7ed', label: 'High'     },
+  low: { color: '#64748b', bg: '#f8fafc', label: 'Low' },
+  medium: { color: '#f59e0b', bg: '#fffbeb', label: 'Med' },
+  high: { color: '#ea580c', bg: '#fff7ed', label: 'High' },
   critical: { color: '#dc2626', bg: '#fef2f2', label: 'Critical' },
 }
 
@@ -65,21 +67,23 @@ function AssigneeAvatar({ name }: { name?: string }) {
 export default function AMLPage() {
   const [searchParams] = useSearchParams()
 
-  const [metrics,        setMetrics]        = useState<CaseMetrics | null>(null)
+  const [metrics, setMetrics] = useState<CaseMetrics | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(true)
-  const [cases,          setCases]          = useState<Case[]>([])
-  const [total,          setTotal]          = useState(0)
-  const [page,           setPage]           = useState(1)
-  const [casesLoading,   setCasesLoading]   = useState(true)
-  const [statusFilter,   setStatusFilter]   = useState('')
-  const [draftSearch,    setDraftSearch]    = useState('')
-  const [search,         setSearch]         = useState('')
+  const [cases, setCases] = useState<Case[]>([])
+  const [total, setTotal] = useState(0)
+  const [pendingTotal, setPendingTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [casesLoading, setCasesLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [draftSearch, setDraftSearch] = useState('')
+  const [search, setSearch] = useState('')
+  const [viewPending, setViewPending] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [intakeOpen,     setIntakeOpen]     = useState(false)
-  const [workspaceOpen,  setWorkspaceOpen]  = useState(false)
-  const [activeCaseId,   setActiveCaseId]   = useState<string | null>(null)
-  const [creating,       setCreating]       = useState(false)
+  const [intakeOpen, setIntakeOpen] = useState(false)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const loadMetrics = useCallback(async () => {
     setMetricsLoading(true)
@@ -89,14 +93,23 @@ export default function AMLPage() {
   const loadCases = useCallback(async () => {
     setCasesLoading(true)
     try {
-      const res = await caseApi.list({ status: statusFilter || undefined, q: search || undefined, page, pageSize: PAGE_SIZE })
+      const api = viewPending ? caseApi.listPendingApproval : caseApi.list
+      const res = await api({ status: statusFilter || undefined, q: search || undefined, page, pageSize: PAGE_SIZE })
       setCases(res.cases)
       setTotal(res.total)
+
+      // Load both active and pending counts for the cards
+      if (page === 1) {
+        const activRes = await caseApi.list({ pageSize: 1 })
+        const pendRes = await caseApi.listPendingApproval({ pageSize: 1 })
+        setTotal(activRes.total)
+        setPendingTotal(pendRes.total)
+      }
     } finally { setCasesLoading(false) }
-  }, [statusFilter, search, page])
+  }, [statusFilter, search, page, viewPending])
 
   useEffect(() => { loadMetrics() }, [loadMetrics])
-  useEffect(() => { loadCases()   }, [loadCases])
+  useEffect(() => { loadCases() }, [loadCases])
 
   // Auto-open workspace if navigated here with ?case= query param
   useEffect(() => {
@@ -130,14 +143,14 @@ export default function AMLPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const metricCards = [
-    { label: 'Open Cases',      value: metrics?.openCount      ?? null, color: '#f59e0b' },
-    { label: 'Escalated',       value: metrics?.escalatedCount ?? null, color: '#dc2626' },
-    { label: 'Closed Today',    value: metrics?.closedToday    ?? null, color: '#10b981' },
+    { label: 'Open Cases', value: metrics?.openCount ?? null, color: '#f59e0b' },
+    { label: 'Escalated', value: metrics?.escalatedCount ?? null, color: '#dc2626' },
+    { label: 'Closed Today', value: metrics?.closedToday ?? null, color: '#10b981' },
     { label: 'Avg. Resolution', value: metrics ? `${metrics.avgCloseHours.toFixed(1)}h` : null, color: colorPalette.primary },
   ]
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
 
         {/* Page header */}
@@ -151,6 +164,85 @@ export default function AMLPage() {
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
             Active investigations, SLA tracking, and case-management workflow
           </Typography>
+        </Box>
+
+        {/* Case View Toggle Cards */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 3 }}>
+          {/* Active Cases Card */}
+          <Box
+            onClick={() => { setViewPending(false); setPage(1) }}
+            sx={{
+              bgcolor: viewPending ? '#ffffff' : '#f0f9ff',
+              border: viewPending ? '1px solid #eef0f4' : `2px solid ${colorPalette.primary}`,
+              p: 2.5,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': { bgcolor: '#f0f9ff', borderColor: colorPalette.primary },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
+                  Active Investigations
+                </Typography>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                  {metricsLoading ? (
+                    <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                  ) : (
+                    total > 0 ? total : '—'
+                  )}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                  {!viewPending ? 'Cases ready for investigation' : 'Switch to view active'}
+                </Typography>
+              </Box>
+              <Box sx={{
+                width: 44, height: 44, borderRadius: '8px',
+                bgcolor: `${colorPalette.primary}12`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <AssignmentIcon sx={{ fontSize: '1.5rem', color: colorPalette.primary }} />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Pending Approval Card */}
+          <Box
+            onClick={() => { setViewPending(true); setPage(1) }}
+            sx={{
+              bgcolor: !viewPending ? '#ffffff' : '#fef3f2',
+              border: !viewPending ? '1px solid #eef0f4' : '2px solid #dc2626',
+              p: 2.5,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': { bgcolor: '#fef3f2', borderColor: '#dc2626' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
+                  Pending Approval
+                </Typography>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                  {metricsLoading ? (
+                    <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                  ) : (
+                    pendingTotal > 0 ? pendingTotal : '—'
+                  )}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                  {viewPending ? 'Cases awaiting your review' : 'Switch to view pending'}
+                </Typography>
+              </Box>
+              <Box sx={{
+                width: 44, height: 44, borderRadius: '8px',
+                bgcolor: '#fecaca',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <HourglassEmptyIcon sx={{ fontSize: '1.5rem', color: '#dc2626' }} />
+              </Box>
+            </Box>
+          </Box>
         </Box>
 
         {/* Metric cards */}
@@ -186,22 +278,24 @@ export default function AMLPage() {
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-                Case Queue
+                {viewPending ? 'Pending Approval Queue' : 'Active Case Queue'}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · sorted by priority & SLA`}
+                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · ${viewPending ? 'awaiting your review' : 'sorted by priority & SLA'}`}
               </Typography>
             </Box>
-            <Box onClick={() => setIntakeOpen(true)} sx={{
-              display: 'flex', alignItems: 'center', gap: 0.875,
-              bgcolor: colorPalette.primary, color: '#ffffff',
-              px: 2.25, py: 1.125, cursor: 'pointer',
-              fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-              transition: 'opacity 0.15s', '&:hover': { opacity: 0.88 },
-            }}>
-              <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />
-              New Case
-            </Box>
+            {!viewPending && (
+              <Box onClick={() => setIntakeOpen(true)} sx={{
+                display: 'flex', alignItems: 'center', gap: 0.875,
+                bgcolor: colorPalette.primary, color: '#ffffff',
+                px: 2.25, py: 1.125, cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
+                transition: 'opacity 0.15s', '&:hover': { opacity: 0.88 },
+              }}>
+                <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />
+                New Case
+              </Box>
+            )}
           </Box>
 
           {/* Filter bar */}
@@ -211,7 +305,7 @@ export default function AMLPage() {
                 <Box key={tab.value} onClick={() => { setStatusFilter(tab.value); setPage(1) }} sx={{
                   px: 1.75, py: 0.875,
                   fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'Jost',
-                  color:   statusFilter === tab.value ? colorPalette.primary : '#64748b',
+                  color: statusFilter === tab.value ? colorPalette.primary : '#64748b',
                   bgcolor: statusFilter === tab.value ? `${colorPalette.primary}0a` : 'transparent',
                   transition: 'all 0.15s',
                   '&:hover': { bgcolor: statusFilter === tab.value ? `${colorPalette.primary}0f` : '#f8fafc' },
@@ -238,8 +332,8 @@ export default function AMLPage() {
           </Box>
 
           {/* Column headers */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '130px 1fr 78px 82px 90px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
-            {['Case ID', 'Title / Typology', 'Risk', 'Priority', 'SLA', 'Assignee', 'Status'].map(h => (
+          <Box sx={{ display: 'grid', gridTemplateColumns: '130px 1fr 78px 82px 90px 100px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+            {['Case ID', 'Title / Typology', 'Risk', 'Priority', 'SLA', 'Opened', 'Assignee', 'Status'].map(h => (
               <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {h}
               </Typography>
@@ -270,8 +364,8 @@ export default function AMLPage() {
 
           {/* Case rows */}
           {!casesLoading && cases.map((c, i) => {
-            const sla  = slaDisplay(c.slaDeadline, c.status)
-            const sCfg = STATUS_CFG[c.status]    ?? STATUS_CFG.open
+            const sla = slaDisplay(c.slaDeadline, c.status)
+            const sCfg = STATUS_CFG[c.status] ?? STATUS_CFG.open
             const pCfg = PRIORITY_CFG[c.priority] ?? PRIORITY_CFG.medium
             return (
               <Box
@@ -281,7 +375,7 @@ export default function AMLPage() {
                 data-ai-description={`AML Investigation: Case ${c.id} for "${c.title}". Priority: ${c.priority}. Risk Score: ${c.riskScore}. SLA: ${sla.label}. Status: ${c.status}. Typology: ${c.typology}.`}
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: '130px 1fr 78px 82px 90px 110px 82px',
+                  gridTemplateColumns: '130px 1fr 78px 82px 90px 100px 110px 82px',
                   gap: 2, px: 3, py: 1.75,
                   borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none',
                   cursor: 'pointer', transition: 'background 0.15s',
@@ -319,6 +413,10 @@ export default function AMLPage() {
                   {sla.label}
                 </Typography>
 
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'Jost' }}>
+                  {new Intl.DateTimeFormat('en-NG', { month: 'short', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(c.createdAt))}
+                </Typography>
+
                 <AssigneeAvatar name={c.assigneeName} />
 
                 <Box sx={{ px: 0.875, py: 0.375, bgcolor: sCfg.bg, width: 'fit-content' }}>
@@ -338,7 +436,7 @@ export default function AMLPage() {
               </Typography>
               <Stack direction="row" gap={0.5}>
                 {[
-                  { icon: <ChevronLeftRoundedIcon  sx={{ fontSize: '1.125rem', color: '#475569' }} />, active: page > 1,         onClick: () => setPage(p => p - 1) },
+                  { icon: <ChevronLeftRoundedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />, active: page > 1, onClick: () => setPage(p => p - 1) },
                   { icon: <ChevronRightRoundedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />, active: page < totalPages, onClick: () => setPage(p => p + 1) },
                 ].map((btn, i) => (
                   <Box key={i} onClick={btn.active ? btn.onClick : undefined} sx={{
@@ -370,6 +468,7 @@ export default function AMLPage() {
         onClose={() => { setWorkspaceOpen(false); loadMetrics(); loadCases() }}
         onUpdated={() => { loadMetrics(); loadCases() }}
       />
-    </DashboardLayout>
+      {/* </Box > */}
+    </>
   )
 }

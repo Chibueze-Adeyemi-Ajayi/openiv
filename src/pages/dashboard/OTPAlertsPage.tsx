@@ -1,6 +1,6 @@
 import { Box, Typography, Stack, Button, Chip } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
+// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { useState, useEffect, useRef } from 'react'
 import { useDashboardEvents, type OtpAlertItem } from '@/contexts/DashboardEventsContext'
@@ -94,8 +94,8 @@ function AlertRow({ alert, selected, onClick }: {
 
 function StatusChip({ status }: { status: OtpAlertItem['status'] }) {
   const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    pending:  { bg: '#fef2f2', color: '#dc2626', label: 'Pending' },
-    held:     { bg: '#fff7ed', color: '#ea580c', label: 'Held' },
+    pending: { bg: '#fef2f2', color: '#dc2626', label: 'Pending' },
+    held: { bg: '#fff7ed', color: '#ea580c', label: 'Held' },
     released: { bg: '#f0fdf4', color: '#16a34a', label: 'Released' },
     declined: { bg: '#f8fafc', color: '#475569', label: 'Declined' },
   }
@@ -113,9 +113,9 @@ function StatusChip({ status }: { status: OtpAlertItem['status'] }) {
 
 function ruleLabel(rule: OtpAlertItem['rule']): string {
   const labels = {
-    FAILED_CASCADE:        'Failed cascade',
-    OTP_BOMBING:           'OTP bombing',
-    VELOCITY_SPIKE:        'Velocity spike',
+    FAILED_CASCADE: 'Failed cascade',
+    OTP_BOMBING: 'OTP bombing',
+    VELOCITY_SPIKE: 'Velocity spike',
     NEW_DEVICE_SUSPICIOUS: 'New device',
   }
   return labels[rule] ?? rule
@@ -192,7 +192,7 @@ export default function OTPAlertsPage() {
   const alertsWithStatus = otpAlerts.map(a =>
     statusOverrides[a.id] ? { ...a, status: statusOverrides[a.id] } : a
   )
-  const pending  = alertsWithStatus.filter(a => a.status === 'pending' || a.status === 'held')
+  const pending = alertsWithStatus.filter(a => a.status === 'pending' || a.status === 'held')
   const selected = alertsWithStatus.find(a => a.id === selectedId) ?? alertsWithStatus[0] ?? null
 
   const doAction = async (id: number, status: 'released' | 'declined') => {
@@ -207,22 +207,24 @@ export default function OTPAlertsPage() {
   }
 
   const pendingCount = pending.length
-  const heldToday    = alertsWithStatus.filter(a => a.status !== 'pending').length
+  const heldToday = alertsWithStatus.filter(a => a.status !== 'pending').length
   const confirmedFraud = alertsWithStatus.filter(a => a.status === 'declined').length
-  const releaseRate  = heldToday > 0
+  const releaseRate = heldToday > 0
     ? Math.round((alertsWithStatus.filter(a => a.status === 'released').length / heldToday) * 100)
     : 0
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: connected ? '#dc2626' : '#94a3b8',
+              <Box sx={{
+                width: 8, height: 8, borderRadius: '50%', bgcolor: connected ? '#dc2626' : '#94a3b8',
                 animation: connected ? 'pulse 1.5s infinite' : 'none',
-                '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
+                '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } }
+              }} />
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: connected ? '#dc2626' : '#94a3b8', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
                 {connected ? 'Live OTP Defense' : 'Connecting…'}
               </Typography>
@@ -247,10 +249,10 @@ export default function OTPAlertsPage() {
         {/* KPI strip */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
           {[
-            { label: 'Active holds',            value: String(pendingCount),   color: '#dc2626' },
-            { label: 'Actioned today',           value: String(heldToday),      color: '#f59e0b' },
-            { label: 'Confirmed fraud',          value: String(confirmedFraud), color: colorPalette.primary },
-            { label: 'Customer release rate',    value: `${releaseRate}%`,      color: '#10b981' },
+            { label: 'Active holds', value: String(pendingCount), color: '#dc2626' },
+            { label: 'Actioned today', value: String(heldToday), color: '#f59e0b' },
+            { label: 'Confirmed fraud', value: String(confirmedFraud), color: colorPalette.primary },
+            { label: 'Customer release rate', value: `${releaseRate}%`, color: '#10b981' },
           ].map(s => (
             <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, mb: 0.625 }}>
@@ -342,14 +344,14 @@ export default function OTPAlertsPage() {
                     <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>Transaction details</Typography>
                     <Stack gap={0}>
                       {[
-                        ['Customer',      selected.customerName ?? selected.customerId ?? '—'],
-                        ['Phone',         selected.msisdn ?? '—'],
-                        ['Amount',        selected.amount != null ? `₦${selected.amount.toLocaleString()}` : '—'],
-                        ['Beneficiary',   selected.beneficiaryAccount ?? '—'],
-                        ['Device',        selected.deviceModel ?? selected.deviceId ?? '—'],
-                        ['Channel',       selected.channel ?? '—'],
-                        ['OTP type',      selected.otpType ?? '—'],
-                        ['Alert fired',   new Date(selected.firedAt).toLocaleTimeString()],
+                        ['Customer', selected.customerName ?? selected.customerId ?? '—'],
+                        ['Phone', selected.msisdn ?? '—'],
+                        ['Amount', selected.amount != null ? `₦${selected.amount.toLocaleString()}` : '—'],
+                        ['Beneficiary', selected.beneficiaryAccount ?? '—'],
+                        ['Device', selected.deviceModel ?? selected.deviceId ?? '—'],
+                        ['Channel', selected.channel ?? '—'],
+                        ['OTP type', selected.otpType ?? '—'],
+                        ['Alert fired', new Date(selected.firedAt).toLocaleTimeString()],
                       ].map(([label, value]) => (
                         <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.875, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
                           <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{label}</Typography>
@@ -444,6 +446,6 @@ export default function OTPAlertsPage() {
           ? [`Alert #${selected?.id} declined`, 'STR filed to NFIU (auto-generated)', `Customer ${selected?.customerName ?? selected?.customerId ?? ''} notified by SMS`]
           : undefined}
       />
-    </DashboardLayout>
+    </>
   )
 }

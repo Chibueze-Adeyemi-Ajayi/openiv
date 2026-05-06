@@ -1,6 +1,7 @@
-import { Box, InputBase, IconButton, Typography, Badge, Popover, Stack, Chip, Divider, Button } from '@mui/material'
+import { Box, InputBase, IconButton, Typography, Badge, Popover, Stack, Chip, Divider } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined'
@@ -10,46 +11,71 @@ import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined'
-import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
-import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
-import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
-import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
-import FlashOnOutlinedIcon from '@mui/icons-material/FlashOnOutlined'
-import FlashOffOutlinedIcon from '@mui/icons-material/FlashOffOutlined'
-import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import PsychologyIcon from '@mui/icons-material/Psychology'
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import NotificationsOffOutlinedIcon from '@mui/icons-material/NotificationsOffOutlined'
 import { useEureka } from '@/contexts/EurekaContext'
 import { useSandbox } from '@/contexts/SandboxContext'
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import { useDashboardEvents, useDashboardEventsMut } from '@/contexts/DashboardEventsContext'
+import { notificationsApi, notifSeverity, type NotificationItem } from '@/api/notifications'
 
 interface TopbarProps {
   onOpenEureka?: () => void
 }
 
-type Severity = 'critical' | 'warning' | 'info' | 'success'
-
-const sevConfig: Record<Severity, { color: string; bg: string }> = {
-  critical: { color: '#dc2626', bg: '#fef2f2' },
-  warning: { color: '#f59e0b', bg: '#fffbeb' },
-  info: { color: colorPalette.primary, bg: `${colorPalette.primary}10` },
-  success: { color: '#10b981', bg: '#f0fdf4' },
+const sevConfig: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
+  critical: { color: '#dc2626', bg: '#fef2f2', icon: <ErrorOutlineRoundedIcon sx={{ fontSize: '0.9rem' }} /> },
+  warning:  { color: '#f59e0b', bg: '#fffbeb', icon: <WarningAmberRoundedIcon sx={{ fontSize: '0.9rem' }} /> },
+  info:     { color: colorPalette.primary, bg: `${colorPalette.primary}10`, icon: <InfoOutlinedIcon sx={{ fontSize: '0.9rem' }} /> },
+  success:  { color: '#10b981', bg: '#f0fdf4', icon: <InfoOutlinedIcon sx={{ fontSize: '0.9rem' }} /> },
 }
 
-const notifications: { id: number; severity: Severity; icon: React.ReactNode; title: string; detail: string; time: string; unread: boolean }[] = [
-  { id: 1, severity: 'critical', icon: <BlockRoundedIcon sx={{ fontSize: '0.9rem' }} />, title: 'OTP hold · Adamu Ibrahim', detail: '₦14.2M flagged · awaiting your call', time: '2 min', unread: true },
-  { id: 2, severity: 'critical', icon: <FlagOutlinedIcon sx={{ fontSize: '0.9rem' }} />, title: 'Pattern · same-IP cluster', detail: '4 unrelated accounts in Lagos', time: '14 min', unread: true },
-  { id: 3, severity: 'warning', icon: <FlagOutlinedIcon sx={{ fontSize: '0.9rem' }} />, title: 'BDC threshold breached', detail: 'Sokoto · ₦14.2M to single beneficiary', time: '34 min', unread: true },
-  { id: 4, severity: 'info', icon: <GavelOutlinedIcon sx={{ fontSize: '0.9rem' }} />, title: 'NFIU STR filed · #4827', detail: 'Awaiting senior sign-off', time: '1 hr', unread: true },
-  { id: 5, severity: 'success', icon: <VerifiedOutlinedIcon sx={{ fontSize: '0.9rem' }} />, title: 'Account #ACC-9281 cleared', detail: 'False positive · payroll cycle confirmed', time: '2 hr', unread: false },
-]
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diffMs / 60_000)
+  if (m < 1)  return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
 
 export default function Topbar({ onOpenEureka }: TopbarProps) {
   const { eurekaEnabled, setEurekaEnabled, isLoading } = useEureka()
-  const { sandboxEnabled, isDevOrAdmin } = useSandbox()
+  const { sandboxEnabled } = useSandbox()
+  const { notifications } = useDashboardEvents()
+  const { markNotifRead, markAllNotifsRead } = useDashboardEventsMut()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
   const [helpAnchor, setHelpAnchor] = useState<HTMLElement | null>(null)
-  const unreadCount = notifications.filter((n) => n.unread).length
+  const unreadCount = notifications.filter((n) => n.status === 'unread').length
+
+  const handleMarkAllRead = async () => {
+    markAllNotifsRead()
+    await notificationsApi.markAllRead().catch(() => {})
+  }
+
+  const handleNotifClick = async (n: NotificationItem) => {
+    setNotifAnchor(null)
+    navigate('/dashboard/notifications', {
+      state: { from: location.pathname, openNotifId: n.id },
+    })
+    if (n.status === 'unread') {
+      markNotifRead(n.id)
+      await notificationsApi.markRead(n.id).catch(() => {})
+    }
+  }
+
+  const handleViewAll = () => {
+    setNotifAnchor(null)
+    navigate('/dashboard/notifications', {
+      state: { from: location.pathname, scrollY: window.scrollY },
+    })
+  }
 
   const iconBtn = {
     color: '#64748b',
@@ -335,92 +361,68 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
         onClose={() => setNotifAnchor(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{
-          paper: {
-            sx: {
-              mt: 1,
-              width: 380,
-              maxHeight: 520,
-              borderRadius: 0,
-              border: '1px solid #eef0f4',
-              boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
-            },
-          },
-        }}
+        slotProps={{ paper: { sx: { mt: 1, width: 380, maxHeight: 520, borderRadius: 0, border: '1px solid #eef0f4', boxShadow: '0 16px 48px rgba(15,23,42,0.12)' } } }}
       >
+        {/* Header */}
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
-              Notifications
-            </Typography>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Notifications</Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
               {unreadCount} unread · {notifications.length} total
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
-            Mark all read
-          </Typography>
+          {unreadCount > 0 && (
+            <Typography
+              onClick={handleMarkAllRead}
+              sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            >
+              Mark all read
+            </Typography>
+          )}
         </Box>
 
+        {/* List */}
         <Box sx={{ overflowY: 'auto', maxHeight: 400 }}>
-          {notifications.map((n) => {
-            const cfg = sevConfig[n.severity]
+          {notifications.length === 0 && (
+            <Box sx={{ py: 5, textAlign: 'center', color: '#94a3b8' }}>
+              <NotificationsNoneOutlinedIcon sx={{ fontSize: '2rem', mb: 1, display: 'block', mx: 'auto' }} />
+              <Typography sx={{ fontSize: '0.8125rem' }}>No notifications yet</Typography>
+            </Box>
+          )}
+          {notifications.slice(0, 20).map((n) => {
+            const sev = notifSeverity(n.type)
+            const cfg = sevConfig[sev]
+            const unread = n.status === 'unread'
             return (
               <Box
                 key={n.id}
+                onClick={() => handleNotifClick(n)}
                 sx={{
-                  px: 2.5,
-                  py: 1.75,
-                  display: 'flex',
-                  gap: 1.25,
-                  cursor: 'pointer',
-                  borderBottom: '1px solid #f4f5f7',
-                  bgcolor: n.unread ? `${colorPalette.primary}04` : 'transparent',
+                  px: 2.5, py: 1.75, display: 'flex', gap: 1.25, cursor: 'pointer',
+                  borderBottom: '1px solid #f4f5f7', position: 'relative',
+                  bgcolor: unread ? `${colorPalette.primary}04` : 'transparent',
                   transition: 'background 0.15s',
                   '&:hover': { bgcolor: '#fafbfc' },
                   '&:last-child': { borderBottom: 'none' },
-                  position: 'relative',
                 }}
               >
-                {n.unread && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: 8,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      bgcolor: colorPalette.primary,
-                    }}
-                  />
+                {unread && (
+                  <Box sx={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', bgcolor: colorPalette.primary }} />
                 )}
-                <Box
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    bgcolor: cfg.bg,
-                    color: cfg.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {n.icon}
+                <Box sx={{ width: 28, height: 28, bgcolor: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {cfg.icon}
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: unread ? 700 : 500, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {n.title}
                     </Typography>
                     <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', flexShrink: 0, ml: 1, fontWeight: 500 }}>
-                      {n.time}
+                      {timeAgo(n.createdAt)}
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                    {n.detail}
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {n.body}
                   </Typography>
                 </Box>
               </Box>
@@ -428,8 +430,9 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
           })}
         </Box>
 
+        {/* Footer */}
         <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid #eef0f4', textAlign: 'center', bgcolor: '#fafbfc' }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+          <Typography onClick={handleViewAll} sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
             View all activity
           </Typography>
         </Box>

@@ -1,6 +1,6 @@
 import { Alert, Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField } from '@mui/material'
 import { colorPalette } from '@/theme'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
+// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import RoleEditor, { type RoleDraft } from '@/components/dashboard/RoleEditor'
 import { useState, useMemo, useEffect } from 'react'
@@ -99,13 +99,13 @@ export default function TeamPage() {
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
-  const [editorInitial, setEditorInitial] = useState<RoleDraft | undefined>()
+  const [editorInitial, setEditorInitial] = useState<RoleDraft | null>(null)
   const [pendingRoleSave, setPendingRoleSave] = useState<TeamRole | null>(null)
   const [removeRole, setRemoveRole] = useState<TeamRole | null>(null)
 
   const openCreateRole = () => {
     setEditorMode('create')
-    setEditorInitial(undefined)
+    setEditorInitial(null)
     setEditorOpen(true)
   }
 
@@ -245,7 +245,7 @@ export default function TeamPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <Box sx={{ p: 4 }}>
         {apiError && (
           <Alert
@@ -801,183 +801,185 @@ export default function TeamPage() {
       </Box>
 
       {/* INVITE MODAL — email + role only */}
-      {inviteOpen && (
-        <>
-          <Box
-            onClick={() => { if (!inviteTOTP) setInviteOpen(false) }}
-            sx={{
-              position: 'fixed',
-              inset: 0,
-              bgcolor: 'rgba(15, 23, 42, 0.55)',
-              backdropFilter: 'blur(2px)',
-              zIndex: 1290,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '100%',
-              maxWidth: 460,
-              bgcolor: '#ffffff',
-              zIndex: 1291,
-              boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
-              animation: 'modalIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              '@keyframes modalIn': {
-                from: { opacity: 0, transform: 'translate(-50%, -48%) scale(0.96)' },
-                to: { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
-              },
-            }}
-          >
-            <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
-                  Invite member
-                </Typography>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
-                  Send a secure invitation
-                </Typography>
-              </Box>
-              <IconButton
-                onClick={() => setInviteOpen(false)}
-                disableRipple
-                sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: colorPalette.primary, bgcolor: 'transparent' } }}
-              >
-                <CloseRoundedIcon sx={{ fontSize: '1.25rem' }} />
-              </IconButton>
-            </Box>
-
-            <Box sx={{ px: 3, py: 3 }}>
-              <Stack gap={2}>
+      {
+        inviteOpen && (
+          <>
+            <Box
+              onClick={() => { if (!inviteTOTP) setInviteOpen(false) }}
+              sx={{
+                position: 'fixed',
+                inset: 0,
+                bgcolor: 'rgba(15, 23, 42, 0.55)',
+                backdropFilter: 'blur(2px)',
+                zIndex: 1290,
+              }}
+            />
+            <Box
+              sx={{
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '100%',
+                maxWidth: 460,
+                bgcolor: '#ffffff',
+                zIndex: 1291,
+                boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
+                animation: 'modalIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                '@keyframes modalIn': {
+                  from: { opacity: 0, transform: 'translate(-50%, -48%) scale(0.96)' },
+                  to: { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
+                },
+              }}
+            >
+              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
-                    Email address
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                    Invite member
                   </Typography>
-                  <TextField
-                    fullWidth
-                    autoFocus
-                    type="email"
-                    placeholder="name@company.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    InputProps={{
-                      startAdornment: <MailOutlineRoundedIcon sx={{ mr: 1.25, color: '#94a3b8', fontSize: '1.125rem' }} />,
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f5f3fb',
-                        borderRadius: 0,
-                        '& fieldset': { border: '1px solid transparent' },
-                        '&:hover fieldset': { borderColor: '#e4dff2' },
-                        '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                        '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
-                      },
-                      '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: '#0f172a' },
-                    }}
-                  />
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
+                    Send a secure invitation
+                  </Typography>
                 </Box>
+                <IconButton
+                  onClick={() => setInviteOpen(false)}
+                  disableRipple
+                  sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: colorPalette.primary, bgcolor: 'transparent' } }}
+                >
+                  <CloseRoundedIcon sx={{ fontSize: '1.25rem' }} />
+                </IconButton>
+              </Box>
 
-                <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
-                    Assign role
-                  </Typography>
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      bgcolor: '#f5f3fb',
-                      border: '1px solid transparent',
-                      transition: 'all 0.18s',
-                      '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
-                    }}
-                  >
-                    <Box
-                      component="select"
-                      value={inviteRole}
-                      onChange={(e: any) => setInviteRole(e.target.value)}
-                      sx={{
-                        width: '100%',
-                        bgcolor: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        appearance: 'none',
-                        py: '14px',
-                        pl: 1.75,
-                        pr: 4,
-                        fontSize: '0.875rem',
-                        fontFamily: 'Jost',
-                        color: '#0f172a',
-                        cursor: 'pointer',
+              <Box sx={{ px: 3, py: 3 }}>
+                <Stack gap={2}>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                      Email address
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      autoFocus
+                      type="email"
+                      placeholder="name@company.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      InputProps={{
+                        startAdornment: <MailOutlineRoundedIcon sx={{ mr: 1.25, color: '#94a3b8', fontSize: '1.125rem' }} />,
                       }}
-                    >
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </Box>
-                    <ExpandMoreRoundedIcon
                       sx={{
-                        position: 'absolute',
-                        right: 12,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: '#94a3b8',
-                        pointerEvents: 'none',
+                        '& .MuiOutlinedInput-root': {
+                          bgcolor: '#f5f3fb',
+                          borderRadius: 0,
+                          '& fieldset': { border: '1px solid transparent' },
+                          '&:hover fieldset': { borderColor: '#e4dff2' },
+                          '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+                          '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                        },
+                        '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: '#0f172a' },
                       }}
                     />
                   </Box>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.875, lineHeight: 1.5 }}>
-                    {roles.find((r) => r.id === inviteRole)?.description}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
 
-            <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <Button
-                onClick={() => setInviteOpen(false)}
-                sx={{
-                  bgcolor: '#ffffff',
-                  color: '#475569',
-                  border: '1px solid #e5e7eb',
-                  px: 2.25,
-                  py: 1,
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  fontFamily: 'Jost',
-                  borderRadius: 0,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: '#f8fafc' },
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={submitInvite}
-                disabled={!inviteEmail || !inviteEmail.includes('@')}
-                sx={{
-                  bgcolor: colorPalette.primary,
-                  color: '#ffffff',
-                  px: 2.25,
-                  py: 1,
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  fontFamily: 'Jost',
-                  borderRadius: 0,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
-                  '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
-                }}
-              >
-                Send Invitation
-              </Button>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                      Assign role
+                    </Typography>
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        bgcolor: '#f5f3fb',
+                        border: '1px solid transparent',
+                        transition: 'all 0.18s',
+                        '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                      }}
+                    >
+                      <Box
+                        component="select"
+                        value={inviteRole}
+                        onChange={(e: any) => setInviteRole(e.target.value)}
+                        sx={{
+                          width: '100%',
+                          bgcolor: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          appearance: 'none',
+                          py: '14px',
+                          pl: 1.75,
+                          pr: 4,
+                          fontSize: '0.875rem',
+                          fontFamily: 'Jost',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {roles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </Box>
+                      <ExpandMoreRoundedIcon
+                        sx={{
+                          position: 'absolute',
+                          right: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#94a3b8',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.875, lineHeight: 1.5 }}>
+                      {roles.find((r) => r.id === inviteRole)?.description}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+
+              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Button
+                  onClick={() => setInviteOpen(false)}
+                  sx={{
+                    bgcolor: '#ffffff',
+                    color: '#475569',
+                    border: '1px solid #e5e7eb',
+                    px: 2.25,
+                    py: 1,
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    textTransform: 'none',
+                    '&:hover': { bgcolor: '#f8fafc' },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitInvite}
+                  disabled={!inviteEmail || !inviteEmail.includes('@')}
+                  sx={{
+                    bgcolor: colorPalette.primary,
+                    color: '#ffffff',
+                    px: 2.25,
+                    py: 1,
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    fontFamily: 'Jost',
+                    borderRadius: 0,
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                    '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  Send Invitation
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* TOTP — confirm invite */}
       <TOTPConfirmation
@@ -1065,7 +1067,7 @@ export default function TeamPage() {
         resourceName={removeRole?.name || ''}
         itemsAffected={removeRole ? [`${removeRole.members} member${removeRole.members !== 1 ? 's' : ''} will need reassignment`, 'Audit log entry created', 'Role definition archived for 90 days'] : []}
       />
-    </DashboardLayout>
+    </>
   )
 }
 

@@ -3,52 +3,51 @@ import {
   Box, Typography, Stack, Chip, TextField, InputAdornment,
   IconButton, Tooltip, Tab, Tabs,
 } from '@mui/material'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { colorPalette } from '@/theme'
 import { networkApi, type NetworkLogEntry } from '@/api/network'
-import SearchIcon          from '@mui/icons-material/Search'
-import ContentCopyIcon     from '@mui/icons-material/ContentCopy'
-import CloseRoundedIcon    from '@mui/icons-material/CloseRounded'
+import SearchIcon from '@mui/icons-material/Search'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-import ErrorOutlineIcon    from '@mui/icons-material/ErrorOutline'
-import AccessTimeIcon      from '@mui/icons-material/AccessTime'
-import ReplayIcon          from '@mui/icons-material/Replay'
-import FilterListIcon      from '@mui/icons-material/FilterList'
-import InfoOutlinedIcon    from '@mui/icons-material/InfoOutlined'
-import CallMadeIcon        from '@mui/icons-material/CallMade'
-import CallReceivedIcon    from '@mui/icons-material/CallReceived'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import ReplayIcon from '@mui/icons-material/Replay'
+import FilterListIcon from '@mui/icons-material/FilterList'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import CallMadeIcon from '@mui/icons-material/CallMade'
+import CallReceivedIcon from '@mui/icons-material/CallReceived'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Source     = 'beam' | 'webhook'
-type SrcFilter  = 'all' | 'beam' | 'webhook'
-type StatusF    = 'all' | '2xx' | '4xx' | '5xx'
-type TimeF      = '1h' | '6h' | '24h' | '7d'
+type Source = 'beam' | 'webhook'
+type SrcFilter = 'all' | 'beam' | 'webhook'
+type StatusF = 'all' | '2xx' | '4xx' | '5xx'
+type TimeF = '1h' | '6h' | '24h' | '7d'
 
 interface Retry { attempt: number; ts: string; status: number; ms: number; err?: string }
 
 interface Entry {
-  id:          string
-  ts:          string
-  source:      Source
-  method:      string
-  endpoint:    string
-  stream?:     string
-  event?:      string
-  status:      number
-  ms:          number
-  bytes:       number
-  ip?:         string
+  id: string
+  ts: string
+  source: Source
+  method: string
+  endpoint: string
+  stream?: string
+  event?: string
+  status: number
+  ms: number
+  bytes: number
+  ip?: string
   customerId?: string
-  txId?:       string
-  reqHeaders:  Record<string, string>
-  reqBody:     string
+  txId?: string
+  reqHeaders: Record<string, string>
+  reqBody: string
   resHeaders?: Record<string, string>
-  resBody?:    string
-  retries?:    Retry[]
-  error?:      string
+  resBody?: string
+  retries?: Retry[]
+  error?: string
 }
 
 // ── Kept for legacy LOGS array (dead code — remove once LOGS is deleted) ─────
@@ -69,22 +68,22 @@ function mapApiEntry(e: NetworkLogEntry): Entry {
   try { reqHeaders = JSON.parse(e.reqHeaders) } catch { /* keep {} */ }
   if (e.resHeaders) try { resHeaders = JSON.parse(e.resHeaders) } catch { /* keep undefined */ }
   return {
-    id:          e.id,
-    ts:          e.ts,
-    source:      e.source,
-    method:      e.method,
-    endpoint:    e.endpoint,
-    stream:      e.source === 'beam'    ? (e.stream ?? undefined) : undefined,
-    event:       e.source === 'webhook' ? (e.stream ?? undefined) : undefined,
-    status:      e.statusCode,
-    ms:          e.durationMs ?? 0,
-    bytes:       e.bytes ?? 0,
-    ip:          e.ip ?? undefined,
+    id: e.id,
+    ts: e.ts,
+    source: e.source,
+    method: e.method,
+    endpoint: e.endpoint,
+    stream: e.source === 'beam' ? (e.stream ?? undefined) : undefined,
+    event: e.source === 'webhook' ? (e.stream ?? undefined) : undefined,
+    status: e.statusCode,
+    ms: e.durationMs ?? 0,
+    bytes: e.bytes ?? 0,
+    ip: e.ip ?? undefined,
     reqHeaders,
-    reqBody:     e.reqBody  ?? '',
+    reqBody: e.reqBody ?? '',
     resHeaders,
-    resBody:     e.resBody  ?? undefined,
-    error:       e.errorMessage ?? undefined,
+    resBody: e.resBody ?? undefined,
+    error: e.errorMessage ?? undefined,
   }
 }
 
@@ -160,9 +159,9 @@ const LOGS: Entry[] = [
     resBody: '503 Service Unavailable',
     error: 'Endpoint returned 503 — retried 3×, resolved on attempt 3',
     retries: [
-      { attempt: 1, ts: ts(31),  status: 503, ms: 4921, err: '503 Service Unavailable' },
-      { attempt: 2, ts: ts(26),  status: 503, ms: 4610, err: '503 Service Unavailable' },
-      { attempt: 3, ts: ts(21),  status: 200, ms: 312  },
+      { attempt: 1, ts: ts(31), status: 503, ms: 4921, err: '503 Service Unavailable' },
+      { attempt: 2, ts: ts(26), status: 503, ms: 4610, err: '503 Service Unavailable' },
+      { attempt: 3, ts: ts(21), status: 200, ms: 312 },
     ],
   },
   {
@@ -225,9 +224,9 @@ const LOGS: Entry[] = [
     resBody: JSON.stringify({ error: 'Unauthorized', message: 'API key expired — please rotate in OpenIV dashboard' }, null, 2),
     error: '401 Unauthorized — endpoint API key expired',
     retries: [
-      { attempt: 1, ts: ts(82),  status: 401, ms: 148,  err: '401 Unauthorized' },
-      { attempt: 2, ts: ts(77),  status: 401, ms: 139,  err: '401 Unauthorized' },
-      { attempt: 3, ts: ts(72),  status: 401, ms: 141,  err: '401 Unauthorized — retries exhausted' },
+      { attempt: 1, ts: ts(82), status: 401, ms: 148, err: '401 Unauthorized' },
+      { attempt: 2, ts: ts(77), status: 401, ms: 139, err: '401 Unauthorized' },
+      { attempt: 3, ts: ts(72), status: 401, ms: 141, err: '401 Unauthorized — retries exhausted' },
     ],
   },
   {
@@ -320,7 +319,7 @@ const LOGS: Entry[] = [
     resBody: JSON.stringify({ error: 'rate_limit_exceeded', retryAfter: 60 }, null, 2),
     error: '429 Too Many Requests — retry after 60s',
     retries: [
-      { attempt: 1, ts: ts(280), status: 429, ms: 92,  err: '429 Rate Limited' },
+      { attempt: 1, ts: ts(280), status: 429, ms: 92, err: '429 Rate Limited' },
       { attempt: 2, ts: ts(279), status: 200, ms: 288 },
     ],
   },
@@ -367,7 +366,7 @@ function fmtBytes(b: number) {
 
 function fmtRel(iso: string) {
   const diff = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
-  if (diff < 60)  return `${diff}s ago`
+  if (diff < 60) return `${diff}s ago`
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
   return `${Math.floor(diff / 3600)}h ago`
 }
@@ -396,7 +395,7 @@ function makeCurl(e: Entry) {
   const base = e.source === 'beam'
     ? 'https://api.openiv.io'
     : e.endpoint
-  const url  = e.source === 'beam' ? base + e.endpoint : e.endpoint
+  const url = e.source === 'beam' ? base + e.endpoint : e.endpoint
   const headers = Object.entries(e.reqHeaders)
     .map(([k, v]) => `  -H '${k}: ${v}'`)
     .join(' \\\n')
@@ -419,8 +418,10 @@ function SourceBadge({ source }: { source: Source }) {
       {isBeam
         ? <RssFeedOutlinedIcon sx={{ fontSize: '0.65rem', color: '#2563eb' }} />
         : <WebhookOutlinedIcon sx={{ fontSize: '0.65rem', color: '#7c3aed' }} />}
-      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.08em',
-        color: isBeam ? '#2563eb' : '#7c3aed', fontFamily: 'Jost' }}>
+      <Typography sx={{
+        fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.08em',
+        color: isBeam ? '#2563eb' : '#7c3aed', fontFamily: 'Jost'
+      }}>
         {isBeam ? 'BEAM' : 'HOOK'}
       </Typography>
     </Stack>
@@ -463,9 +464,11 @@ function JsonView({ text }: { text: string }) {
   return (
     <Box component="pre"
       dangerouslySetInnerHTML={{ __html: highlighted }}
-      sx={{ m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, Consolas, monospace',
+      sx={{
+        m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, Consolas, monospace',
         color: '#334155', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        overflowX: 'hidden' }}
+        overflowX: 'hidden'
+      }}
     />
   )
 }
@@ -475,10 +478,14 @@ function HeadersView({ headers }: { headers: Record<string, string> }) {
     <Stack spacing={0.25}>
       {Object.entries(headers).map(([k, v]) => (
         <Box key={k} sx={{ display: 'flex', gap: 1, alignItems: 'baseline' }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#7c3aed',
-            fontFamily: 'monospace', flexShrink: 0, minWidth: 180 }}>{k}:</Typography>
-          <Typography sx={{ fontSize: '0.6875rem', color: '#334155', fontFamily: 'monospace',
-            wordBreak: 'break-all' }}>{v}</Typography>
+          <Typography sx={{
+            fontSize: '0.6875rem', fontWeight: 700, color: '#7c3aed',
+            fontFamily: 'monospace', flexShrink: 0, minWidth: 180
+          }}>{k}:</Typography>
+          <Typography sx={{
+            fontSize: '0.6875rem', color: '#334155', fontFamily: 'monospace',
+            wordBreak: 'break-all'
+          }}>{v}</Typography>
         </Box>
       ))}
     </Stack>
@@ -487,14 +494,18 @@ function HeadersView({ headers }: { headers: Record<string, string> }) {
 
 function KpiCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <Box 
+    <Box
       data-ai-analyzable="true"
       data-ai-description={`Network Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
       sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', px: 2.5, py: 2 }}>
-      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
-        textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: accent ?? '#0f172a',
-        fontFamily: 'Jost', lineHeight: 1 }}>{value}</Typography>
+      <Typography sx={{
+        fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
+        textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625
+      }}>{label}</Typography>
+      <Typography sx={{
+        fontSize: '1.5rem', fontWeight: 700, color: accent ?? '#0f172a',
+        fontFamily: 'Jost', lineHeight: 1
+      }}>{value}</Typography>
       {sub && <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.5 }}>{sub}</Typography>}
     </Box>
   )
@@ -518,8 +529,8 @@ function ThroughputChart({ entries }: { entries: Entry[] }) {
       {buckets.map((b, i) => {
         const total = b.beam + b.hook
         const totalH = Math.max(4, (total / max) * 52)
-        const beamH  = total > 0 ? (b.beam / total) * totalH : 0
-        const hookH  = totalH - beamH
+        const beamH = total > 0 ? (b.beam / total) * totalH : 0
+        const hookH = totalH - beamH
         return (
           <Tooltip key={i} title={`${24 - i}h ago — Beam: ${b.beam}, Webhook: ${b.hook}`} placement="top">
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'default' }}>
@@ -536,24 +547,24 @@ function ThroughputChart({ entries }: { entries: Entry[] }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function NetworkPage() {
-  const [srcF,    setSrcF]    = useState<SrcFilter>('all')
-  const [statF,   setStatF]   = useState<StatusF>('all')
-  const [timeF,   setTimeF]   = useState<TimeF>('24h')
-  const [search,  setSearch]  = useState('')
+  const [srcF, setSrcF] = useState<SrcFilter>('all')
+  const [statF, setStatF] = useState<StatusF>('all')
+  const [timeF, setTimeF] = useState<TimeF>('24h')
+  const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Entry | null>(null)
   const [detailTab, setDetailTab] = useState(0)
-  const [copied,   setCopied]   = useState(false)
-  const [logs,     setLogs]     = useState<Entry[]>([])
-  const [loading,  setLoading]  = useState(true)
+  const [copied, setCopied] = useState(false)
+  const [logs, setLogs] = useState<Entry[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
     networkApi.getLogs({
-      source: srcF  !== 'all' ? srcF  : undefined,
+      source: srcF !== 'all' ? srcF : undefined,
       status: statF !== 'all' ? statF : undefined,
-      since:  getSince(timeF),
-      q:      search || undefined,
-      limit:  200,
+      since: getSince(timeF),
+      q: search || undefined,
+      limit: 200,
     })
       .then(res => setLogs(res.entries.map(mapApiEntry)))
       .catch(() => setLogs([]))
@@ -567,20 +578,20 @@ export default function NetworkPage() {
     if (search) {
       const q = search.toLowerCase()
       if (!e.endpoint.toLowerCase().includes(q) &&
-          !(e.customerId ?? '').toLowerCase().includes(q) &&
-          !(e.txId ?? '').toLowerCase().includes(q) &&
-          !(e.stream ?? e.event ?? '').toLowerCase().includes(q)) return false
+        !(e.customerId ?? '').toLowerCase().includes(q) &&
+        !(e.txId ?? '').toLowerCase().includes(q) &&
+        !(e.stream ?? e.event ?? '').toLowerCase().includes(q)) return false
     }
     return true
   }), [logs, srcF, statF, timeF, search])
 
   const kpis = useMemo(() => {
-    const total    = filtered.length
-    const ok       = filtered.filter(e => e.status < 400).length
-    const errors   = filtered.filter(e => e.status >= 400).length
+    const total = filtered.length
+    const ok = filtered.filter(e => e.status < 400).length
+    const errors = filtered.filter(e => e.status >= 400).length
     const latencies = filtered.map(e => e.ms).sort((a, b) => a - b)
-    const avgMs    = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0
-    const p95      = percentile(latencies, 95)
+    const avgMs = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0
+    const p95 = percentile(latencies, 95)
     return { total, successRate: total ? ((ok / total) * 100).toFixed(1) : '—', avgMs, p95, errors }
   }, [filtered])
 
@@ -590,8 +601,8 @@ export default function NetworkPage() {
     const s2 = filtered.filter(e => e.status < 300).length
     const s4 = filtered.filter(e => e.status >= 400 && e.status < 500).length
     const s5 = filtered.filter(e => e.status >= 500).length
-    const t  = filtered.length || 1
-    return { s2, s4, s5, p2: (s2/t*100).toFixed(0), p4: (s4/t*100).toFixed(0), p5: (s5/t*100).toFixed(0) }
+    const t = filtered.length || 1
+    return { s2, s4, s5, p2: (s2 / t * 100).toFixed(0), p4: (s4 / t * 100).toFixed(0), p5: (s5 / t * 100).toFixed(0) }
   }, [filtered])
 
   const latPercentiles = useMemo(() => {
@@ -614,83 +625,89 @@ export default function NetworkPage() {
   })
 
   return (
-    <DashboardLayout>
-      <Box sx={{ p: 4, pb: 2 }}>
-        {/* ── Page heading ── */}
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary,
-            letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>Configuration</Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
-            fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>Network & Traffic</Typography>
-          <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Unified view of inbound beam events and outbound webhook deliveries — filter, inspect, replay, debug.
-          </Typography>
-        </Box>
-
-        {/* ── KPI bar ── */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, mb: 3 }}>
-          <KpiCard label="Total Requests" value={String(kpis.total)} sub={`last ${timeF}`} />
-          <KpiCard label="Success Rate"   value={`${kpis.successRate}%`}
-            accent={parseFloat(kpis.successRate) < 95 ? '#d97706' : '#10b981'} sub="status < 400" />
-          <KpiCard label="Avg Latency"    value={fmtMs(kpis.avgMs)}
-            accent={kpis.avgMs > 1000 ? '#dc2626' : kpis.avgMs > 500 ? '#d97706' : undefined} />
-          <KpiCard label="P95 Latency"    value={fmtMs(kpis.p95)}
-            accent={kpis.p95 > 2000 ? '#dc2626' : kpis.p95 > 1000 ? '#d97706' : undefined} />
-          <KpiCard label="Errors"         value={String(kpis.errors)}
-            accent={kpis.errors > 0 ? '#dc2626' : '#10b981'} sub="status ≥ 400" />
-        </Box>
-
-        {/* ── Filters ── */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-          {/* Source */}
-          <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            {(['all', 'beam', 'webhook'] as SrcFilter[]).map(s => (
-              <Box 
-                key={s} 
-                onClick={() => setSrcF(s)} 
-                data-ai-analyzable="true"
-                data-ai-description={`Filter network traffic by source: ${s === 'all' ? 'All Sources' : s === 'beam' ? 'Inbound Beam SDK' : 'Outbound Webhooks'}.`}
-                sx={filterBtn(srcF === s)}>
-                {s === 'all' ? 'All Sources' : s === 'beam' ? '↑ Beam' : '↓ Webhooks'}
-              </Box>
-            ))}
-          </Stack>
-          {/* Status */}
-          <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            {(['all', '2xx', '4xx', '5xx'] as StatusF[]).map(s => (
-              <Box 
-                key={s} 
-                onClick={() => setStatF(s)} 
-                data-ai-analyzable="true"
-                data-ai-description={`Filter network traffic by HTTP status code: ${s === 'all' ? 'Any Status' : s}.`}
-                sx={filterBtn(statF === s)}>
-                {s === 'all' ? 'Any Status' : s}
-              </Box>
-            ))}
-          </Stack>
-          {/* Time range */}
-          <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            {(['1h', '6h', '24h', '7d'] as TimeF[]).map(t => (
-              <Box key={t} onClick={() => setTimeF(t)} sx={filterBtn(timeF === t)}>{t}</Box>
-            ))}
-          </Stack>
-          {/* Search */}
-          <TextField
-            size="small" placeholder="Search endpoint, customer, txn…"
-            value={search} onChange={e => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} /></InputAdornment> }}
-            sx={{
-              ml: 'auto', minWidth: 260,
-              '& .MuiOutlinedInput-root': { borderRadius: '2px', fontSize: '0.8125rem',
-                bgcolor: '#f8fafc', '& fieldset': { borderColor: '#e2e8f0' } },
-            }}
-          />
-          <Tooltip title={`${filtered.length} entries`}>
-            <Chip label={filtered.length} size="small"
-              sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, borderRadius: '3px', height: 28 }} />
-          </Tooltip>
-        </Box>
+    <Box sx={{ p: 4, pb: 2 }}>
+      {/* ── Page heading ── */}
+      <Box sx={{ mb: 3 }}>
+        <Typography sx={{
+          fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary,
+          letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75
+        }}>Configuration</Typography>
+        <Typography sx={{
+          fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+          fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
+        }}>Network & Traffic</Typography>
+        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
+          Unified view of inbound beam events and outbound webhook deliveries — filter, inspect, replay, debug.
+        </Typography>
       </Box>
+
+      {/* ── KPI bar ── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, mb: 3 }}>
+        <KpiCard label="Total Requests" value={String(kpis.total)} sub={`last ${timeF}`} />
+        <KpiCard label="Success Rate" value={`${kpis.successRate}%`}
+          accent={parseFloat(kpis.successRate) < 95 ? '#d97706' : '#10b981'} sub="status < 400" />
+        <KpiCard label="Avg Latency" value={fmtMs(kpis.avgMs)}
+          accent={kpis.avgMs > 1000 ? '#dc2626' : kpis.avgMs > 500 ? '#d97706' : undefined} />
+        <KpiCard label="P95 Latency" value={fmtMs(kpis.p95)}
+          accent={kpis.p95 > 2000 ? '#dc2626' : kpis.p95 > 1000 ? '#d97706' : undefined} />
+        <KpiCard label="Errors" value={String(kpis.errors)}
+          accent={kpis.errors > 0 ? '#dc2626' : '#10b981'} sub="status ≥ 400" />
+      </Box>
+
+      {/* ── Filters ── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+        {/* Source */}
+        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {(['all', 'beam', 'webhook'] as SrcFilter[]).map(s => (
+            <Box
+              key={s}
+              onClick={() => setSrcF(s)}
+              data-ai-analyzable="true"
+              data-ai-description={`Filter network traffic by source: ${s === 'all' ? 'All Sources' : s === 'beam' ? 'Inbound Beam SDK' : 'Outbound Webhooks'}.`}
+              sx={filterBtn(srcF === s)}>
+              {s === 'all' ? 'All Sources' : s === 'beam' ? '↑ Beam' : '↓ Webhooks'}
+            </Box>
+          ))}
+        </Stack>
+        {/* Status */}
+        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {(['all', '2xx', '4xx', '5xx'] as StatusF[]).map(s => (
+            <Box
+              key={s}
+              onClick={() => setStatF(s)}
+              data-ai-analyzable="true"
+              data-ai-description={`Filter network traffic by HTTP status code: ${s === 'all' ? 'Any Status' : s}.`}
+              sx={filterBtn(statF === s)}>
+              {s === 'all' ? 'Any Status' : s}
+            </Box>
+          ))}
+        </Stack>
+        {/* Time range */}
+        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {(['1h', '6h', '24h', '7d'] as TimeF[]).map(t => (
+            <Box key={t} onClick={() => setTimeF(t)} sx={filterBtn(timeF === t)}>{t}</Box>
+          ))}
+        </Stack>
+        {/* Search */}
+        <TextField
+          size="small" placeholder="Search endpoint, customer, txn…"
+          value={search} onChange={e => setSearch(e.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} /></InputAdornment> }}
+          sx={{
+            ml: 'auto', minWidth: 260,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '2px', fontSize: '0.8125rem',
+              bgcolor: '#f8fafc', '& fieldset': { borderColor: '#e2e8f0' }
+            },
+          }}
+        />
+        <Tooltip title={`${filtered.length} entries`}>
+          <Chip label={filtered.length} size="small"
+            sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, borderRadius: '3px', height: 28 }} />
+        </Tooltip>
+      </Box>
+      {/* </Box> */}
+
 
       {/* ── Main split: table + inspector ── */}
       <Box sx={{ display: 'flex', height: 'calc(100vh - 390px)', minHeight: 380, mx: 4, mb: 3, border: '1px solid #eef0f4', overflow: 'hidden' }}>
@@ -698,11 +715,15 @@ export default function NetworkPage() {
         {/* Log table */}
         <Box sx={{ flex: selected ? '0 0 55%' : '1', overflow: 'auto', borderRight: selected ? '1px solid #eef0f4' : 'none' }}>
           {/* Table header */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '90px 70px 52px 1fr 58px 130px 72px',
-            px: 2, py: 1.25, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4', position: 'sticky', top: 0, zIndex: 1 }}>
+          <Box sx={{
+            display: 'grid', gridTemplateColumns: '90px 70px 52px 1fr 58px 130px 72px',
+            px: 2, py: 1.25, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4', position: 'sticky', top: 0, zIndex: 1
+          }}>
             {['Time', 'Source', 'Method', 'Endpoint / Stream', 'Status', 'Latency', 'Size'].map(h => (
-              <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
-                textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</Typography>
+              <Typography key={h} sx={{
+                fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
+                textTransform: 'uppercase', letterSpacing: '0.08em'
+              }}>{h}</Typography>
             ))}
           </Box>
 
@@ -742,21 +763,25 @@ export default function NetworkPage() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   {e.source === 'beam'
                     ? <CallReceivedIcon sx={{ fontSize: '0.7rem', color: '#2563eb' }} />
-                    : <CallMadeIcon     sx={{ fontSize: '0.7rem', color: '#7c3aed' }} />}
+                    : <CallMadeIcon sx={{ fontSize: '0.7rem', color: '#7c3aed' }} />}
                   <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'monospace' }}>
                     {e.method}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Typography sx={{
+                    fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  }}>
                     {e.source === 'webhook'
                       ? e.endpoint.replace('https://', '').replace('http://', '')
                       : e.endpoint}
                   </Typography>
                   {tag && (
-                    <Typography sx={{ fontSize: '0.5625rem', color: e.source === 'beam' ? '#2563eb' : '#7c3aed',
-                      fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    <Typography sx={{
+                      fontSize: '0.5625rem', color: e.source === 'beam' ? '#2563eb' : '#7c3aed',
+                      fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase'
+                    }}>
                       {tag}
                     </Typography>
                   )}
@@ -781,8 +806,10 @@ export default function NetworkPage() {
                   {selected.method}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace', flex: 1,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{
+                fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace', flex: 1,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+              }}>
                 {selected.endpoint}
               </Typography>
               <StatusBadge code={selected.status} />
@@ -794,7 +821,8 @@ export default function NetworkPage() {
 
             {/* Tabs */}
             <Tabs value={detailTab} onChange={(_, v) => setDetailTab(v)}
-              sx={{ borderBottom: '1px solid #eef0f4', minHeight: 36, flexShrink: 0,
+              sx={{
+                borderBottom: '1px solid #eef0f4', minHeight: 36, flexShrink: 0,
                 '& .MuiTab-root': { minHeight: 36, fontSize: '0.75rem', fontFamily: 'Jost', textTransform: 'none', py: 0.75, px: 1.5 },
                 '& .Mui-selected': { color: `${colorPalette.primary} !important`, fontWeight: 600 },
                 '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: '2px' },
@@ -813,20 +841,24 @@ export default function NetworkPage() {
                 <Stack spacing={2}>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
                     {[
-                      ['Time',      fmtAbs(selected.ts)],
-                      ['Latency',   fmtMs(selected.ms)],
-                      ['Size',      fmtBytes(selected.bytes)],
+                      ['Time', fmtAbs(selected.ts)],
+                      ['Latency', fmtMs(selected.ms)],
+                      ['Size', fmtBytes(selected.bytes)],
                       ['Source IP', selected.ip ?? '—'],
-                      ['Customer',  selected.customerId ?? '—'],
-                      ['Txn ID',    selected.txId ?? '—'],
-                      ['Stream',    selected.stream ?? selected.event ?? '—'],
-                      ['Retries',   selected.retries ? `${selected.retries.length} attempts` : '—'],
+                      ['Customer', selected.customerId ?? '—'],
+                      ['Txn ID', selected.txId ?? '—'],
+                      ['Stream', selected.stream ?? selected.event ?? '—'],
+                      ['Retries', selected.retries ? `${selected.retries.length} attempts` : '—'],
                     ].map(([k, v]) => (
                       <Box key={k}>
-                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8',
-                          textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>{k}</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
-                          wordBreak: 'break-all' }}>{v}</Typography>
+                        <Typography sx={{
+                          fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8',
+                          textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25
+                        }}>{k}</Typography>
+                        <Typography sx={{
+                          fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
+                          wordBreak: 'break-all'
+                        }}>{v}</Typography>
                       </Box>
                     ))}
                   </Box>
@@ -842,18 +874,24 @@ export default function NetworkPage() {
 
                   {selected.retries && selected.retries.length > 0 && (
                     <Box>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                        textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                      <Typography sx={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1
+                      }}>
                         Retry Timeline
                       </Typography>
                       <Stack spacing={0.75}>
                         {selected.retries.map(r => {
                           const ok = r.status < 400
                           return (
-                            <Box key={r.attempt} sx={{ display: 'flex', alignItems: 'center', gap: 1.25,
-                              p: 1, bgcolor: ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${ok ? '#86efac' : '#fca5a5'}` }}>
-                              <Box sx={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                                bgcolor: ok ? '#10b981' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Box key={r.attempt} sx={{
+                              display: 'flex', alignItems: 'center', gap: 1.25,
+                              p: 1, bgcolor: ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${ok ? '#86efac' : '#fca5a5'}`
+                            }}>
+                              <Box sx={{
+                                width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                                bgcolor: ok ? '#10b981' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}>
                                 {ok
                                   ? <CheckCircleOutlineIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />
                                   : <ReplayIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />}
@@ -885,16 +923,20 @@ export default function NetworkPage() {
               {detailTab === 1 && (
                 <Stack spacing={2}>
                   <Box>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                      textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875 }}>Headers</Typography>
+                    <Typography sx={{
+                      fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                      textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875
+                    }}>Headers</Typography>
                     <Box sx={{ p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
                       <HeadersView headers={selected.reqHeaders} />
                     </Box>
                   </Box>
                   <Box>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.875 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                        textTransform: 'uppercase', letterSpacing: '0.08em' }}>Body</Typography>
+                      <Typography sx={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        textTransform: 'uppercase', letterSpacing: '0.08em'
+                      }}>Body</Typography>
                       <Tooltip title={copied ? 'Copied!' : 'Copy body'}>
                         <IconButton size="small" onClick={() => copy(selected.reqBody)}
                           sx={{ color: '#94a3b8', p: 0.375 }}>
@@ -904,15 +946,18 @@ export default function NetworkPage() {
                     </Stack>
                     <Box sx={{ p: 1.5, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 340 }}>
                       <Box component="pre"
-                        dangerouslySetInnerHTML={{ __html: selected.reqBody
-                          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                          .replace(/"([^"]+)":/g,'<span style="color:#a78bfa">"$1"</span>:')
-                          .replace(/: "([^"]*)"/g,': <span style="color:#7dd3fc">"$1"</span>')
-                          .replace(/: (-?\d+\.?\d*)/g,': <span style="color:#4ade80">$1</span>')
-                          .replace(/: (true|false|null)/g,': <span style="color:#fb923c">$1</span>')
+                        dangerouslySetInnerHTML={{
+                          __html: selected.reqBody
+                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                            .replace(/"([^"]+)":/g, '<span style="color:#a78bfa">"$1"</span>:')
+                            .replace(/: "([^"]*)"/g, ': <span style="color:#7dd3fc">"$1"</span>')
+                            .replace(/: (-?\d+\.?\d*)/g, ': <span style="color:#4ade80">$1</span>')
+                            .replace(/: (true|false|null)/g, ': <span style="color:#fb923c">$1</span>')
                         }}
-                        sx={{ m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, monospace',
-                          color: '#e2e8f0', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        sx={{
+                          m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, monospace',
+                          color: '#e2e8f0', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                        }}
                       />
                     </Box>
                   </Box>
@@ -933,8 +978,10 @@ export default function NetworkPage() {
                   </Stack>
                   {selected.resHeaders && (
                     <Box>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                        textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875 }}>Headers</Typography>
+                      <Typography sx={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875
+                      }}>Headers</Typography>
                       <Box sx={{ p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
                         <HeadersView headers={selected.resHeaders} />
                       </Box>
@@ -943,8 +990,10 @@ export default function NetworkPage() {
                   {selected.resBody && (
                     <Box>
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.875 }}>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                          textTransform: 'uppercase', letterSpacing: '0.08em' }}>Body</Typography>
+                        <Typography sx={{
+                          fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                          textTransform: 'uppercase', letterSpacing: '0.08em'
+                        }}>Body</Typography>
                         <Tooltip title={copied ? 'Copied!' : 'Copy body'}>
                           <IconButton size="small" onClick={() => copy(selected.resBody!)}
                             sx={{ color: '#94a3b8', p: 0.375 }}>
@@ -954,15 +1003,18 @@ export default function NetworkPage() {
                       </Stack>
                       <Box sx={{ p: 1.5, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 320 }}>
                         <Box component="pre"
-                          dangerouslySetInnerHTML={{ __html: selected.resBody
-                            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                            .replace(/"([^"]+)":/g,'<span style="color:#a78bfa">"$1"</span>:')
-                            .replace(/: "([^"]*)"/g,': <span style="color:#7dd3fc">"$1"</span>')
-                            .replace(/: (-?\d+\.?\d*)/g,': <span style="color:#4ade80">$1</span>')
-                            .replace(/: (true|false|null)/g,': <span style="color:#fb923c">$1</span>')
+                          dangerouslySetInnerHTML={{
+                            __html: selected.resBody
+                              .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                              .replace(/"([^"]+)":/g, '<span style="color:#a78bfa">"$1"</span>:')
+                              .replace(/: "([^"]*)"/g, ': <span style="color:#7dd3fc">"$1"</span>')
+                              .replace(/: (-?\d+\.?\d*)/g, ': <span style="color:#4ade80">$1</span>')
+                              .replace(/: (true|false|null)/g, ': <span style="color:#fb923c">$1</span>')
                           }}
-                          sx={{ m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, monospace',
-                            color: '#e2e8f0', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                          sx={{
+                            m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, monospace',
+                            color: '#e2e8f0', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                          }}
                         />
                       </Box>
                     </Box>
@@ -974,22 +1026,30 @@ export default function NetworkPage() {
               {detailTab === 3 && (
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
-                      textTransform: 'uppercase', letterSpacing: '0.08em' }}>Replay with cURL</Typography>
+                    <Typography sx={{
+                      fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                      textTransform: 'uppercase', letterSpacing: '0.08em'
+                    }}>Replay with cURL</Typography>
                     <Box onClick={() => copy(makeCurl(selected))}
-                      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, cursor: 'pointer',
+                      sx={{
+                        display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, cursor: 'pointer',
                         bgcolor: copied ? '#f0fdf4' : colorPalette.primary, border: '1px solid',
-                        borderColor: copied ? '#86efac' : colorPalette.primary, transition: 'all 0.15s' }}>
+                        borderColor: copied ? '#86efac' : colorPalette.primary, transition: 'all 0.15s'
+                      }}>
                       <ContentCopyIcon sx={{ fontSize: '0.75rem', color: copied ? '#10b981' : '#fff' }} />
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700,
-                        color: copied ? '#10b981' : '#fff', fontFamily: 'Jost' }}>
+                      <Typography sx={{
+                        fontSize: '0.6875rem', fontWeight: 700,
+                        color: copied ? '#10b981' : '#fff', fontFamily: 'Jost'
+                      }}>
                         {copied ? 'Copied!' : 'Copy'}
                       </Typography>
                     </Box>
                   </Stack>
                   <Box sx={{ p: 1.75, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto' }}>
-                    <Box component="pre" sx={{ m: 0, fontSize: '0.7rem', fontFamily: 'SF Mono, Fira Code, monospace',
-                      color: '#e2e8f0', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    <Box component="pre" sx={{
+                      m: 0, fontSize: '0.7rem', fontFamily: 'SF Mono, Fira Code, monospace',
+                      color: '#e2e8f0', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                    }}>
                       {makeCurl(selected)}
                     </Box>
                   </Box>
@@ -1093,7 +1153,7 @@ export default function NetworkPage() {
             {Number(statusDist.p5) > 0 && <Box sx={{ flex: statusDist.s5, bgcolor: '#dc2626', transition: 'flex 0.4s' }} />}
           </Box>
           {[
-            { label: '2xx Success',      count: statusDist.s2, pct: statusDist.p2, color: '#10b981', bg: '#f0fdf4' },
+            { label: '2xx Success', count: statusDist.s2, pct: statusDist.p2, color: '#10b981', bg: '#f0fdf4' },
             { label: '4xx Client Error', count: statusDist.s4, pct: statusDist.p4, color: '#d97706', bg: '#fffbeb' },
             { label: '5xx Server Error', count: statusDist.s5, pct: statusDist.p5, color: '#dc2626', bg: '#fef2f2' },
           ].map(({ label, count, pct, color, bg }) => (
@@ -1117,6 +1177,6 @@ export default function NetworkPage() {
           </Box>
         </Box>
       </Box>
-    </DashboardLayout>
+    </Box >
   )
 }

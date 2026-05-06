@@ -12,9 +12,10 @@ import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LoginAttemptAlert from './LoginAttemptAlert'
 import GeoAccessNotification from './GeoAccessNotification'
+import { Outlet } from 'react-router-dom'
 
 interface DashboardLayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
@@ -111,7 +112,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <EurekaProvider>
         <DashboardEventsProvider>
           <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-            {children}
+            {children || <Outlet />}
           </DashboardContent>
         </DashboardEventsProvider>
       </EurekaProvider>
