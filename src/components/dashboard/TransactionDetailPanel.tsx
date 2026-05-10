@@ -16,6 +16,7 @@ import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined'
+import { getDisplayTimezone } from '@/utils/dateTime'
 
 interface Props {
   transaction: Transaction | null
@@ -53,6 +54,7 @@ function fmtDate(iso?: string) {
     return new Intl.DateTimeFormat('en-NG', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZone: getDisplayTimezone(),
       timeZoneName: 'short',
     }).format(new Date(iso))
   } catch { return iso }

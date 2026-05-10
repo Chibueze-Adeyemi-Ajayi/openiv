@@ -9,6 +9,7 @@ import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import InteractionDetailPanel from '@/components/dashboard/InteractionDetailPanel'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useNavigate } from 'react-router-dom'
 
 const PAGE_SIZE = 20
@@ -45,6 +46,7 @@ function determineStatus(record: BeamRecord) {
 }
 
 export default function BehavioralPatternsPage() {
+  const user = useCurrentUser()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -299,10 +301,10 @@ export default function BehavioralPatternsPage() {
                 {/* Date / Time */}
                 <Box sx={{ overflow: 'hidden' }}>
                   <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                    {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(timestamp))}
+                    {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(timestamp))}
                   </Typography>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
-                    {new Intl.DateTimeFormat('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(timestamp))}
+                    {new Intl.DateTimeFormat('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(timestamp))}
                   </Typography>
                 </Box>
 

@@ -29,6 +29,7 @@ export interface Transaction {
   narration?: string
   deviceId?: string
   ipAddress?: string
+  seen: boolean
 }
 
 export interface TransactionPage {
@@ -72,6 +73,7 @@ export interface TransactionListParams {
   channel?: string
   minRisk?: number
   maxRisk?: number
+  sort?: string
 }
 
 export const transactionApi = {
@@ -86,6 +88,7 @@ export const transactionApi = {
     if (params.channel)           qs.set('channel',       params.channel)
     if (params.minRisk != null)   qs.set('minRisk',       String(params.minRisk))
     if (params.maxRisk != null)   qs.set('maxRisk',       String(params.maxRisk))
+    if (params.sort)              qs.set('sort',          params.sort)
     const query = qs.toString()
     return apiRequest<TransactionPage>(`/api/v1/transactions${query ? '?' + query : ''}`)
   },
@@ -99,6 +102,9 @@ export const transactionApi = {
     apiRequest<{ imported: number }>('/api/v1/transactions/import', {
       body: { transactions: rows },
     }),
+
+  markSeen: (id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/transactions/${id}/seen`, { method: 'PATCH' }),
 
   exportCsv: async (params: TransactionListParams = {}) => {
     const qs = new URLSearchParams()

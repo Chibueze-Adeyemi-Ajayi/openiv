@@ -1,4 +1,5 @@
 import { Box, Typography, Stack, Chip, Skeleton } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import { useActivityStream, type ActivityEventItem } from '@/hooks/useActivityStream'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
@@ -42,6 +43,16 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
   const { events: hookEvents, connected: hookConnected } = useActivityStream()
   const events = propEvents ?? hookEvents
   const connected = propConnected ?? hookConnected
+  const navigate = useNavigate()
+
+  const handleEventClick = (e: ActivityEventItem) => {
+    if (!e.entityId) return
+    if (e.entityType === 'case') {
+      navigate(`/dashboard/aml?case=${encodeURIComponent(e.entityId)}`)
+    } else if (e.entityType === 'transaction') {
+      navigate(`/dashboard/transactions?tx=${encodeURIComponent(e.entityId)}`)
+    }
+  }
 
   return (
     <Box
@@ -88,18 +99,20 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
 
         {events.map((e) => {
           const cfg = severityConfig[e.severity] ?? severityConfig.info
+          const navigable = !!e.entityId && (e.entityType === 'case' || e.entityType === 'transaction')
           return (
             <Box
               key={e.id}
+              onClick={() => handleEventClick(e)}
               data-ai-analyzable="true"
               data-ai-description={`Compliance Event: ${e.title}. ${e.detail ? `Details: ${e.detail}. ` : ''}Severity: ${e.severity}. Action by: ${e.actor}.`}
               sx={{
                 px: 3, py: 1.75,
                 borderBottom: '1px solid #f4f5f7',
                 display: 'flex', gap: 1.5,
-                cursor: 'pointer',
+                cursor: navigable ? 'pointer' : 'default',
                 transition: 'background 0.15s',
-                '&:hover': { bgcolor: '#fafbfc' },
+                '&:hover': { bgcolor: navigable ? '#fafbfc' : 'transparent' },
                 '&:last-child': { borderBottom: 'none' },
                 animation: 'fadeIn 0.3s ease',
                 '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(-4px)' }, to: { opacity: 1, transform: 'translateY(0)' } },

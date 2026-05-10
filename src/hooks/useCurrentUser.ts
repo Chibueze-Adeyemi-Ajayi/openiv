@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { authApi } from '@/api/auth'
+import { setDisplayTimezone } from '@/utils/dateTime'
 
 export interface CurrentUser {
   email: string
@@ -7,6 +8,7 @@ export interface CurrentUser {
   role: string | null
   /** First name extracted from fullName, or local part of email as fallback. */
   firstName: string
+  timezone: string
 }
 
 export function useCurrentUser(): CurrentUser | null {
@@ -20,7 +22,8 @@ export function useCurrentUser(): CurrentUser | null {
         const firstName = fullName
           ? fullName.split(' ')[0]
           : email.split('@')[0]
-        setUser({ email, fullName, role: res.role ?? null, firstName })
+        if (res.timezone) setDisplayTimezone(res.timezone)
+        setUser({ email, fullName, role: res.role ?? null, firstName, timezone: res.timezone ?? 'Africa/Lagos' })
       })
       .catch(() => {})
   }, [])

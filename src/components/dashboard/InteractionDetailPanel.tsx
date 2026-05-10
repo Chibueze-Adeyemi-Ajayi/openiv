@@ -4,6 +4,7 @@ import { colorPalette } from '@/theme'
 import { type BeamRecord } from '@/api/beam'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined'
+import { getDisplayTimezone } from '@/utils/dateTime'
 
 interface Props {
   beam: BeamRecord | null
@@ -25,6 +26,7 @@ function fmtDate(iso?: string) {
     return new Intl.DateTimeFormat('en-NG', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZone: getDisplayTimezone(),
       timeZoneName: 'short',
     }).format(new Date(iso))
   } catch { return iso }

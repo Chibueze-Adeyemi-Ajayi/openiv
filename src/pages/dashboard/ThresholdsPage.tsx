@@ -483,12 +483,23 @@ export default function ThresholdsPage() {
     if (!amlPendingSave || saving || !amlSettings) return
     setSaving(true)
     try {
-      await amlApi.updateSettings({
-        autoOpenCase: amlSettings.autoOpenCase,
-        ...amlPendingSave
-      })
+      const payload = {
+        autoOpenCase: amlSettings.autoOpenCase ?? false,
+        riskScoreNormalThreshold: amlPendingSave.riskScoreNormalThreshold ?? amlSettings.riskScoreNormalThreshold ?? 45,
+        riskScoreFlagThreshold: amlPendingSave.riskScoreFlagThreshold ?? amlSettings.riskScoreFlagThreshold ?? 45,
+        riskScoreCaseThreshold: amlPendingSave.riskScoreCaseThreshold ?? amlSettings.riskScoreCaseThreshold ?? 85,
+        behRiskScoreNormalThreshold: amlPendingSave.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45,
+        behRiskScoreFlagThreshold: amlPendingSave.behRiskScoreFlagThreshold ?? amlSettings.behRiskScoreFlagThreshold ?? 45,
+        behRiskScoreCaseThreshold: amlPendingSave.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85,
+      }
+      console.log('[AML Save] Payload:', payload)
+      const res = await amlApi.updateSettings(payload)
+      console.log('[AML Save] Response:', res)
       setAmlDrafts({})
       await loadData()
+    } catch (err) {
+      console.error('[AML Save] Error:', err)
+      alert('Failed to save risk thresholds. Check console for details.')
     } finally {
       setSaving(false)
       setAmlPendingSave(null)
@@ -1550,22 +1561,22 @@ export default function ThresholdsPage() {
         changes={amlPendingSave ? [
           ...(amlPendingSave.riskScoreNormalThreshold !== undefined ? [{
             field: 'Transaction Flag Boundary',
-            from: String(amlSettings?.riskScoreNormalThreshold),
+            from: amlSettings?.riskScoreNormalThreshold !== undefined ? String(amlSettings.riskScoreNormalThreshold) : '—',
             to: String(amlPendingSave.riskScoreNormalThreshold)
           }] : []),
           ...(amlPendingSave.riskScoreCaseThreshold !== undefined ? [{
             field: 'Transaction Case Threshold',
-            from: String(amlSettings?.riskScoreCaseThreshold),
+            from: amlSettings?.riskScoreCaseThreshold !== undefined ? String(amlSettings.riskScoreCaseThreshold) : '—',
             to: String(amlPendingSave.riskScoreCaseThreshold)
           }] : []),
           ...(amlPendingSave.behRiskScoreNormalThreshold !== undefined ? [{
             field: 'Behavioral Flag Boundary',
-            from: String(amlSettings?.behRiskScoreNormalThreshold),
+            from: amlSettings?.behRiskScoreNormalThreshold !== undefined ? String(amlSettings.behRiskScoreNormalThreshold) : '—',
             to: String(amlPendingSave.behRiskScoreNormalThreshold)
           }] : []),
           ...(amlPendingSave.behRiskScoreCaseThreshold !== undefined ? [{
             field: 'Behavioral Case Threshold',
-            from: String(amlSettings?.behRiskScoreCaseThreshold),
+            from: amlSettings?.behRiskScoreCaseThreshold !== undefined ? String(amlSettings.behRiskScoreCaseThreshold) : '—',
             to: String(amlPendingSave.behRiskScoreCaseThreshold)
           }] : [])
         ] : []}

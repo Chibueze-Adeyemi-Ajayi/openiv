@@ -6,11 +6,13 @@ export interface AmlSettings {
   autoOpenCase: boolean
   caseNotificationEmails?: string[]
   riskScoreFlagThreshold: number
-  riskScoreCaseThreshold: number;
-  behRiskScoreFlagThreshold: number;
-  behRiskScoreCaseThreshold: number;
-  riskScoreNormalThreshold: number;
-  behRiskScoreNormalThreshold: number;
+  riskScoreCaseThreshold: number
+  behRiskScoreFlagThreshold: number
+  behRiskScoreCaseThreshold: number
+  riskScoreNormalThreshold: number
+  behRiskScoreNormalThreshold: number
+  beamWindowSeconds: number
+  timezone: string
 }
 
 export const amlApi = {
@@ -36,5 +38,17 @@ export const amlApi = {
   removeNotificationEmail: (email: string) =>
     apiRequest<{ settings: AmlSettings }>(`/api/v1/aml-settings/notifications/email?email=${encodeURIComponent(email)}`, {
       method: 'DELETE',
+    }),
+
+  updateBeamWindow: (beamWindowSeconds: number) =>
+    apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings/beam-window', {
+      method: 'PATCH',
+      body: { beamWindowSeconds },
+    }),
+
+  updateTimezone: (timezone: string) =>
+    apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings/timezone', {
+      method: 'PATCH',
+      body: { timezone },
     }),
 }

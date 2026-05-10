@@ -1,5 +1,5 @@
 import { Box, Typography, Stack, Button, InputBase, Chip, IconButton, Alert, Popover } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -14,6 +14,7 @@ import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 const PAGE_SIZE = 20
 
@@ -35,6 +36,17 @@ const filterToFlagged: Record<string, FlaggedStatus | undefined> = {
 }
 
 type RiskFilter = 'any' | 'high' | 'medium' | 'low'
+type SortOption = 'recent' | 'oldest' | 'event_desc' | 'risk_desc' | 'risk_asc' | 'amount_desc' | 'amount_asc'
+
+const SORT_OPTIONS: { key: SortOption; label: string }[] = [
+  { key: 'recent',      label: 'Ingested: Newest'     },
+  { key: 'oldest',      label: 'Ingested: Oldest'     },
+  { key: 'event_desc',  label: 'Event date: Newest'   },
+  { key: 'risk_desc',   label: 'Risk: High → Low'     },
+  { key: 'risk_asc',    label: 'Risk: Low → High'     },
+  { key: 'amount_desc', label: 'Amount: High → Low'   },
+  { key: 'amount_asc',  label: 'Amount: Low → High'   },
+]
 
 const CHANNELS = ['Wire', 'Mobile', 'PoS', 'ATM', 'USSD'] as const
 
@@ -52,25 +64,29 @@ const RISK_TO_RANGE: Record<RiskFilter, { min?: number; max?: number }> = {
   low:    { max: 39 },
 }
 
-const GRID = '32px 100px 1fr 1fr 110px 75px 70px 88px 110px 32px'
+const GRID = '32px 100px 1fr 1fr 110px 75px 70px 88px 110px 110px 32px'
 
 export default function TransactionsPage() {
+  const user = useCurrentUser()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [active,          setActive]          = useState<string>('All')
-  const [search,          setSearch]          = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [search,          setSearch]          = useState(() => searchParams.get('tx') ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('tx') ?? '')
   const [selected,        setSelected]        = useState<string[]>([])
   const [range,           setRange]           = useState<DateRange>('30d')
   const [page,            setPage]            = useState(1)
 
-  const [channel,    setChannel]    = useState<string | null>(null)
+  const [channel,     setChannel]     = useState<string | null>(null)
   const [appliedRisk, setAppliedRisk] = useState<RiskFilter>('any')
+  const [appliedSort, setAppliedSort] = useState<SortOption>('recent')
 
   const [importOpen,  setImportOpen]  = useState(false)
   const [exporting,   setExporting]   = useState(false)
-  const [filterOpen,  setFilterOpen]  = useState(false)
+  const [filterOpen,   setFilterOpen]   = useState(false)
   const [draftChannel, setDraftChannel] = useState<string | null>(null)
   const [draftRisk,    setDraftRisk]    = useState<RiskFilter>('any')
+  const [draftSort,    setDraftSort]    = useState<SortOption>('recent')
   const filterBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const [detailTxn,  setDetailTxn]  = useState<Transaction | null>(null)
@@ -100,6 +116,7 @@ export default function TransactionsPage() {
         channel:  channel || undefined,
         minRisk:  riskRange.min,
         maxRisk:  riskRange.max,
+        sort:     appliedSort !== 'recent' ? appliedSort : undefined,
       })
       setRows(res.transactions)
       setTotal(res.total)
@@ -108,10 +125,23 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [active, debouncedSearch, page, range, channel, appliedRisk])
+  }, [active, debouncedSearch, page, range, channel, appliedRisk, appliedSort])
 
   useEffect(() => { load() }, [load])
   useEffect(() => { setPage(1) }, [active, range])
+
+  // Auto-open detail panel when navigated here with ?tx=ID (e.g. from ActivityFeed)
+  useEffect(() => {
+    const txParam = searchParams.get('tx')
+    if (!txParam || rows.length === 0) return
+    const match = rows.find(r => r.id === txParam)
+    if (match) {
+      setDetailTxn(match)
+      setDetailOpen(true)
+      // Clean up URL so reload doesn't reopen
+      setSearchParams({}, { replace: true })
+    }
+  }, [rows, searchParams, setSearchParams])
 
   const toggleSelect = (id: string) =>
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -130,14 +160,14 @@ export default function TransactionsPage() {
   }
 
   const openFilter = () => {
-    setDraftChannel(channel); setDraftRisk(appliedRisk); setFilterOpen(true)
+    setDraftChannel(channel); setDraftRisk(appliedRisk); setDraftSort(appliedSort); setFilterOpen(true)
   }
 
   const applyFilter = () => {
-    setChannel(draftChannel); setAppliedRisk(draftRisk); setPage(1); setFilterOpen(false)
+    setChannel(draftChannel); setAppliedRisk(draftRisk); setAppliedSort(draftSort); setPage(1); setFilterOpen(false)
   }
 
-  const clearFilter = () => { setDraftChannel(null); setDraftRisk('any') }
+  const clearFilter = () => { setDraftChannel(null); setDraftRisk('any'); setDraftSort('recent') }
 
   const handleExport = async () => {
     setExporting(true)
@@ -158,9 +188,16 @@ export default function TransactionsPage() {
     }
   }
 
-  const openDetail = (t: Transaction) => { setDetailTxn(t); setDetailOpen(true) }
+  const openDetail = (t: Transaction) => {
+    setDetailTxn(t)
+    setDetailOpen(true)
+    if (!t.seen) {
+      transactionApi.markSeen(t.id).catch(() => {/* best-effort */})
+      setRows(prev => prev.map(r => r.id === t.id ? { ...r, seen: true } : r))
+    }
+  }
 
-  const filterCount = (channel ? 1 : 0) + (appliedRisk !== 'any' ? 1 : 0)
+  const filterCount = (channel ? 1 : 0) + (appliedRisk !== 'any' ? 1 : 0) + (appliedSort !== 'recent' ? 1 : 0)
   const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
@@ -257,8 +294,12 @@ export default function TransactionsPage() {
               <Chip label={`Risk: ${RISK_OPTIONS.find(r => r.key === appliedRisk)?.label}`} size="small" onDelete={() => { setAppliedRisk('any'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
                 sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
             )}
+            {appliedSort !== 'recent' && (
+              <Chip label={`Sort: ${SORT_OPTIONS.find(s => s.key === appliedSort)?.label}`} size="small" onDelete={() => { setAppliedSort('recent'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
+                sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
+            )}
             <Box sx={{ flex: 1 }} />
-            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setAppliedSort('recent'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
               Clear all
             </Box>
           </Box>
@@ -276,11 +317,11 @@ export default function TransactionsPage() {
 
         {/* Table */}
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', overflowX: 'auto' }}>
-          <Box sx={{ minWidth: 1100 }}>
+          <Box sx={{ minWidth: 1210 }}>
             {/* Header */}
             <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4', alignItems: 'center' }}>
               <Box />
-              {['Reference', 'Sender', 'Recipient', 'Amount (₦)', 'Channel', 'Risk', '', 'Date / Time', ''].map(h => (
+              {['Reference', 'Sender', 'Recipient', 'Amount (₦)', 'Channel', 'Risk', '', 'Date / Time', 'System Time', ''].map(h => (
                 <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: ['Amount (₦)', 'Risk'].includes(h) ? 'right' : 'left' }}>
                   {h}
                 </Typography>
@@ -290,7 +331,7 @@ export default function TransactionsPage() {
             {/* Loading skeleton */}
             {loading && Array.from({ length: 8 }).map((_, i) => (
               <Box key={i} sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2, borderBottom: '1px solid #f4f5f7', alignItems: 'center' }}>
-                {Array.from({ length: 10 }).map((_, j) => (
+                {Array.from({ length: 11 }).map((_, j) => (
                   <Box key={j} sx={{ height: 12, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 ))}
               </Box>
@@ -315,11 +356,16 @@ export default function TransactionsPage() {
                   key={t.id}
                   data-ai-analyzable="true"
                   data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. ${fCfg ? `Status: ${fCfg.label}.` : ''} ${t.location ? `Location: ${t.location}` : ''}`}
-                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', borderBottom: '1px solid #f4f5f7', bgcolor: isSelected ? `${colorPalette.primary}06` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
+                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', borderBottom: '1px solid #f4f5f7', borderLeft: !t.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent', bgcolor: isSelected ? `${colorPalette.primary}06` : !t.seen ? `${colorPalette.primary}03` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
                 >
-                  {/* Checkbox */}
-                  <Box onClick={e => { e.stopPropagation(); toggleSelect(t.id) }} sx={{ width: 16, height: 16, border: `1.5px solid ${isSelected ? colorPalette.primary : '#cbd5e1'}`, bgcolor: isSelected ? colorPalette.primary : '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
-                    {isSelected && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
+                  {/* Checkbox + unseen dot */}
+                  <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Box onClick={e => { e.stopPropagation(); toggleSelect(t.id) }} sx={{ width: 16, height: 16, border: `1.5px solid ${isSelected ? colorPalette.primary : '#cbd5e1'}`, bgcolor: isSelected ? colorPalette.primary : '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                      {isSelected && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
+                    </Box>
+                    {!t.seen && (
+                      <Box sx={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderRadius: '50%', bgcolor: colorPalette.primary, pointerEvents: 'none' }} />
+                    )}
                   </Box>
 
                   {/* Reference */}
@@ -392,10 +438,26 @@ export default function TransactionsPage() {
                     {t.occurredAt ? (
                       <>
                         <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                          {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(t.occurredAt))}
+                          {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.occurredAt))}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
-                          {new Intl.DateTimeFormat('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t.occurredAt))}
+                          {new Intl.DateTimeFormat('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.occurredAt))}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>—</Typography>
+                    )}
+                  </Box>
+
+                  {/* System Time (createdAt — when the transaction landed in our DB) */}
+                  <Box sx={{ overflow: 'hidden' }}>
+                    {t.createdAt ? (
+                      <>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.createdAt))}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
+                          {new Intl.DateTimeFormat('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.createdAt))}
                         </Typography>
                       </>
                     ) : (
@@ -493,7 +555,18 @@ export default function TransactionsPage() {
               )
             })}
           </Box>
-<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Sort By</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
+            {SORT_OPTIONS.map(s => {
+              const on = draftSort === s.key
+              return (
+                <Box key={s.key} onClick={() => setDraftSort(s.key)} sx={{ px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: on ? colorPalette.primary : '#e2e8f0', color: on ? colorPalette.primary : '#64748b', bgcolor: on ? `${colorPalette.primary}0a` : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                  {s.label}
+                </Box>
+              )
+            })}
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
             <Button disableRipple onClick={clearFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
             <Button disableRipple onClick={applyFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
           </Box>

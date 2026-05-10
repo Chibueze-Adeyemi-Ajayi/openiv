@@ -24,6 +24,7 @@ export interface Case {
   createdAt: string
   updatedAt: string
   isAvailableForInvestigation: boolean
+  seen: boolean
 }
 
 export interface CaseActivityEntry {
@@ -94,24 +95,32 @@ export const caseApi = {
   metrics: () =>
     apiRequest<CaseMetrics>('/api/v1/cases/metrics'),
 
-  list: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number } = {}) => {
+  list: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number; sort?: string; range?: string; minRisk?: number; maxRisk?: number } = {}) => {
     const qs = new URLSearchParams()
-    if (params.status)   qs.set('status',   params.status)
-    if (params.priority) qs.set('priority', params.priority)
-    if (params.q)        qs.set('q',        params.q)
-    if (params.page)     qs.set('page',     String(params.page))
-    if (params.pageSize) qs.set('pageSize', String(params.pageSize))
+    if (params.status)           qs.set('status',   params.status)
+    if (params.priority)         qs.set('priority', params.priority)
+    if (params.q)                qs.set('q',        params.q)
+    if (params.page)             qs.set('page',     String(params.page))
+    if (params.pageSize)         qs.set('pageSize', String(params.pageSize))
+    if (params.sort)             qs.set('sort',     params.sort)
+    if (params.range)            qs.set('range',    params.range)
+    if (params.minRisk != null)  qs.set('minRisk',  String(params.minRisk))
+    if (params.maxRisk != null)  qs.set('maxRisk',  String(params.maxRisk))
     const query = qs.toString()
     return apiRequest<CasePage>(`/api/v1/cases${query ? '?' + query : ''}`)
   },
 
-  listPendingApproval: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number } = {}) => {
+  listPendingApproval: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number; sort?: string; range?: string; minRisk?: number; maxRisk?: number } = {}) => {
     const qs = new URLSearchParams()
-    if (params.status)   qs.set('status',   params.status)
-    if (params.priority) qs.set('priority', params.priority)
-    if (params.q)        qs.set('q',        params.q)
-    if (params.page)     qs.set('page',     String(params.page))
-    if (params.pageSize) qs.set('pageSize', String(params.pageSize))
+    if (params.status)           qs.set('status',   params.status)
+    if (params.priority)         qs.set('priority', params.priority)
+    if (params.q)                qs.set('q',        params.q)
+    if (params.page)             qs.set('page',     String(params.page))
+    if (params.pageSize)         qs.set('pageSize', String(params.pageSize))
+    if (params.sort)             qs.set('sort',     params.sort)
+    if (params.range)            qs.set('range',    params.range)
+    if (params.minRisk != null)  qs.set('minRisk',  String(params.minRisk))
+    if (params.maxRisk != null)  qs.set('maxRisk',  String(params.maxRisk))
     const query = qs.toString()
     return apiRequest<CasePage>(`/api/v1/cases/pending-approval${query ? '?' + query : ''}`)
   },
@@ -146,4 +155,7 @@ export const caseApi = {
 
   forTransaction: (transactionId: string) =>
     apiRequest<{ case: Case | null }>(`/api/v1/transactions/${transactionId}/case`),
+
+  markSeen: (id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/cases/${id}/seen`, { method: 'PATCH' }),
 }

@@ -24,6 +24,7 @@ export interface SessionStateResponse {
   email?: string
   role?: string
   fullName?: string
+  timezone?: string
 }
 
 export interface TotpEnrollment {

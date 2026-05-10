@@ -125,6 +125,36 @@ const BASE_RETRY_MS   = 3_000
 const MAX_RETRY_MS    = 30_000
 const SSE_URL         = '/api/v1/dashboard/events'
 
+// Two-note "ding" chime synthesized via Web Audio. Browsers gate audio behind
+// a user gesture; we silently swallow the autoplay error if the user hasn't
+// interacted with the page yet.
+function playNotificationChime() {
+  try {
+    type AudioCtor = typeof AudioContext
+    const Ctor: AudioCtor | undefined =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext
+    if (!Ctor) return
+    const ctx = new Ctor()
+    const now = ctx.currentTime
+    const tones: Array<[number, number]> = [[880, 0], [1320, 0.12]] // A5, then E6
+    tones.forEach(([freq, offset]) => {
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, now + offset)
+      gain.gain.setValueAtTime(0.0001, now + offset)
+      gain.gain.exponentialRampToValueAtTime(0.18, now + offset + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(now + offset)
+      osc.stop(now + offset + 0.24)
+    })
+    setTimeout(() => ctx.close().catch(() => {}), 600)
+  } catch {
+    // ignore — autoplay blocked or AudioContext unavailable
+  }
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function DashboardEventsProvider({ children }: { children: ReactNode }) {
@@ -273,6 +303,8 @@ export function DashboardEventsProvider({ children }: { children: ReactNode }) {
             const seen  = new Set(s.notifications.map(x => x.id))
             const fresh = incoming.filter(x => !seen.has(x.id))
             if (!fresh.length) return s
+            // New notifications arrived — chime once
+            playNotificationChime()
             return { ...s, notifications: [...fresh, ...s.notifications].slice(0, MAX_ITEMS) }
           })
         } catch { /* ignore */ }

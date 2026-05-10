@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import SidebarAIBubble from './SidebarAIBubble'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
@@ -24,6 +24,7 @@ import { authApi } from '@/api/auth'
 import { clearOnboardingState } from '@/onboarding/state'
 import { useNavigate } from 'react-router-dom'
 import { useEureka } from '@/contexts/EurekaContext'
+import { useDashboardEvents } from '@/contexts/DashboardEventsContext'
 
 interface NavItem {
   to: string
@@ -81,6 +82,7 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<{ flags: number; cases: number }>({ flags: 0, cases: 0 })
 
   // AI bubble hover tracking
   const [activeNavItem,   setActiveNavItem]   = useState<ActiveNavItem | null>(null)
@@ -88,6 +90,51 @@ export default function Sidebar() {
   const [hoveringItemTo,  setHoveringItemTo]  = useState<string | null>(null)
   const hoverTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bubbleCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { notifications } = useDashboardEvents()
+  
+  // Fetch unread counts
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/notifications/unread-counts')
+      if (res.ok) {
+        const data = await res.json()
+        setUnreadCounts(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch unread counts', err)
+    }
+  }, [])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchCounts()
+  }, [fetchCounts])
+
+  // Real-time update: refresh counts when notifications array changes (new push)
+  useEffect(() => {
+    if (notifications.length > 0) {
+      fetchCounts()
+    }
+  }, [notifications, fetchCounts])
+
+  // Auto-clear logic: when user views a page, mark that category as read
+  useEffect(() => {
+    const markAsRead = async (category: 'flags' | 'cases') => {
+      try {
+        await fetch(`/api/v1/notifications/read-category/${category}`, { method: 'PATCH' })
+        fetchCounts() // update sidebar badges
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    if (location.pathname === '/dashboard/transactions' && unreadCounts.flags > 0) {
+      markAsRead('flags')
+    } else if (location.pathname === '/dashboard/aml' && unreadCounts.cases > 0) {
+      markAsRead('cases')
+    }
+  }, [location.pathname, unreadCounts.flags, unreadCounts.cases, fetchCounts])
 
   const handleNavMouseEnter = (item: NavItem, e: React.MouseEvent<HTMLElement>) => {
     if (!eurekaEnabled) return
@@ -284,23 +331,34 @@ export default function Sidebar() {
                     >
                       {item.label}
                     </Typography>
-                    {(item as any).badge && (
-                      <Chip
-                        label={(item as any).badge}
-                        size="small"
-                        sx={{
-                          bgcolor: (item as any).badge === 'ADMIN' ? '#f1f5f9' : '#dc2626',
-                          color: (item as any).badge === 'ADMIN' ? '#64748b' : '#ffffff',
-                          fontWeight: 700,
-                          fontSize: '0.5625rem',
-                          letterSpacing: '0.08em',
-                          borderRadius: 0,
-                          height: 18,
-                          minWidth: 22,
-                          '& .MuiChip-label': { px: 0.625 },
-                        }}
-                      />
-                    )}
+                    {(() => {
+                      let badgeValue = item.badge;
+                      if (item.to === '/dashboard/transactions' && unreadCounts.flags > 0) {
+                        badgeValue = unreadCounts.flags.toString();
+                      } else if (item.to === '/dashboard/aml' && unreadCounts.cases > 0) {
+                        badgeValue = unreadCounts.cases.toString();
+                      }
+                      
+                      if (!badgeValue) return null;
+
+                      return (
+                        <Chip
+                          label={badgeValue}
+                          size="small"
+                          sx={{
+                            bgcolor: badgeValue === 'ADMIN' ? '#f1f5f9' : '#dc2626',
+                            color: badgeValue === 'ADMIN' ? '#64748b' : '#ffffff',
+                            fontWeight: 700,
+                            fontSize: '0.5625rem',
+                            letterSpacing: '0.08em',
+                            borderRadius: 0,
+                            height: 18,
+                            minWidth: 22,
+                            '& .MuiChip-label': { px: 0.625 },
+                          }}
+                        />
+                      );
+                    })()}
                   </Box>
                 </NavLink>
               )

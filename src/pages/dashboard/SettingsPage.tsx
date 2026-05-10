@@ -1,6 +1,5 @@
-import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton } from '@mui/material'
+import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton, Slider } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-// import { colorPalette } from '@/theme'
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import GeoFenceDialog from '@/components/dashboard/GeoFenceDialog'
@@ -11,9 +10,12 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined'
 import { useEureka } from '@/contexts/EurekaContext'
 import { useSandbox } from '@/contexts/SandboxContext'
 import { amlApi, type AmlSettings } from '@/api/aml'
+import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined'
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -39,6 +41,121 @@ const inputSx = {
     px: '14px',
     color: '#0f172a',
   },
+}
+
+function TimezoneSection() {
+  const [currentTz, setCurrentTz] = useState<string>('Africa/Lagos')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savedTz, setSavedTz] = useState<string>('Africa/Lagos')
+
+  const timezones = [
+    { label: 'Lagos, Nigeria (WAT)', value: 'Africa/Lagos' },
+    { label: 'Accra, Ghana (GMT)', value: 'Africa/Accra' },
+    { label: 'Nairobi, Kenya (EAT)', value: 'Africa/Nairobi' },
+    { label: 'Johannesburg, SA (SAST)', value: 'Africa/Johannesburg' },
+    { label: 'London, UK (GMT/BST)', value: 'Europe/London' },
+    { label: 'New York, USA (EST/EDT)', value: 'America/New_York' },
+    { label: 'Dubai, UAE (GST)', value: 'Asia/Dubai' },
+    { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+  ]
+
+  useEffect(() => {
+    amlApi.getSettings()
+      .then(res => {
+        const tz = res.settings?.timezone || 'Africa/Lagos'
+        setCurrentTz(tz)
+        setSavedTz(tz)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await amlApi.updateTimezone(currentTz)
+      setSavedTz(currentTz)
+    } catch (err) {
+      console.error('Failed to update timezone:', err)
+      alert('Failed to update timezone')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return null
+
+  const isDirty = currentTz !== savedTz
+
+  return (
+    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        <LanguageOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+        <Box>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            Institution Timezone
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            Configure the default timezone for your institution's transaction reporting and analysis
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={{ p: 3 }}>
+        <Grid container spacing={3} alignItems="flex-end">
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography sx={labelSx}>Preferred Timezone</Typography>
+            <TextField
+              select
+              fullWidth
+              value={currentTz}
+              onChange={(e) => setCurrentTz(e.target.value)}
+              SelectProps={{ native: true }}
+              sx={inputSx}
+            >
+              {timezones.map((tz) => (
+                <option key={tz.value} value={tz.value}>
+                  {tz.label}
+                </option>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                onClick={handleSave}
+                disabled={!isDirty || saving}
+                sx={{
+                  bgcolor: colorPalette.primary,
+                  color: '#fff',
+                  px: 3,
+                  py: 1.25,
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  fontFamily: 'Jost',
+                  borderRadius: 0,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: '#1a3896' },
+                  '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' }
+                }}
+              >
+                {saving ? 'Saving...' : 'Update Timezone'}
+              </Button>
+              {!isDirty && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: '#10b981' }}>
+                  <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem' }} />
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost' }}>Up to date</Typography>
+                </Box>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 2, lineHeight: 1.5 }}>
+          <Box component="span" sx={{ fontWeight: 700, color: '#64748b' }}>Note:</Box> Changing the timezone affects how transaction timestamps are interpreted during ingestion and how they are displayed across the dashboard. Existing transactions will be re-aligned to this zone in the UI.
+        </Typography>
+      </Box>
+    </Box>
+  )
 }
 
 function EurekaCompanionSection() {
@@ -397,6 +514,498 @@ function AmlSettingsSection() {
   )
 }
 
+// ── Beam Window widget constants ──────────────────────────────────────────────
+
+const BEAM_PRESETS = [
+  { seconds: 30,    display: '30 seconds',  short: '30s',  major: true  },
+  { seconds: 60,    display: '1 minute',    short: '1m',   major: false },
+  { seconds: 120,   display: '2 minutes',   short: '2m',   major: false },
+  { seconds: 180,   display: '3 minutes',   short: '3m',   major: true  },
+  { seconds: 300,   display: '5 minutes',   short: '5m',   major: false },
+  { seconds: 600,   display: '10 minutes',  short: '10m',  major: true  },
+  { seconds: 900,   display: '15 minutes',  short: '15m',  major: false },
+  { seconds: 1800,  display: '30 minutes',  short: '30m',  major: true  },
+  { seconds: 3600,  display: '1 hour',      short: '1h',   major: true  },
+  { seconds: 7200,  display: '2 hours',     short: '2h',   major: false },
+  { seconds: 21600, display: '6 hours',     short: '6h',   major: true  },
+  { seconds: 43200, display: '12 hours',    short: '12h',  major: false },
+  { seconds: 86400, display: '24 hours',    short: '24h',  major: true  },
+] as const
+
+function secondsToIdx(s: number): number {
+  return BEAM_PRESETS.reduce((best, p, i) =>
+    Math.abs(p.seconds - s) < Math.abs(BEAM_PRESETS[best].seconds - s) ? i : best, 0)
+}
+
+const QUICK_PICKS = [0, 3, 5, 7, 8] as const
+
+interface BeamProfile {
+  level: string; bars: number; color: string
+  bgColor: string; borderColor: string; label: string; desc: string
+  implications: Array<{ type: 'good' | 'warn' | 'bad'; text: string }>
+}
+
+function getBeamProfile(idx: number): BeamProfile {
+  if (idx <= 1) return {
+    level: 'MAXIMUM', bars: 5, color: '#059669', bgColor: '#ecfdf5', borderColor: '#6ee7b7',
+    label: 'Maximum Security',
+    desc: 'Extremely tight. Only transactions arriving almost instantly after their recorded time are accepted.',
+    implications: [
+      { type: 'good', text: 'Replay window under 1 minute — best-in-class protection' },
+      { type: 'warn', text: 'Source systems must maintain near-perfect clock synchronisation' },
+      { type: 'warn', text: 'High-latency or batch integrations may trigger false positives' },
+    ],
+  }
+  if (idx <= 3) return {
+    level: 'HIGH', bars: 4, color: '#16a34a', bgColor: '#f0fdf4', borderColor: '#86efac',
+    label: 'High Security',
+    desc: 'Strong protection with practical tolerance. Recommended default for real-time financial APIs.',
+    implications: [
+      { type: 'good', text: 'Transactions older than 3 min on arrival are flagged automatically' },
+      { type: 'good', text: 'Normal API latency (< 30 seconds) always passes through' },
+      { type: 'warn', text: 'Batch imports with old timestamps will be flagged as anomalies' },
+    ],
+  }
+  if (idx <= 5) return {
+    level: 'STANDARD', bars: 3, color: '#2563eb', bgColor: '#eff6ff', borderColor: '#93c5fd',
+    label: 'Standard',
+    desc: 'Balanced window for integrations with minor clock drift. Provides reasonable protection for most environments.',
+    implications: [
+      { type: 'good', text: 'Replay attacks older than 10 minutes are blocked automatically' },
+      { type: 'good', text: 'Tolerates moderate clock drift in source systems' },
+      { type: 'warn', text: 'Wider window extends the potential replay abuse period slightly' },
+    ],
+  }
+  if (idx <= 7) return {
+    level: 'LENIENT', bars: 2, color: '#d97706', bgColor: '#fffbeb', borderColor: '#fcd34d',
+    label: 'Lenient',
+    desc: 'Wide tolerance for high-latency or legacy systems. Fix source clock sync rather than widening this window.',
+    implications: [
+      { type: 'bad',  text: 'Replay attacks up to 30 minutes old may go undetected' },
+      { type: 'good', text: 'Tolerates high API latency or significant clock drift' },
+      { type: 'warn', text: 'Review source system clock accuracy and consider tightening' },
+    ],
+  }
+  if (idx <= 9) return {
+    level: 'WEAK', bars: 1, color: '#ea580c', bgColor: '#fff7ed', borderColor: '#fdba74',
+    label: 'Weak Security',
+    desc: 'A 1–2 hour window significantly weakens replay protection — attackers have more time to reuse transactions.',
+    implications: [
+      { type: 'bad', text: 'Replay attacks up to 2 hours old will NOT be detected' },
+      { type: 'bad', text: 'Time anomaly detection is substantially weakened' },
+      { type: 'warn', text: 'Use only as a temporary measure while resolving clock issues' },
+    ],
+  }
+  return {
+    level: 'CRITICAL', bars: 0, color: '#dc2626', bgColor: '#fef2f2', borderColor: '#fca5a5',
+    label: 'Critical Risk',
+    desc: 'Extremely wide window. Transactions many hours old will not be flagged — your institution is highly exposed.',
+    implications: [
+      { type: 'bad', text: 'Transactions up to 24 hours old bypass all time anomaly checks' },
+      { type: 'bad', text: 'High vulnerability to fraud via transaction replay attacks' },
+      { type: 'bad', text: 'Not recommended for any production financial environment' },
+    ],
+  }
+}
+
+function BeamWindowSection() {
+  const [savedSeconds, setSavedSeconds] = useState(180)
+  const [draftIdx, setDraftIdx]         = useState(secondsToIdx(180))
+  const [loading, setLoading]           = useState(true)
+  const [totpOpen, setTotpOpen]         = useState(false)
+  const [saving, setSaving]             = useState(false)
+
+  useEffect(() => {
+    amlApi.getSettings()
+      .then(res => {
+        const s = res.settings?.beamWindowSeconds ?? 180
+        setSavedSeconds(s)
+        setDraftIdx(secondsToIdx(s))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const savedIdx   = secondsToIdx(savedSeconds)
+  const isDirty    = draftIdx !== savedIdx
+  const preset     = BEAM_PRESETS[draftIdx]
+  const profile    = getBeamProfile(draftIdx)
+
+  const doSave = async () => {
+    setSaving(true)
+    try {
+      const res = await amlApi.updateBeamWindow(preset.seconds)
+      const newSeconds = res.settings.beamWindowSeconds
+      setSavedSeconds(newSeconds)
+      setDraftIdx(secondsToIdx(newSeconds))
+    } catch { /* value stays at draft, user can retry */ }
+    finally {
+      setSaving(false)
+      setTotpOpen(false)
+    }
+  }
+
+  if (loading) return null
+
+  const impIcon = (type: 'good' | 'warn' | 'bad') =>
+    type === 'good' ? '✓' : type === 'warn' ? '⚠' : '✕'
+  const impColors = {
+    good: { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' },
+    warn: { bg: '#fffbeb', border: '#fde68a', text: '#92400e' },
+    bad:  { bg: '#fef2f2', border: '#fecaca', text: '#7f1d1d' },
+  }
+
+  return (
+    <Box
+      data-ai-analyzable="true"
+      data-ai-description="Beam Time Window: Interactive security tuner for transaction timestamp tolerance. Drag the slider to set how wide the acceptance window is. Security strength indicator updates in real time."
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}
+    >
+      {/* Header */}
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        <TimerOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            Beam Time Window
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            Set how closely a transaction's recorded date must match its arrival time — tighter means stronger fraud protection
+          </Typography>
+        </Box>
+        {savedIdx !== secondsToIdx(180) && (
+          <Box
+            onClick={() => setDraftIdx(secondsToIdx(180))}
+            sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', cursor: 'pointer', '&:hover': { color: colorPalette.primary } }}
+          >
+            Reset to default
+          </Box>
+        )}
+      </Box>
+
+      {/* Body */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 340px' }, gap: 0 }}>
+
+        {/* ── LEFT: slider zone ── */}
+        <Box sx={{ px: 4, pt: 4, pb: isDirty ? 0 : 4, borderRight: { lg: '1px solid #eef0f4' } }}>
+
+          {/* Large time display */}
+          <Box sx={{ textAlign: 'center', mb: 5 }}>
+            <Typography
+              sx={{
+                fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                fontWeight: 800,
+                fontFamily: 'Jost',
+                color: profile.color,
+                lineHeight: 1,
+                transition: 'color 0.35s ease',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {preset.display}
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, mt: 0.75, letterSpacing: '0.06em' }}>
+              {preset.seconds.toLocaleString()} seconds · drag slider to adjust
+            </Typography>
+          </Box>
+
+          {/* Slider */}
+          <Box sx={{ px: 1.5 }}>
+            <Box
+              sx={{
+                '& .MuiSlider-root': { color: profile.color, transition: 'color 0.35s ease', pb: '28px' },
+                '& .MuiSlider-rail': {
+                  background: 'linear-gradient(to right, #059669 0%, #16a34a 17%, #2563eb 33%, #d97706 50%, #ea580c 67%, #dc2626 83%, #991b1b 100%)',
+                  opacity: 0.2,
+                  height: 10,
+                  borderRadius: '2px',
+                },
+                '& .MuiSlider-track': {
+                  background: `linear-gradient(to right, #059669 0%, ${profile.color} 100%)`,
+                  border: 'none',
+                  height: 10,
+                  borderRadius: '2px',
+                  transition: 'background 0.35s ease',
+                },
+                '& .MuiSlider-thumb': {
+                  width: 30,
+                  height: 30,
+                  bgcolor: '#fff',
+                  border: `3px solid ${profile.color}`,
+                  boxShadow: `0 0 0 5px ${profile.color}22, 0 4px 16px rgba(0,0,0,0.12)`,
+                  transition: 'border-color 0.35s ease, box-shadow 0.35s ease',
+                  '&:hover': { boxShadow: `0 0 0 8px ${profile.color}28, 0 4px 16px rgba(0,0,0,0.15)` },
+                  '&::after': { width: 10, height: 10, bgcolor: profile.color, borderRadius: '50%', transition: 'background-color 0.35s ease' },
+                },
+                '& .MuiSlider-mark': { display: 'none' },
+                '& .MuiSlider-markLabel': {
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  fontFamily: 'Jost, sans-serif',
+                  color: '#94a3b8',
+                  top: '34px',
+                  transition: 'color 0.2s ease',
+                },
+                [`& .MuiSlider-markLabel[data-index="${draftIdx}"]`]: {
+                  color: profile.color,
+                  fontWeight: 800,
+                },
+              }}
+            >
+              <Slider
+                min={0}
+                max={12}
+                step={1}
+                value={draftIdx}
+                onChange={(_, v) => setDraftIdx(v as number)}
+                marks={BEAM_PRESETS.map((p, i) => ({ value: i, label: p.major ? p.short : '' }))}
+              />
+            </Box>
+
+            {/* Security scale labels */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25, px: 0.25 }}>
+              <Typography sx={{ fontSize: '0.625rem', color: '#059669', fontWeight: 700, letterSpacing: '0.08em' }}>
+                ← TIGHTER · MORE SECURE
+              </Typography>
+              <Typography sx={{ fontSize: '0.625rem', color: '#dc2626', fontWeight: 700, letterSpacing: '0.08em' }}>
+                MORE PERMISSIVE · LOOSER →
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Quick-pick chips */}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 3.5 }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', alignSelf: 'center', mr: 0.5 }}>
+              Quick:
+            </Typography>
+            {QUICK_PICKS.map(idx => {
+              const p = BEAM_PRESETS[idx]
+              const active = draftIdx === idx
+              const qProfile = getBeamProfile(idx)
+              return (
+                <Box
+                  key={idx}
+                  onClick={() => setDraftIdx(idx)}
+                  sx={{
+                    px: 1.5,
+                    py: 0.625,
+                    cursor: 'pointer',
+                    border: `1px solid ${active ? qProfile.color : '#e4dff2'}`,
+                    bgcolor: active ? qProfile.color : '#fafbfc',
+                    color: active ? '#fff' : '#475569',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    fontFamily: 'Jost',
+                    borderRadius: '3px',
+                    transition: 'all 0.18s ease',
+                    userSelect: 'none',
+                    '&:hover': { bgcolor: active ? qProfile.color : qProfile.bgColor, borderColor: qProfile.color, color: active ? '#fff' : qProfile.color },
+                  }}
+                >
+                  {p.short}
+                  {idx === secondsToIdx(180) && (
+                    <Box component="span" sx={{ fontSize: '0.5625rem', ml: 0.5, opacity: 0.7 }}>default</Box>
+                  )}
+                </Box>
+              )
+            })}
+          </Box>
+
+          {/* Save bar */}
+          {isDirty && (
+            <Box
+              sx={{
+                mt: 3,
+                mx: -4,
+                px: 4,
+                py: 2,
+                borderTop: '1px solid #eef0f4',
+                bgcolor: '#fafbfc',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                animation: 'slideUp 0.2s ease',
+                '@keyframes slideUp': { from: { opacity: 0, transform: 'translateY(6px)' }, to: { opacity: 1, transform: 'none' } },
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>
+                  Unsaved change:&nbsp;
+                  <Box component="span" sx={{ textDecoration: 'line-through', color: '#94a3b8' }}>
+                    {BEAM_PRESETS[savedIdx].display}
+                  </Box>
+                  &nbsp;→&nbsp;
+                  <Box component="span" sx={{ color: profile.color, fontWeight: 800 }}>
+                    {preset.display}
+                  </Box>
+                </Typography>
+                <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
+                  Requires Google Authenticator confirmation
+                </Typography>
+              </Box>
+              <Button
+                onClick={() => setDraftIdx(savedIdx)}
+                sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', px: 1.5, py: 0.75, borderRadius: 0 }}
+              >
+                Discard
+              </Button>
+              <Button
+                onClick={() => setTotpOpen(true)}
+                disabled={saving}
+                sx={{
+                  bgcolor: profile.color,
+                  color: '#fff',
+                  px: 2.5,
+                  py: 0.875,
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  fontFamily: 'Jost',
+                  borderRadius: 0,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  transition: 'background-color 0.35s ease',
+                  '&:hover:not(:disabled)': { opacity: 0.88 },
+                  '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+                }}
+              >
+                Save Window
+              </Button>
+            </Box>
+          )}
+        </Box>
+
+        {/* ── RIGHT: security profile ── */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', p: 3, gap: 2.5 }}>
+
+          {/* Level card */}
+          <Box
+            sx={{
+              bgcolor: profile.bgColor,
+              border: `1px solid ${profile.borderColor}`,
+              p: 2.5,
+              transition: 'background-color 0.35s ease, border-color 0.35s ease',
+            }}
+          >
+            {/* Header row: label + signal bars */}
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', mb: 1.75 }}>
+              <Box>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: profile.color, letterSpacing: '0.18em', textTransform: 'uppercase', transition: 'color 0.35s ease' }}>
+                  Security level
+                </Typography>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'Jost', color: profile.color, mt: 0.25, transition: 'color 0.35s ease' }}>
+                  {profile.label}
+                </Typography>
+              </Box>
+
+              {/* Signal bars (ascending height) */}
+              {profile.bars > 0 ? (
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '3px', pb: 0.25 }}>
+                  {[12, 17, 22, 27, 32].map((h, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 7,
+                        height: h,
+                        bgcolor: i < profile.bars ? profile.color : `${profile.color}25`,
+                        borderRadius: '2px',
+                        transition: 'background-color 0.35s ease',
+                      }}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    fontSize: '1.5rem',
+                    lineHeight: 1,
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                    '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.5 } },
+                  }}
+                >
+                  ⚠
+                </Box>
+              )}
+            </Box>
+
+            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.65 }}>
+              {profile.desc}
+            </Typography>
+          </Box>
+
+          {/* Implications */}
+          <Box>
+            <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.15em', textTransform: 'uppercase', mb: 1.25 }}>
+              What this means
+            </Typography>
+            <Stack gap={0.75}>
+              {profile.implications.map((imp, i) => {
+                const c = impColors[imp.type]
+                return (
+                  <Box
+                    key={i}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1.25,
+                      px: 1.5,
+                      py: 1.125,
+                      bgcolor: c.bg,
+                      border: `1px solid ${c.border}`,
+                      animation: `fadeSlide 0.25s ease ${i * 0.05}s both`,
+                      '@keyframes fadeSlide': {
+                        from: { opacity: 0, transform: 'translateX(6px)' },
+                        to: { opacity: 1, transform: 'none' },
+                      },
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: c.text, flexShrink: 0, lineHeight: 1.5 }}>
+                      {impIcon(imp.type)}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: c.text, lineHeight: 1.6 }}>
+                      {imp.text}
+                    </Typography>
+                  </Box>
+                )
+              })}
+            </Stack>
+          </Box>
+
+          {/* Current saved value note */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 0.5, mt: 'auto' }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
+            <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontWeight: 600 }}>
+              Active:&nbsp;
+              <Box component="span" sx={{ color: '#0f172a', fontWeight: 700 }}>
+                {BEAM_PRESETS[savedIdx].display}
+              </Box>
+              {isDirty && (
+                <Box component="span" sx={{ color: '#94a3b8', fontWeight: 400 }}>
+                  &nbsp;(unsaved changes)
+                </Box>
+              )}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <TOTPConfirmation
+        open={totpOpen}
+        onClose={() => setTotpOpen(false)}
+        onConfirm={doSave}
+        operation="update"
+        title="Update Beam Time Window"
+        description="Changing the beam window affects which transactions are flagged as time anomalies. Confirm your identity to proceed."
+        resourceType="Beam Window"
+        resourceName={`${BEAM_PRESETS[savedIdx].display} → ${preset.display}`}
+        changes={[{
+          field: 'Window',
+          from: `${BEAM_PRESETS[savedIdx].display} (${BEAM_PRESETS[savedIdx].seconds}s)`,
+          to: `${preset.display} (${preset.seconds}s)`,
+        }]}
+      />
+    </Box>
+  )
+}
+
 function DeveloperSandboxSection() {
   const { sandboxEnabled, setSandboxEnabled, sandboxUrl, setSandboxUrl, isDevOrAdmin, isLoading } = useSandbox()
   const [localUrl, setLocalUrl] = useState(sandboxUrl)
@@ -663,8 +1272,14 @@ export default function SettingsPage() {
           {/* AML Case Settings */}
           <AmlSettingsSection />
 
+          {/* Beam Time Window */}
+          <BeamWindowSection />
+
           {/* Eureka Companion */}
           <EurekaCompanionSection />
+
+          {/* Timezone Configuration */}
+          <TimezoneSection />
 
           {/* Developer Sandbox */}
           <DeveloperSandboxSection />

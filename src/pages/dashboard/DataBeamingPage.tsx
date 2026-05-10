@@ -728,6 +728,7 @@ export default function DataBeamingPage() {
   const [testSuccess, setTestSuccess] = useState(false)
   const [editablePayload, setEditablePayload] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
+  const [expectedStatus, setExpectedStatus] = useState<200 | 400 | 401>(200)
 
   // Initialize payload when stream changes
   useEffect(() => {
@@ -766,7 +767,14 @@ export default function DataBeamingPage() {
         setJsonError('Invalid JSON format')
       } else {
         const msg = err instanceof Error ? err.message : 'Unknown error'
-        setJsonError(`Test beam failed: ${msg}`)
+        if (msg.includes('MICRO_TIMING_ANOMALY')) {
+          setJsonError(
+            'Beam rejected (400) — Micro-Timing Anomaly: occurred_at is within ±5 seconds of server time. ' +
+            'A cybersecurity case has been auto-opened. Verify the timestamp is real (not "now") and retry.'
+          )
+        } else {
+          setJsonError(`Test beam failed: ${msg}`)
+        }
         console.error('Test beam failed', err)
       }
     } finally {
@@ -1012,7 +1020,7 @@ export default function DataBeamingPage() {
             </Box>
           </Stack>
 
-          <Stack gap={3}>
+          <Stack gap={3} sx={{ minWidth: 0 }}>
             {/* Code sample */}
             <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
               <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1130,6 +1138,67 @@ export default function DataBeamingPage() {
                 : riskScore >= 50 ? 'MODERATE'
                 : 'LOW RISK'
 
+              // Error response configs (apply to all streams)
+              const errorConfig = {
+                400: {
+                  title: 'Bad Request',
+                  color: '#dc2626',
+                  bg: '#fef2f2',
+                  border: '#fecaca',
+                  intro: 'OpenIV returns 400 when a beam payload is rejected by validation or by a critical security rule. Your client should surface the error and not retry without fixing the cause.',
+                  fields: [
+                    { label: 'error', desc: 'Machine-readable error code prefixed with the rule name (e.g., "MICRO_TIMING_ANOMALY: ...") or a short reason for malformed payloads.' },
+                  ],
+                  scenarios: [
+                    {
+                      name: 'Micro-Timing Anomaly',
+                      desc: 'Transaction occurred_at is within ±5s of server time — likely API injection or system clock manipulation. A cybersecurity case is auto-opened, but the request is still rejected with 400. Action: verify the timestamp is real, not "now()".',
+                      json: `{\n  "error": "MICRO_TIMING_ANOMALY: transaction occurred_at is within \\u00b15s of server time. Possible API injection or clock manipulation. Case opened: CASE-12384"\n}`,
+                    },
+                    {
+                      name: 'Malformed Payload',
+                      desc: 'Required fields missing or wrong type. Action: validate against the stream schema before beaming.',
+                      json: `{\n  "error": "amount must be a positive number"\n}`,
+                    },
+                  ],
+                  label: 'Error response body (JSON)',
+                },
+                401: {
+                  title: 'Unauthorized',
+                  color: '#f59e0b',
+                  bg: '#fffbeb',
+                  border: '#fde68a',
+                  intro: 'OpenIV returns 401 when the API key is missing, malformed, revoked, or the session cookie is invalid. Your client must regenerate the key from the dashboard or re-authenticate.',
+                  fields: [
+                    { label: 'error', desc: 'One of: "missing_api_key_or_session", "invalid_api_key_or_session", or "invalid_session_cookie".' },
+                  ],
+                  scenarios: [
+                    {
+                      name: 'Missing API Key',
+                      desc: 'No Authorization header and no session cookie. Action: include "Authorization: Bearer <key>" or sign in via cookie.',
+                      json: `{\n  "error": "missing_api_key_or_session"\n}`,
+                    },
+                    {
+                      name: 'Invalid / Revoked API Key',
+                      desc: 'Key was revoked or never existed. Action: regenerate from Data Beaming → API Key.',
+                      json: `{\n  "error": "invalid_api_key_or_session"\n}`,
+                    },
+                    {
+                      name: 'Expired Session Cookie',
+                      desc: 'Session expired or was logged out. Action: re-authenticate via /auth/login.',
+                      json: `{\n  "error": "invalid_session_cookie"\n}`,
+                    },
+                  ],
+                  label: 'Error response body (JSON)',
+                },
+              }
+
+              const tabs: Array<{ status: 200 | 400 | 401; label: string; color: string }> = [
+                { status: 200, label: '200 OK', color: '#10b981' },
+                { status: 400, label: '400 Bad Request', color: '#dc2626' },
+                { status: 401, label: '401 Unauthorized', color: '#f59e0b' },
+              ]
+
               return (
                 <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
                   <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
@@ -1139,73 +1208,173 @@ export default function DataBeamingPage() {
                       </Box>
                       <Box>
                         <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Expected Result</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>What your server receives after a successful {stream.title.toLowerCase()} beam</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Response shapes your server should handle for {stream.title.toLowerCase()} beams</Typography>
                       </Box>
                     </Box>
                   </Box>
-                  <Box sx={{ p: 3 }}>
-                    <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
-                      {cfg.intro}
-                    </Typography>
 
-                    {/* Risk score percentage visual */}
-                    {riskScore !== null && (
-                      <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
-                          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Example risk_score
+                  {/* Status tabs */}
+                  <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4' }}>
+                    {tabs.map(({ status, label, color }) => {
+                      const active = expectedStatus === status
+                      return (
+                        <Box
+                          key={status}
+                          onClick={() => setExpectedStatus(status)}
+                          sx={{
+                            flex: 1,
+                            px: 2.5,
+                            py: 1.5,
+                            cursor: 'pointer',
+                            borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
+                            bgcolor: active ? `${color}08` : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
+                            transition: 'background 0.15s',
+                            '&:hover': { bgcolor: `${color}05` },
+                          }}
+                        >
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: active ? color : '#64748b',
+                            fontFamily: 'Jost',
+                            letterSpacing: '0.02em',
+                          }}>
+                            {label}
                           </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
-                              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
-                                {riskLabel}
+                        </Box>
+                      )
+                    })}
+                  </Box>
+
+                  <Box sx={{ p: 3 }}>
+                    {expectedStatus === 200 ? (
+                      <>
+                        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+                          {cfg.intro}
+                        </Typography>
+
+                        {/* Risk score percentage visual */}
+                        {riskScore !== null && (
+                          <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                Example risk_score
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
+                                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
+                                    {riskLabel}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
+                                  {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                              <Box sx={{
+                                position: 'absolute', inset: 0, width: `${riskScore}%`,
+                                background: riskScore >= 75
+                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
+                                  : riskScore >= 50
+                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
+                                  : '#10b981',
+                                borderRadius: '4px',
+                                transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
+                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
+                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
+                            </Box>
+                          </Box>
+                        )}
+
+                        <Stack gap={2}>
+                          {cfg.fields.map(item => (
+                            <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
+                                {item.label}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                                {item.desc}
                               </Typography>
                             </Box>
-                            <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
-                              {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
-                            </Typography>
+                          ))}
+                        </Stack>
+                        <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', mb: 1, fontFamily: 'Jost' }}>
+                            {cfg.label}
+                          </Typography>
+                          <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre', overflowX: 'auto' }}>
+                            {cfg.json}
                           </Box>
                         </Box>
-                        {/* Segmented bar: 0-50 green, 50-75 amber, 75-100 red */}
-                        <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                          <Box sx={{
-                            position: 'absolute', inset: 0, width: `${riskScore}%`,
-                            background: riskScore >= 75
-                              ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
-                              : riskScore >= 50
-                              ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
-                              : '#10b981',
-                            borderRadius: '4px',
-                            transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                          }} />
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
-                          <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
-                          <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
-                        </Box>
-                      </Box>
-                    )}
+                      </>
+                    ) : (
+                      <>
+                        {(() => {
+                          const errCfg = errorConfig[expectedStatus]
+                          return (
+                            <>
+                              <Box sx={{ mb: 2.5, p: 2, bgcolor: errCfg.bg, border: `1px solid ${errCfg.border}` }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '0.04em' }}>
+                                    HTTP {expectedStatus}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'Jost' }}>
+                                    {errCfg.title}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55 }}>
+                                  {errCfg.intro}
+                                </Typography>
+                              </Box>
 
-                    <Stack gap={2}>
-                      {cfg.fields.map(item => (
-                        <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
-                            {item.label}
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                            {item.desc}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
-                    <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', mb: 1, fontFamily: 'Jost' }}>
-                        {cfg.label}
-                      </Typography>
-                      <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre' }}>
-                        {cfg.json}
-                      </Box>
-                    </Box>
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
+                                Response Fields
+                              </Typography>
+                              <Stack gap={2} sx={{ mb: 3 }}>
+                                {errCfg.fields.map(item => (
+                                  <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
+                                      {item.label}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                                      {item.desc}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Stack>
+
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>
+                                Common Scenarios
+                              </Typography>
+                              <Stack gap={1.5}>
+                                {errCfg.scenarios.map((sc, idx) => (
+                                  <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.375 }}>
+                                      {sc.name}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 1 }}>
+                                      {sc.desc}
+                                    </Typography>
+                                    <Box sx={{ bgcolor: '#0d1117', p: 1.25, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#ff7b72', whiteSpace: 'pre', overflowX: 'auto', maxWidth: '100%' }}>
+                                      {sc.json}
+                                    </Box>
+                                  </Box>
+                                ))}
+                              </Stack>
+                            </>
+                          )
+                        })()}
+                      </>
+                    )}
                   </Box>
                 </Box>
               )

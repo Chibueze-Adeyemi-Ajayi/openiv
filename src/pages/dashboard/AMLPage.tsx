@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Box, Typography, Stack, InputBase } from '@mui/material'
+import { Box, Typography, Stack, InputBase, Button, Chip, IconButton, Popover } from '@mui/material'
 import { colorPalette } from '@/theme'
-// import { colorPalette } from '@/theme'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
 import InvestigationWorkspace from '@/components/dashboard/InvestigationWorkspace'
+import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import { caseApi, type Case, type CaseMetrics } from '@/api/cases'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
@@ -14,6 +17,39 @@ import AssignmentIcon from '@mui/icons-material/Assignment'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 
 const PAGE_SIZE = 20
+
+type CaseRiskFilter = 'any' | 'high' | 'medium' | 'low'
+type CaseSortOption = 'recent' | 'oldest' | 'priority' | 'risk_desc' | 'risk_asc'
+
+const PRIORITY_TABS = [
+  { value: '', label: 'All' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+]
+
+const CASE_RISK_OPTIONS: { key: CaseRiskFilter; label: string }[] = [
+  { key: 'any',    label: 'Any'       },
+  { key: 'high',   label: 'High ≥70'  },
+  { key: 'medium', label: 'Med 40–69' },
+  { key: 'low',    label: 'Low <40'   },
+]
+
+const CASE_RISK_TO_RANGE: Record<CaseRiskFilter, { min?: number; max?: number }> = {
+  any:    {},
+  high:   { min: 70 },
+  medium: { min: 40, max: 69 },
+  low:    { max: 39 },
+}
+
+const CASE_SORT_OPTIONS: { key: CaseSortOption; label: string }[] = [
+  { key: 'recent',   label: 'Newest first'   },
+  { key: 'oldest',   label: 'Oldest first'   },
+  { key: 'priority', label: 'Priority & SLA' },
+  { key: 'risk_desc', label: 'Risk: High → Low' },
+  { key: 'risk_asc',  label: 'Risk: Low → High' },
+]
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -65,6 +101,7 @@ function AssigneeAvatar({ name }: { name?: string }) {
 }
 
 export default function AMLPage() {
+  const user = useCurrentUser()
   const [searchParams] = useSearchParams()
 
   const [metrics, setMetrics] = useState<CaseMetrics | null>(null)
@@ -74,10 +111,19 @@ export default function AMLPage() {
   const [pendingTotal, setPendingTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [casesLoading, setCasesLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [draftSearch, setDraftSearch] = useState('')
-  const [search, setSearch] = useState('')
-  const [viewPending, setViewPending] = useState(false)
+  const [statusFilter,   setStatusFilter]   = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
+  const [draftSearch,    setDraftSearch]    = useState('')
+  const [search,         setSearch]         = useState('')
+  const [viewPending,    setViewPending]     = useState(false)
+  const [range,          setRange]          = useState<DateRange>('30d')
+  const [appliedRisk,    setAppliedRisk]    = useState<CaseRiskFilter>('any')
+  const [appliedSort,    setAppliedSort]    = useState<CaseSortOption>('recent')
+  const [filterOpen,     setFilterOpen]     = useState(false)
+  const [draftPriority,  setDraftPriority]  = useState('')
+  const [draftRisk,      setDraftRisk]      = useState<CaseRiskFilter>('any')
+  const [draftSort,      setDraftSort]      = useState<CaseSortOption>('recent')
+  const filterBtnRef = useRef<HTMLButtonElement | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [intakeOpen, setIntakeOpen] = useState(false)
@@ -93,12 +139,22 @@ export default function AMLPage() {
   const loadCases = useCallback(async () => {
     setCasesLoading(true)
     try {
+      const riskRange = CASE_RISK_TO_RANGE[appliedRisk]
       const api = viewPending ? caseApi.listPendingApproval : caseApi.list
-      const res = await api({ status: statusFilter || undefined, q: search || undefined, page, pageSize: PAGE_SIZE })
+      const res = await api({
+        status:   statusFilter  || undefined,
+        priority: priorityFilter || undefined,
+        q:        search        || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        sort:     appliedSort !== 'recent' ? appliedSort : undefined,
+        range:    range,
+        minRisk:  riskRange.min,
+        maxRisk:  riskRange.max,
+      })
       setCases(res.cases)
       setTotal(res.total)
 
-      // Load both active and pending counts for the cards
       if (page === 1) {
         const activRes = await caseApi.list({ pageSize: 1 })
         const pendRes = await caseApi.listPendingApproval({ pageSize: 1 })
@@ -106,7 +162,7 @@ export default function AMLPage() {
         setPendingTotal(pendRes.total)
       }
     } finally { setCasesLoading(false) }
-  }, [statusFilter, search, page, viewPending])
+  }, [statusFilter, priorityFilter, search, page, viewPending, appliedSort, range, appliedRisk])
 
   useEffect(() => { loadMetrics() }, [loadMetrics])
   useEffect(() => { loadCases() }, [loadCases])
@@ -123,7 +179,24 @@ export default function AMLPage() {
     searchTimer.current = setTimeout(() => { setSearch(v); setPage(1) }, 300)
   }
 
-  const openWorkspace = (id: string) => { setActiveCaseId(id); setWorkspaceOpen(true) }
+  const openCaseFilter = () => {
+    setDraftPriority(priorityFilter); setDraftRisk(appliedRisk); setDraftSort(appliedSort); setFilterOpen(true)
+  }
+  const applyCaseFilter = () => {
+    setPriorityFilter(draftPriority); setAppliedRisk(draftRisk); setAppliedSort(draftSort); setPage(1); setFilterOpen(false)
+  }
+  const clearCaseFilter = () => { setDraftPriority(''); setDraftRisk('any'); setDraftSort('recent') }
+
+  const caseFilterCount = (priorityFilter ? 1 : 0) + (appliedRisk !== 'any' ? 1 : 0) + (appliedSort !== 'recent' ? 1 : 0)
+
+  const openWorkspace = (c: Case) => {
+    setActiveCaseId(c.id)
+    setWorkspaceOpen(true)
+    if (!c.seen) {
+      caseApi.markSeen(c.id).catch(() => {})
+      setCases(prev => prev.map(r => r.id === c.id ? { ...r, seen: true } : r))
+    }
+  }
 
   const handleIntakeSubmit = useCallback(async (payload: CaseIntakePayload) => {
     if (creating) return
@@ -281,7 +354,7 @@ export default function AMLPage() {
                 {viewPending ? 'Pending Approval Queue' : 'Active Case Queue'}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · ${viewPending ? 'awaiting your review' : 'sorted by priority & SLA'}`}
+                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · ${viewPending ? 'awaiting your review' : CASE_SORT_OPTIONS.find(s => s.key === appliedSort)?.label ?? 'Newest first'}`}
               </Typography>
             </Box>
             {!viewPending && (
@@ -299,7 +372,7 @@ export default function AMLPage() {
           </Box>
 
           {/* Filter bar */}
-          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Stack direction="row" gap={0.5}>
               {STATUS_TABS.map(tab => (
                 <Box key={tab.value} onClick={() => { setStatusFilter(tab.value); setPage(1) }} sx={{
@@ -315,9 +388,10 @@ export default function AMLPage() {
               ))}
             </Stack>
             <Box sx={{ flex: 1 }} />
+            <DateRangeFilter value={range} onChange={v => { setRange(v); setPage(1) }} options={['7d', '30d', '90d', 'ytd', 'custom']} compact />
             <Box sx={{
               display: 'flex', alignItems: 'center', gap: 1,
-              bgcolor: '#f8fafc', px: 1.5, height: 32, minWidth: 240,
+              bgcolor: '#f8fafc', px: 1.5, height: 32, minWidth: 220,
               border: '1px solid transparent', transition: 'all 0.18s',
               '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary },
             }}>
@@ -329,10 +403,47 @@ export default function AMLPage() {
                 sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a' }}
               />
             </Box>
+            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+              <IconButton
+                ref={filterBtnRef}
+                disableRipple
+                onClick={openCaseFilter}
+                sx={{ borderRadius: 0, color: caseFilterCount > 0 ? colorPalette.primary : '#64748b', '&:hover': { color: colorPalette.primary } }}
+              >
+                <FilterListRoundedIcon sx={{ fontSize: '1.125rem' }} />
+              </IconButton>
+              {caseFilterCount > 0 && (
+                <Box sx={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, bgcolor: colorPalette.primary, borderRadius: '50%', pointerEvents: 'none' }} />
+              )}
+            </Box>
           </Box>
 
+          {/* Active case filter chips */}
+          {caseFilterCount > 0 && (
+            <Box sx={{ bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', mr: 0.5 }}>Filters:</Typography>
+              {priorityFilter && (
+                <Chip label={`Priority: ${priorityFilter}`} size="small" onDelete={() => { setPriorityFilter(''); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
+                  sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
+              )}
+              {appliedRisk !== 'any' && (
+                <Chip label={`Risk: ${CASE_RISK_OPTIONS.find(r => r.key === appliedRisk)?.label}`} size="small" onDelete={() => { setAppliedRisk('any'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
+                  sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
+              )}
+              {appliedSort !== 'recent' && (
+                <Chip label={`Sort: ${CASE_SORT_OPTIONS.find(s => s.key === appliedSort)?.label}`} size="small" onDelete={() => { setAppliedSort('recent'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
+                  sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
+              )}
+              <Box sx={{ flex: 1 }} />
+              <Box onClick={() => { setPriorityFilter(''); setAppliedRisk('any'); setAppliedSort('recent'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+                Clear all
+              </Box>
+            </Box>
+          )}
+
           {/* Column headers */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '130px 1fr 78px 82px 90px 100px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '16px 130px 1fr 78px 82px 90px 100px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+            <Box /> {/* dot column */}
             {['Case ID', 'Title / Typology', 'Risk', 'Priority', 'SLA', 'Opened', 'Assignee', 'Status'].map(h => (
               <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {h}
@@ -357,7 +468,7 @@ export default function AMLPage() {
                 No cases found
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#cbd5e1' }}>
-                {search || statusFilter ? 'Try adjusting filters' : 'Create a new case to get started'}
+                {search || statusFilter || priorityFilter || appliedRisk !== 'any' ? 'Try adjusting filters' : 'Create a new case to get started'}
               </Typography>
             </Box>
           )}
@@ -370,19 +481,27 @@ export default function AMLPage() {
             return (
               <Box
                 key={c.id}
-                onClick={() => openWorkspace(c.id)}
+                onClick={() => openWorkspace(c)}
                 data-ai-analyzable="true"
                 data-ai-description={`AML Investigation: Case ${c.id} for "${c.title}". Priority: ${c.priority}. Risk Score: ${c.riskScore}. SLA: ${sla.label}. Status: ${c.status}. Typology: ${c.typology}.`}
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: '130px 1fr 78px 82px 90px 100px 110px 82px',
+                  gridTemplateColumns: '16px 130px 1fr 78px 82px 90px 100px 110px 82px',
                   gap: 2, px: 3, py: 1.75,
                   borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none',
+                  borderLeft: !c.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent',
+                  bgcolor: !c.seen ? `${colorPalette.primary}03` : 'transparent',
                   cursor: 'pointer', transition: 'background 0.15s',
-                  '&:hover': { bgcolor: '#fafbfc' },
+                  '&:hover': { bgcolor: !c.seen ? `${colorPalette.primary}0a` : '#fafbfc' },
                   alignItems: 'center',
                 }}
               >
+                {/* Unseen dot */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {!c.seen && (
+                    <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: colorPalette.primary, flexShrink: 0 }} />
+                  )}
+                </Box>
                 <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c.id}
                 </Typography>
@@ -414,7 +533,7 @@ export default function AMLPage() {
                 </Typography>
 
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'Jost' }}>
-                  {new Intl.DateTimeFormat('en-NG', { month: 'short', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(c.createdAt))}
+                  {new Intl.DateTimeFormat('en-NG', { month: 'short', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(c.createdAt))}
                 </Typography>
 
                 <AssigneeAvatar name={c.assigneeName} />
@@ -468,7 +587,66 @@ export default function AMLPage() {
         onClose={() => { setWorkspaceOpen(false); loadMetrics(); loadCases() }}
         onUpdated={() => { loadMetrics(); loadCases() }}
       />
-      {/* </Box > */}
+
+      {/* Case filter popover */}
+      <Popover
+        open={filterOpen}
+        anchorEl={filterBtnRef.current}
+        onClose={() => setFilterOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid #e2e8f0', width: 264 } } }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Filter</Typography>
+            <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' }, mr: -0.5 }}>
+              <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
+          </Box>
+
+          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Priority</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.625, mb: 2.5 }}>
+            {PRIORITY_TABS.map(p => {
+              const on = draftPriority === p.value
+              return (
+                <Box key={p.value} onClick={() => setDraftPriority(on && p.value !== '' ? '' : p.value)} sx={{ px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: on ? colorPalette.primary : '#e2e8f0', color: on ? colorPalette.primary : '#64748b', bgcolor: on ? `${colorPalette.primary}0a` : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                  {p.label}
+                </Box>
+              )
+            })}
+          </Box>
+
+          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Risk Level</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.625, mb: 2.5 }}>
+            {CASE_RISK_OPTIONS.map(r => {
+              const on = draftRisk === r.key
+              return (
+                <Box key={r.key} onClick={() => setDraftRisk(r.key)} sx={{ px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: on ? colorPalette.primary : '#e2e8f0', color: on ? colorPalette.primary : '#64748b', bgcolor: on ? `${colorPalette.primary}0a` : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                  {r.label}
+                </Box>
+              )
+            })}
+          </Box>
+
+          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Sort By</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
+            {CASE_SORT_OPTIONS.map(s => {
+              const on = draftSort === s.key
+              return (
+                <Box key={s.key} onClick={() => setDraftSort(s.key)} sx={{ px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: on ? colorPalette.primary : '#e2e8f0', color: on ? colorPalette.primary : '#64748b', bgcolor: on ? `${colorPalette.primary}0a` : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                  {s.label}
+                </Box>
+              )
+            })}
+          </Box>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+            <Button disableRipple onClick={clearCaseFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
+            <Button disableRipple onClick={applyCaseFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
+          </Box>
+        </Box>
+      </Popover>
     </>
   )
 }
