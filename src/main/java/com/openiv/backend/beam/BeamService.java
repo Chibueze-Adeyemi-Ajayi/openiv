@@ -21,7 +21,10 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -41,15 +44,18 @@ public final class BeamService {
   private final TransactionProcessingOrchestrator orchestrator;
   private final NotificationService notificationService;
   private final CustomerService     customerService;
+  private final com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository;
 
-  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer, TransactionService transactionService, WebhookService webhookService, CustomerService customerService) {
-    this(repository, users, otpAnalyzer, transactionService, webhookService, null, null, customerService);
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer, 
+      TransactionService transactionService, WebhookService webhookService, 
+      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository) {
+    this(repository, users, otpAnalyzer, transactionService, webhookService, null, null, customerService, amlSettingsRepository);
   }
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
       TransactionService transactionService, WebhookService webhookService,
       TransactionProcessingOrchestrator orchestrator, NotificationService notificationService,
-      CustomerService customerService) {
+      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository) {
     this.repository         = repository;
     this.users              = users;
     this.otpAnalyzer        = otpAnalyzer;
@@ -58,6 +64,7 @@ public final class BeamService {
     this.orchestrator       = orchestrator;
     this.notificationService = notificationService;
     this.customerService    = customerService;
+    this.amlSettingsRepository = amlSettingsRepository;
   }
 
   public record BeamIngestResult(BeamRecord record, JsonObject analysis) {}
@@ -68,13 +75,17 @@ public final class BeamService {
     if (!VALID_STREAMS.contains(stream))
       return Future.failedFuture(new IllegalArgumentException("Unknown stream: " + stream));
 
+    return amlSettingsRepository.getByInstitution(institutionId).compose(settingsOpt -> {
+      String tz = settingsOpt.map(com.openiv.backend.aml.AmlSettings::timezone).orElse("Africa/Lagos");
+      ZoneId zone = ZoneId.of(tz);
+
     // Extract occurred_at from payload for all streams
     OffsetDateTime occurredAt = null;
     try {
       JsonObject obj = new JsonObject(payload);
       String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
       if (rawTs != null && !rawTs.isBlank()) {
-        occurredAt = parseOccurredAt(rawTs);
+        occurredAt = parseOccurredAt(rawTs, zone);
       }
     } catch (Exception e) {
       // Best effort
@@ -102,55 +113,89 @@ public final class BeamService {
       }
 
       if ("transactions".equals(stream) && orchestrator != null) {
-        // Timestamp anomaly gate — reject future-dated or stale transactions
-        try {
-          JsonObject obj  = new JsonObject(payload);
-          String rawTs    = obj.getString("occurred_at", obj.getString("occurredAt"));
-          if (rawTs != null && !rawTs.isBlank()) {
-            OffsetDateTime txnTime = parseOccurredAt(rawTs);
-            OffsetDateTime now     = OffsetDateTime.now();
-            long diffSeconds = java.time.temporal.ChronoUnit.SECONDS.between(txnTime, now);
-
-            if (diffSeconds < -300) {
-              log.warn("Transaction timestamp is " + Math.abs(diffSeconds) + " seconds ahead of server time. Permitting but it will trigger timestamp anomaly.");
-            }
-            if (diffSeconds > 86_400) {
-              log.warn("Transaction timestamp is " + (diffSeconds / 3600) + " hours old. Permitting but it will trigger timestamp anomaly.");
-            }
-          }
-        } catch (IllegalArgumentException e) {
-          return Future.failedFuture(e);
-        } catch (Exception ignored) {
-          // Malformed timestamp — let analysis handle it
-        }
-
-        return analyzeTransactionSynchronously(institutionId, record, payload)
+        return analyzeTransactionSynchronously(institutionId, record, payload, zone)
             .map(analysis -> new BeamIngestResult(record, analysis));
       }
 
       return Future.succeededFuture(new BeamIngestResult(record, null));
     });
-  }
+  });
+}
 
-  private Future<JsonObject> analyzeTransactionSynchronously(long institutionId, BeamRecord record, String payload) {
+  private Future<JsonObject> analyzeTransactionSynchronously(long institutionId, BeamRecord record, String payload, ZoneId zone) {
     try {
       JsonObject obj = new JsonObject(payload);
 
+      // Validate occurred_at before doing anything else — it is required and must be
+      // a parseable ISO-8601 timestamp.
+      String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
+      if (rawTs == null || rawTs.isBlank()) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Missing required field 'occurred_at'. Provide the transaction timestamp in ISO-8601 format."));
+      }
+      OffsetDateTime occurredAt;
+      try {
+        occurredAt = parseOccurredAtOrThrow(rawTs, zone);
+      } catch (Exception e) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Invalid 'occurred_at' value '" + rawTs + "'. Expected ISO-8601 format (e.g. 2026-05-08T14:30:00Z or 2026-05-08T14:30:00)."));
+      }
+
       // Use a stable string ID derived from the beam record so both the
       // transactions row and the orchestrator share the same reference.
-      // This prevents the FK violation on case_transactions.transaction_id.
       String txnId = "beam-" + record.id();
 
       // 1. Persist to transactions table FIRST — case_transactions FK requires it.
-      TransactionImport imp = buildTransactionImport(txnId, obj);
-      Transaction txn = mapToTransactionWithId(institutionId, txnId, obj);
+      TransactionImport imp = buildTransactionImport(txnId, obj, zone);
+      Transaction txn = mapToTransactionWithId(institutionId, txnId, obj, zone);
+
+      java.time.LocalDate today = occurredAt.toLocalDate();
+      java.time.LocalDate yesterday = today.minusDays(1);
 
       return transactionService.ingestFromBeam(institutionId, imp)
-          .compose(v -> orchestrator.processTransaction(institutionId, txn, 0, 0, 0, false))
+          .compose(v -> {
+            // Fetch real-time context for scoring
+            Future<Long> fToday = transactionService.getTodayCount(institutionId, today);
+            Future<Long> fYesterday = transactionService.getYesterdayCount(institutionId, yesterday);
+            Future<Long> fCustomer24h = transactionService.getCustomerTxnCount24h(institutionId, txn.customerId());
+            Future<Boolean> fOtp = otpAnalyzer != null
+                ? otpAnalyzer.hasRecentAlert(institutionId, txn.customerId(), 15)
+                : Future.succeededFuture(false);
+
+            return Future.all(fToday, fYesterday, fCustomer24h, fOtp);
+          })
+          .compose(results -> {
+            long todayCount = results.resultAt(0);
+            long yesterdayCount = results.resultAt(1);
+            long customer24h = results.resultAt(2);
+            boolean hasOtpAlert = results.resultAt(3);
+
+            // Pass skipKyc=true to rely on institutional thresholds only
+            return orchestrator.processTransaction(institutionId, txn, todayCount, yesterdayCount, customer24h, hasOtpAlert, true);
+          })
           .compose(res -> {
-            if (res.caseId() != null) {
-              return transactionService.markFlagged(res.transactionId(), institutionId)
-                  .map(v -> res);
+            // Critical security gate: reject the beam request with 400 when a timing
+            // anomaly is detected. The transaction has already been persisted and a case
+            // opened — flag the transaction, then surface the error to the API consumer.
+            String rejectionMessage = null;
+            if (res.triggeredRules() != null) {
+              if (res.triggeredRules().contains("MICRO_TIMING_ANOMALY")) {
+                rejectionMessage = "This transaction's time matches the server clock too precisely, " +
+                    "which may indicate an automated injection attempt. It has been flagged for review. " +
+                    "Case reference: " + res.caseId();
+              } else if (res.triggeredRules().contains("STALE_TIMESTAMP_ANOMALY")) {
+                rejectionMessage = "This transaction carries a date that is more than 24 hours in the past. " +
+                    "This could mean the transaction was replayed (submitted again after already being processed). " +
+                    "It has been flagged and a case has been opened for review. Case reference: " + res.caseId();
+              } else if (res.triggeredRules().contains("FUTURE_TIMESTAMP_ANOMALY")) {
+                rejectionMessage = "This transaction carries a date that is set ahead of the current time, " +
+                    "which is not possible for a legitimate transaction. This may indicate the transaction " +
+                    "details were altered. It has been flagged and a case has been opened for review. " +
+                    "Case reference: " + res.caseId();
+              }
+            }
+            if (rejectionMessage != null) {
+              return Future.failedFuture(new IllegalArgumentException(rejectionMessage));
             }
             return Future.succeededFuture(res);
           })
@@ -160,12 +205,16 @@ public final class BeamService {
               .put("risk_level", res.riskScore() >= 75 ? "CRITICAL"
                   : res.riskScore() >= 60 ? "HIGH"
                   : res.riskScore() >= 30 ? "MEDIUM" : "LOW")
-              .put("recommended_action", res.riskScore() >= 75 ? "DECLINE"
-                  : res.riskScore() >= 60 ? "HOLD" : "ALLOW")
+              .put("recommended_action", res.recommendedAction())
               .put("case_id", res.caseId())
               .put("priority", res.priority())
-              .put("processed_at", OffsetDateTime.now().toString()))
+              .put("processed_at", OffsetDateTime.now(zone).toString()))
           .recover(e -> {
+            // Re-throw IllegalArgumentException so the handler can return 400.
+            // Only swallow generic/unexpected errors here.
+            if (e instanceof IllegalArgumentException) {
+              return Future.failedFuture(e);
+            }
             log.error("[Beam] Sync analysis failed for beam record {}", record.id(), e);
             return Future.succeededFuture(new JsonObject()
                 .put("error", "Analysis failed: " + e.getMessage()));
@@ -177,19 +226,19 @@ public final class BeamService {
   }
 
   /** Build a TransactionImport from the raw beam payload, using the given stable txnId. */
-  private TransactionImport buildTransactionImport(String txnId, JsonObject obj) {
+  private TransactionImport buildTransactionImport(String txnId, JsonObject obj, ZoneId zone) {
     String customerId    = obj.getString("customer_id", obj.getString("customerId", ""));
     String customerName  = obj.getString("customer_name", obj.getString("customerName", ""));
     Number amtNum        = obj.getNumber("amount", 0);
     String channel       = obj.getString("channel", "Unknown");
     String counterparty  = obj.getString("counterparty_account", obj.getString("counterparty", ""));
-    String status        = obj.getString("status", "pending");
+    String status        = sanitizeStatus(obj.getString("status"));
     String flaggedStatus = obj.getString("flagged_status", obj.getString("flaggedStatus"));
     String location      = obj.getString("location", "");
     Double lat           = obj.getDouble("lat");
     Double lng           = obj.getDouble("lng");
     OffsetDateTime occurredAt = parseOccurredAt(
-        obj.getString("occurred_at", obj.getString("occurredAt")));
+        obj.getString("occurred_at", obj.getString("occurredAt")), zone);
     String senderAccount    = obj.getString("sender_account", obj.getString("senderAccount"));
     String senderBank       = obj.getString("sender_bank", obj.getString("senderBank"));
     String recipientName    = obj.getString("recipient_name", obj.getString("recipientName"));
@@ -209,12 +258,12 @@ public final class BeamService {
   }
 
   /** Build a Transaction domain object using an explicit string ID. */
-  private Transaction mapToTransactionWithId(long institutionId, String txnId, JsonObject obj) {
+  private Transaction mapToTransactionWithId(long institutionId, String txnId, JsonObject obj, ZoneId zone) {
     String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
     Number amtNum     = obj.getNumber("amount", 0);
     OffsetDateTime occurredAt = parseOccurredAt(
-        obj.getString("occurred_at", obj.getString("occurredAt")));
-    OffsetDateTime now = OffsetDateTime.now();
+        obj.getString("occurred_at", obj.getString("occurredAt")), zone);
+    OffsetDateTime now = OffsetDateTime.now(zone);
     return new Transaction(
         txnId, institutionId, customerId,
         obj.getString("customer_name", obj.getString("customerName", "")),
@@ -233,14 +282,15 @@ public final class BeamService {
         obj.getString("currency", "NGN"),
         obj.getString("narration", ""),
         obj.getString("device_id", obj.getString("deviceId", "")),
-        obj.getString("ip_address", obj.getString("ipAddress", "")));
+        obj.getString("ip_address", obj.getString("ipAddress", "")),
+        false);
   }
 
-  private Transaction mapToTransaction(long institutionId, long id, JsonObject obj) {
+  private Transaction mapToTransaction(long institutionId, long id, JsonObject obj, ZoneId zone) {
     String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
     Number amtNum = obj.getNumber("amount", 0);
-    OffsetDateTime occurredAt = parseOccurredAt(obj.getString("occurred_at", obj.getString("occurredAt")));
-    OffsetDateTime now = OffsetDateTime.now();
+    OffsetDateTime occurredAt = parseOccurredAt(obj.getString("occurred_at", obj.getString("occurredAt")), zone);
+    OffsetDateTime now = OffsetDateTime.now(zone);
 
     return new Transaction(
         String.valueOf(id),
@@ -267,7 +317,8 @@ public final class BeamService {
         obj.getString("currency", "NGN"),
         obj.getString("narration", ""),
         obj.getString("device_id", obj.getString("deviceId", "")),
-        obj.getString("ip_address", obj.getString("ipAddress", ""))
+        obj.getString("ip_address", obj.getString("ipAddress", "")),
+        false
     );
   }
 
@@ -286,7 +337,7 @@ public final class BeamService {
     }
   }
 
-  private void processTransactionStream(long institutionId, String idempotencyKey, String payload) {
+  private void processTransactionStream(long institutionId, String idempotencyKey, String payload, ZoneId zone) {
     try {
       JsonObject obj = new JsonObject(payload);
       String id = idempotencyKey != null ? idempotencyKey : "beam-" + System.currentTimeMillis();
@@ -298,7 +349,7 @@ public final class BeamService {
       BigDecimal amount    = new BigDecimal(amtNum.toString());
       String channel       = obj.getString("channel", "Unknown");
       String counterparty  = obj.getString("counterparty", "");
-      String status        = obj.getString("status", "pending");
+      String status        = sanitizeStatus(obj.getString("status"));
       String flaggedStatus = obj.getString("flagged_status", obj.getString("flaggedStatus"));
       String location      = obj.getString("location");
       Double lat           = obj.getDouble("lat");
@@ -310,11 +361,11 @@ public final class BeamService {
         log.error("[Beam] Missing required field 'occurred_at' in payload for txn {}", id);
         throw new IllegalArgumentException("Transaction timestamp (occurred_at) is required");
       }
-      final OffsetDateTime occurredAt = parseOccurredAt(rawTs);
+      final OffsetDateTime occurredAt = parseOccurredAt(rawTs, zone);
 
       // Timestamp anomaly detection: use occurred_at (user's time) as source of truth
       // This detects if the user's transaction time is in the future or unusually stale
-      final OffsetDateTime now = OffsetDateTime.now();
+      final OffsetDateTime now = OffsetDateTime.now(zone);
       final long secondsDiff = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
       boolean timestampAnomaly = false;
       String anomalyReason = "";
@@ -373,10 +424,28 @@ public final class BeamService {
                   amount, channel, counterparty, finalRiskScore, status, flaggedStatus,
                   location, lat, lng, occurredAt, now, now,
                   senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
-                  currency, narration, deviceId, ipAddress);
+                  currency, narration, deviceId, ipAddress, false);
 
-              // TODO: Query actual transaction counts from database
-              orchestrator.processTransaction(institutionId, txn, 0, 0, 0, false)
+              // Query actual transaction counts from database for realistic rule evaluation
+              java.time.LocalDate today = occurredAt.toLocalDate();
+              java.time.LocalDate yesterday = today.minusDays(1);
+
+              Future<Long> fToday = transactionService.getTodayCount(institutionId, today);
+              Future<Long> fYesterday = transactionService.getYesterdayCount(institutionId, yesterday);
+              Future<Long> fCustomer24h = transactionService.getCustomerTxnCount24h(institutionId, customerId);
+              Future<Boolean> fOtp = otpAnalyzer != null
+                  ? otpAnalyzer.hasRecentAlert(institutionId, customerId, 15)
+                  : Future.succeededFuture(false);
+
+              Future.all(fToday, fYesterday, fCustomer24h, fOtp)
+                  .compose(counts -> {
+                    long todayCount = counts.resultAt(0);
+                    long yesterdayCount = counts.resultAt(1);
+                    long customer24h = counts.resultAt(2);
+                    boolean hasOtpAlert = counts.resultAt(3);
+
+                    return orchestrator.processTransaction(institutionId, txn, todayCount, yesterdayCount, customer24h, hasOtpAlert, true);
+                  })
                   .onSuccess(result -> {
                     log.info("[Beam] Fraud analysis complete: risk={} case={} ref={}",
                         result.riskScore(), result.caseId(), result.billingReference());
@@ -453,12 +522,62 @@ public final class BeamService {
     }
   }
 
-  private static OffsetDateTime parseOccurredAt(String rawTs) {
-    if (rawTs == null) return OffsetDateTime.now();
+  /**
+   * Maps any payment status value to the three valid values enforced by transactions_status_check.
+   * Pre-V14 payloads may send 'flagged'/'blocked'/'review'/'cleared' which were the old combined column.
+   */
+  private static String sanitizeStatus(String raw) {
+    if (raw == null) return "pending";
+    return switch (raw.toLowerCase()) {
+      case "successful", "success", "completed", "cleared" -> "successful";
+      case "failed",     "blocked",  "declined",  "rejected" -> "failed";
+      default -> "pending";
+    };
+  }
+
+  /**
+   * Parses occurred_at with support for multiple formats:
+   * 1. ISO-8601 with offset (e.g. 2026-05-09T21:43:00Z, 2026-05-09T21:43:00+01:00)
+   * 2. ISO-8601 local (e.g. 2026-05-09T21:43:00) — assumes institution timezone
+   * 3. Variants with spaces (e.g. 2026-05-09 21:43:00)
+   * 4. Numeric timestamps (milliseconds)
+   */
+  private static OffsetDateTime parseOccurredAt(String rawTs, ZoneId zone) {
     try {
-      return OffsetDateTime.parse(rawTs);
+      return parseOccurredAtOrThrow(rawTs, zone);
     } catch (Exception e) {
-      return OffsetDateTime.now();
+      log.warn("[Beam] occurred_at '{}' could not be parsed — falling back to now().", rawTs);
+      return OffsetDateTime.now(zone);
     }
+  }
+
+  private static OffsetDateTime parseOccurredAtOrThrow(String rawTs, ZoneId zone) {
+    if (rawTs == null || rawTs.isBlank()) {
+      throw new IllegalArgumentException("Timestamp is null or blank");
+    }
+
+    // 1. Try numeric (milliseconds)
+    try {
+      if (rawTs.length() >= 10 && rawTs.chars().allMatch(Character::isDigit)) {
+        long ms = Long.parseLong(rawTs);
+        return OffsetDateTime.ofInstant(Instant.ofEpochMilli(ms), zone);
+      }
+    } catch (NumberFormatException ignored) {}
+
+    // Normalize: replace space with T if present
+    String normalized = rawTs.trim().replace(' ', 'T');
+
+    // 2. Try OffsetDateTime (explicit offset)
+    try {
+      return OffsetDateTime.parse(normalized);
+    } catch (Exception ignored) {}
+
+    // 3. Try LocalDateTime (assume institution zone)
+    try {
+      LocalDateTime ldt = LocalDateTime.parse(normalized);
+      return ldt.atZone(zone).toOffsetDateTime();
+    } catch (Exception ignored) {}
+
+    throw new IllegalArgumentException("Unsupported timestamp format: " + rawTs);
   }
 }

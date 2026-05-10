@@ -45,7 +45,6 @@ public final class DevDemoBankSeeder {
         log.info("[demo-seed] {} already exists; not regenerating.", ADMIN_EMAIL);
         return Future.succeededFuture();
       }
-      // Find or create the demo bank institution.
       return findOrCreateBank(institutions).compose(bank -> {
         String hash = PasswordHasher.hash(ADMIN_PASSWORD);
         return users.create(

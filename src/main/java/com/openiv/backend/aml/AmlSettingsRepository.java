@@ -18,7 +18,7 @@ public final class AmlSettingsRepository {
 
   public Future<Optional<AmlSettings>> getByInstitution(long institutionId) {
     return pool.preparedQuery(
-        "SELECT id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold FROM aml_settings WHERE institution_id = $1")
+        "SELECT id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone FROM aml_settings WHERE institution_id = $1")
         .execute(Tuple.of(institutionId))
         .compose(rs -> {
           var it = rs.iterator();
@@ -38,7 +38,7 @@ public final class AmlSettingsRepository {
         "risk_score_case_threshold = COALESCE($4, aml_settings.risk_score_case_threshold), " +
         "beh_risk_score_flag_threshold = COALESCE($5, aml_settings.beh_risk_score_flag_threshold), " +
         "beh_risk_score_case_threshold = COALESCE($6, aml_settings.beh_risk_score_case_threshold), risk_score_normal_threshold = COALESCE($7, aml_settings.risk_score_normal_threshold), beh_risk_score_normal_threshold = COALESCE($8, aml_settings.beh_risk_score_normal_threshold) " +
-        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold";
+        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold))
         .compose(rs -> {
@@ -77,7 +77,39 @@ public final class AmlSettingsRepository {
         .mapEmpty();
   }
 
+  public Future<AmlSettings> updateBeamWindow(long institutionId, int beamWindowSeconds) {
+    return pool.preparedQuery(
+        "UPDATE aml_settings SET beam_window_seconds = $2 WHERE institution_id = $1 " +
+        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, " +
+        "beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, " +
+        "beh_risk_score_normal_threshold, beam_window_seconds, timezone")
+        .execute(Tuple.of(institutionId, beamWindowSeconds))
+        .compose(rs -> {
+          Row settingsRow = rs.iterator().next();
+          long amlSettingsId = settingsRow.getLong("id");
+          return getNotificationEmails(amlSettingsId)
+              .map(emails -> mapSettings(settingsRow, emails));
+        });
+  }
+
+  public Future<AmlSettings> updateTimezone(long institutionId, String timezone) {
+    return pool.preparedQuery(
+        "UPDATE aml_settings SET timezone = $2 WHERE institution_id = $1 " +
+        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, " +
+        "beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, " +
+        "beh_risk_score_normal_threshold, beam_window_seconds, timezone")
+        .execute(Tuple.of(institutionId, timezone))
+        .compose(rs -> {
+          Row settingsRow = rs.iterator().next();
+          long amlSettingsId = settingsRow.getLong("id");
+          return getNotificationEmails(amlSettingsId)
+              .map(emails -> mapSettings(settingsRow, emails));
+        });
+  }
+
   private static AmlSettings mapSettings(Row r, List<String> emails) {
+    Integer bw = r.getInteger("beam_window_seconds");
+    String tz = r.getString("timezone");
     return new AmlSettings(
         r.getLong("id"),
         r.getLong("institution_id"),
@@ -88,6 +120,8 @@ public final class AmlSettingsRepository {
         r.getInteger("beh_risk_score_flag_threshold"),
         r.getInteger("beh_risk_score_case_threshold"),
         r.getInteger("risk_score_normal_threshold"),
-        r.getInteger("beh_risk_score_normal_threshold"));
+        r.getInteger("beh_risk_score_normal_threshold"),
+        bw != null ? bw : 180,
+        tz != null ? tz : "Africa/Lagos");
   }
 }

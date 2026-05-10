@@ -90,8 +90,6 @@ public final class Main {
   public static void main(String[] args) {
     System.setProperty("vertx.logger-delegate-factory-class-name",
         "io.vertx.core.logging.SLF4JLogDelegateFactory");
-    System.setProperty("user.timezone", "Africa/Lagos");
-    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Africa/Lagos"));
 
     int cores = Runtime.getRuntime().availableProcessors();
 
@@ -199,7 +197,7 @@ public final class Main {
 
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
             webhookService,
-            orchestrator, notificationService, customerService);
+            orchestrator, notificationService, customerService, amlSettingsRepository);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
         GeoFenceService geoFenceService = new GeoFenceService(

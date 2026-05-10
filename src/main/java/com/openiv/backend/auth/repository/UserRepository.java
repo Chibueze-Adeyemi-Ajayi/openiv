@@ -12,10 +12,15 @@ import java.util.Optional;
 
 public final class UserRepository {
 
-  private static final String SELECT_COLS =
+  private static final String BASE_SELECT_COLS =
       "id, email::text, full_name, email_verified, password_hash, password_updated_at, "
       + "must_change_password, status, role, account_type, institution_id, "
       + "failed_login_attempts, locked_until, created_at, updated_at, eureka_companion_enabled";
+
+  private static final String SELECT_COLS_JOINED =
+      "u.id, u.email::text, u.full_name, u.email_verified, u.password_hash, u.password_updated_at, "
+      + "u.must_change_password, u.status, u.role, u.account_type, u.institution_id, "
+      + "u.failed_login_attempts, u.locked_until, u.created_at, u.updated_at, u.eureka_companion_enabled, a.timezone";
 
   private final Pool pool;
 
@@ -24,13 +29,13 @@ public final class UserRepository {
   }
 
   public Future<Optional<User>> findByEmail(String email) {
-    return pool.preparedQuery("SELECT " + SELECT_COLS + " FROM users WHERE email = $1")
+    return pool.preparedQuery("SELECT " + SELECT_COLS_JOINED + " FROM users u LEFT JOIN aml_settings a ON u.institution_id = a.institution_id WHERE u.email = $1")
         .execute(Tuple.of(email))
         .map(rs -> rs.rowCount() == 0 ? Optional.<User>empty() : Optional.of(map(rs.iterator().next())));
   }
 
   public Future<Optional<User>> findById(long id) {
-    return pool.preparedQuery("SELECT " + SELECT_COLS + " FROM users WHERE id = $1")
+    return pool.preparedQuery("SELECT " + SELECT_COLS_JOINED + " FROM users u LEFT JOIN aml_settings a ON u.institution_id = a.institution_id WHERE u.id = $1")
         .execute(Tuple.of(id))
         .map(rs -> rs.rowCount() == 0 ? Optional.<User>empty() : Optional.of(map(rs.iterator().next())));
   }
@@ -41,9 +46,10 @@ public final class UserRepository {
    */
   public Future<List<User>> listActiveByInstitution(long institutionId) {
     return pool.preparedQuery(
-            "SELECT " + SELECT_COLS + " FROM users "
-            + "WHERE institution_id = $1 AND status <> 'disabled' "
-            + "ORDER BY created_at")
+            "SELECT " + SELECT_COLS_JOINED + " FROM users u "
+            + "LEFT JOIN aml_settings a ON u.institution_id = a.institution_id "
+            + "WHERE u.institution_id = $1 AND u.status <> 'disabled' "
+            + "ORDER BY u.created_at")
         .execute(Tuple.of(institutionId))
         .map(rs -> {
           var list = new java.util.ArrayList<User>();
@@ -58,7 +64,7 @@ public final class UserRepository {
     String sql = "INSERT INTO users "
         + "(email, full_name, password_hash, must_change_password, status, role, "
         + " account_type, institution_id, email_verified) "
-        + "VALUES ($1, $2, $3, $4, 'active', $5, $6, $7, $8) RETURNING " + SELECT_COLS;
+        + "VALUES ($1, $2, $3, $4, 'active', $5, $6, $7, $8) RETURNING " + BASE_SELECT_COLS;
     return pool.preparedQuery(sql)
         .execute(Tuple.tuple()
             .addString(email)
@@ -69,7 +75,7 @@ public final class UserRepository {
             .addString(accountType.dbValue())
             .addLong(institutionId)
             .addBoolean(emailVerified))
-        .map(rs -> map(rs.iterator().next()));
+        .map(rs -> mapBase(rs.iterator().next()));
   }
 
   public Future<Void> markEmailVerified(long userId) {
@@ -140,6 +146,28 @@ public final class UserRepository {
         r.getOffsetDateTime("locked_until"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"),
-        r.getBoolean("eureka_companion_enabled"));
+        r.getBoolean("eureka_companion_enabled"),
+        r.getString("timezone"));
+  }
+
+  private static User mapBase(Row r) {
+    return new User(
+        r.getLong("id"),
+        r.getString("email"),
+        r.getString("full_name"),
+        r.getBoolean("email_verified"),
+        r.getString("password_hash"),
+        r.getOffsetDateTime("password_updated_at"),
+        r.getBoolean("must_change_password"),
+        r.getString("status"),
+        r.getString("role"),
+        AccountType.fromDb(r.getString("account_type")),
+        r.getLong("institution_id"),
+        r.getInteger("failed_login_attempts"),
+        r.getOffsetDateTime("locked_until"),
+        r.getOffsetDateTime("created_at"),
+        r.getOffsetDateTime("updated_at"),
+        r.getBoolean("eureka_companion_enabled"),
+        "Africa/Lagos"); // Default for new user/institution
   }
 }

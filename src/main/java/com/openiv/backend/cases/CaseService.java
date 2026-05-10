@@ -32,15 +32,19 @@ public final class CaseService {
   }
 
   public Future<CasePage> list(Session session, String status, String priority,
-      String q, int page, int pageSize) {
+      String q, int page, int pageSize, String sort, String range,
+      Integer minRisk, Integer maxRisk) {
     return resolveUser(session)
-        .compose(u -> repository.list(u.institutionId(), status, priority, q, page, pageSize));
+        .compose(u -> repository.list(u.institutionId(), status, priority, q, page, pageSize,
+            sort, range, minRisk, maxRisk, u.id()));
   }
 
   public Future<CasePage> listUnavailable(Session session, String status, String priority,
-      String q, int page, int pageSize) {
+      String q, int page, int pageSize, String sort, String range,
+      Integer minRisk, Integer maxRisk) {
     return resolveUser(session)
-        .compose(u -> repository.listUnavailable(u.institutionId(), status, priority, q, page, pageSize));
+        .compose(u -> repository.listUnavailable(u.institutionId(), status, priority, q, page, pageSize,
+            sort, range, minRisk, maxRisk, u.id()));
   }
 
   public Future<CaseRecord> create(Session session, String title, String typology,
@@ -69,13 +73,17 @@ public final class CaseService {
   }
 
   public Future<Optional<CaseDetail>> detail(Session session, String id) {
-    return resolveUser(session).compose(u -> repository.detail(id, u.institutionId()));
+    return resolveUser(session).compose(u -> {
+      // Mark as seen when opened
+      repository.markSeen(id, u.institutionId(), u.id()).onFailure(e -> {});
+      return repository.detail(id, u.institutionId(), u.id());
+    });
   }
 
   public Future<Boolean> updateStatus(Session session, String id,
       String newStatus, String resolution, String reason, Long documentId) {
     return resolveUser(session).compose(u ->
-        repository.findById(id, u.institutionId()).compose(opt -> {
+        repository.findById(id, u.institutionId(), u.id()).compose(opt -> {
           if (opt.isEmpty()) return Future.succeededFuture(false);
           String current = opt.get().status();
           if (!isValidTransition(current, newStatus)) {
@@ -106,13 +114,18 @@ public final class CaseService {
 
   public Future<Optional<CaseRecord>> findByTransactionId(Session session, String transactionId) {
     return resolveUser(session)
-        .compose(u -> repository.findCaseByTransaction(u.institutionId(), transactionId));
+        .compose(u -> repository.findCaseByTransaction(u.institutionId(), transactionId, u.id()));
+  }
+
+  public Future<Void> markSeen(Session session, String caseId) {
+    return resolveUser(session)
+        .compose(u -> repository.markSeen(caseId, u.institutionId(), u.id()));
   }
 
   public Future<CaseEvidence> addEvidence(Session session, String caseId,
       String category, String title, String detail, String refId) {
     return resolveUser(session).compose(u ->
-        repository.findById(caseId, u.institutionId()).compose(opt -> {
+        repository.findById(caseId, u.institutionId(), u.id()).compose(opt -> {
           if (opt.isEmpty())
             return Future.failedFuture(new IllegalArgumentException("Case not found"));
           return repository.addEvidence(caseId, u.id(), category, title, detail, refId)
@@ -126,7 +139,7 @@ public final class CaseService {
 
   public Future<Void> addNote(Session session, String caseId, String note) {
     return resolveUser(session).compose(u ->
-        repository.findById(caseId, u.institutionId()).compose(opt -> {
+        repository.findById(caseId, u.institutionId(), u.id()).compose(opt -> {
           if (opt.isEmpty()) return Future.failedFuture(new IllegalArgumentException("Case not found"));
           return repository.addActivity(caseId, u.id(), "note_added", note);
         }));
@@ -134,7 +147,7 @@ public final class CaseService {
 
   public Future<Void> addSystemActivity(String caseId, long institutionId,
       String action, String detail) {
-    return repository.findById(caseId, institutionId).compose(opt -> {
+    return repository.findById(caseId, institutionId, 0L).compose(opt -> {
       if (opt.isEmpty()) return Future.succeededFuture();
       return repository.addActivity(caseId, 0L, action, detail);
     });
@@ -151,6 +164,16 @@ public final class CaseService {
   public Future<AmlSettings> updateAmlSettings(Session session, boolean autoOpenCase, Integer flagThreshold, Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold, Integer normalThreshold, Integer behNormalThreshold) {
     return resolveUser(session).compose(u ->
         amlSettingsRepository.upsert(u.institutionId(), autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold));
+  }
+
+  public Future<AmlSettings> updateBeamWindow(Session session, int beamWindowSeconds) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.updateBeamWindow(u.institutionId(), beamWindowSeconds));
+  }
+
+  public Future<AmlSettings> updateTimezone(Session session, String timezone) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.updateTimezone(u.institutionId(), timezone));
   }
 
   public Future<AmlSettings> addCaseNotificationEmail(Session session, String email) {

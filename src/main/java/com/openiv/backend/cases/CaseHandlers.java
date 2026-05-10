@@ -43,8 +43,12 @@ public final class CaseHandlers {
       String q        = first(ctx, "q");
       int page        = intParam(ctx, "page", 1);
       int pageSize    = Math.min(intParam(ctx, "pageSize", 20), 100);
+      String sort     = first(ctx, "sort");
+      String range    = first(ctx, "range");
+      Integer minRisk = intParamOrNull(ctx, "minRisk");
+      Integer maxRisk = intParamOrNull(ctx, "maxRisk");
 
-      service.list(session, status, priority, q, page, pageSize)
+      service.list(session, status, priority, q, page, pageSize, sort, range, minRisk, maxRisk)
           .onSuccess(result -> {
             var arr = new JsonArray();
             result.cases().forEach(c -> arr.add(caseJson(c)));
@@ -67,8 +71,12 @@ public final class CaseHandlers {
       String q        = first(ctx, "q");
       int page        = intParam(ctx, "page", 1);
       int pageSize    = Math.min(intParam(ctx, "pageSize", 20), 100);
+      String sort     = first(ctx, "sort");
+      String range    = first(ctx, "range");
+      Integer minRisk = intParamOrNull(ctx, "minRisk");
+      Integer maxRisk = intParamOrNull(ctx, "maxRisk");
 
-      service.listUnavailable(session, status, priority, q, page, pageSize)
+      service.listUnavailable(session, status, priority, q, page, pageSize, sort, range, minRisk, maxRisk)
           .onSuccess(result -> {
             var arr = new JsonArray();
             result.cases().forEach(c -> arr.add(caseJson(c)));
@@ -240,6 +248,17 @@ public final class CaseHandlers {
     };
   }
 
+  // PATCH /cases/:id/seen
+  public Handler<RoutingContext> markSeen() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      service.markSeen(session, caseId)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // ── JSON serialisers ─────────────────────────────────────────────────────
 
   private static JsonObject caseJson(CaseRecord c) {
@@ -257,7 +276,10 @@ public final class CaseHandlers {
         .put("slaDeadline",   c.slaDeadline().toString())
         .put("closedAt",      c.closedAt()  != null ? c.closedAt().toString()  : null)
         .put("createdAt",     c.createdAt().toString())
-        .put("updatedAt",     c.updatedAt().toString());
+        .put("updatedAt",     c.updatedAt().toString())
+        .put("seen",          c.seen())
+        .put("brief",         c.brief())
+        .put("isAvailableForInvestigation", c.isAvailableForInvestigation());
     if (c.assignedTo() != null) {
       o.put("assignedTo",   c.assignedTo());
       o.put("assigneeName", c.assigneeName());
@@ -339,6 +361,13 @@ public final class CaseHandlers {
 
   private static int intParam(RoutingContext ctx, String key, int def) {
     try { return Integer.parseInt(first(ctx, key)); } catch (Exception e) { return def; }
+  }
+
+  private static Integer intParamOrNull(RoutingContext ctx, String key) {
+    try {
+      String v = first(ctx, key);
+      return v != null ? Integer.parseInt(v) : null;
+    } catch (Exception e) { return null; }
   }
 
   private static String nvl(String v, String fallback) {

@@ -23,16 +23,7 @@ public final class AmlHandlers {
             JsonObject res = new JsonObject();
             if (opt.isPresent()) {
               AmlSettings settings = opt.get();
-              res.put("settings", new JsonObject()
-                  .put("id", settings.id())
-                  .put("institutionId", settings.institutionId())
-                  .put("autoOpenCase", settings.autoOpenCase())
-                  .put("riskScoreFlagThreshold", settings.riskScoreFlagThreshold())
-                  .put("riskScoreCaseThreshold", settings.riskScoreCaseThreshold())
-                  .put("behRiskScoreFlagThreshold", settings.behRiskScoreFlagThreshold())
-                  .put("behRiskScoreCaseThreshold", settings.behRiskScoreCaseThreshold())
-                  .put("riskScoreNormalThreshold", settings.riskScoreNormalThreshold())
-                  .put("behRiskScoreNormalThreshold", settings.behRiskScoreNormalThreshold()));
+              res.put("settings", settingsJson(settings).getJsonObject("settings"));
             } else {
               res.put("settings", JsonObject.of());
             }
@@ -91,6 +82,47 @@ public final class AmlHandlers {
     };
   }
 
+  // PATCH /aml-settings/beam-window — caller must have already passed TOTP step-up
+  public Handler<RoutingContext> updateBeamWindow() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      Integer beamWindowSeconds = body.getInteger("beamWindowSeconds");
+      if (beamWindowSeconds == null || beamWindowSeconds < 30 || beamWindowSeconds > 86400) {
+        badRequest(ctx, "beamWindowSeconds must be between 30 and 86400"); return;
+      }
+      service.updateBeamWindow(session, beamWindowSeconds)
+          .onSuccess(settings -> ok(ctx, settingsJson(settings)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // PATCH /aml-settings/timezone
+  public Handler<RoutingContext> updateTimezone() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      String timezone = body.getString("timezone");
+      if (timezone == null || timezone.isBlank()) {
+        badRequest(ctx, "timezone is required"); return;
+      }
+      // Simple validation for ZoneId
+      try {
+        java.time.ZoneId.of(timezone);
+      } catch (Exception e) {
+        badRequest(ctx, "invalid timezone identifier"); return;
+      }
+
+      service.updateTimezone(session, timezone)
+          .onSuccess(settings -> ok(ctx, settingsJson(settings)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // DELETE /aml-settings/notifications/email
   public Handler<RoutingContext> removeNotificationEmail() {
     return ctx -> {
@@ -119,7 +151,9 @@ public final class AmlHandlers {
         .put("behRiskScoreFlagThreshold", settings.behRiskScoreFlagThreshold())
         .put("behRiskScoreCaseThreshold", settings.behRiskScoreCaseThreshold())
         .put("riskScoreNormalThreshold", settings.riskScoreNormalThreshold())
-        .put("behRiskScoreNormalThreshold", settings.behRiskScoreNormalThreshold());
+        .put("behRiskScoreNormalThreshold", settings.behRiskScoreNormalThreshold())
+        .put("beamWindowSeconds", settings.beamWindowSeconds())
+        .put("timezone", settings.timezone());
     if (settings.caseNotificationEmails() != null) {
       json.put("caseNotificationEmails", settings.caseNotificationEmails());
     }

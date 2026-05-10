@@ -197,13 +197,13 @@ public final class AutoCaseCreationService {
 
   private String ruleToPainEnglish(String rule, Transaction txn) {
     return switch (rule) {
-      case "High-value wire transfer" ->
-          String.format("Large wire transfer: ₦%,d being sent (exceeds normal amount for this account)", txn.amount().longValue());
-      case "OTP attack detected in time window" ->
+      case "high-value-wire", "High-value wire transfer" ->
+          String.format("Large transfer: ₦%,d being sent (exceeds institution's high-value threshold)", txn.amount().longValue());
+      case "OTP_ALERT", "OTP attack detected in time window" ->
           "Multiple failed login attempts detected just before this transaction (possible account compromise)";
-      case "Late-night large transfer" ->
-          String.format("Large transfer of ₦%,d happening at an unusual time", txn.amount().longValue());
-      case "High transaction velocity" ->
+      case "late-night-large", "Late-night large transfer" ->
+          String.format("Large transfer of ₦%,d happening at an unusual time (late night)", txn.amount().longValue());
+      case "velocity-cluster", "High transaction velocity" ->
           "Many transactions happening in rapid succession from the same customer (unusual pattern)";
       case "POS transaction at unusual time" ->
           "Card purchase at an unusual time of day (outside normal patterns)";
@@ -215,7 +215,23 @@ public final class AutoCaseCreationService {
           "Customer appears to be in two different locations within an impossible travel time";
       case "Suspicious IP cluster" ->
           "Multiple accounts accessed from the same IP address (possible coordinated fraud)";
-      default -> rule;
+      case "STALE_TIMESTAMP_ANOMALY" ->
+          "The transaction's recorded time is much older than when it reached us — a possible replay or backdating attack";
+      case "FUTURE_TIMESTAMP_ANOMALY" ->
+          "The transaction's recorded time is in the future — a possible clock-tampering or forged-timestamp attack";
+      case "MICRO_TIMING_ANOMALY" ->
+          "The transaction's recorded time is suspiciously close to 'now' — a possible API injection attack";
+      case "KYC_TIER_LIMIT_EXCEEDED" ->
+          "The transaction amount exceeds the customer's current KYC tier limits";
+      case "VELOCITY_SPIKE", "pat-4" ->
+          "A sudden spike in transaction volume detected, which may indicate a coordinated attack or system anomaly";
+      case "pat-5" ->
+          "Unusual transaction frequency detected for this specific customer profile";
+      case "pat-2" ->
+          "High-value mobile/digital channel transaction that deviates from historical norms";
+      case "cross-border-bdc" ->
+          "High-value cross-border Bureau De Change (BDC) transaction detected";
+      default -> rule.replace("_", " ").toLowerCase();
     };
   }
 

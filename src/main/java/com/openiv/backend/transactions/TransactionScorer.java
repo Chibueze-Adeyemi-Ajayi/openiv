@@ -17,11 +17,17 @@ public class TransactionScorer {
     public int score;
     public List<String> flags;
     public String reason;
+    public List<Integer> ruleScores;
 
     public ScoringResult(int score, List<String> flags, String reason) {
+      this(score, flags, reason, new ArrayList<>());
+    }
+
+    public ScoringResult(int score, List<String> flags, String reason, List<Integer> ruleScores) {
       this.score = score;
       this.flags = flags;
       this.reason = reason;
+      this.ruleScores = ruleScores;
     }
 
     public JsonObject toJson() {

@@ -1,0 +1,2 @@
+ALTER TABLE aml_settings
+  ADD COLUMN IF NOT EXISTS beam_window_seconds INT NOT NULL DEFAULT 180;

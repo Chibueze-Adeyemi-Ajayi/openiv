@@ -40,7 +40,8 @@ public class HybridTransactionAnalysisService {
       String aiAnalysis,
       boolean caseCreated,
       boolean aiAnalyzed,
-      boolean shouldFlag) {
+      boolean shouldFlag,
+      String recommendedAction) {
   }
 
   public HybridTransactionAnalysisService(
@@ -76,36 +77,168 @@ public class HybridTransactionAnalysisService {
       long todayCount,
       long yesterdayCount,
       long customerTxnCount24h,
-      boolean hasOtpAlert) {
+      boolean hasOtpAlert,
+      boolean skipKyc) {
 
     Future<List<ThresholdRecord>>  fThresholds    = thresholdRepository.list(institutionId);
     Future<List<KycTierRecord>>    fTierThresholds = thresholdRepository.listKycTierThresholds(institutionId);
     Future<Boolean>                fHasKycConfig  = kycService.hasConfigForInstitution(institutionId);
     Future<java.util.Optional<com.openiv.backend.aml.AmlSettings>> fAmlSettings = amlSettingsRepository.getByInstitution(institutionId);
     Future<List<BehavioralRuleRecord>> fBehavioralRules = behavioralRuleRepository.list(institutionId);
+    Future<Boolean>                fKycSuppressed = thresholdRepository.getKycSuppressed(institutionId);
 
-    return Future.all(fThresholds, fTierThresholds, fHasKycConfig, fAmlSettings, fBehavioralRules)
-        .compose((io.vertx.core.CompositeFuture results) -> {
+    return Future.all(fThresholds, fTierThresholds, fHasKycConfig, fAmlSettings, fBehavioralRules, fKycSuppressed)
+        .compose(results -> {
           List<ThresholdRecord> thresholds     = results.resultAt(0);
           List<KycTierRecord>   tierThresholds = results.resultAt(1);
           boolean               hasKycConfig   = Boolean.TRUE.equals((Boolean) results.resultAt(2));
           java.util.Optional<com.openiv.backend.aml.AmlSettings> optAmlSettings = results.resultAt(3);
           List<BehavioralRuleRecord> behavioralRules = results.resultAt(4);
+          boolean               kycSuppressed  = Boolean.TRUE.equals((Boolean) results.resultAt(5));
+
+          // Bypass KYC tier check when KYC warning is suppressed, no KYC data source is configured, or explicitly skipped (e.g. for Beams)
+          boolean kycTierCheckEnabled = hasKycConfig && !kycSuppressed && !skipKyc;
+          if (kycSuppressed && !hasKycConfig) {
+            log.info("[HybridAnalysis] KYC tier check bypassed for txn={} (suppressed, no data source)", transaction.id());
+          }
           
-          com.openiv.backend.aml.AmlSettings amlSettings = optAmlSettings.orElse(new com.openiv.backend.aml.AmlSettings(0, institutionId, false, null, 51, 81, 60, 85, 30, 30));
+          com.openiv.backend.aml.AmlSettings amlSettings = optAmlSettings.orElse(new com.openiv.backend.aml.AmlSettings(0, institutionId, false, null, 51, 81, 60, 85, 30, 30, 180, "Africa/Lagos"));
+          java.time.ZoneId zone = java.time.ZoneId.of(amlSettings.timezone());
+          int beamWindowSeconds = amlSettings.beamWindowSeconds();
+
+          // ─────────────────────────────────────────────────────────────────
+          // MICRO TIMING ANOMALY CHECK (Critical Security Rule)
+          // If transaction occurred within ±5 seconds of system time,
+          // it's likely an injection attack or API manipulation.
+          // Score 96% and auto-create case immediately.
+          // ─────────────────────────────────────────────────────────────────
+          java.time.OffsetDateTime now = java.time.OffsetDateTime.now(zone);
+          java.time.OffsetDateTime txnTime = transaction.occurredAt();
+          if (txnTime != null) {
+            long signedDiff = java.time.temporal.ChronoUnit.SECONDS.between(txnTime, now);
+            long secondsDiff = Math.abs(signedDiff);
+            if (secondsDiff <= 5) {
+              log.warn("[CRITICAL] Micro-Timing Anomaly detected on txn={} (occurred {} seconds ago). Risk=96%, auto-creating case.",
+                  transaction.id(), secondsDiff);
+              java.util.List<String> anomalyFlags = java.util.List.of("MICRO_TIMING_ANOMALY");
+              AnalysisResult anomalyResult = new AnalysisResult(
+                  96,
+                  TransactionScorer.getPriority(96),
+                  anomalyFlags,
+                  null, null,
+                  false, false, true, "DECLINE");
+              // Auto-create case for this critical anomaly
+              return caseService.createCaseFromTransaction(institutionId, transaction,
+                  new TransactionScorer.ScoringResult(96, anomalyFlags, "Micro-timing anomaly detected"))
+                  .compose(caseRecord -> {
+                    AnalysisResult caseResult = new AnalysisResult(
+                        anomalyResult.riskScore(),
+                        anomalyResult.priority(),
+                        anomalyResult.triggeredRules(),
+                        caseRecord.id(),
+                        null,
+                        true,
+                        false,
+                        anomalyResult.shouldFlag(),
+                        anomalyResult.recommendedAction());
+                    sendCaseNotificationEmails(institutionId, caseRecord)
+                        .onFailure(e -> log.warn("[Case Notifications] Failed to send emails for micro-timing case {}: {}",
+                            caseRecord.id(), e.getMessage()));
+                    return Future.succeededFuture(caseResult);
+                  });
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // STALE / FUTURE TIMESTAMP ANOMALY (Critical Security Rule)
+            // occurred_at >24h old → likely replay or batched-import abuse.
+            // occurred_at >5min in the future → likely clock tamper.
+            // Score 95% and auto-create case immediately.
+            // ─────────────────────────────────────────────────────────────
+            String anomalyKind = null;
+            String anomalyDetail = null;
+            String friendlyReason = null;
+            if (signedDiff < -beamWindowSeconds) {
+              anomalyKind = "FUTURE_TIMESTAMP_ANOMALY";
+              long secondsAhead = Math.abs(signedDiff);
+              long minutesAhead = Math.max(1, secondsAhead / 60);
+              anomalyDetail = String.format("occurred_at is %d seconds ahead of server time", secondsAhead);
+              friendlyReason = "The time recorded for this transaction is " + minutesAhead +
+                  " minute" + (minutesAhead == 1 ? "" : "s") +
+                  " ahead of our system clock. A real transaction can never happen in the future, so this " +
+                  "usually means the source system's clock has been tampered with or someone is forging " +
+                  "timestamps. This is a strong signal of a possible cyber attack and should be investigated " +
+                  "right away.";
+            } else if (signedDiff > beamWindowSeconds) {
+              long hoursOld = signedDiff >= 3600 ? signedDiff / 3600 : 0;
+              long minutesOld = (signedDiff % 3600) / 60;
+              String ageDesc = hoursOld > 0
+                  ? hoursOld + " hour" + (hoursOld == 1 ? "" : "s")
+                  : minutesOld + " minute" + (minutesOld == 1 ? "" : "s");
+              anomalyKind = "STALE_TIMESTAMP_ANOMALY";
+              anomalyDetail = String.format("occurred_at is %s old", ageDesc);
+              friendlyReason = "The time recorded for this transaction is " + ageDesc +
+                  " older than the time it actually reached our system. When the transaction time " +
+                  "and the arrival time are this far apart, it usually means one of three things: the source " +
+                  "system's clock is out of sync, the request was replayed by an attacker, or someone is " +
+                  "trying to backdate activity. Any of these is a possible sign of a cyber attack and should " +
+                  "be looked into.";
+            }
+            if (anomalyKind != null) {
+              log.warn("[CRITICAL] {} detected on txn={} ({}). Risk=95%, auto-creating case.",
+                  anomalyKind, transaction.id(), anomalyDetail);
+              final String ruleName = anomalyKind;
+              final String reason = friendlyReason;
+              java.util.List<String> anomalyFlags = java.util.List.of(ruleName);
+              
+              // Ensure the transaction record in DB gets the 95% risk score
+              return updateTransactionRisk(institutionId, transaction.id(), 95)
+                .compose(v -> caseService.createCaseFromTransaction(institutionId, transaction,
+                    new TransactionScorer.ScoringResult(95, anomalyFlags, reason)))
+                .compose(caseRecord -> {
+                  AnalysisResult caseResult = new AnalysisResult(
+                      95,
+                      TransactionScorer.getPriority(95),
+                      anomalyFlags,
+                      caseRecord.id(),
+                      null,
+                      true,
+                      false,
+                      true,
+                      "DECLINE");
+                  sendCaseNotificationEmails(institutionId, caseRecord)
+                      .onFailure(e -> log.warn("[Case Notifications] Failed to send emails for {} case {}: {}",
+                          ruleName, caseRecord.id(), e.getMessage()));
+                  return Future.succeededFuture(caseResult);
+                });
+            }
+          }
 
           TransactionScorer.ScoringResult txnResult = scoreWithThresholds(
               transaction, thresholds, tierThresholds,
-              todayCount, yesterdayCount, customerTxnCount24h, hasOtpAlert, hasKycConfig);
+              todayCount, yesterdayCount, customerTxnCount24h, hasOtpAlert, kycTierCheckEnabled, zone);
 
           TransactionScorer.ScoringResult behResult = scoreBehavioralPatterns(
               transaction, behavioralRules, todayCount, yesterdayCount, customerTxnCount24h);
 
-          int finalScore = Math.max(txnResult.score, behResult.score);
+          java.util.List<Integer> allRuleScores = new java.util.ArrayList<>();
+          allRuleScores.addAll(txnResult.ruleScores);
+          allRuleScores.addAll(behResult.ruleScores);
+
+          int finalScore = 0;
+          if (!allRuleScores.isEmpty()) {
+            double sum = 0;
+            for (int s : allRuleScores) sum += s;
+            // Average all triggered rules across both categories, then add a single 20-point baseline
+            finalScore = (int) Math.min(100, Math.round(sum / allRuleScores.size()) + 20);
+          }
+          
           java.util.List<String> combinedFlags = new java.util.ArrayList<>();
           combinedFlags.addAll(txnResult.flags);
           combinedFlags.addAll(behResult.flags);
-          TransactionScorer.ScoringResult scoringResult = new TransactionScorer.ScoringResult(finalScore, combinedFlags, txnResult.reason + " | " + behResult.reason);
+
+          String finalReason = buildHumanReadableReason(combinedFlags, finalScore);
+          TransactionScorer.ScoringResult scoringResult = new TransactionScorer.ScoringResult(
+              finalScore, combinedFlags, finalReason, allRuleScores);
 
           // Legacy override to avoid breaking next block:
 
@@ -113,8 +246,12 @@ public class HybridTransactionAnalysisService {
             scoringResult.flags.clear();
           }
 
-          boolean shouldFlag = (txnResult.score >= amlSettings.riskScoreFlagThreshold()) || (behResult.score >= amlSettings.behRiskScoreFlagThreshold());
-          boolean shouldCase = TransactionScorer.shouldCreateCase(txnResult.score, amlSettings.riskScoreCaseThreshold()) || TransactionScorer.shouldCreateCase(behResult.score, amlSettings.behRiskScoreCaseThreshold());
+          boolean shouldCase = finalScore >= amlSettings.riskScoreCaseThreshold();
+          boolean shouldFlag = finalScore >= amlSettings.riskScoreFlagThreshold();
+          
+          String recommendedAction = "ALLOW";
+          if (shouldCase) recommendedAction = "DECLINE";
+          else if (shouldFlag) recommendedAction = "HOLD";
 
           log.info("[HybridAnalysis] txn={} risk={} rules={}",
               transaction.id(), scoringResult.score, scoringResult.flags);
@@ -124,34 +261,38 @@ public class HybridTransactionAnalysisService {
               TransactionScorer.getPriority(scoringResult.score),
               scoringResult.flags,
               null, null,
-              false, false, shouldFlag);
+              false, false, shouldFlag, recommendedAction);
 
-          if (!shouldCase) {
-            return Future.succeededFuture(result);
-          }
+          // Crucial: Update the transaction record in the database with the calculated score 
+          // BEFORE returning or sending notifications. This fixes dashboard inconsistency.
+          return updateTransactionRisk(institutionId, transaction.id(), scoringResult.score)
+              .<AnalysisResult>compose(v -> {
+                if (!shouldCase) {
+                  return Future.succeededFuture(result);
+                }
 
-          return caseService.createCaseFromTransaction(institutionId, transaction, scoringResult)
-              .compose(caseRecord -> {
-                AnalysisResult caseResult = new AnalysisResult(
-                    result.riskScore(), result.priority(), result.triggeredRules(),
-                    caseRecord.id(), null, true, false, result.shouldFlag());
+                return caseService.createCaseFromTransaction(institutionId, transaction, scoringResult)
+                    .compose(caseRecord -> {
+                      AnalysisResult caseResult = new AnalysisResult(
+                          result.riskScore(), result.priority(), result.triggeredRules(),
+                          caseRecord.id(), null, true, false, result.shouldFlag(), result.recommendedAction());
+                      thresholdRepository.getKycSuppressed(institutionId)
+                          .onSuccess(suppressed -> {
+                            if (!suppressed) {
+                              kycService.lookupForPipeline(institutionId, transaction.customerId(), caseRecord.id())
+                                  .onFailure(e -> log.warn("[KYC Pipeline] lookup failed for txn {}: {}",
+                                      transaction.id(), e.getMessage()));
+                            } else {
+                              log.info("[KYC Pipeline] lookup skipped for txn {} (suppressed)", transaction.id());
+                            }
+                          });
 
-                thresholdRepository.getKycSuppressed(institutionId)
-                    .onSuccess(suppressed -> {
-                      if (!suppressed) {
-                        kycService.lookupForPipeline(institutionId, transaction.customerId(), caseRecord.id())
-                            .onFailure(e -> log.warn("[KYC Pipeline] lookup failed for txn {}: {}",
-                                transaction.id(), e.getMessage()));
-                      } else {
-                        log.info("[KYC Pipeline] lookup skipped for txn {} (suppressed)", transaction.id());
-                      }
+                      sendCaseNotificationEmails(institutionId, caseRecord)
+                          .onFailure(e -> log.warn("[Case Notifications] Failed to send emails for case {}: {}",
+                              caseRecord.id(), e.getMessage()));
+
+                      return Future.<AnalysisResult>succeededFuture(caseResult);
                     });
-
-                sendCaseNotificationEmails(institutionId, caseRecord)
-                    .onFailure(e -> log.warn("[Case Notifications] Failed to send emails for case {}: {}",
-                        caseRecord.id(), e.getMessage()));
-
-                return Future.<AnalysisResult>succeededFuture(caseResult);
               });
         })
         .onFailure(e -> log.error("[HybridAnalysis] Analysis failed for txn {}",
@@ -169,18 +310,23 @@ public class HybridTransactionAnalysisService {
       long yesterdayCount,
       long customerTxnCount24h,
       boolean hasOtpAlert,
-      boolean hasKycConfig) {
+      boolean kycTierCheckEnabled,
+      java.time.ZoneId zone) {
 
     java.util.ArrayList<String> flags = new java.util.ArrayList<>();
-    int score = 20; // baseline
+    java.util.ArrayList<Integer> ruleScores = new java.util.ArrayList<>();
 
     java.util.Map<String, Long> thresholdMap = thresholds.stream()
+        .filter(ThresholdRecord::isActive)
         .collect(java.util.stream.Collectors.toMap(
             ThresholdRecord::ruleId, ThresholdRecord::thresholdValue));
 
-    // Rule 0: KYC Tier-based limits — only when institution has a KYC database configured
-    if (hasKycConfig && !tierThresholds.isEmpty()) {
-      int customerTier = 0; // default to Tier 0 when KYC config exists but tier unknown
+    log.info("[HybridAnalysis] Evaluating txn={} amount={} channel={} active_rules={}",
+        transaction.id(), transaction.amount(), transaction.channel(), thresholdMap.keySet());
+
+    // Rule 0: KYC Tier-based limits
+    if (kycTierCheckEnabled && !tierThresholds.isEmpty()) {
+      int customerTier = 0; 
       KycTierRecord tierRule = tierThresholds.stream()
           .filter(t -> t.kycTier() == customerTier)
           .findFirst()
@@ -189,7 +335,6 @@ public class HybridTransactionAnalysisService {
       if (tierRule != null) {
         long amount   = transaction.amount().longValue();
         String channel = transaction.channel().toLowerCase();
-
         long channelLimit;
         if (channel.contains("wire"))        channelLimit = tierRule.dailyLimitWire();
         else if (channel.contains("mobile")) channelLimit = tierRule.dailyLimitMobile();
@@ -199,75 +344,57 @@ public class HybridTransactionAnalysisService {
         else                                 channelLimit = tierRule.dailyLimitOther();
 
         if (amount > channelLimit) {
-          String sender    = notBlankOr(transaction.customerName(), transaction.senderAccount(), "Unknown sender");
-          String recipient = notBlankOr(transaction.recipientName(), transaction.counterparty(), "Unknown recipient");
-          String date      = transaction.occurredAt() != null
-              ? transaction.occurredAt().toLocalDate().toString() : "unknown date";
-          String limitFmt  = String.format("₦%,d", channelLimit);
-          String channelDisplay = transaction.channel();
-
-          flags.add("Transaction made by " + sender + " to " + recipient + " on " + date
-              + " was flagged due to exceeding KYC Tier " + customerTier
-              + " limit for " + channelDisplay + " which is " + limitFmt);
-          score += 25;
-        }
-
-        if (tierRule.riskScoreBoost() > 0) {
-          score += tierRule.riskScoreBoost();
+          flags.add("KYC_TIER_LIMIT_EXCEEDED");
+          ruleScores.add(45 + tierRule.riskScoreBoost());
         }
       }
     }
 
-    // Rule 1: High-value wire
+    // Rule 1: High-value transfer (formerly High-value wire)
     long wireThreshold = thresholdMap.getOrDefault("high-value-wire", 5_000_000L);
-    if ("wire".equalsIgnoreCase(transaction.channel()) &&
-        transaction.amount().longValue() > wireThreshold) {
-      flags.add("High-value wire transfer (>" + wireThreshold + " NGN)");
-      score += 20;
+    if (transaction.amount().longValue() > wireThreshold) {
+      log.info("[HybridAnalysis] Rule triggered: high-value-wire ({} > {})", transaction.amount(), wireThreshold);
+      flags.add("high-value-wire");
+      ruleScores.add(35);
     }
 
     // Rule 2: Velocity clustering
     long velocityThreshold = thresholdMap.getOrDefault("velocity-cluster", 5L);
     if (customerTxnCount24h > velocityThreshold) {
-      flags.add("High transaction velocity (>" + velocityThreshold + " in 24h)");
-      score += 15;
+      flags.add("velocity-cluster");
+      ruleScores.add(25);
     }
 
     // Rule 3: Late-night large transfer
     long lateNightThreshold = thresholdMap.getOrDefault("late-night-large", 1_000_000L);
-    if (isLateNight(transaction.occurredAt()) &&
+    if (isLateNight(transaction.occurredAt(), zone) &&
         transaction.amount().longValue() > lateNightThreshold) {
-      flags.add("Late-night large transfer (>" + lateNightThreshold + " NGN, 23:00-05:00)");
-      score += 18;
+      log.info("[HybridAnalysis] Rule triggered: late-night-large ({} > {})", transaction.amount(), lateNightThreshold);
+      flags.add("late-night-large");
+      ruleScores.add(30);
     }
 
     // Rule 4: OTP attack
     if (hasOtpAlert) {
-      flags.add("OTP attack detected in time window (SIM swap signal)");
-      score += 25;
+      flags.add("OTP_ALERT");
+      ruleScores.add(50);
     }
 
     // Rule 5: Volume spike
     if (todayCount > yesterdayCount * 1.3) {
-      flags.add("Institution volume spike (>30% vs yesterday)");
-      score += 12;
+      flags.add("VELOCITY_SPIKE");
+      ruleScores.add(20);
     }
 
     // Rule 6: Cross-border BDC
     long bdcThreshold = thresholdMap.getOrDefault("cross-border-bdc", 10_000_000L);
     if ("bdc".equalsIgnoreCase(transaction.channel()) &&
         transaction.amount().longValue() > bdcThreshold) {
-      flags.add("Cross-border BDC exceeds threshold (>" + bdcThreshold + " NGN)");
-      score += 15;
+      flags.add("cross-border-bdc");
+      ruleScores.add(30);
     }
 
-    score = Math.min(score, 100);
-
-    var reason = String.format(
-        "Hybrid Score: %d/100. Institution thresholds: wire=%,d, velocity=%d, late-night=%,d. Triggered: %s",
-        score, wireThreshold, velocityThreshold, lateNightThreshold, String.join(", ", flags));
-
-    return new TransactionScorer.ScoringResult(score, flags, reason);
+    int scoreVal = 0; if (!ruleScores.isEmpty()) { double sum = 0; for (int s : ruleScores) sum += s; scoreVal = (int) Math.min(100, Math.round(sum / ruleScores.size())); } return new TransactionScorer.ScoringResult(scoreVal, flags, "", ruleScores);
   }
 
   
@@ -279,48 +406,39 @@ public class HybridTransactionAnalysisService {
       long customerTxnCount24h) {
       
     java.util.ArrayList<String> flags = new java.util.ArrayList<>();
-    int score = 0;
+    java.util.ArrayList<Integer> ruleScores = new java.util.ArrayList<>();
 
     for (BehavioralRuleRecord rule : rules) {
       if (!rule.isActive()) continue;
-
       boolean triggered = false;
 
-      // Mock heuristic evaluations based on rule IDs for the prototype
       if ("pat-4".equals(rule.ruleId())) {
-        if (todayCount > yesterdayCount * 1.5) {
-          triggered = true;
-        }
+        if (todayCount > yesterdayCount * 1.5) triggered = true;
       } else if ("pat-5".equals(rule.ruleId())) {
-        if (customerTxnCount24h > 10) {
-          triggered = true;
-        }
+        if (customerTxnCount24h > 10) triggered = true;
       } else if ("pat-2".equals(rule.ruleId())) {
-         // geographic
-         if (transaction.amount().longValue() > 2_000_000L && "mobile".equalsIgnoreCase(transaction.channel())) {
-            // simulated trigger
-            triggered = true;
-         }
+         if (transaction.amount().longValue() > 2_000_000L && "mobile".equalsIgnoreCase(transaction.channel())) triggered = true;
       }
 
       if (triggered) {
-        flags.add(rule.name() + " (" + rule.category() + ")");
-        switch (rule.severity().toLowerCase()) {
-          case "critical": score += 40; break;
-          case "high":     score += 30; break;
-          case "medium":   score += 15; break;
-          default:         score += 10; break;
-        }
+        flags.add(rule.ruleId());
+        int ruleScore = switch (rule.severity().toLowerCase()) {
+          case "critical" -> 40;
+          case "high"     -> 30;
+          case "medium"   -> 15;
+          default         -> 10;
+        };
+        ruleScores.add(ruleScore);
       }
     }
 
-    score = Math.min(score, 100);
-    return new TransactionScorer.ScoringResult(score, flags, "Behavioral Score: " + score + ". Triggered: " + String.join(", ", flags));
+    int scoreVal = 0; if (!ruleScores.isEmpty()) { double sum = 0; for (int s : ruleScores) sum += s; scoreVal = (int) Math.min(100, Math.round(sum / ruleScores.size())); } return new TransactionScorer.ScoringResult(scoreVal, flags, "", ruleScores);
   }
 
-  private boolean isLateNight(java.time.OffsetDateTime dt) {
-    int hour = dt.atZoneSameInstant(java.time.ZoneOffset.UTC).getHour();
-    return hour >= 23 || hour < 5;
+  private boolean isLateNight(java.time.OffsetDateTime dt, java.time.ZoneId zone) {
+    if (dt == null) return false;
+    int hour = dt.atZoneSameInstant(zone).getHour();
+    return hour >= 22 || hour < 6;
   }
 
   private Future<Void> sendCaseNotificationEmails(long institutionId,
@@ -345,8 +463,55 @@ public class HybridTransactionAnalysisService {
             emailFutures.add(emailFuture);
           }
 
-          return Future.all(emailFutures).mapEmpty();
+          return Future.all(emailFutures).<Void>mapEmpty();
         });
+  }
+
+  private Future<Void> updateTransactionRisk(long institutionId, String transactionId, int riskScore) {
+    String flaggedStatus = riskScore > 0 ? "flagged" : "normal";
+    return pool.preparedQuery(
+            "UPDATE transactions SET risk_score = $1, flagged_status = $2, updated_at = now() " +
+            "WHERE id = $3 AND institution_id = $4")
+        .execute(io.vertx.sqlclient.Tuple.of(riskScore, flaggedStatus, transactionId, institutionId))
+        .<Void>mapEmpty()
+        .onFailure(e -> log.error("[HybridAnalysis] Failed to update risk for txn {}: {}", transactionId, e.getMessage()));
+  }
+
+  private String buildHumanReadableReason(List<String> flags, int finalScore) {
+    if (flags.isEmpty()) return "No suspicious patterns detected.";
+    
+    StringBuilder sb = new StringBuilder();
+    sb.append("This transaction was flagged with a risk score of ").append(finalScore).append("/100. ");
+    sb.append("Our system detected the following patterns: ");
+    
+    for (int i = 0; i < flags.size(); i++) {
+      String flag = flags.get(i);
+      String plain = translateFlag(flag);
+      sb.append(plain);
+      if (i < flags.size() - 1) sb.append(", ");
+      else sb.append(".");
+    }
+    
+    return sb.toString();
+  }
+
+  private String translateFlag(String flag) {
+    return switch (flag) {
+      case "KYC_TIER_LIMIT_EXCEEDED" -> "transaction exceeds the customer's KYC tier limits";
+      case "high-value-wire" -> "unusually high-value transfer amount";
+      case "velocity-cluster" -> "multiple transactions occurring in a short time cluster";
+      case "late-night-large" -> "large transfer initiated during late-night hours";
+      case "OTP_ALERT" -> "recent failed security attempts on this account";
+      case "VELOCITY_SPIKE" -> "sudden spike in institutional transaction volume";
+      case "cross-border-bdc" -> "high-value cross-border BDC transaction";
+      case "pat-4" -> "suspicious institution-wide volume spike";
+      case "pat-5" -> "unusual transaction frequency for this customer";
+      case "pat-2" -> "high-value mobile transaction";
+      case "STALE_TIMESTAMP_ANOMALY" -> "suspiciously old transaction timestamp (possible replay)";
+      case "FUTURE_TIMESTAMP_ANOMALY" -> "transaction timestamp set in the future (possible clock tampering)";
+      case "MICRO_TIMING_ANOMALY" -> "transaction timing is suspiciously precise (possible automated injection)";
+      default -> flag.toLowerCase().replace("_", " ");
+    };
   }
 
   private static String notBlankOr(String first, String second, String fallback) {

@@ -1,0 +1,2 @@
+ALTER TABLE aml_settings
+  ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Africa/Lagos';

@@ -34,8 +34,9 @@ public final class TransactionHandlers {
       String  channel       = first(ctx, "channel");
       Integer minRisk       = intParamOrNull(ctx, "minRisk");
       Integer maxRisk       = intParamOrNull(ctx, "maxRisk");
+      String  sort          = first(ctx, "sort");
 
-      service.list(session, status, flaggedStatus, q, page, pageSize, range, channel, minRisk, maxRisk)
+      service.list(session, status, flaggedStatus, q, page, pageSize, range, channel, minRisk, maxRisk, sort)
           .onSuccess(result -> {
             JsonArray arr = new JsonArray();
             result.transactions().forEach(t -> arr.add(toJson(t)));
@@ -45,6 +46,16 @@ public final class TransactionHandlers {
                 .put("page",     result.page())
                 .put("pageSize", result.pageSize()));
           })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  public Handler<RoutingContext> markSeen() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String id = ctx.pathParam("id");
+      service.markSeen(session, id)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
           .onFailure(ctx::fail);
     };
   }
@@ -186,7 +197,8 @@ public final class TransactionHandlers {
         .put("risk",         t.riskScore())
         .put("status",       t.status())
         .put("location",     t.location() != null ? t.location() : "")
-        .put("currency",     t.currency() != null ? t.currency() : "NGN");
+        .put("currency",     t.currency() != null ? t.currency() : "NGN")
+        .put("seen",         t.seen());
     if (t.flaggedStatus()    != null) o.put("flaggedStatus",    t.flaggedStatus());
     if (t.lat()              != null) o.put("lat",              t.lat());
     if (t.lng()              != null) o.put("lng",              t.lng());

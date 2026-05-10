@@ -8,6 +8,8 @@ import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.geofence.GeoFenceRepository;
 import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.notifications.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerResponse;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.Set;
 
 public final class DashboardHandlers {
+
+  private static final Logger log = LoggerFactory.getLogger(DashboardHandlers.class);
 
   private final DashboardService  service;
   private final GeoFenceService   geoFenceService;
@@ -74,9 +78,9 @@ public final class DashboardHandlers {
         long pollId = vertx.setPeriodic(5_000, id -> {
           if (sseEnded(resp)) { vertx.cancelTimer(id); return; }
 
-          service.stats(session).onSuccess(s -> {
-            if (!sseEnded(resp)) safeWrite(resp, sseEvent("stats", statsJson(s)));
-          });
+          service.stats(session)
+              .onSuccess(s -> { if (!sseEnded(resp)) safeWrite(resp, sseEvent("stats", statsJson(s))); })
+              .onFailure(e -> log.error("[SSE] stats periodic failed: {}", e.getMessage()));
 
           service.activitySince(session, lastActivityId[0]).onSuccess(events -> {
             if (sseEnded(resp) || events.isEmpty()) return;
@@ -158,9 +162,8 @@ public final class DashboardHandlers {
           .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
 
       service.stats(session)
-          .onSuccess(s -> {
-            if (!sseEnded(resp)) safeWrite(resp, sseEvent("stats", statsJson(s)));
-          })
+          .onSuccess(s -> { if (!sseEnded(resp)) safeWrite(resp, sseEvent("stats", statsJson(s))); })
+          .onFailure(e -> log.error("[SSE] stats init failed for user={}: {}", session.userId(), e.getMessage()))
           .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
 
       service.recentActivity(session)
@@ -425,10 +428,12 @@ public final class DashboardHandlers {
 
   private void pushStats(HttpServerResponse resp, Session session) {
     if (resp.ended() || resp.closed()) return;
-    service.stats(session).onSuccess(s -> {
-      if (resp.ended() || resp.closed()) return;
-      safeWrite(resp, "event: stats\ndata: " + statsJson(s).encode() + "\n\n");
-    });
+    service.stats(session)
+        .onSuccess(s -> {
+          if (resp.ended() || resp.closed()) return;
+          safeWrite(resp, "event: stats\ndata: " + statsJson(s).encode() + "\n\n");
+        })
+        .onFailure(e -> log.error("[SSE] pushStats failed: {}", e.getMessage()));
   }
 
   private static JsonObject statsJson(DashboardStats s) {

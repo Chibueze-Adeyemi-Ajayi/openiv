@@ -63,10 +63,15 @@ public class NotificationService {
 
   public Future<Notification> notifyCyberBreachTimestampAnomaly(long institutionId,
       String transactionId, long minutesDifference) {
+    String timeDesc = minutesDifference >= 1440
+        ? (minutesDifference / 1440) + " day(s)"
+        : minutesDifference + " minute(s)";
     return registerNotification(institutionId, "cyber_breach_timestamp",
-        "Potential Cyber Attack Detected",
-        "Transaction " + transactionId + " has a timestamp anomaly of " + minutesDifference +
-        " minutes. This may indicate unauthorised access. Investigate immediately.");
+        "Suspicious Transaction Time Detected",
+        "A transaction (ref: " + transactionId + ") arrived with a date and time that is " +
+        timeDesc + " away from the expected time. This can happen when someone tries to " +
+        "re-submit an old transaction or tamper with the transaction clock — both are common " +
+        "signs of fraud. The transaction has been flagged and a case has been opened for your review.");
   }
 
   // ── Read methods (REST handlers + SSE init) ────────────────────────────────
@@ -90,11 +95,49 @@ public class NotificationService {
         .map(rs -> rs.rowCount());
   }
 
+  public Future<JsonObject> getUnreadCounts(long institutionId) {
+    return pool.preparedQuery(
+        "SELECT type, COUNT(*) as count FROM notifications " +
+        "WHERE institution_id=$1 AND status='unread' GROUP BY type")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> {
+          int flags = 0;
+          int cases = 0;
+          for (Row r : rs) {
+            String type = r.getString("type");
+            Long count = r.getLong("count");
+            if (count == null) continue;
+            
+            if (type.contains("flag") || type.contains("cyber")) {
+              flags += count.intValue();
+            } else if (type.contains("case") || type.contains("kyc")) {
+              cases += count.intValue();
+            }
+          }
+          var counts = new JsonObject().put("flags", flags).put("cases", cases);
+          log.info("[Notification] Unread counts for institution {}: {}", institutionId, counts.encode());
+          return counts;
+        });
+  }
+
   public Future<Boolean> markRead(long id, long institutionId) {
     return pool.preparedQuery(
         "UPDATE notifications SET status='read' WHERE id=$1 AND institution_id=$2")
         .execute(Tuple.of(id, institutionId))
         .map(rs -> rs.rowCount() > 0);
+  }
+
+  public Future<Void> markAllReadByCategory(long institutionId, String category) {
+    String sql = "UPDATE notifications SET status='read' WHERE institution_id=$1 AND status='unread'";
+    if ("flags".equals(category)) {
+      sql += " AND (type LIKE '%flag%' OR type LIKE '%cyber%')";
+    } else if ("cases".equals(category)) {
+      sql += " AND (type LIKE '%case%' OR type LIKE '%kyc%')";
+    }
+    
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId))
+        .mapEmpty();
   }
 
   // ── Internal ───────────────────────────────────────────────────────────────

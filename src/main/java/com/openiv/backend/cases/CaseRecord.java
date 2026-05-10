@@ -21,5 +21,6 @@ public record CaseRecord(
     OffsetDateTime closedAt,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
-    boolean isAvailableForInvestigation
+    boolean isAvailableForInvestigation,
+    boolean seen
 ) {}

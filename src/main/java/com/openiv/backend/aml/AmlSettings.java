@@ -12,5 +12,7 @@ public record AmlSettings(
     int behRiskScoreFlagThreshold,
     int behRiskScoreCaseThreshold,
     int riskScoreNormalThreshold,
-    int behRiskScoreNormalThreshold
+    int behRiskScoreNormalThreshold,
+    int beamWindowSeconds,
+    String timezone
 ) {}

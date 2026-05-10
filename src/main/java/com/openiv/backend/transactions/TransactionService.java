@@ -24,10 +24,15 @@ public final class TransactionService {
 
   public Future<TransactionPage> list(Session session, String status, String flaggedStatus,
       String q, int page, int pageSize, String range, String channel,
-      Integer minRisk, Integer maxRisk) {
-    return resolveInstitution(session)
-        .compose(institutionId -> repository.list(
-            institutionId, status, flaggedStatus, q, page, pageSize, range, channel, minRisk, maxRisk));
+      Integer minRisk, Integer maxRisk, String sort) {
+    return resolveUser(session).compose(u -> repository.list(
+        u.institutionId(), status, flaggedStatus, q, page, pageSize,
+        range, channel, minRisk, maxRisk, sort, u.id()));
+  }
+
+  public Future<Void> markSeen(Session session, String transactionId) {
+    return resolveUser(session).compose(u ->
+        repository.markSeen(transactionId, u.institutionId(), u.id()));
   }
 
   public Future<List<Transaction>> export(Session session, String status, String flaggedStatus,
@@ -58,11 +63,32 @@ public final class TransactionService {
     return repository.markFlagged(transactionId, institutionId);
   }
 
+  public Future<Void> markFlaggedWithRiskScore(String transactionId, long institutionId, int riskScore) {
+    return repository.markFlaggedWithRiskScore(transactionId, institutionId, riskScore);
+  }
+
   public Future<Void> ingestFromBeam(long institutionId, TransactionImport row) {
     if (customerService != null) {
       customerService.upsert(institutionId, row.customerId(), row.customerName());
     }
     return repository.importBatch(institutionId, List.of(row)).mapEmpty();
+  }
+
+  public Future<Long> getTodayCount(long institutionId, java.time.LocalDate today) {
+    return repository.countByInstitutionAndDate(institutionId, today);
+  }
+
+  public Future<Long> getYesterdayCount(long institutionId, java.time.LocalDate yesterday) {
+    return repository.countByInstitutionAndDate(institutionId, yesterday);
+  }
+
+  public Future<Long> getCustomerTxnCount24h(long institutionId, String customerId) {
+    return repository.countByCustomerLast24h(institutionId, customerId);
+  }
+
+  private Future<User> resolveUser(Session session) {
+    return users.findById(session.userId()).map(opt ->
+        opt.orElseThrow(() -> AuthException.invalid("session")));
   }
 
   private Future<Long> resolveInstitution(Session session) {

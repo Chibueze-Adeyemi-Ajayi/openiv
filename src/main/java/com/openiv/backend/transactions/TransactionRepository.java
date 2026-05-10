@@ -26,7 +26,7 @@ public final class TransactionRepository {
 
   public Future<TransactionPage> list(long institutionId, String status, String flaggedStatus,
       String q, int page, int pageSize, String range, String channel,
-      Integer minRisk, Integer maxRisk) {
+      Integer minRisk, Integer maxRisk, String sort, long userId) {
 
     var where  = new StringBuilder("institution_id = $1");
     var params = new ArrayList<Object>();
@@ -70,25 +70,42 @@ public final class TransactionRepository {
 
     where.append(" AND ").append(rangeClause(range));
 
-    String countSql = "SELECT COUNT(*) FROM transactions WHERE " + where;
-    String listSql  = "SELECT " + SELECT_COLS + " FROM transactions WHERE " + where
-        + " ORDER BY occurred_at DESC"
-        + " LIMIT $"  + (params.size() + 1)
-        + " OFFSET $" + (params.size() + 2);
+    String orderBy = switch (sort != null ? sort : "recent") {
+      case "event_desc"  -> "occurred_at DESC";
+      case "oldest"      -> "created_at ASC";
+      case "risk_desc"   -> "risk_score DESC, created_at DESC";
+      case "risk_asc"    -> "risk_score ASC, created_at DESC";
+      case "amount_desc" -> "amount DESC, created_at DESC";
+      case "amount_asc"  -> "amount ASC, created_at DESC";
+      default            -> "created_at DESC";
+    };
 
+    // Count query uses the filter params only (no userId, no pagination)
     Tuple baseTuple = buildTuple(params);
 
-    var listParams = new ArrayList<>(params);
-    listParams.add(pageSize);
-    listParams.add((long) (page - 1) * pageSize);
-    Tuple listTuple = buildTuple(listParams);
+    // List query adds userId for the EXISTS subquery, then pageSize/offset
+    var listBodyParams = new ArrayList<>(params);
+    listBodyParams.add(userId);
+    int userIdIdx = listBodyParams.size();
+
+    String countSql = "SELECT COUNT(*) FROM transactions WHERE " + where;
+    String listSql  = "SELECT " + SELECT_COLS
+        + ", EXISTS(SELECT 1 FROM transaction_views tv WHERE tv.transaction_id = id AND tv.user_id = $" + userIdIdx + ") AS seen"
+        + " FROM transactions WHERE " + where
+        + " ORDER BY " + orderBy
+        + " LIMIT $"  + (listBodyParams.size() + 1)
+        + " OFFSET $" + (listBodyParams.size() + 2);
+
+    listBodyParams.add(pageSize);
+    listBodyParams.add((long) (page - 1) * pageSize);
+    Tuple listTuple = buildTuple(listBodyParams);
 
     return pool.preparedQuery(countSql).execute(baseTuple)
         .map(rs -> rs.iterator().next().getLong(0))
         .compose(total -> pool.preparedQuery(listSql).execute(listTuple)
             .map(rs -> {
               var list = new ArrayList<Transaction>();
-              rs.forEach(row -> list.add(map(row)));
+              rs.forEach(row -> list.add(mapList(row)));
               return new TransactionPage(List.copyOf(list), total, page, pageSize);
             }));
   }
@@ -96,16 +113,20 @@ public final class TransactionRepository {
   public Future<Integer> importBatch(long institutionId, List<TransactionImport> rows) {
     if (rows.isEmpty()) return Future.succeededFuture(0);
 
+    // created_at is always the server ingestion timestamp — explicitly now(), never from the payload.
+    // occurred_at is always from the payload — the time the transaction actually happened.
+    // On re-ingestion of the same ID, occurred_at and updated_at refresh; created_at does NOT change
+    // (it records when OpenIV first received the transaction).
     String sql =
         "INSERT INTO transactions"
         + " (id, institution_id, customer_id, customer_name, amount,"
         + "  channel, counterparty, risk_score, status, flagged_status, location, lat, lng, occurred_at,"
         + "  sender_account, sender_bank, recipient_name, recipient_account, recipient_bank,"
-        + "  currency, narration, device_id, ip_address)"
+        + "  currency, narration, device_id, ip_address, created_at)"
         + " VALUES ($1,$2,$3,$4,$5,"
         + "  $6,$7,$8,$9,$10::text,$11::text,$12::double precision,$13::double precision,$14,"
         + "  $15::text,$16::text,$17::text,$18::text,$19::text,"
-        + "  $20,$21::text,$22::text,$23::text)"
+        + "  $20,$21::text,$22::text,$23::text, now())"
         + " ON CONFLICT (id) DO UPDATE SET"
         + "   customer_name = EXCLUDED.customer_name, amount = EXCLUDED.amount,"
         + "   channel = EXCLUDED.channel, counterparty = EXCLUDED.counterparty,"
@@ -113,6 +134,7 @@ public final class TransactionRepository {
         + "   flagged_status = EXCLUDED.flagged_status,"
         + "   location = EXCLUDED.location, lat = EXCLUDED.lat, lng = EXCLUDED.lng,"
         + "   occurred_at = EXCLUDED.occurred_at,"
+        + "   created_at = now(),"
         + "   sender_account = EXCLUDED.sender_account, sender_bank = EXCLUDED.sender_bank,"
         + "   recipient_name = EXCLUDED.recipient_name, recipient_account = EXCLUDED.recipient_account,"
         + "   recipient_bank = EXCLUDED.recipient_bank, currency = EXCLUDED.currency,"
@@ -196,11 +218,27 @@ public final class TransactionRepository {
         });
   }
 
+  public Future<Void> markSeen(String transactionId, long institutionId, long userId) {
+    return pool.preparedQuery(
+            "INSERT INTO transaction_views (transaction_id, institution_id, user_id)"
+            + " VALUES ($1, $2, $3) ON CONFLICT (transaction_id, user_id) DO NOTHING")
+        .execute(Tuple.of(transactionId, institutionId, userId))
+        .mapEmpty();
+  }
+
   public Future<Void> markFlagged(String transactionId, long institutionId) {
     return pool.preparedQuery(
             "UPDATE transactions SET flagged_status = 'flagged', updated_at = now()"
             + " WHERE id = $1 AND institution_id = $2")
         .execute(Tuple.of(transactionId, institutionId))
+        .mapEmpty();
+  }
+
+  public Future<Void> markFlaggedWithRiskScore(String transactionId, long institutionId, int riskScore) {
+    return pool.preparedQuery(
+            "UPDATE transactions SET flagged_status = 'flagged', risk_score = $3, updated_at = now()"
+            + " WHERE id = $1 AND institution_id = $2")
+        .execute(Tuple.of(transactionId, institutionId, riskScore))
         .mapEmpty();
   }
 
@@ -212,16 +250,31 @@ public final class TransactionRepository {
             "UPDATE transactions SET flagged_status = $1, status_reason = $2,"
             + " status_document_id = $3, updated_at = now()"
             + " WHERE id = ANY($4::text[]) AND institution_id = $5")
-        .execute(Tuple.of(newFlaggedStatus, reason, documentId, arr, institutionId))
-        .mapEmpty();
+      .execute(Tuple.of(newFlaggedStatus, reason, documentId, arr, institutionId))
+      .mapEmpty();
+  }
+
+  public Future<Long> countByInstitutionAndDate(long institutionId, java.time.LocalDate date) {
+    return pool.preparedQuery(
+        "SELECT COUNT(*) FROM transactions WHERE institution_id = $1 AND occurred_at::date = $2")
+      .execute(Tuple.of(institutionId, date))
+      .map(rs -> rs.iterator().next().getLong(0));
+  }
+
+  public Future<Long> countByCustomerLast24h(long institutionId, String customerId) {
+    return pool.preparedQuery(
+        "SELECT COUNT(*) FROM transactions WHERE institution_id = $1 AND customer_id = $2 AND occurred_at > now() - interval '24 hours'")
+      .execute(Tuple.of(institutionId, customerId))
+      .map(rs -> rs.iterator().next().getLong(0));
   }
 
   public Future<double[][]> getHeatmap(long institutionId, String userId, String range) {
+    // Date-range filter uses created_at (system ingestion time), not occurred_at.
     String rangeClause = switch (range != null ? range : "90d") {
-      case "24h" -> "occurred_at > now() - interval '24 hours'";
-      case "7d"  -> "occurred_at > now() - interval '7 days'";
-      case "30d" -> "occurred_at > now() - interval '30 days'";
-      default    -> "occurred_at > now() - interval '90 days'";
+      case "24h" -> "created_at > now() - interval '24 hours'";
+      case "7d"  -> "created_at > now() - interval '7 days'";
+      case "30d" -> "created_at > now() - interval '30 days'";
+      default    -> "created_at > now() - interval '90 days'";
     };
     String sql =
         "SELECT EXTRACT(DOW FROM occurred_at)::int as dow, EXTRACT(HOUR FROM occurred_at)::int as hour, SUM(amount) as volume"
@@ -254,12 +307,13 @@ public final class TransactionRepository {
   }
 
   private static String rangeClause(String range) {
+    // Date-range filter uses created_at (system ingestion time), not occurred_at.
     return switch (range != null ? range : "30d") {
-      case "24h" -> "occurred_at > now() - interval '24 hours'";
-      case "7d"  -> "occurred_at > now() - interval '7 days'";
-      case "90d" -> "occurred_at > now() - interval '90 days'";
-      case "ytd" -> "occurred_at >= date_trunc('year', now())";
-      default    -> "occurred_at > now() - interval '30 days'";
+      case "24h" -> "created_at > now() - interval '24 hours'";
+      case "7d"  -> "created_at > now() - interval '7 days'";
+      case "90d" -> "created_at > now() - interval '90 days'";
+      case "ytd" -> "created_at >= date_trunc('year', now())";
+      default    -> "created_at > now() - interval '30 days'";
     };
   }
 
@@ -269,7 +323,16 @@ public final class TransactionRepository {
     return t;
   }
 
+  private static Transaction mapList(Row r) {
+    Boolean seen = r.getBoolean("seen");
+    return buildTransaction(r, seen != null && seen);
+  }
+
   private static Transaction map(Row r) {
+    return buildTransaction(r, false);
+  }
+
+  private static Transaction buildTransaction(Row r, boolean seen) {
     return new Transaction(
         r.getString("id"),
         r.getLong("institution_id"),
@@ -295,6 +358,7 @@ public final class TransactionRepository {
         r.getString("currency"),
         r.getString("narration"),
         r.getString("device_id"),
-        r.getString("ip_address"));
+        r.getString("ip_address"),
+        seen);
   }
 }

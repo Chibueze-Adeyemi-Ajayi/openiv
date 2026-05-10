@@ -50,6 +50,20 @@ public class NotificationHandlers {
     };
   }
 
+  // PATCH /notifications/read-category/:category
+  public Handler<RoutingContext> markCategoryRead() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String category = ctx.pathParam("category");
+      users.findById(session.userId()).compose(opt -> {
+        if (opt.isEmpty()) { ctx.response().setStatusCode(401).end(); return io.vertx.core.Future.succeededFuture(); }
+        return service.markAllReadByCategory(opt.get().institutionId(), category).onSuccess(v ->
+            ctx.response().putHeader("content-type", "application/json")
+                .end("{\"ok\":true}"));
+      }).onFailure(ctx::fail);
+    };
+  }
+
   // PATCH /notifications/:id/read
   public Handler<RoutingContext> markRead() {
     return ctx -> {
@@ -63,6 +77,19 @@ public class NotificationHandlers {
         return service.markRead(notifId, opt.get().institutionId()).onSuccess(ok ->
             ctx.response().putHeader("content-type", "application/json")
                 .end("{\"ok\":" + ok + "}"));
+      }).onFailure(ctx::fail);
+    };
+  }
+
+  // GET /notifications/unread-counts
+  public Handler<RoutingContext> unreadCounts() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      users.findById(session.userId()).compose(opt -> {
+        if (opt.isEmpty()) { ctx.response().setStatusCode(401).end(); return io.vertx.core.Future.succeededFuture(); }
+        return service.getUnreadCounts(opt.get().institutionId()).onSuccess(counts ->
+            ctx.response().putHeader("content-type", "application/json")
+                .end(counts.encode()));
       }).onFailure(ctx::fail);
     };
   }

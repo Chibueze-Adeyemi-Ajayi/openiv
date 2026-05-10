@@ -28,5 +28,6 @@ public record Transaction(
         String currency,
         String narration,
         String deviceId,
-        String ipAddress) {
+        String ipAddress,
+        boolean seen) {
 }

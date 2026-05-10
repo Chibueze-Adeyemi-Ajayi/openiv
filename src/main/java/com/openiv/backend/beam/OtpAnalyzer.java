@@ -58,6 +58,10 @@ public final class OtpAnalyzer {
     }
   }
 
+  public Future<Boolean> hasRecentAlert(long institutionId, String customerId, int windowMinutes) {
+    return repo.hasRecentAlert(institutionId, customerId, windowMinutes);
+  }
+
   // ── FAILED_CASCADE ────────────────────────────────────────────────────────
 
   private void runFailedCascade(long institutionId, OtpPayload payload) {

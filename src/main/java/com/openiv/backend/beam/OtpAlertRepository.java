@@ -107,6 +107,19 @@ public final class OtpAlertRepository {
         .map(rows -> rows.iterator().hasNext());
   }
 
+  public Future<Boolean> hasRecentAlert(long institutionId, String customerId, int windowMinutes) {
+    String sql = """
+        SELECT 1 FROM otp_alerts
+        WHERE institution_id = $1
+          AND customer_id = $2
+          AND fired_at > now() - ($3 || ' minutes')::interval
+        LIMIT 1
+        """;
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, customerId, String.valueOf(windowMinutes)))
+        .map(rows -> rows.iterator().hasNext());
+  }
+
   /** Look up the customer's most-recent GPS location from the location beam stream. */
   public Future<double[]> lookupCustomerLocation(long institutionId, String customerId) {
     String sql = """

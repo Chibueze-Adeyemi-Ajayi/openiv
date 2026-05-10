@@ -18,20 +18,21 @@ public final class HeatmapRepository {
     this.pool = pool;
   }
 
-  /** Aggregate transactions by calendar day within [from, to] inclusive. */
+  /** Aggregate transactions by calendar day within [from, to] inclusive.
+   *  Day-bucket and date filter both use created_at (system ingestion time), not occurred_at. */
   public Future<List<HeatmapCell>> transactionCells(long institutionId, boolean abnormal, LocalDate from, LocalDate to) {
     String modeClause = abnormal
         ? "AND flagged_status IS NOT NULL"
         : "AND flagged_status IS NULL";
     String sql = """
         SELECT
-          DATE(occurred_at AT TIME ZONE 'UTC') AS day,
-          COUNT(*)::int                        AS count,
-          AVG(risk_score)::float8              AS avg_risk
+          DATE(created_at AT TIME ZONE 'UTC') AS day,
+          COUNT(*)::int                       AS count,
+          AVG(risk_score)::float8             AS avg_risk
         FROM transactions
         WHERE institution_id = $1
-          AND occurred_at >= $2
-          AND occurred_at <  $3
+          AND created_at >= $2
+          AND created_at <  $3
           %s
         GROUP BY 1
         ORDER BY 1

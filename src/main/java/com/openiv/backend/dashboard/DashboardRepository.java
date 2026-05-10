@@ -25,32 +25,45 @@ public final class DashboardRepository {
   // ── Dashboard stats ────────────────────────────────────────────────────────
 
   public Future<DashboardStats> stats(long institutionId) {
-    String sql = """
+    // Calendar-day buckets in the DB timezone (Africa/Lagos).
+    // date_trunc('day', now()) = midnight of today in the session timezone.
+    // created_at = system ingestion time (not occurred_at).
+    String txnSql = """
         SELECT
-          (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at > now() - interval '24 hours') AS total_today,
-          (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at > now() - interval '24 hours'
-             AND flagged_status IS NOT NULL) AS flagged_today,
-          (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at > now() - interval '48 hours' AND occurred_at <= now() - interval '24 hours') AS total_yesterday,
-          (SELECT COUNT(*)::int FROM transactions
-           WHERE institution_id = $1 AND occurred_at > now() - interval '48 hours' AND occurred_at <= now() - interval '24 hours'
-             AND flagged_status IS NOT NULL) AS flagged_yesterday,
-          (SELECT COUNT(*)::int FROM cases
-           WHERE institution_id = $1 AND status NOT IN ('closed')) AS open_cases
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now())
+                             AND created_at <  date_trunc('day', now()) + interval '1 day')::int                                   AS total_today,
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now())
+                             AND created_at <  date_trunc('day', now()) + interval '1 day'
+                             AND flagged_status IS NOT NULL)::int                                                                   AS flagged_today,
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()) - interval '1 day'
+                             AND created_at <  date_trunc('day', now()))::int                                                      AS total_yesterday,
+          COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()) - interval '1 day'
+                             AND created_at <  date_trunc('day', now())
+                             AND flagged_status IS NOT NULL)::int                                                                   AS flagged_yesterday
+        FROM transactions
+        WHERE institution_id = $1
+          AND created_at >= date_trunc('day', now()) - interval '1 day'
         """;
 
-    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
-        .map(rows -> {
-          var r = rows.iterator().next();
-          return new DashboardStats(
-              r.getInteger("total_today"),
-              r.getInteger("flagged_today"),
-              r.getInteger("total_yesterday"),
-              r.getInteger("flagged_yesterday"),
-              r.getInteger("open_cases")
-          );
+    String casesSql = """
+        SELECT COUNT(*)::int AS open_cases
+        FROM cases
+        WHERE institution_id = $1
+          AND status NOT IN ('closed')
+        """;
+
+    return pool.preparedQuery(txnSql).execute(Tuple.of(institutionId))
+        .compose(txnRows -> {
+          var r = txnRows.iterator().next();
+          int totalToday      = r.getInteger("total_today");
+          int flaggedToday    = r.getInteger("flagged_today");
+          int totalYesterday  = r.getInteger("total_yesterday");
+          int flaggedYesterday= r.getInteger("flagged_yesterday");
+          return pool.preparedQuery(casesSql).execute(Tuple.of(institutionId))
+              .map(casesRows -> new DashboardStats(
+                  totalToday, flaggedToday, totalYesterday, flaggedYesterday,
+                  casesRows.iterator().next().getInteger("open_cases")
+              ));
         });
   }
 
@@ -60,6 +73,7 @@ public final class DashboardRepository {
     OffsetDateTime now  = OffsetDateTime.now(ZoneOffset.UTC);
     OffsetDateTime from = now.minusHours(24);
 
+    // Hour-bucket filter uses created_at (system ingestion time), not occurred_at.
     String sql = """
         WITH hours AS (SELECT generate_series(0, 23) AS h)
         SELECT h.h AS hour,
@@ -69,14 +83,14 @@ public final class DashboardRepository {
         FROM hours h
         LEFT JOIN (
           SELECT
-            EXTRACT(HOUR FROM occurred_at AT TIME ZONE 'UTC')::int AS hour,
+            EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC')::int  AS hour,
             COUNT(*)::int                                            AS total,
             COUNT(*) FILTER (WHERE flagged_status IS NOT NULL)::int  AS flagged,
             COUNT(*) FILTER (WHERE flagged_status = 'blocked')::int  AS blocked
           FROM transactions
           WHERE institution_id = $1
-            AND occurred_at >= $2
-            AND occurred_at <  $3
+            AND created_at >= $2
+            AND created_at <  $3
           GROUP BY 1
         ) t ON t.hour = h.h
         ORDER BY h.h
@@ -100,6 +114,7 @@ public final class DashboardRepository {
 
   public Future<List<RiskPoint>> riskMapPoints(long institutionId,
                                                 OffsetDateTime from, OffsetDateTime to) {
+    // Risk-map date filter uses created_at (system ingestion time), not occurred_at.
     String sql = """
         SELECT
           ROUND(lat::numeric, 2)::float8          AS lat,
@@ -110,7 +125,7 @@ public final class DashboardRepository {
         FROM transactions
         WHERE institution_id = $1
           AND lat IS NOT NULL AND lng IS NOT NULL
-          AND occurred_at >= $2 AND occurred_at < $3
+          AND created_at >= $2 AND created_at < $3
         GROUP BY 1, 2
         ORDER BY count DESC
         LIMIT 2000
@@ -226,14 +241,15 @@ public final class DashboardRepository {
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   public Future<String> exportCsv(long institutionId, OffsetDateTime from, OffsetDateTime to) {
+    // Export date filter uses created_at (system ingestion time); occurred_at is still in the output for context.
     String sql = """
         SELECT id, customer_id, customer_name, channel, amount, occurred_at,
                status, flagged_status, risk_score, location
         FROM transactions
         WHERE institution_id = $1
-          AND occurred_at >= $2
-          AND occurred_at <  $3
-        ORDER BY occurred_at DESC
+          AND created_at >= $2
+          AND created_at <  $3
+        ORDER BY created_at DESC
         LIMIT 10000
         """;
     return pool.preparedQuery(sql)

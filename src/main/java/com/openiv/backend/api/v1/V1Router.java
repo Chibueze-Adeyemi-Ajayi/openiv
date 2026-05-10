@@ -150,6 +150,7 @@ public final class V1Router {
     router.get("/transactions/export").handler(txnAuth).handler(txnHandlers.export());
     router.post("/transactions/bulk-status").handler(txnAuth).handler(txnHandlers.bulkStatus());
     router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
+    router.patch("/transactions/:id/seen").handler(txnAuth).handler(txnHandlers.markSeen());
 
     // Cases — metrics must be registered before /:id to avoid path collision
     CaseHandlers caseHandlers = new CaseHandlers(caseService, billingService);
@@ -164,6 +165,7 @@ public final class V1Router {
     router.post("/cases/:id/transactions").handler(caseAuth).handler(caseHandlers.linkTransaction());
     router.post("/cases/:id/notes").handler(caseAuth).handler(caseHandlers.addNote());
     router.post("/cases/:id/evidence").handler(caseAuth).handler(caseHandlers.addEvidence());
+    router.patch("/cases/:id/seen").handler(caseAuth).handler(caseHandlers.markSeen());
 
     // Thresholds — metrics before /:id to avoid path collision
     ThresholdHandlers thresholdHandlers = new ThresholdHandlers(thresholdService);
@@ -237,6 +239,8 @@ public final class V1Router {
     Handler<RoutingContext> amlAuth = SessionAuthHandler.authenticated(authService);
     router.get("/aml-settings").handler(amlAuth).handler(amlHandlers.getSettings());
     router.put("/aml-settings").handler(amlAuth).handler(amlHandlers.updateSettings());
+    router.patch("/aml-settings/beam-window").handler(amlAuth).handler(amlHandlers.updateBeamWindow());
+    router.patch("/aml-settings/timezone").handler(amlAuth).handler(amlHandlers.updateTimezone());
     router.post("/aml-settings/notifications/email").handler(amlAuth).handler(amlHandlers.addNotificationEmail());
     router.delete("/aml-settings/notifications/email").handler(amlAuth).handler(amlHandlers.removeNotificationEmail());
 
@@ -273,7 +277,9 @@ public final class V1Router {
         notificationService, new com.openiv.backend.auth.repository.UserRepository(dbPool));
     Handler<RoutingContext> notifAuth = SessionAuthHandler.authenticated(authService);
     router.get("/notifications").handler(notifAuth).handler(notificationHandlers.list());
+    router.get("/notifications/unread-counts").handler(notifAuth).handler(notificationHandlers.unreadCounts());
     router.patch("/notifications/read-all").handler(notifAuth).handler(notificationHandlers.markAllRead());
+    router.patch("/notifications/read-category/:category").handler(notifAuth).handler(notificationHandlers.markCategoryRead());
     router.patch("/notifications/:id/read").handler(notifAuth).handler(notificationHandlers.markRead());
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
