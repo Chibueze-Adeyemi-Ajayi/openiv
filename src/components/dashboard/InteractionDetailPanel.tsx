@@ -50,7 +50,7 @@ function Field({ label, value, mono = false }: { label: string; value?: string |
         {label}
       </Typography>
       <Typography sx={{
-        fontSize: '0.8125rem', color: value ? '#0f172a' : '#cbd5e1',
+        fontSize: '0.8125rem', color: value ? '#00288e' : '#cbd5e1',
         fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost, sans-serif',
         fontWeight: mono ? 500 : 400, lineHeight: 1.4, wordBreak: 'break-all',
       }}>
@@ -108,7 +108,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                 Interaction Beam
               </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
                 {beam.id}
               </Typography>
             </Box>

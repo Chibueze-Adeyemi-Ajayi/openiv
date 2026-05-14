@@ -1,12 +1,12 @@
-import { Dialog, DialogContent, Box, Typography, Button, Stack, IconButton, Zoom } from '@mui/material'
+import { Dialog, DialogContent, Box, Typography, Button, Stack, IconButton, Zoom, Checkbox, FormControlLabel } from '@mui/material'
 import { colorPalette } from '@/theme'
-import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import { useState } from 'react'
 
 interface LocationPermissionModalProps {
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (doNotShowAgain: boolean) => void
 }
 
 const modalSx = {
@@ -32,10 +32,21 @@ const actionButtonSx = {
 }
 
 export default function LocationPermissionModal({ open, onClose, onConfirm }: LocationPermissionModalProps) {
+  const [doNotShow, setDoNotShow] = useState(false)
+
+  const handleConfirm = () => {
+    onConfirm(doNotShow)
+  }
+
+  const handleClose = () => {
+    setDoNotShow(false)
+    onClose()
+  }
+
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
+    <Dialog
+      open={open}
+      onClose={handleClose}
       TransitionComponent={Zoom}
       sx={modalSx}
       slotProps={{
@@ -44,15 +55,14 @@ export default function LocationPermissionModal({ open, onClose, onConfirm }: Lo
         }
       }}
     >
-
       <IconButton
-        onClick={onClose}
+        onClick={handleClose}
         sx={{
           position: 'absolute',
           right: 12,
           top: 12,
           color: '#94a3b8',
-          '&:hover': { color: '#0f172a', bgcolor: 'transparent' },
+          '&:hover': { color: '#00288e', bgcolor: 'transparent' },
         }}
       >
         <CloseIcon sx={{ fontSize: '1.25rem' }} />
@@ -66,22 +76,22 @@ export default function LocationPermissionModal({ open, onClose, onConfirm }: Lo
                 fontSize: '1.5rem',
                 fontWeight: 700,
                 fontFamily: 'Jost',
-                color: '#0f172a',
+                color: '#00288e',
                 letterSpacing: '-0.015em',
                 mb: 1.5,
               }}
             >
               Location Verification Required
             </Typography>
-            <Typography 
-              sx={{ 
-                fontSize: '0.9375rem', 
-                color: '#64748b', 
+            <Typography
+              sx={{
+                fontSize: '0.9375rem',
+                color: '#64748b',
                 lineHeight: 1.7,
-                fontFamily: 'Jost'
+                fontFamily: 'Jost',
               }}
             >
-              To ensure the security of your account and comply with regulatory protocols, 
+              To ensure the security of your account and comply with regulatory protocols,
               this application requires real-time location validation before granting portal access.
             </Typography>
           </Box>
@@ -90,35 +100,57 @@ export default function LocationPermissionModal({ open, onClose, onConfirm }: Lo
             <Button
               fullWidth
               variant="contained"
-              onClick={onConfirm}
+              onClick={handleConfirm}
               sx={{
                 ...actionButtonSx,
                 bgcolor: colorPalette.primary,
                 color: '#ffffff',
                 '&:hover': {
-                  bgcolor: '#1a3896',
+                  bgcolor: '#1e293b',
                   transform: 'translateY(-1px)',
                   boxShadow: '0 8px 24px rgba(45, 66, 255, 0.25)',
                 },
               }}
             >
-              Grant Access & Proceed
-            </Button>
-            <Button
-              fullWidth
-              onClick={onClose}
-              sx={{
-                ...actionButtonSx,
-                color: '#64748b',
-                '&:hover': {
-                  color: '#0f172a',
-                  bgcolor: '#f8fafc',
-                },
-              }}
-            >
-              Cancel Authorization
+              Grant Access &amp; Proceed
             </Button>
           </Stack>
+
+          {/* "Do not show this again" preference */}
+          <Box
+            sx={{
+              width: '100%',
+              bgcolor: '#f8fafc',
+              border: '1px solid #eef0f4',
+              px: 2,
+              py: 1.25,
+              display: 'flex',
+              alignItems: 'center',
+              textAlign: 'left',
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={doNotShow}
+                  onChange={(e) => setDoNotShow(e.target.checked)}
+                  size="small"
+                  disableRipple
+                  sx={{
+                    color: '#cbd5e1',
+                    '&.Mui-checked': { color: colorPalette.primary },
+                    p: 0.5,
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'Jost', fontWeight: 500 }}>
+                  Do not show this again on this device
+                </Typography>
+              }
+              sx={{ m: 0, gap: 1, alignItems: 'center' }}
+            />
+          </Box>
         </Stack>
       </DialogContent>
     </Dialog>

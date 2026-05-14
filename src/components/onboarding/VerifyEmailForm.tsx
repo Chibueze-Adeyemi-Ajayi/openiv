@@ -73,7 +73,7 @@ export default function VerifyEmailForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -82,7 +82,7 @@ export default function VerifyEmailForm({
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
           Enter the 6-digit code sent to{' '}
-          <Box component="span" sx={{ color: '#0f172a', fontWeight: 600 }}>
+          <Box component="span" sx={{ color: '#00288e', fontWeight: 600 }}>
             {email || 'your email'}
           </Box>
         </Typography>
@@ -122,7 +122,7 @@ export default function VerifyEmailForm({
                       fontSize: '1.5rem',
                       fontWeight: 600,
                       padding: '24px 0',
-                      color: '#0f172a',
+                      color: '#00288e',
                     },
                   }}
                   value={digit}
@@ -168,7 +168,7 @@ export default function VerifyEmailForm({
               transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               mt: 1,
               '&:hover:not(:disabled)': {
-                bgcolor: '#1a3896',
+                bgcolor: '#1e293b',
                 boxShadow: `0 8px 24px ${colorPalette.primary}35`,
                 transform: 'translateY(-1px)',
               },

@@ -31,20 +31,32 @@ interface RequestAccessFormProps {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#f5f3fb',
     borderRadius: 0,
-    '& fieldset': { border: '1px solid transparent' },
-    '&:hover fieldset': { borderColor: '#e4dff2' },
-    '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+    fontFamily: 'Jost',
+    fontSize: '0.9375rem',
+    color: '#000000',
+    '& fieldset': {
+      borderColor: '#e2e8f0',
+      transition: 'all 0.2s ease',
+    },
+    '&:hover fieldset': {
+      borderColor: '#00288e',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#00288e',
+      borderWidth: '1px',
+    },
+    '&.Mui-focused': {
+      boxShadow: '0 0 0 4px rgba(0, 40, 142, 0.08)',
+    },
+    '& input::placeholder': {
+      color: '#94a3b8',
+      opacity: 1,
+    },
   },
   '& .MuiOutlinedInput-input': {
-    fontSize: '1rem',
-    fontFamily: 'Jost',
-    py: '18px',
+    py: '20px',
     px: '20px',
-    color: '#0f172a',
-    '&::placeholder': { color: '#9ca3af', opacity: 1 },
   },
   '& .MuiInputBase-multiline': { p: 0 },
   '& .MuiInputBase-multiline .MuiInputBase-input': { py: '18px', px: '20px' },
@@ -70,8 +82,8 @@ const primaryButtonSx = {
   letterSpacing: '0.02em',
   boxShadow: 'none',
   '&:hover:not(:disabled)': {
-    bgcolor: '#1a3896',
-    boxShadow: `0 8px 24px ${colorPalette.primary}35`,
+    bgcolor: '#1e40af',
+    boxShadow: `0 8px 24px rgba(0, 40, 142, 0.25)`,
   },
   '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
 }
@@ -115,7 +127,7 @@ export default function RequestAccessForm({
               fontSize: '1.625rem',
               fontWeight: 700,
               fontFamily: 'Jost',
-              color: '#0f172a',
+              color: '#00288e',
               letterSpacing: '-0.015em',
               mb: 0.75,
             }}
@@ -124,7 +136,7 @@ export default function RequestAccessForm({
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
             Thanks — your access request is in our queue. Our compliance team will reach out
-            to <Box component="span" sx={{ color: '#0f172a', fontWeight: 600 }}>{values.contactEmail}</Box>{' '}
+            to <Box component="span" sx={{ color: '#00288e', fontWeight: 600 }}>{values.contactEmail}</Box>{' '}
             within one business day.
           </Typography>
         </Box>
@@ -140,7 +152,7 @@ export default function RequestAccessForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -169,6 +181,8 @@ export default function RequestAccessForm({
               value={values.institutionName}
               onChange={(e) => update('institutionName', e.target.value)}
               autoFocus
+              autoComplete="off"
+              spellCheck={false}
               sx={inputSx}
             />
           </Box>
@@ -202,6 +216,8 @@ export default function RequestAccessForm({
               placeholder="Full name of primary contact"
               value={values.contactName}
               onChange={(e) => update('contactName', e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
               sx={inputSx}
             />
           </Box>
@@ -214,6 +230,8 @@ export default function RequestAccessForm({
               placeholder="name@institution.com"
               value={values.contactEmail}
               onChange={(e) => update('contactEmail', e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
               sx={inputSx}
             />
           </Box>
@@ -225,6 +243,8 @@ export default function RequestAccessForm({
               placeholder="+234 ..."
               value={values.contactPhone}
               onChange={(e) => update('contactPhone', e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
               sx={inputSx}
             />
           </Box>

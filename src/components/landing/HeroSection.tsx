@@ -1,231 +1,166 @@
-import { Box, Button, Container, Grid, Stack, Typography } from '@mui/material'
-import { colorPalette } from '@/theme'
+import { Box, Button, Container, Stack, Typography } from '@mui/material'
+import { colorPalette } from '@/theme/palette'
 import { keyframes } from '@mui/system'
-import { useState, useEffect } from 'react'
 import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+import { useState, useEffect } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 
-const fadeInUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+const bounceIn = keyframes`
+  0% { opacity: 0; transform: scale(0.3) translateY(20px); }
+  50% { opacity: 1; transform: scale(1.05) translateY(-5px); }
+  70% { transform: scale(0.9) translateY(2px); }
+  100% { transform: scale(1) translateY(0); }
 `
 
-const fadeInRight = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+const slideInLine = keyframes`
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
 `
 
-const StatCounter = ({ target, shouldCount }: { target: number; shouldCount: boolean }) => {
-  const [count, setCount] = useState(0)
+const flyOff = keyframes`
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.95); }
+`
 
-  useEffect(() => {
-    if (!shouldCount || count >= target) return
-    const increment = Math.ceil(target / 30)
-    const timer = setTimeout(() => setCount(prev => Math.min(prev + increment, target)), 30)
-    return () => clearTimeout(timer)
-  }, [count, target, shouldCount])
-
-  return <>{count.toLocaleString()}</>
-}
+const marketingContent = [
+  {
+    title: "State-of-the-Art AML Orchestration.",
+    subtitle: [
+        "Eliminate fraud leakage by 94% with sub-14ms orchestration.",
+        "Our engine analyzes 12,000+ behavioral signals per transaction",
+        "to ensure total institutional integrity across $2B+ in monthly volume."
+    ]
+  },
+  {
+    title: "Autonomous Regulatory Governance.",
+    subtitle: [
+        "Reduce SAR/STR filing overhead by 85%. Achieve 100% CBN",
+        "and NFIU compliance with automated Risk-Based Supervision",
+        "reports engineered for Nigeria's largest fintechs."
+    ]
+  },
+  {
+    title: "Advanced Behavioral Intelligence.",
+    subtitle: [
+        "Cut false positives by 62% using device relationship mapping.",
+        "Build a 360-degree risk profile that identifies shell company",
+        "structures and money laundering rings in real-time."
+    ]
+  },
+  {
+    title: "Institutional-Grade Data Sovereignty.",
+    subtitle: [
+        "100% NDPR and local data residency compliance.",
+        "Protect sensitive records with AES-256 encryption",
+        "and hardware-backed key management systems."
+    ]
+  }
+]
 
 export default function HeroSection() {
   const { ref, isVisible } = useIntersectionAnimation()
+  const [index, setIndex] = useState(0)
+  const [isExiting, setIsExiting] = useState(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsExiting(true)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % marketingContent.length)
+        setIsExiting(false)
+      }, 600)
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [index])
+
+  const current = marketingContent[index]
 
   return (
-    <Box ref={ref} sx={{ bgcolor: '#ffffff', py: { xs: 6, md: 10 }, borderBottom: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <Box 
+      ref={ref} 
+      sx={{ 
+        bgcolor: '#00288e', 
+        pt: { xs: 12, md: 18 }, 
+        pb: { xs: 8, md: 12 },
+        color: '#ffffff',
+        overflow: 'hidden',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
+    >
       <Container maxWidth="lg">
-        <Grid container spacing={6} sx={{ alignItems: 'center' }}>
-          {/* Left - Text */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Stack sx={{ gap: 4 }}>
-              <Typography
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.15em',
-                  color: colorPalette.primary,
-                  textTransform: 'uppercase',
-                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
-                }}
-              >
-                Real-Time Intelligence
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: { xs: '2.5rem', md: '3.25rem' },
-                  fontWeight: 700,
-                  color: colorPalette.on_surface,
-                  lineHeight: 1.15,
-                  letterSpacing: '-0.02em',
-                  fontFamily: 'Jost',
-                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.2s both` : 'none',
-                }}
-              >
-                Catch fraud before it costs millions. Automate AML.
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: '1.05rem',
-                  color: '#64748b',
-                  lineHeight: 1.7,
-                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.3s both` : 'none',
-                }}
-              >
-                OpenIV analyzes every transaction in real time. Detect behavioral anomalies, block account takeovers, and auto-generate SAR/STR filings—all in milliseconds.
-              </Typography>
-
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                sx={{ gap: 2, pt: 2, animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.4s both` : 'none' }}
-              >
-                <Button
-                  sx={{
-                    bgcolor: colorPalette.primary,
-                    color: '#ffffff',
-                    textTransform: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    fontFamily: 'Jost',
-                    borderRadius: 0,
-                    px: 4,
-                    py: 1.5,
-                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    '&:hover': {
-                      bgcolor: '#001a4d',
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 12px 24px rgba(0, 40, 142, 0.2)',
-                    },
-                  }}
-                >
-                  Request Demo
-                </Button>
-                <Button
-                  variant="outlined"
-                  sx={{
-                    borderColor: '#cbd5e1',
-                    color: colorPalette.on_surface,
-                    textTransform: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    fontFamily: 'Jost',
-                    borderRadius: 0,
-                    px: 4,
-                    py: 1.5,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: colorPalette.primary,
-                      bgcolor: '#f8fafc',
-                      transform: 'translateY(-2px)',
-                    },
-                  }}
-                >
-                  Learn More
-                </Button>
-              </Stack>
-
-              {/* Animated Stats */}
-              <Stack
-                direction="row"
-                spacing={4}
-                sx={{
-                  pt: 4,
-                  borderTop: '1px solid #e5e7eb',
-                  animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.5s both` : 'none',
-                }}
-              >
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: '1.75rem',
-                      fontWeight: 700,
-                      color: colorPalette.primary,
-                      mb: 0.5,
-                    }}
-                  >
-                    &lt;14ms
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>Detection latency</Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: '1.75rem',
-                      fontWeight: 700,
-                      color: colorPalette.primary,
-                      mb: 0.5,
-                    }}
-                  >
-                    {isVisible && <StatCounter target={62} shouldCount={isVisible} />}%
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>False positives reduced</Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: '1.75rem',
-                      fontWeight: 700,
-                      color: colorPalette.primary,
-                      mb: 0.5,
-                    }}
-                  >
-                    {isVisible && <StatCounter target={50} shouldCount={isVisible} />}M+
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>Daily transactions</Typography>
-                </Box>
-              </Stack>
-            </Stack>
-          </Grid>
-
-          {/* Right - Image with hover animation */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Box
+        <Stack sx={{ gap: 5, maxWidth: '900px', height: { xs: '500px', md: '550px' } }}>
+          <Box sx={{ animation: isExiting ? `${flyOff} 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards` : 'none' }}>
+            <Typography
               sx={{
-                width: '100%',
-                height: '450px',
-                bgcolor: '#f8fafc',
-                border: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                position: 'relative',
-                animation: isVisible ? `${fadeInRight} 0.8s ease-out 0.3s both` : 'none',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  borderColor: colorPalette.primary,
-                  boxShadow: '0 20px 40px rgba(0, 40, 142, 0.12)',
-                  '& img': {
-                    transform: 'scale(1.02)',
-                  },
-                },
+                fontSize: { xs: '2.5rem', md: '4.5rem' },
+                fontWeight: 600,
+                lineHeight: 1,
+                letterSpacing: '-0.04em',
+                fontFamily: 'Jost',
+                mb: 4,
+                animation: !isExiting ? `${bounceIn} 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both` : 'none',
               }}
             >
-              <img
-                alt="OpenIV dashboard showing real-time transaction analysis with fraud detection metrics, risk scores, and case management interface"
-                src="https://via.placeholder.com/600x450/f8fafc/94a3b8?text=Dashboard+Screenshot"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  transition: 'transform 0.3s ease',
-                }}
-              />
+              {current.title}
+            </Typography>
+            
+            <Stack spacing={1}>
+                {current.subtitle.map((line, i) => (
+                    <Typography
+                        key={i}
+                        sx={{
+                            fontSize: '1.25rem',
+                            color: '#94a3b8',
+                            lineHeight: 1.4,
+                            maxWidth: '720px',
+                            animation: !isExiting ? `${slideInLine} 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.4 + (i * 0.15)}s both` : 'none',
+                        }}
+                    >
+                        {line}
+                    </Typography>
+                ))}
+            </Stack>
+          </Box>
+
+          <Box sx={{ mt: 'auto' }}>
+            <Button
+              component={RouterLink}
+              to="/request-access"
+              sx={{
+                bgcolor: '#d9f99d',
+                color: '#00288e',
+                fontWeight: 800,
+                fontSize: '1.125rem',
+                px: 5,
+                py: 2,
+                borderRadius: 0,
+                textTransform: 'none',
+                fontFamily: 'Jost',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1.5,
+                '&:hover': { bgcolor: '#bef264' }
+              }}
+            >
+              Get Started <span style={{ fontSize: '1.5rem' }}>→</span>
+            </Button>
+            
+            {/* Dots */}
+            <Box sx={{ display: 'flex', gap: 1, mt: 6 }}>
+                {marketingContent.map((_, i) => (
+                <Box
+                    key={i}
+                    sx={{
+                    width: i === index ? 32 : 8,
+                    height: 2,
+                    bgcolor: i === index ? '#d9f99d' : 'rgba(255,255,255,0.2)',
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                />
+                ))}
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Stack>
       </Container>
     </Box>
   )

@@ -87,7 +87,7 @@ export default function ScheduleReportDialog({ open, onClose, onCreated }: Props
   return (
     <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth="xs" fullWidth
       PaperProps={{ sx: { borderRadius: 0, border: '1px solid #eef0f4' } }}>
-      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#0f172a', pb: 1.5, borderBottom: '1px solid #eef0f4' }}>
+      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#00288e', pb: 1.5, borderBottom: '1px solid #eef0f4' }}>
         Schedule recurring report
       </DialogTitle>
 
@@ -95,7 +95,7 @@ export default function ScheduleReportDialog({ open, onClose, onCreated }: Props
         {done ? (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
               Schedule created
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
@@ -141,7 +141,7 @@ export default function ScheduleReportDialog({ open, onClose, onCreated }: Props
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, border: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>Auto-file</Typography>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>Auto-file</Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>Automatically submit when due (requires approval)</Typography>
               </Box>
               <Switch checked={autoFile} onChange={e => setAutoFile(e.target.checked)}
@@ -177,5 +177,5 @@ export default function ScheduleReportDialog({ open, onClose, onCreated }: Props
 
 const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem' } }
-const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1a3896' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
+const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
 const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: '#f8fafc' } }

@@ -126,7 +126,7 @@ export default function CBNCompliancePage() {
               Regulatory Filing
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             CBN Implementation Plan · June 10, 2026
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', maxWidth: 760 }}>
@@ -203,7 +203,7 @@ export default function CBNCompliancePage() {
         {/* 5 Pillars */}
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               The five pillars
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -249,7 +249,7 @@ export default function CBNCompliancePage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
                     CBN requires
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.875 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.875 }}>
                     {p.title}
                   </Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>
@@ -264,7 +264,7 @@ export default function CBNCompliancePage() {
                       OpenIV provides
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 1, lineHeight: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1, lineHeight: 1.5 }}>
                     {p.openIVCapability}
                   </Typography>
 
@@ -313,7 +313,7 @@ export default function CBNCompliancePage() {
         <Box
           sx={{
             bgcolor: planGenerated ? '#ffffff' : colorPalette.primary,
-            color: planGenerated ? '#0f172a' : '#ffffff',
+            color: planGenerated ? '#00288e' : '#ffffff',
             border: planGenerated ? '1px solid #eef0f4' : 'none',
             p: 3,
             position: 'relative',
@@ -387,7 +387,7 @@ export default function CBNCompliancePage() {
                       borderRadius: 0,
                       textTransform: 'none',
                       boxShadow: 'none',
-                      '&:hover': { bgcolor: '#1a3896' },
+                      '&:hover': { bgcolor: '#1e293b' },
                     }}
                   >
                     Download PDF
@@ -456,7 +456,7 @@ export default function CBNCompliancePage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
                     {s.label}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     {s.value}
                   </Typography>
                 </Box>

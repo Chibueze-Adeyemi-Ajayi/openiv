@@ -4,7 +4,7 @@ import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import GeoFenceDialog from '@/components/dashboard/GeoFenceDialog'
 import EurekaLearnMoreModal from '@/components/dashboard/EurekaLearnMoreModal'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -16,6 +16,9 @@ import { useSandbox } from '@/contexts/SandboxContext'
 import { amlApi, type AmlSettings } from '@/api/aml'
 import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
+import { institutionApi, type SigningCredentials } from '@/api/institution'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -39,7 +42,7 @@ const inputSx = {
     fontFamily: 'Jost',
     py: '14px',
     px: '14px',
-    color: '#0f172a',
+    color: '#00288e',
   },
 }
 
@@ -93,7 +96,7 @@ function TimezoneSection() {
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <LanguageOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Institution Timezone
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -135,7 +138,7 @@ function TimezoneSection() {
                   fontFamily: 'Jost',
                   borderRadius: 0,
                   textTransform: 'none',
-                  '&:hover': { bgcolor: '#1a3896' },
+                  '&:hover': { bgcolor: '#1e293b' },
                   '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' }
                 }}
               >
@@ -171,7 +174,7 @@ function EurekaCompanionSection() {
         <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               Eureka Companion
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -196,7 +199,7 @@ function EurekaCompanionSection() {
           </Box>
           <Box sx={{ flex: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Eureka Realtime Buddy
               </Typography>
               <Chip
@@ -362,7 +365,7 @@ function AmlSettingsSection() {
   return (
     <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
           AML Case Settings
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -383,7 +386,7 @@ function AmlSettingsSection() {
         }}
       >
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
             Auto-open investigation cases
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
@@ -420,7 +423,7 @@ function AmlSettingsSection() {
 
       {/* Email notifications section */}
       <Box sx={{ px: 3, py: 2.5 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
           Send case notifications to
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 2 }}>
@@ -471,7 +474,7 @@ function AmlSettingsSection() {
               textTransform: 'none',
               borderRadius: 0,
               fontFamily: 'Jost',
-              '&:hover': { bgcolor: '#1a3896' },
+              '&:hover': { bgcolor: '#1e293b' },
               '&:disabled': { bgcolor: '#cbd5e1', color: '#94a3b8' }
             }}
           >
@@ -665,7 +668,7 @@ function BeamWindowSection() {
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <TimerOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Beam Time Window
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -974,7 +977,7 @@ function BeamWindowSection() {
             <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontWeight: 600 }}>
               Active:&nbsp;
-              <Box component="span" sx={{ color: '#0f172a', fontWeight: 700 }}>
+              <Box component="span" sx={{ color: '#00288e', fontWeight: 700 }}>
                 {BEAM_PRESETS[savedIdx].display}
               </Box>
               {isDirty && (
@@ -1034,7 +1037,7 @@ function DeveloperSandboxSection() {
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <ScienceOutlinedIcon sx={{ fontSize: '1.1rem', color: '#c2410c' }} />
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Developer Sandbox
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1045,7 +1048,7 @@ function DeveloperSandboxSection() {
       <Box sx={{ px: 3, py: 3 }}>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 7 }}>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', mb: 1, fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', mb: 1, fontFamily: 'Jost' }}>
               Sandbox Environment URL
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1076,7 +1079,7 @@ function DeveloperSandboxSection() {
                   fontWeight: 700,
                   textTransform: 'none',
                   borderRadius: 0,
-                  '&:hover': { bgcolor: '#1a3896' }
+                  '&:hover': { bgcolor: '#1e293b' }
                 }}
               >
                 {isApplying ? 'Applying...' : 'Apply & Reload'}
@@ -1137,6 +1140,230 @@ function DeveloperSandboxSection() {
   )
 }
 
+function FilingCredentialsSection() {
+  const [credentials, setCredentials] = useState<SigningCredentials>({ officialStamp: null, officialSignature: null })
+  const [loading, setLoading] = useState(true)
+  const [totpOpen, setTotpOpen] = useState(false)
+  const [pendingField, setPendingField] = useState<'officialStamp' | 'officialSignature' | null>(null)
+  const [pendingData, setPendingData] = useState<string | null>(null)
+  const [isRemoval, setIsRemoval] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const stampInputRef = useRef<HTMLInputElement>(null)
+  const sigInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    institutionApi.getSigningCredentials()
+      .then(res => setCredentials(res))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleFileChange = (field: 'officialStamp' | 'officialSignature') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      if (credentials[field]) {
+        setPendingField(field)
+        setPendingData(dataUrl)
+        setIsRemoval(false)
+        setTotpOpen(true)
+      } else {
+        doSave(field, dataUrl)
+      }
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const doSave = async (field: 'officialStamp' | 'officialSignature', dataUrl: string | null) => {
+    setSaving(true)
+    try {
+      await institutionApi.updateSigningCredentials({ [field]: dataUrl })
+      setCredentials(prev => ({ ...prev, [field]: dataUrl }))
+    } catch {
+      alert('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+      setTotpOpen(false)
+      setPendingField(null)
+      setPendingData(null)
+      setIsRemoval(false)
+    }
+  }
+
+  const handleRemove = (field: 'officialStamp' | 'officialSignature') => {
+    setPendingField(field)
+    setPendingData(null)
+    setIsRemoval(true)
+    setTotpOpen(true)
+  }
+
+  const handleTotpConfirm = () => {
+    if (!pendingField) return
+    doSave(pendingField, isRemoval ? null : pendingData)
+  }
+
+  const renderCard = (field: 'officialStamp' | 'officialSignature', label: string) => {
+    const inputRef = field === 'officialStamp' ? stampInputRef : sigInputRef
+    const value = credentials[field]
+    return (
+      <Box key={field} sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', mb: 1.25, fontFamily: 'Jost' }}>
+          {label}
+        </Typography>
+        <Box
+          sx={{
+            height: 144,
+            border: value ? '1px solid #e4dff2' : '2px dashed #cbd5e1',
+            bgcolor: '#fafbfc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 1.5,
+            overflow: 'hidden',
+            backgroundImage: value
+              ? 'linear-gradient(45deg, #ebebeb 25%, transparent 25%), linear-gradient(-45deg, #ebebeb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ebebeb 75%), linear-gradient(-45deg, transparent 75%, #ebebeb 75%)'
+              : 'none',
+            backgroundSize: value ? '16px 16px' : 'auto',
+            backgroundPosition: value ? '0 0, 0 8px, 8px -8px, -8px 0px' : 'auto',
+          }}
+        >
+          {value ? (
+            <Box
+              component="img"
+              src={value}
+              alt={label}
+              sx={{ maxHeight: 128, maxWidth: '100%', objectFit: 'contain' }}
+            />
+          ) : (
+            <Box sx={{ textAlign: 'center', color: '#94a3b8' }}>
+              <CloudUploadOutlinedIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, fontFamily: 'Jost' }}>
+                No {label.toLowerCase()} uploaded
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          style={{ display: 'none' }}
+          onChange={handleFileChange(field)}
+        />
+        <Stack direction="row" spacing={1}>
+          <Button
+            onClick={() => inputRef.current?.click()}
+            disabled={saving}
+            sx={{
+              bgcolor: value ? '#f5f3fb' : colorPalette.primary,
+              color: value ? colorPalette.primary : '#fff',
+              border: `1px solid ${value ? colorPalette.primary + '40' : 'transparent'}`,
+              px: 2,
+              py: 0.75,
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: 0,
+              fontFamily: 'Jost',
+              '&:hover': { bgcolor: value ? `${colorPalette.primary}12` : '#1e293b' },
+              '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+            }}
+          >
+            {value ? 'Replace' : 'Upload'}
+          </Button>
+          {value && (
+            <Button
+              onClick={() => handleRemove(field)}
+              disabled={saving}
+              sx={{
+                color: '#ef4444',
+                border: '1px solid #fecaca',
+                bgcolor: '#fef2f2',
+                px: 1.75,
+                py: 0.75,
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'none',
+                borderRadius: 0,
+                fontFamily: 'Jost',
+                '&:hover': { bgcolor: '#fee2e2' },
+                '&:disabled': { bgcolor: '#fef2f2', color: '#fca5a5' },
+              }}
+            >
+              Remove
+            </Button>
+          )}
+        </Stack>
+      </Box>
+    )
+  }
+
+  if (loading) return null
+
+  const fieldLabel = pendingField === 'officialStamp' ? 'Official Stamp' : 'Official Signature'
+
+  return (
+    <>
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              Filing Credentials
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+              Official stamp and signature embedded in NFIU report filings and compliance documents
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ p: 3 }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={3}
+            divider={<Box sx={{ width: '1px', bgcolor: '#eef0f4', display: { xs: 'none', md: 'block' } }} />}
+            sx={{ mb: 3 }}
+          >
+            {renderCard('officialStamp', 'Official Stamp')}
+            {renderCard('officialSignature', 'Official Signature')}
+          </Stack>
+
+          <Box sx={{ display: 'flex', gap: 1.5, p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+            <Typography sx={{ fontSize: '1rem', lineHeight: 1, pt: 0.25, flexShrink: 0 }}>💡</Typography>
+            <Box>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0369a1', mb: 0.375, fontFamily: 'Jost' }}>
+                Use PNG with transparent background
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#0369a1', lineHeight: 1.6 }}>
+                Images with a white background will obscure document content when placed on a report. Export or scan as{' '}
+                <Box component="span" sx={{ fontWeight: 700 }}>PNG with transparency</Box> so they blend cleanly onto the filing letterhead.
+                Tools like Photoshop, GIMP, or Remove.bg can strip the background in seconds.
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      <TOTPConfirmation
+        open={totpOpen}
+        onClose={() => { setTotpOpen(false); setPendingField(null); setPendingData(null); setIsRemoval(false) }}
+        onConfirm={handleTotpConfirm}
+        operation={isRemoval ? 'delete' : 'update'}
+        title={isRemoval ? `Remove ${fieldLabel}` : `Replace ${fieldLabel}`}
+        description={
+          isRemoval
+            ? `You are about to permanently remove the ${fieldLabel.toLowerCase()} from all future report filings. Confirm your identity to proceed.`
+            : `You are replacing the existing ${fieldLabel.toLowerCase()} that appears on official NFIU filings. Confirm your identity to proceed.`
+        }
+        resourceType="Filing Credentials"
+        resourceName={fieldLabel}
+      />
+    </>
+  )
+}
+
 const settingsSections = [
   {
     title: 'Organization',
@@ -1168,7 +1395,7 @@ export default function SettingsPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Manage
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Settings
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -1181,7 +1408,7 @@ export default function SettingsPage() {
           {settingsSections.map((section) => (
             <Box key={section.title} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
               <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   {section.title}
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1212,7 +1439,7 @@ export default function SettingsPage() {
                     borderRadius: 0,
                     textTransform: 'none',
                     boxShadow: 'none',
-                    '&:hover': { bgcolor: '#1a3896' },
+                    '&:hover': { bgcolor: '#1e293b' },
                   }}
                 >
                   Save Changes
@@ -1224,7 +1451,7 @@ export default function SettingsPage() {
           {/* Automation toggles */}
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Automation & Notifications
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1248,7 +1475,7 @@ export default function SettingsPage() {
                   }}
                 >
                   <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
                       {t.label}
                     </Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
@@ -1284,12 +1511,15 @@ export default function SettingsPage() {
           {/* Developer Sandbox */}
           <DeveloperSandboxSection />
 
+          {/* Filing Credentials */}
+          <FilingCredentialsSection />
+
           {/* Security */}
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Security
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1318,7 +1548,7 @@ export default function SettingsPage() {
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     Geographical Access Fence
                   </Typography>
                   <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />

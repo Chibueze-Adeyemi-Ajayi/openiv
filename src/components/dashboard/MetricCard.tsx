@@ -66,7 +66,7 @@ export default function MetricCard({ label, value, trend, trendLabel, invertTren
         sx={{
           fontSize: '1.875rem',
           fontWeight: 700,
-          color: '#0f172a',
+          color: '#00288e',
           lineHeight: 1.1,
           fontFamily: 'Jost',
           letterSpacing: '-0.02em',

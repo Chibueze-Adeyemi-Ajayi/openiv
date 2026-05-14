@@ -82,7 +82,7 @@ export default function LoginAttemptAlert({ event, onDismiss }: Props) {
           <ShieldOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Login attempt detected
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
@@ -168,7 +168,7 @@ function Detail({ label, value, mono = false }: { label: string; value: string; 
         textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 76, flexShrink: 0 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
+      <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
         fontWeight: mono ? 500 : 400, wordBreak: 'break-all' }}>
         {value}
       </Typography>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Box, Typography, Stack, InputBase, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
@@ -13,6 +13,12 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import TOTPConfirmation, { type TOTPOperation } from '@/components/dashboard/TOTPConfirmation'
 import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
+import StartInvestigationModal from '@/components/dashboard/StartInvestigationModal'
+import AssignCaseModal from '@/components/dashboard/AssignCaseModal'
+import FileReportDialog, { type ReportPrefill } from '@/components/dashboard/FileReportDialog'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { type TeamMember } from '@/api/team'
+import { type NfiuReport } from '@/api/nfiu'
 
 interface Props {
   caseId: string | null
@@ -20,6 +26,8 @@ interface Props {
   onClose: () => void
   onUpdated?: () => void
 }
+
+const ELEVATED_ROLES = new Set(['owner', 'admin', 'compliance', 'cmlco', 'mlro'])
 
 const STATUS_CFG: Record<string, { color: string; bg: string; label: string }> = {
   open:          { color: '#f59e0b',           bg: '#fffbeb',                             label: 'Open'          },
@@ -103,24 +111,25 @@ function Avatar({ name, size = 26 }: { name?: string; size?: number }) {
 }
 
 type PendingAction =
+  | { type: 'start_inv' }
   | { type: 'status'; to: CaseStatus; resolution?: CaseResolution }
-  | { type: 'assign' }
-  | { type: 'sar' }
+  | { type: 'assign'; toUserId?: number }
   | { type: 'freeze' }
 
 function actionTotp(a: PendingAction, caseId: string): { operation: TOTPOperation; title: string; description: string; resourceName: string } {
   switch (a.type) {
+    case 'start_inv':
+      return {
+        operation: 'update',
+        title: 'Start Investigation',
+        description: 'Formally opens an active investigation, activates SLA tracking, and auto-assigns this case to you.',
+        resourceName: caseId,
+      }
     case 'status':
       if (a.to === 'closed') return {
         operation: 'delete',
         title: 'Close Investigation Case',
         description: `Closing with resolution "${a.resolution?.replace(/_/g, ' ') ?? ''}" creates an immutable final audit entry under CBN AML records. This cannot be reversed.`,
-        resourceName: caseId,
-      }
-      if (a.to === 'investigating') return {
-        operation: 'update',
-        title: 'Start Investigation',
-        description: 'Formally opens an active investigation, activates SLA tracking, and notifies the assigned analyst.',
         resourceName: caseId,
       }
       return {
@@ -132,15 +141,8 @@ function actionTotp(a: PendingAction, caseId: string): { operation: TOTPOperatio
     case 'assign':
       return {
         operation: 'create',
-        title: 'Assign Case to Yourself',
-        description: 'You will be recorded as the responsible investigator. This is logged permanently in the case audit trail.',
-        resourceName: caseId,
-      }
-    case 'sar':
-      return {
-        operation: 'delete',
-        title: 'Flag for SAR / STR Filing',
-        description: 'Creates an immutable record of Suspicious Activity Report intent under CBN AML guidelines. Once set, this cannot be undone.',
+        title: a.toUserId ? 'Assign Case to Team Member' : 'Assign Case to Yourself',
+        description: 'The selected investigator will be recorded as the responsible analyst. This is logged permanently in the case audit trail.',
         resourceName: caseId,
       }
     case 'freeze':
@@ -154,6 +156,9 @@ function actionTotp(a: PendingAction, caseId: string): { operation: TOTPOperatio
 }
 
 export default function InvestigationWorkspace({ caseId, open, onClose, onUpdated }: Props) {
+  const currentUser = useCurrentUser()
+  const isElevated  = ELEVATED_ROLES.has(currentUser?.role ?? '')
+
   const [data,          setData]          = useState<CaseDetail | null>(null)
   const [loading,       setLoading]       = useState(false)
   const [activeTab,     setActiveTab]     = useState<'evidence' | 'timeline'>('evidence')
@@ -169,16 +174,21 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
   const [note,          setNote]          = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
 
-  const [mainTab,      setMainTab]      = useState<'details' | 'evidence' | 'timeline'>('details')
-  const [evidenceOpen,     setEvidenceOpen]     = useState(false)
-  const [totpOpen,         setTotpOpen]         = useState(false)
-  const [closeSideOpen,    setCloseSideOpen]    = useState(false)
+  const [mainTab,         setMainTab]         = useState<'details' | 'evidence' | 'timeline'>('details')
+  const [evidenceOpen,    setEvidenceOpen]    = useState(false)
+  const [totpOpen,        setTotpOpen]        = useState(false)
+  const [closeSideOpen,   setCloseSideOpen]   = useState(false)
+  const [startInvOpen,    setStartInvOpen]    = useState(false)
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [sarOpen,         setSarOpen]         = useState(false)
+
   const pendingRef   = useRef<PendingAction | null>(null)
   const pendingEvRef = useRef<EvidencePayload | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef    = useRef<HTMLDivElement>(null)
 
   const cas: Case | null = data?.case ?? null
   const currentStatus = (localStatus ?? cas?.status ?? null) as CaseStatus | null
+  const isAssignedToMe = !!(cas && currentUser?.userId && cas.assignedTo === currentUser.userId)
 
   const loadDetail = useCallback(async () => {
     if (!caseId) return
@@ -189,10 +199,8 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
     } finally { setLoading(false) }
   }, [caseId])
 
-  // State persistence: save and restore scroll position and tab selection
   useEffect(() => {
     if (!open && caseId) {
-      // Save state when closing
       const state = { mainTab, scrollPos: scrollRef.current?.scrollTop ?? 0 }
       sessionStorage.setItem(`case-workspace-${caseId}`, JSON.stringify(state))
     }
@@ -204,9 +212,11 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
       setNote('')
       setAddEvOpen(false)
       setCloseSideOpen(false)
+      setStartInvOpen(false)
+      setAssignModalOpen(false)
+      setSarOpen(false)
       setActiveTab('evidence')
 
-      // Restore saved state
       const saved = sessionStorage.getItem(`case-workspace-${caseId}`)
       if (saved) {
         try {
@@ -219,7 +229,6 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
 
       loadDetail()
 
-      // Restore scroll position after content loads
       if (scrollRef.current) {
         setTimeout(() => {
           const saved = sessionStorage.getItem(`case-workspace-${caseId}`)
@@ -237,12 +246,26 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
   const triggerAction = useCallback((action: PendingAction) => {
     pendingRef.current = action
     setCloseSideOpen(false)
-    // Status changes require a reason + document before TOTP
-    if (action.type === 'status') {
+    if (action.type === 'start_inv') {
+      setStartInvOpen(true)
+    } else if (action.type === 'status') {
+      // escalated / closed require reason + document
       setEvidenceOpen(true)
     } else {
+      // assign / freeze go straight to TOTP
       setTotpOpen(true)
     }
+  }, [])
+
+  const handleStartInvAcknowledge = useCallback(() => {
+    setStartInvOpen(false)
+    setTotpOpen(true)
+  }, [])
+
+  const handleAssignSelect = useCallback((member: TeamMember) => {
+    setAssignModalOpen(false)
+    pendingRef.current = { type: 'assign', toUserId: member.id }
+    setTotpOpen(true)
   }, [])
 
   const handleEvidenceConfirm = useCallback((ev: EvidencePayload) => {
@@ -257,25 +280,72 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
     setTotpOpen(false)
     setActioning(true)
     try {
-      if (action.type === 'status') {
+      if (action.type === 'start_inv') {
+        await caseApi.updateStatus(cas.id, 'investigating', null, 'Investigation initiated', null)
+        setLocalStatus('investigating')
+        onUpdated?.()
+      } else if (action.type === 'status') {
         const ev = pendingEvRef.current
         if (!ev) return
         await caseApi.updateStatus(cas.id, action.to, action.resolution, ev.reason, ev.documentId)
         pendingEvRef.current = null
         setLocalStatus(action.to)
         onUpdated?.()
-      } else {
-        const note =
-          action.type === 'assign'  ? '[ASSIGNED] Case self-assigned — investigator formally on record'
-        : action.type === 'sar'    ? '[SAR/STR] Case flagged for Suspicious Activity Report — pending compliance review'
-        :                            '[FREEZE] Account freeze requested — routed to Compliance for immediate action'
-        await caseApi.addNote(cas.id, note)
+      } else if (action.type === 'assign') {
+        await caseApi.assignCase(cas.id, action.toUserId)
+        onUpdated?.()
+      } else if (action.type === 'freeze') {
+        await caseApi.addNote(cas.id, '[FREEZE] Account freeze requested — routed to Compliance for immediate action')
       }
+      pendingRef.current = null
       await loadDetail()
     } finally {
       setActioning(false)
     }
   }, [cas, onUpdated, loadDetail])
+
+  const sarPrefill = useMemo((): ReportPrefill | undefined => {
+    const subjectName = cas?.customerName ?? data?.transactions[0]?.customer
+    if (!data?.transactions.length) return { reportType: 'STR', subjectName: subjectName ?? undefined, narrative: cas?.brief }
+    const t = data.transactions[0]
+    return {
+      reportType: 'STR',
+      subjectName: subjectName ?? t.customer,
+      linkedTransactionId: t.id,
+      amountNgn: String(t.amount),
+      transactionType: t.channel,
+      transactionDate: t.occurredAt ?? t.time,
+      transactionLocation: t.location,
+      transactionLat: t.lat,
+      transactionLng: t.lng,
+      transactionSenderAccount: t.senderAccount,
+      transactionSenderBank: t.senderBank,
+      transactionRecipientName: t.recipientName,
+      transactionRecipientAccount: t.recipientAccount,
+      transactionRecipientBank: t.recipientBank,
+      transactionCurrency: t.currency ?? 'NGN',
+      transactionNarration: t.narration,
+      narrative: cas?.brief,
+    }
+  }, [data, cas])
+
+  const handleSarFiled = useCallback(async (report: NfiuReport) => {
+    if (!cas) return
+    setSarOpen(false)
+    try {
+      await Promise.all([
+        caseApi.linkNfiuReport(cas.id, report.id),
+        caseApi.addEvidence(cas.id, {
+          category: 'document',
+          title: `${report.reportType} Filed`,
+          detail: `NFIU ${report.reportType} report filed. Title: ${report.title}. Reference: ${report.reference}`,
+          refId: String(report.id),
+        }),
+      ])
+      onUpdated?.()
+      await loadDetail()
+    } catch {}
+  }, [cas, loadDetail, onUpdated])
 
   const submitEvidence = useCallback(async () => {
     if (!cas || !evTitle.trim() || submittingEv) return
@@ -341,7 +411,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
         </Box>
 
         {/* Close X */}
-        <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', flexShrink: 0, transition: 'color 0.15s', '&:hover': { color: '#0f172a' } }}>
+        <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', flexShrink: 0, transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}>
           <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
         </Box>
       </Box>
@@ -396,24 +466,47 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
               {currentStatus !== 'closed' && (
                 <Box sx={{ mb: 2.5 }}>
                   <SideLabel>Actions</SideLabel>
+
+                  {/* Assignment notice when blocked */}
+                  {cas.assignedTo && !isAssignedToMe && currentStatus !== 'open' && (
+                    <Box sx={{ mb: 1, p: 1, bgcolor: '#fffbeb', border: '1px solid #fde68a' }}>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#92400e', lineHeight: 1.4, fontFamily: 'Jost' }}>
+                        Assigned to <strong>{cas.assigneeName}</strong>. Self-assign to perform actions.
+                      </Typography>
+                    </Box>
+                  )}
+
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.625 }}>
                     {currentStatus === 'open' && (
                       <SideActionBtn label="Start Investigation" color={colorPalette.primary} disabled={actioning}
-                        onClick={() => triggerAction({ type: 'status', to: 'investigating' })} />
+                        onClick={() => triggerAction({ type: 'start_inv' })} />
                     )}
                     {currentStatus === 'investigating' && (
-                      <SideActionBtn label="Escalate Case" color="#f59e0b" disabled={actioning}
+                      <SideActionBtn label="Escalate Case" color="#f59e0b" disabled={actioning || !isAssignedToMe}
                         onClick={() => triggerAction({ type: 'status', to: 'escalated' })} />
                     )}
-                    <SideActionBtn label="Assign to Me" color="#475569" disabled={actioning}
-                      onClick={() => triggerAction({ type: 'assign' })} />
-                    <SideActionBtn label="Flag SAR / STR" color="#7c3aed" disabled={actioning}
-                      onClick={() => triggerAction({ type: 'sar' })} />
-                    <SideActionBtn label="Request Account Freeze" color="#dc2626" disabled={actioning}
-                      onClick={() => triggerAction({ type: 'freeze' })} />
+
+                    {/* Assign — role-aware */}
+                    {isElevated ? (
+                      <SideActionBtn label="Assign to Member" color="#475569" disabled={actioning}
+                        onClick={() => setAssignModalOpen(true)} />
+                    ) : (
+                      <SideActionBtn
+                        label={isAssignedToMe ? 'Assigned to Me ✓' : 'Assign to Me'}
+                        color="#475569"
+                        disabled={actioning || isAssignedToMe}
+                        onClick={() => triggerAction({ type: 'assign' })}
+                      />
+                    )}
+
+                    {/* Permission-gated actions */}
+                    <SideActionBtn label="Flag SAR / STR" color="#7c3aed" disabled={actioning || !isAssignedToMe}
+                      onClick={() => { if (isAssignedToMe) setSarOpen(true) }} />
+                    <SideActionBtn label="Request Account Freeze" color="#dc2626" disabled={actioning || !isAssignedToMe}
+                      onClick={() => { if (isAssignedToMe) triggerAction({ type: 'freeze' }) }} />
                     <Box sx={{ position: 'relative' }}>
-                      <SideActionBtn label="Close Case ▾" color="#64748b" disabled={actioning}
-                        onClick={() => setCloseSideOpen(v => !v)} />
+                      <SideActionBtn label="Close Case ▾" color="#64748b" disabled={actioning || !isAssignedToMe}
+                        onClick={() => { if (isAssignedToMe) setCloseSideOpen(v => !v) }} />
                       {closeSideOpen && (
                         <Box sx={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 12px 36px rgba(15,23,42,0.14)', zIndex: 10 }}>
                           <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -422,7 +515,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                           {RESOLUTION_OPTIONS.map(r => (
                             <Box key={r.key} onClick={() => { setCloseSideOpen(false); triggerAction({ type: 'status', to: 'closed', resolution: r.key }) }} sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: '#f8fafc' } }}>
                               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'Jost' }}>{r.label}</Typography>
+                              <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost' }}>{r.label}</Typography>
                             </Box>
                           ))}
                         </Box>
@@ -437,7 +530,9 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                 <SideLabel>Case Details</SideLabel>
                 <SideField label="Typology"  value={cas.typology} />
                 <SideField label="Priority"  value={pCfg.label} valueColor={pCfg.color} />
-                {cas.assigneeName && <SideField label="Analyst" value={cas.assigneeName} />}
+                {cas.customerName && <SideField label="Customer" value={cas.customerName} />}
+                {cas.customerId   && <SideField label="Cust. ID" value={cas.customerId} />}
+                <SideField label="Analyst"   value={cas.assigneeName ?? 'Unassigned'} valueColor={cas.assigneeName ? undefined : '#94a3b8'} />
                 <SideField label="Opened by" value={cas.createdByName} />
                 <SideField label="Opened"    value={fmtDate(cas.createdAt)} />
                 {cas.closedAt && <SideField label="Closed" value={fmtDate(cas.closedAt)} />}
@@ -473,7 +568,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                       </Typography>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{t.customer}</Typography>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                           {t.amount.toLocaleString()}
                         </Typography>
                       </Box>
@@ -548,7 +643,9 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <DetailField label="Typology"  value={cas.typology} />
                       <DetailField label="Priority"  value={PRIORITY_CFG[cas.priority]?.label ?? cas.priority} valueColor={PRIORITY_CFG[cas.priority]?.color} />
-                      {cas.assigneeName && <DetailField label="Analyst" value={cas.assigneeName} />}
+                      {cas.customerName && <DetailField label="Customer"  value={cas.customerName} />}
+                      {cas.customerId   && <DetailField label="Cust. ID"  value={cas.customerId} />}
+                      <DetailField label="Analyst"   value={cas.assigneeName ?? 'Unassigned'} valueColor={cas.assigneeName ? undefined : '#94a3b8'} />
                       <DetailField label="Opened by" value={cas.createdByName} />
                       <DetailField label="Opened"    value={fmtDate(cas.createdAt)} />
                       {cas.closedAt && <DetailField label="Closed" value={fmtDate(cas.closedAt)} />}
@@ -556,7 +653,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                     </Box>
                   </Box>
 
-                  {/* Notes - Parse and display in sections */}
+                  {/* Notes */}
                   {cas.notes && <CaseNotesSection notes={cas.notes} customerId={cas.id} />}
 
                   {/* Linked Transactions */}
@@ -576,7 +673,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                           </Typography>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
                             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{t.customer}</Typography>
-                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                               {t.amount.toLocaleString()}
                             </Typography>
                           </Box>
@@ -645,7 +742,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                           <MiniLabel>Detail</MiniLabel>
                           <Box component="textarea" value={evDetail} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEvDetail(e.target.value)}
                             placeholder="Full description, amounts, context…" rows={2}
-                            sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid #e2e8f0', px: 1.25, py: 0.75, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: '#0f172a', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
+                            sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid #e2e8f0', px: 1.25, py: 0.75, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: '#00288e', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
                           />
                         </Box>
                         <Box>
@@ -703,7 +800,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                             </Typography>
                           </Box>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
                               {ev.title}
                             </Typography>
                             {ev.detail && (
@@ -748,13 +845,13 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                   </Box>
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {data!.activity.map((a, i) => (
+                    {data!.activity.map(a => (
                       <Box key={a.id} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 1.75 }}>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                           <Avatar name={a.actorName} size={28} />
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap', mb: 0.25 }}>
-                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                                 {a.actorName}
                               </Typography>
                               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -791,7 +888,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
                         onChange={e => setNote(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNote() }}
                         placeholder="Add a note for the audit trail… (Ctrl+Enter to submit)"
-                        sx={{ flex: 1, width: '100%', fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a', '& textarea': { resize: 'none' } }}
+                        sx={{ flex: 1, width: '100%', fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', '& textarea': { resize: 'none' } }}
                       />
                     </Box>
                     <Box onClick={submitNote} sx={{
@@ -811,7 +908,40 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
         </Box>
       </Box>
 
-      {/* Evidence + reason gate for status transitions */}
+      {/* ── Start Investigation acknowledgment modal ─────────────────────────── */}
+      {cas && (
+        <StartInvestigationModal
+          open={startInvOpen}
+          caseId={cas.id}
+          caseTitle={cas.title}
+          onClose={() => { setStartInvOpen(false); pendingRef.current = null }}
+          onConfirm={handleStartInvAcknowledge}
+        />
+      )}
+
+      {/* ── Assign team member modal (elevated users) ────────────────────────── */}
+      {cas && (
+        <AssignCaseModal
+          open={assignModalOpen}
+          caseId={cas.id}
+          onClose={() => setAssignModalOpen(false)}
+          onSelect={handleAssignSelect}
+        />
+      )}
+
+      {/* ── File SAR/STR report dialog ───────────────────────────────────────── */}
+      {cas && (
+        <FileReportDialog
+          open={sarOpen}
+          onClose={() => setSarOpen(false)}
+          onFiled={handleSarFiled}
+          defaultType="STR"
+          prefill={sarPrefill}
+          prefillLocked
+        />
+      )}
+
+      {/* ── Evidence + reason gate (escalate / close) ───────────────────────── */}
       {cas && evidenceOpen && pendingRef.current?.type === 'status' && (() => {
         const action = pendingRef.current as { type: 'status'; to: CaseStatus; resolution?: CaseResolution }
         const cfg = actionTotp(action, cas.id)
@@ -827,7 +957,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
         )
       })()}
 
-      {/* TOTP gate for all workspace actions */}
+      {/* ── TOTP gate for all workspace actions ─────────────────────────────── */}
       {cas && (() => {
         const action = pendingRef.current
         if (!action) return null
@@ -835,7 +965,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
         return (
           <TOTPConfirmation
             open={totpOpen}
-            onClose={() => setTotpOpen(false)}
+            onClose={() => { setTotpOpen(false) }}
             onConfirm={afterTotpConfirmed}
             operation={cfg.operation}
             title={cfg.title}
@@ -845,20 +975,6 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
           />
         )
       })()}
-    </Box>
-  )
-}
-
-function HdrBtn({ label, color, disabled, onClick }: { label: string; color: string; disabled: boolean; onClick: () => void }) {
-  return (
-    <Box onClick={disabled ? undefined : onClick} sx={{
-      px: 1.25, py: 0.5,
-      bgcolor: `${color}12`,
-      color, cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? 0.45 : 1, transition: 'all 0.15s',
-      '&:hover': disabled ? {} : { bgcolor: `${color}20` },
-    }}>
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost' }}>{label}</Typography>
     </Box>
   )
 }
@@ -886,7 +1002,7 @@ function SideField({ label, value, valueColor }: { label: string; value?: string
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '88px 1fr', gap: 1 }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, lineHeight: 1.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.8125rem', color: valueColor ?? '#0f172a', fontFamily: 'Jost', lineHeight: 1.4 }}>{value ?? '—'}</Typography>
+      <Typography sx={{ fontSize: '0.8125rem', color: valueColor ?? '#00288e', fontFamily: 'Jost', lineHeight: 1.4 }}>{value ?? '—'}</Typography>
     </Box>
   )
 }
@@ -899,7 +1015,7 @@ function DetailField({ label, value, valueColor }: { label: string; value?: stri
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1.5 }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, lineHeight: 1.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.8125rem', color: valueColor ?? '#0f172a', fontFamily: 'Jost', lineHeight: 1.4 }}>{value ?? '—'}</Typography>
+      <Typography sx={{ fontSize: '0.8125rem', color: valueColor ?? '#00288e', fontFamily: 'Jost', lineHeight: 1.4 }}>{value ?? '—'}</Typography>
     </Box>
   )
 }

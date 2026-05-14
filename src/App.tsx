@@ -1,5 +1,9 @@
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from '@/pages/LandingPage'
+import SolutionsPage from '@/pages/landing/SolutionsPage'
+import LandingNetworkPage from '@/pages/landing/NetworkPage'
+import CompliancePage from '@/pages/landing/CompliancePage'
+import SecurityPage from '@/pages/landing/SecurityPage'
 import AuthInvitePage from '@/pages/auth/InvitePage'
 import AuthLoginPage from '@/pages/auth/LoginPage'
 import AuthVerifyEmailPage from '@/pages/auth/VerifyEmailPage'
@@ -31,11 +35,24 @@ import GeoBlockedPage from '@/pages/auth/GeoBlockedPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import PublicRoute from '@/components/auth/PublicRoute'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
+import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
+import { isBuildOne } from '@/utils/build'
+
+function ComingSoonRoute({ children, title }: { children: React.ReactNode; title: string }) {
+  if (isBuildOne) {
+    return <ComingSoonOverlay title={title} fullPage />
+  }
+  return <>{children}</>
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/solutions" element={<SolutionsPage />} />
+      <Route path="/network" element={<LandingNetworkPage />} />
+      <Route path="/compliance" element={<CompliancePage />} />
+      <Route path="/security" element={<SecurityPage />} />
 
       {/* Auth */}
       <Route path="/auth/invite" element={<AuthInvitePage />} />
@@ -51,14 +68,14 @@ function App() {
       {/* Dashboard */}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<OverviewPage />} />
-        <Route path="otp-alerts" element={<OTPAlertsPage />} />
+        <Route path="otp-alerts" element={<ComingSoonRoute title="Real-Time OTP Defense"><OTPAlertsPage /></ComingSoonRoute>} />
         <Route path="transactions" element={<TransactionsPage />} />
-        <Route path="patterns" element={<BehavioralPatternsPage />} />
+        <Route path="patterns" element={<ComingSoonRoute title="Behavioral Pattern Matching"><BehavioralPatternsPage /></ComingSoonRoute>} />
         <Route path="aml" element={<AMLPage />} />
         <Route path="kyc" element={<KYCPage />} />
         <Route path="users/:id" element={<UserProfilePage />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="heatmaps" element={<HeatmapsPage />} />
+        <Route path="heatmaps" element={<ComingSoonRoute title="Geospatial Heatmaps"><HeatmapsPage /></ComingSoonRoute>} />
         <Route path="cbn" element={<CBNCompliancePage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="thresholds" element={<ThresholdsPage />} />

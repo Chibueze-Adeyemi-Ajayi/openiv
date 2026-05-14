@@ -1,7 +1,7 @@
 import { apiRequest } from './client'
 
 export type ReportType = 'STR' | 'CTR' | 'SAR' | 'ITF' | 'PEP' | 'AML_RETURN'
-export type ReportStatus = 'draft' | 'filed' | 'acknowledged' | 'rejected'
+export type ReportStatus = 'draft' | 'pending_approval' | 'filed' | 'acknowledged' | 'rejected'
 export type ReportPriority = 'low' | 'medium' | 'high'
 export type ScheduleFrequency = 'monthly' | 'quarterly' | 'annually'
 
@@ -15,17 +15,37 @@ export interface NfiuReport {
   status: ReportStatus
   priority: ReportPriority
   filingDate: string | null
+  officerUserId: number | null
+  officerName: string | null
   subjectName: string | null
   subjectAccount: string | null
   subjectBvn: string | null
   subjectType: 'individual' | 'corporate' | null
+  subjectDob: string | null
+  subjectAddress: string | null
   amountNgn: number | null
   transactionCount: number
+  transactionType: string | null
+  transactionDate: string | null
+  linkedTransactionId: string | null
+  transactionLocation: string | null
+  transactionLat: number | null
+  transactionLng: number | null
+  transactionSenderAccount: string | null
+  transactionSenderBank: string | null
+  transactionRecipientName: string | null
+  transactionRecipientAccount: string | null
+  transactionRecipientBank: string | null
+  transactionCurrency: string | null
+  transactionNarration: string | null
   narrative: string | null
   filedByName: string | null
   acknowledgementRef: string | null
   rejectionReason: string | null
   createdAt: string
+  submittedByUserId: number | null
+  submittedByName: string | null
+  submittedAt: string | null
 }
 
 export interface NfiuSchedule {
@@ -55,12 +75,29 @@ export interface CreateReportRequest {
   periodStart: string
   periodEnd: string
   priority?: ReportPriority
+  officerUserId?: number
+  officerName?: string
   subjectName?: string
   subjectAccount?: string
   subjectBvn?: string
   subjectType?: 'individual' | 'corporate'
+  subjectDob?: string
+  subjectAddress?: string
   amountNgn?: number
   transactionCount?: number
+  transactionType?: string
+  transactionDate?: string
+  linkedTransactionId?: string
+  transactionLocation?: string
+  transactionLat?: number
+  transactionLng?: number
+  transactionSenderAccount?: string
+  transactionSenderBank?: string
+  transactionRecipientName?: string
+  transactionRecipientAccount?: string
+  transactionRecipientBank?: string
+  transactionCurrency?: string
+  transactionNarration?: string
   narrative?: string
 }
 
@@ -98,6 +135,9 @@ export const nfiuApi = {
 
   deleteReport: (id: number) =>
     apiRequest<{ ok: boolean }>(`/api/v1/nfiu/reports/${id}`, { method: 'DELETE' }),
+
+  approveReport: (id: number) =>
+    apiRequest<NfiuReport>(`/api/v1/nfiu/reports/${id}/approve`, { method: 'POST', body: {} }),
 
   listSchedules: () =>
     apiRequest<{ schedules: NfiuSchedule[] }>('/api/v1/nfiu/schedules'),

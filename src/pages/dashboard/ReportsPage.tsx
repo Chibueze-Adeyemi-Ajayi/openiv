@@ -1,10 +1,11 @@
 import {
   Box, Typography, Stack, Button, Chip, IconButton, CircularProgress, Tooltip,
 } from '@mui/material'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { colorPalette } from '@/theme'
 import FileReportDialog from '@/components/dashboard/FileReportDialog'
 import ScheduleReportDialog from '@/components/dashboard/ScheduleReportDialog'
-import { useState, useEffect, useCallback } from 'react'
+import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -43,8 +44,15 @@ const PRIORITY_CFG: Record<string, { color: string }> = {
   low:    { color: '#10b981' },
 }
 
-const TABS = ['All', 'STR', 'CTR', 'SAR', 'ITF', 'PEP', 'AML_RETURN', 'Draft', 'Scheduled'] as const
-type Tab = typeof TABS[number]
+const TYPE_PILLS: Array<{ key: ReportType | 'all'; label: string; abbr: string; color: string; icon?: React.ReactNode }> = [
+  { key: 'all',        label: 'All Reports',          abbr: 'All',  color: colorPalette.primary },
+  { key: 'STR',        label: 'Suspicious Transaction', abbr: 'STR',  color: '#dc2626', icon: <DescriptionOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+  { key: 'CTR',        label: 'Currency Transaction',   abbr: 'CTR',  color: '#d97706', icon: <AccountBalanceOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+  { key: 'SAR',        label: 'Suspicious Activity',    abbr: 'SAR',  color: '#7c3aed', icon: <GavelOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+  { key: 'ITF',        label: 'Intl. Transfer Filing',  abbr: 'ITF',  color: '#0891b2', icon: <SwapHorizOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+  { key: 'PEP',        label: 'PEP Disclosure',         abbr: 'PEP',  color: '#be185d', icon: <PersonSearchOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+  { key: 'AML_RETURN', label: 'Monthly AML Return',     abbr: 'AML',  color: '#15803d', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '0.75rem' }} /> },
+]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,14 +72,19 @@ function daysUntil(iso: string) {
 // ── page ──────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [tab, setTab]           = useState<Tab>('All')
-  const [fileOpen, setFileOpen] = useState(false)
-  const [schedOpen, setSchedOpen] = useState(false)
-  const [reports, setReports]   = useState<NfiuReport[]>([])
-  const [schedules, setSchedules] = useState<NfiuSchedule[]>([])
-  const [metrics, setMetrics]   = useState<NfiuMetrics | null>(null)
-  const [loading, setLoading]   = useState(true)
+  const [typeFilter, setTypeFilter]     = useState<ReportType | 'all'>('all')
+  const [showScheduled, setShowScheduled] = useState(false)
+  const [fileOpen, setFileOpen]         = useState(false)
+  const [schedOpen, setSchedOpen]   = useState(false)
+  const [reports, setReports]       = useState<NfiuReport[]>([])
+  const [schedules, setSchedules]   = useState<NfiuSchedule[]>([])
+  const [metrics, setMetrics]       = useState<NfiuMetrics | null>(null)
+  const [loading, setLoading]       = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [viewReport, setViewReport] = useState<NfiuReport | null>(null)
+  const [viewReadOnly, setViewReadOnly] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<NfiuReport | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'filed'>('all')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -99,6 +112,12 @@ export default function ReportsPage() {
     finally { setDeletingId(null) }
   }
 
+  function openReport(r: NfiuReport) {
+    setViewReport(r)
+    setViewReadOnly(r.status !== 'draft')
+    setFileOpen(true)
+  }
+
   async function toggleSchedule(s: NfiuSchedule) {
     try {
       const updated = await nfiuApi.updateSchedule(s.id, { isActive: !s.isActive })
@@ -113,13 +132,31 @@ export default function ReportsPage() {
     } catch { /* ignore */ }
   }
 
-  // Filtered report list
-  const visibleReports = reports.filter(r => {
-    if (tab === 'All')       return true
-    if (tab === 'Draft')     return r.status === 'draft'
-    if (tab === 'Scheduled') return false
-    return r.reportType === tab
-  })
+  // Per-type counts (all reports, ignoring filters)
+  const typeCounts = useMemo(() => {
+    const c: Record<string, number> = { all: reports.length }
+    reports.forEach(r => { c[r.reportType] = (c[r.reportType] ?? 0) + 1 })
+    return c
+  }, [reports])
+
+  // Type-filtered subset
+  const typeFiltered = useMemo(() =>
+    typeFilter === 'all' ? reports : reports.filter(r => r.reportType === typeFilter),
+  [reports, typeFilter])
+
+  // Status counts within the type-filtered subset
+  const statusCounts = useMemo(() => ({
+    all:   typeFiltered.length,
+    draft: typeFiltered.filter(r => r.status === 'draft').length,
+    filed: typeFiltered.filter(r => r.status === 'filed' || r.status === 'acknowledged').length,
+  }), [typeFiltered])
+
+  // Final visible rows
+  const visibleReports = useMemo(() => typeFiltered.filter(r => {
+    if (statusFilter === 'draft') return r.status === 'draft'
+    if (statusFilter === 'filed') return r.status === 'filed' || r.status === 'acknowledged'
+    return true
+  }), [typeFiltered, statusFilter])
 
   return (
     <>
@@ -131,7 +168,7 @@ export default function ReportsPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Compliance
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               NFIU Reports &amp; Filings
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -144,9 +181,9 @@ export default function ReportsPage() {
               sx={{ bgcolor: '#fff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
               Schedule Report
             </Button>
-            <Button onClick={() => setFileOpen(true)}
+            <Button onClick={() => { setViewReport(null); setViewReadOnly(false); setFileOpen(true) }}
               startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{ bgcolor: colorPalette.primary, color: '#fff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' } }}>
+              sx={{ bgcolor: colorPalette.primary, color: '#fff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
               File New Report
             </Button>
           </Stack>
@@ -173,7 +210,7 @@ export default function ReportsPage() {
               {loading ? (
                 <CircularProgress size={18} sx={{ color: colorPalette.primary, my: 0.5 }} />
               ) : (
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: s.alert ? '#92400e' : '#0f172a', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: s.alert ? '#92400e' : '#00288e', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
                   {s.value}
                 </Typography>
               )}
@@ -184,36 +221,119 @@ export default function ReportsPage() {
 
         {/* ── Report table ── */}
         <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4' }}>
-          {/* Tabs + actions */}
-          <Box sx={{ px: 3, py: 0, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Stack direction="row" gap={0}>
-              {TABS.map(t => (
-                <Box 
-                  key={t} 
-                  onClick={() => setTab(t)} 
-                  data-ai-analyzable="true"
-                  data-ai-description={`Filter reports by category: ${t === 'AML_RETURN' ? 'AML Return' : t}.`}
-                  sx={{
-                  px: 1.75, py: 1.75, fontSize: '0.8125rem', fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'Jost',
-                  color: tab === t ? colorPalette.primary : '#64748b',
-                  borderBottom: tab === t ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
-                  transition: 'all 0.15s',
-                  '&:hover': { color: colorPalette.primary },
-                }}>
-                  {t === 'AML_RETURN' ? 'AML Return' : t}
-                  {t === 'Draft' && metrics && metrics.totalDraft > 0 && (
-                    <Box component="span" sx={{ ml: 0.75, px: 0.75, py: 0.125, bgcolor: '#fef2f2', color: '#dc2626', fontSize: '0.625rem', fontWeight: 700, borderRadius: '10px' }}>
-                      {metrics.totalDraft}
+
+          {/* ── Filter bar ── */}
+          <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+
+            {/* Row 1: Type filter */}
+            <Box sx={{ px: 2.5, pt: 1.25, pb: 0, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'nowrap', overflowX: 'auto' }}>
+              {TYPE_PILLS.map(p => {
+                const count = typeCounts[p.key] ?? 0
+                const active = !showScheduled && typeFilter === p.key
+                return (
+                  <Tooltip key={p.key} title={p.label}>
+                    <Box
+                      onClick={() => { setTypeFilter(p.key); setShowScheduled(false) }}
+                      sx={{
+                        display: 'flex', alignItems: 'center', gap: 0.625, flexShrink: 0,
+                        px: 1.25, py: 0.625, cursor: 'pointer', userSelect: 'none',
+                        border: `1px solid ${active ? p.color : '#e5e7eb'}`,
+                        bgcolor: active ? `${p.color}10` : 'transparent',
+                        transition: 'all 0.15s',
+                        '&:hover': { borderColor: p.color, bgcolor: `${p.color}08` },
+                      }}
+                    >
+                      {p.icon && (
+                        <Box sx={{ color: active ? p.color : '#94a3b8', display: 'flex', '& svg': { fontSize: '0.75rem !important' } }}>
+                          {p.icon}
+                        </Box>
+                      )}
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: active ? 700 : 500, color: active ? p.color : '#64748b', fontFamily: 'Jost', letterSpacing: '0.02em' }}>
+                        {p.abbr}
+                      </Typography>
+                      <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? p.color : '#f1f5f9', borderRadius: '10px' }}>
+                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: active ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
+                          {count}
+                        </Typography>
+                      </Box>
                     </Box>
-                  )}
+                  </Tooltip>
+                )
+              })}
+
+              {/* Separator */}
+              <Box sx={{ mx: 0.5, height: 20, width: '1px', bgcolor: '#e5e7eb', flexShrink: 0 }} />
+
+              {/* Schedules pill */}
+              <Tooltip title="Recurring schedules">
+                <Box
+                  onClick={() => setShowScheduled(true)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 0.625, flexShrink: 0,
+                    px: 1.25, py: 0.625, cursor: 'pointer', userSelect: 'none',
+                    border: `1px solid ${showScheduled ? '#64748b' : '#e5e7eb'}`,
+                    bgcolor: showScheduled ? '#f1f5f9' : 'transparent',
+                    transition: 'all 0.15s',
+                    '&:hover': { borderColor: '#64748b', bgcolor: '#f8fafc' },
+                  }}
+                >
+                  <ScheduleRoundedIcon sx={{ fontSize: '0.75rem', color: showScheduled ? '#475569' : '#94a3b8' }} />
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: showScheduled ? 700 : 500, color: showScheduled ? '#475569' : '#64748b', fontFamily: 'Jost' }}>
+                    Schedules
+                  </Typography>
+                  <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: showScheduled ? '#475569' : '#f1f5f9', borderRadius: '10px' }}>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: showScheduled ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
+                      {schedules.length}
+                    </Typography>
+                  </Box>
                 </Box>
-              ))}
-            </Stack>
+              </Tooltip>
+            </Box>
+
+            {/* Row 2: Status segmented control (hidden on Schedules view) */}
+            {!showScheduled && (
+              <Box sx={{ px: 2.5, py: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>
+                  Status
+                </Typography>
+                <Box sx={{ display: 'flex', border: '1px solid #e5e7eb' }}>
+                  {([
+                    { value: 'all',   label: 'All',   count: statusCounts.all,   activeColor: colorPalette.primary, activeBg: `${colorPalette.primary}10` },
+                    { value: 'draft', label: 'Draft', count: statusCounts.draft, activeColor: '#64748b',            activeBg: '#f1f5f9' },
+                    { value: 'filed', label: 'Filed', count: statusCounts.filed, activeColor: colorPalette.primary, activeBg: `${colorPalette.primary}10` },
+                  ] as const).map((opt, i) => {
+                    const active = statusFilter === opt.value
+                    return (
+                      <Box
+                        key={opt.value}
+                        onClick={() => setStatusFilter(opt.value)}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 0.75,
+                          px: 1.5, py: 0.5, cursor: 'pointer', userSelect: 'none',
+                          borderRight: i < 2 ? '1px solid #e5e7eb' : 'none',
+                          bgcolor: active ? opt.activeBg : '#fff',
+                          transition: 'background 0.12s',
+                          '&:hover': { bgcolor: active ? opt.activeBg : '#fafbfc' },
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: active ? 700 : 500, color: active ? opt.activeColor : '#94a3b8', fontFamily: 'Jost', whiteSpace: 'nowrap' }}>
+                          {opt.label}
+                        </Typography>
+                        <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? opt.activeColor : '#f1f5f9', borderRadius: '10px' }}>
+                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: active ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
+                            {opt.count}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              </Box>
+            )}
           </Box>
 
-          {/* Schedules tab */}
-          {tab === 'Scheduled' ? (
+          {/* Schedules view */}
+          {showScheduled ? (
             <Box>
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -243,14 +363,14 @@ export default function ReportsPage() {
                         data-ai-description={`Scheduled Report: ${s.name}. type: ${s.reportType}. frequency: ${s.frequency}. next due: ${new Date(s.nextDue).toLocaleDateString('en-GB')}. auto-file enabled: ${s.autoFile}.`}
                         sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < schedules.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
                         <Box>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{s.name}</Typography>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>{s.name}</Typography>
                           {s.autoFile && <Typography sx={{ fontSize: '0.625rem', color: colorPalette.primary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Auto-file</Typography>}
                         </Box>
                         <Chip label={TYPE_META[s.reportType]?.abbr ?? s.reportType} size="small"
                           sx={{ borderRadius: 0, height: 20, fontSize: '0.625rem', fontWeight: 700, bgcolor: `${TYPE_META[s.reportType]?.color}14`, color: TYPE_META[s.reportType]?.color, width: 'fit-content' }} />
                         <Typography sx={{ fontSize: '0.8125rem', color: '#475569', textTransform: 'capitalize' }}>{s.frequency}</Typography>
                         <Box>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                             {new Date(s.nextDue).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </Typography>
                           <Typography sx={{ fontSize: '0.6875rem', color: due.color, fontWeight: 600 }}>{due.label}</Typography>
@@ -303,14 +423,15 @@ export default function ReportsPage() {
                 const statusCfg  = STATUS_CFG[r.status] ?? STATUS_CFG.draft
                 const priorColor = PRIORITY_CFG[r.priority]?.color ?? '#64748b'
                 return (
-                  <Box 
-                    key={r.id} 
+                  <Box
+                    key={r.id}
                     data-ai-analyzable="true"
                     data-ai-description={`NFIU Report Filing: ${r.reference}. type: ${r.reportType}. status: ${r.status.toUpperCase()}. priority: ${r.priority.toUpperCase()}. title: ${r.title}.${r.subjectName ? ' subject: ' + r.subjectName : ''}.${r.filingDate ? ' filed on: ' + fmtDate(r.filingDate) : ' not yet filed.'}`}
-                    sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
+                    onClick={() => openReport(r)}
+                    sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid #f4f5f7' : 'none', cursor: 'pointer', '&:hover': { bgcolor: '#f0f4ff' } }}>
 
                     {/* Reference */}
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                       {r.reference}
                     </Typography>
 
@@ -323,7 +444,7 @@ export default function ReportsPage() {
 
                     {/* Title / subject */}
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.title}
                       </Typography>
                       {r.subjectName && (
@@ -348,15 +469,15 @@ export default function ReportsPage() {
                     </Typography>
 
                     {/* Amount */}
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                       {r.amountNgn != null ? `₦${r.amountNgn.toLocaleString()}` : '—'}
                     </Typography>
 
                     {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 0.25 }}>
+                    <Box sx={{ display: 'flex', gap: 0.25 }} onClick={e => e.stopPropagation()}>
                       {r.status === 'draft' ? (
-                        <Tooltip title="Delete draft">
-                          <IconButton size="small" disabled={deletingId === r.id} onClick={() => deleteReport(r.id)}
+                        <Tooltip title="Delete draft (requires TOTP)">
+                          <IconButton size="small" disabled={deletingId === r.id} onClick={() => setDeleteTarget(r)}
                             sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}>
                             {deletingId === r.id ? <CircularProgress size={12} /> : <DeleteOutlineRoundedIcon sx={{ fontSize: '1rem' }} />}
                           </IconButton>
@@ -378,17 +499,38 @@ export default function ReportsPage() {
 
       <FileReportDialog
         open={fileOpen}
-        onClose={() => setFileOpen(false)}
+        onClose={() => { setFileOpen(false); setViewReport(null) }}
         onFiled={report => {
-          setReports(prev => [report, ...prev])
+          setReports(prev => {
+            const idx = prev.findIndex(r => r.id === report.id)
+            return idx >= 0 ? prev.map(r => r.id === report.id ? report : r) : [report, ...prev]
+          })
           loadData()
         }}
+        initialReport={viewReport ?? undefined}
+        readOnly={viewReadOnly}
       />
 
       <ScheduleReportDialog
         open={schedOpen}
         onClose={() => setSchedOpen(false)}
         onCreated={s => setSchedules(prev => [...prev, s])}
+      />
+
+      <TOTPConfirmation
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          const r = deleteTarget!
+          setDeleteTarget(null)
+          deleteReport(r.id)
+        }}
+        operation="delete"
+        title="Delete Draft Report"
+        description="This will permanently delete the draft. This action cannot be undone and is audit-logged."
+        resourceType="NFIU Draft Report"
+        resourceName={deleteTarget?.title ?? ''}
+        itemsAffected={deleteTarget ? [`Ref: ${deleteTarget.reference}`, `Type: ${deleteTarget.reportType}`, `Created: ${fmtDate(deleteTarget.createdAt)}`] : []}
       />
       </Box>
     </>

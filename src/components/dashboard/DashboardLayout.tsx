@@ -56,21 +56,21 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
               data-ai-description="Eureka AI Companion: Click to open the full chat assistant for deep investigation and system analysis."
               sx={{
                 position: 'fixed', bottom: 28, right: 28, width: 60, height: 60,
-                borderRadius: '50%', bgcolor: colorPalette.primary, color: '#ffffff',
+                borderRadius: '50%', bgcolor: '#d9f99d', color: '#00288e',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', zIndex: 1100,
-                boxShadow: `0 12px 28px ${colorPalette.primary}45`,
+                boxShadow: `0 12px 28px rgba(217, 249, 157, 0.45)`,
                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 animation: 'fabFadeIn 0.4s ease',
                 '@keyframes fabFadeIn': {
                   from: { opacity: 0, transform: 'scale(0.85)' },
                   to:   { opacity: 1, transform: 'scale(1)' },
                 },
-                '&:hover': { bgcolor: '#1a3896', transform: 'translateY(-2px)',
-                  boxShadow: `0 16px 36px ${colorPalette.primary}55` },
+                '&:hover': { bgcolor: '#bef264', transform: 'translateY(-2px)',
+                  boxShadow: `0 16px 36px rgba(217, 249, 157, 0.55)` },
                 '&::before': {
                   content: '""', position: 'absolute', inset: -4, borderRadius: '50%',
-                  bgcolor: colorPalette.primary, opacity: 0.18,
+                  bgcolor: '#d9f99d', opacity: 0.18,
                   animation: 'pulseRing 2.4s ease-in-out infinite', zIndex: -1,
                 },
                 '@keyframes pulseRing': {

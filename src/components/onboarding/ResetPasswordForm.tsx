@@ -20,24 +20,32 @@ interface ResetPasswordFormProps {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#f5f3fb',
     borderRadius: 0,
-    transition: 'all 0.2s ease',
+    fontFamily: 'Jost',
+    fontSize: '0.9375rem',
+    color: '#000000',
     '& fieldset': {
-      border: '1px solid transparent',
+      borderColor: '#e2e8f0',
       transition: 'all 0.2s ease',
     },
-    '&:hover fieldset': { borderColor: '#e4dff2' },
-    '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+    '&:hover fieldset': {
+      borderColor: '#00288e',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#00288e',
+      borderWidth: '1px',
+    },
+    '&.Mui-focused': {
+      boxShadow: '0 0 0 4px rgba(0, 40, 142, 0.08)',
+    },
+    '& input::placeholder': {
+      color: '#94a3b8',
+      opacity: 1,
+    },
   },
   '& .MuiOutlinedInput-input': {
-    fontSize: '1rem',
-    fontFamily: 'Jost',
     py: '22px',
     px: '22px',
-    color: '#0f172a',
-    '&::placeholder': { color: '#9ca3af', opacity: 1 },
   },
 }
 
@@ -62,8 +70,8 @@ const primaryButtonSx = {
   boxShadow: 'none',
   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover:not(:disabled)': {
-    bgcolor: '#1a3896',
-    boxShadow: `0 8px 24px ${colorPalette.primary}35`,
+    bgcolor: '#1e40af',
+    boxShadow: `0 8px 24px rgba(0, 40, 142, 0.25)`,
     transform: 'translateY(-1px)',
   },
   '&:active:not(:disabled)': { transform: 'translateY(0)' },
@@ -210,7 +218,7 @@ export default function ResetPasswordForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -282,7 +290,7 @@ export default function ResetPasswordForm({
                         fontSize: '1.5rem',
                         fontWeight: 600,
                         padding: '24px 0',
-                        color: '#0f172a',
+                        color: '#00288e',
                       },
                     }}
                     value={digit}
@@ -293,16 +301,16 @@ export default function ResetPasswordForm({
                     sx={{
                       flex: 1,
                       '& .MuiOutlinedInput-root': {
-                        bgcolor: digit ? '#ffffff' : '#f5f3fb',
+                        bgcolor: '#ffffff',
                         borderRadius: 0,
                         transition: 'all 0.2s ease',
                         '& fieldset': {
-                          border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                          borderColor: digit ? '#00288e' : '#e2e8f0',
                           transition: 'all 0.2s ease',
                         },
-                        '&:hover fieldset': { borderColor: digit ? colorPalette.primary : '#e4dff2' },
-                        '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                        '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                        '&:hover fieldset': { borderColor: '#00288e' },
+                        '&.Mui-focused fieldset': { borderColor: '#00288e', borderWidth: '1px' },
+                        '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(0, 40, 142, 0.08)' },
                       },
                     }}
                   />

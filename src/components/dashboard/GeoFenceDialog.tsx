@@ -260,7 +260,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Geographical Access Fence
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -277,7 +277,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                 bgcolor: colorPalette.primary, color: '#fff', borderRadius: 0,
                 textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
                 fontSize: '0.8125rem', px: 2, py: 1, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896' },
+                '&:hover': { bgcolor: '#1e293b' },
               }}
             >
               Save Changes
@@ -434,7 +434,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             {drawing && (
               <Box sx={{
                 position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-                bgcolor: '#0f172a', color: '#fff', px: 2, py: 0.75, borderRadius: '4px',
+                bgcolor: '#00288e', color: '#fff', px: 2, py: 0.75, borderRadius: '4px',
                 fontSize: '0.75rem', fontFamily: 'Jost', zIndex: 1000,
                 pointerEvents: 'none',
               }}>
@@ -466,7 +466,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             {/* Enable toggle */}
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Enable Geo-Fence
                 </Typography>
                 <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>
@@ -488,7 +488,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <TuneIcon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   GPS Calibration
                 </Typography>
               </Stack>
@@ -525,7 +525,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <PolylineOutlinedIcon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Boundary
                 </Typography>
               </Stack>
@@ -550,7 +550,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             <Box sx={{ px: 3, pt: 2.25, pb: 1 }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <PersonAddAlt1Icon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Fenced Users
                 </Typography>
                 <Chip
@@ -597,7 +597,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                       {m.initials}
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.name}
                       </Typography>
                       <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -639,7 +639,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
       <Dialog open={totpOpen} onClose={() => setTotpOpen(false)}
         PaperProps={{ sx: { bgcolor: '#ffffff', borderRadius: 0, width: 380, p: 0 } }}>
         <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Confirm with Authenticator
           </Typography>
           <IconButton size="small" onClick={() => setTotpOpen(false)} sx={{ color: '#64748b' }}>
@@ -680,7 +680,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
               bgcolor: colorPalette.primary, color: '#fff', borderRadius: 0,
               textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
               fontSize: '0.875rem', py: 1.25, boxShadow: 'none',
-              '&:hover': { bgcolor: '#1a3896' },
+              '&:hover': { bgcolor: '#1e293b' },
               '&.Mui-disabled': { bgcolor: '#c7d2fe', color: '#fff' },
             }}
           >
@@ -696,7 +696,7 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'Jost' }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: highlight ? colorPalette.primary : '#0f172a', fontFamily: 'monospace', textAlign: 'right' }}>
+      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: highlight ? colorPalette.primary : '#00288e', fontFamily: 'monospace', textAlign: 'right' }}>
         {value}
       </Typography>
     </Box>

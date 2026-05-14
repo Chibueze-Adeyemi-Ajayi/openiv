@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Box, Typography, Stack, IconButton, InputBase, Tabs, Tab } from '@mui/material'
 import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
+import FileReportDialog, { type ReportPrefill } from '@/components/dashboard/FileReportDialog'
 import { colorPalette } from '@/theme'
 import { caseApi, type Case, type CaseDetail, type CaseStatus, type CaseResolution } from '@/api/cases'
+import { customerApi } from '@/api/customers'
 import type { Transaction } from '@/api/transactions'
+import type { NfiuReport } from '@/api/nfiu'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface Props {
   caseId: string | null
@@ -16,11 +21,14 @@ interface Props {
 }
 
 const STATUS_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  open:          { color: '#f59e0b', bg: '#fffbeb',                               label: 'Open'          },
-  investigating: { color: colorPalette.primary, bg: `${colorPalette.primary}0f`,  label: 'Investigating' },
-  escalated:     { color: '#dc2626', bg: '#fef2f2',                               label: 'Escalated'     },
-  closed:        { color: '#64748b', bg: '#f8fafc',                               label: 'Closed'        },
+  open:           { color: '#f59e0b',           bg: '#fffbeb',                              label: 'Open'           },
+  investigating:  { color: colorPalette.primary, bg: `${colorPalette.primary}0f`,            label: 'Investigating'  },
+  pending_review: { color: '#7c3aed',            bg: '#f5f3ff',                              label: 'Pending Review' },
+  escalated:      { color: '#dc2626',            bg: '#fef2f2',                              label: 'Escalated'      },
+  closed:         { color: '#64748b',            bg: '#f8fafc',                              label: 'Closed'         },
 }
+
+const L2_ROLES = new Set(['owner', 'admin', 'compliance', 'cmlco', 'mlro'])
 
 const PRIORITY_CFG: Record<string, { color: string; bg: string; label: string }> = {
   low:      { color: '#64748b', bg: '#f8fafc', label: 'Low'      },
@@ -30,16 +38,20 @@ const PRIORITY_CFG: Record<string, { color: string; bg: string; label: string }>
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  opened:             'Case opened',
-  status_changed:     'Status updated',
-  note_added:         'Note added',
-  transaction_linked: 'Transaction linked',
-  assigned:           'Case assigned',
-  closed:             'Case closed',
+  opened:               'Case opened',
+  status_changed:       'Status updated',
+  submitted_for_review: 'Submitted for L2 review',
+  note_added:           'Note added',
+  transaction_linked:   'Transaction linked',
+  evidence_added:       'Evidence added',
+  assigned:             'Case assigned',
+  closed:               'Case closed',
+  nfiu_report_linked:   'NFIU report filed & linked',
 }
 
 function slaInfo(deadline: string, status: CaseStatus) {
   if (status === 'closed') return { label: 'Closed', color: '#10b981', pct: 100 }
+  if (status === 'pending_review') return { label: 'Pending Review', color: '#7c3aed', pct: 60 }
   const now = Date.now()
   const end = new Date(deadline).getTime()
   const diff = end - now
@@ -81,23 +93,44 @@ function Avatar({ name, size = 28 }: { name?: string; size?: number }) {
 }
 
 const RESOLUTION_OPTIONS: { key: CaseResolution; label: string; color: string }[] = [
-  { key: 'cleared',  label: 'Cleared — false positive', color: '#10b981' },
-  { key: 'sar_filed', label: 'SAR / STR filed',          color: '#f59e0b' },
-  { key: 'referred', label: 'Referred to law enforcement', color: '#dc2626' },
+  { key: 'cleared',  label: 'Cleared — false positive',     color: '#10b981' },
+  { key: 'referred', label: 'Referred to law enforcement',  color: '#dc2626' },
 ]
 
+// Dismissed transaction IDs are stored per-session in sessionStorage
+const SESSION_KEY = 'dismissed_case_txns'
+function getDismissed(): Set<string> {
+  try { return new Set(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? '[]')) }
+  catch { return new Set() }
+}
+function saveDismissed(s: Set<string>) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify([...s])) } catch {}
+}
+
 export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTransactionClick }: Props) {
+  const currentUser = useCurrentUser()
+  const isL2 = currentUser?.role ? L2_ROLES.has(currentUser.role) : false
+
   const [data,          setData]          = useState<CaseDetail | null>(null)
   const [loading,       setLoading]       = useState(false)
   const [actioning,     setActioning]     = useState(false)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [note,          setNote]          = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
   const [closePickerOpen, setClosePickerOpen] = useState(false)
   const [localStatus,   setLocalStatus]   = useState<CaseStatus | null>(null)
 
+  // NFIU filing dialog
+  const [nfiuOpen,    setNfiuOpen]    = useState(false)
+  const [nfiuPrefill, setNfiuPrefill] = useState<ReportPrefill | undefined>()
+
+  // Per-session dismissed transaction IDs
+  const [dismissedTxns, setDismissedTxns] = useState<Set<string>>(getDismissed)
+  const [showAllTxns,   setShowAllTxns]   = useState(false)
+
   // Evidence gate — set when an action button is clicked; cleared after evidence confirmed or cancelled
   const [evidenceTarget, setEvidenceTarget] = useState<{
-    status: CaseStatus; resolution?: CaseResolution; label: string; color: string
+    status: CaseStatus; resolution?: CaseResolution; label: string; color: string; skipDoc?: boolean
   } | null>(null)
 
   // Tab management
@@ -122,32 +155,70 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
     if (open && caseId) { setData(null); setNote(''); setClosePickerOpen(false); setLocalStatus(null); setTabIndex(0); loadDetail() }
   }, [open, caseId, loadDetail])
 
-  const requestTransition = (status: CaseStatus, resolution: CaseResolution | undefined,
-      label: string, color: string) => {
-    if (!cas || actioning) return
-    setClosePickerOpen(false)
-    setEvidenceTarget({ status, resolution, label, color })
-  }
-
-  const transition = useCallback(async (newStatus: CaseStatus, resolution: CaseResolution | undefined,
-      reason: string, documentId: number) => {
+  // File SAR/STR: transition to investigating (if needed) then open NFIU dialog immediately
+  const fileSarStr = useCallback(async () => {
     if (!cas || actioning) return
     setActioning(true)
     try {
-      await caseApi.updateStatus(cas.id, newStatus, resolution, reason, documentId)
+      if (currentStatus !== 'investigating') {
+        await caseApi.updateStatus(cas.id, 'investigating', undefined, 'SAR/STR filing initiated', null)
+        setLocalStatus('investigating')
+        onUpdated()
+      }
+    } finally {
+      setActioning(false)
+    }
+    setActionSuccess('Opening NFIU STR/SAR filing form…')
+    openNfiuDialog()
+    loadDetail().catch(() => {})
+  }, [cas, actioning, currentStatus, onUpdated, openNfiuDialog, loadDetail])
+
+  const requestTransition = (status: CaseStatus, resolution: CaseResolution | undefined,
+      label: string, color: string, skipDoc = false) => {
+    if (!cas || actioning) return
+    setClosePickerOpen(false)
+    setEvidenceTarget({ status, resolution, label, color, skipDoc })
+  }
+
+  const transition = useCallback(async (newStatus: CaseStatus, resolution: CaseResolution | undefined,
+      reason: string, documentId: number | null) => {
+    if (!cas || actioning) return
+    setActioning(true)
+    const caseId_ = cas.id
+    const txnCustId = data?.transactions?.[0]?.customerId ?? null
+    try {
+      await caseApi.updateStatus(caseId_, newStatus, resolution, reason, documentId)
       setLocalStatus(newStatus)
       onUpdated()
+
+      if (newStatus === 'closed') {
+        if (resolution === 'referred') {
+          setActionSuccess('Case closed and customer watchlisted.')
+          if (txnCustId) {
+            customerApi.watchlist(txnCustId, `Case ${caseId_} closed: referred`).catch(() => {})
+          }
+        } else {
+          setActionSuccess('Case closed successfully.')
+        }
+      } else if (newStatus === 'pending_review') {
+        setActionSuccess('Case submitted for L2 review.')
+      } else if (newStatus === 'investigating') {
+        setActionSuccess('Investigation started.')
+      } else if (newStatus === 'escalated') {
+        setActionSuccess('Case escalated.')
+      }
+
       await loadDetail()
     } finally {
       setActioning(false)
     }
-  }, [cas, actioning, onUpdated, loadDetail])
+  }, [cas, actioning, onUpdated, loadDetail, data])
 
   const handleEvidenceConfirm = useCallback((payload: EvidencePayload) => {
     if (!evidenceTarget) return
     const { status, resolution } = evidenceTarget
     setEvidenceTarget(null)
-    transition(status, resolution, payload.reason, payload.documentId)
+    transition(status, resolution, payload.reason, payload.documentId ?? null)
   }, [evidenceTarget, transition])
 
   const submitNote = useCallback(async () => {
@@ -161,6 +232,44 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
       setSubmittingNote(false)
     }
   }, [cas, note, submittingNote, loadDetail])
+
+  const dismissTxn = useCallback((id: string) => {
+    setDismissedTxns(prev => {
+      const next = new Set(prev); next.add(id); saveDismissed(next); return next
+    })
+  }, [])
+
+  const openNfiuDialog = useCallback(() => {
+    if (!cas) return
+    const tx = data?.transactions?.[0] ?? null
+    const today = new Date().toISOString().split('T')[0]
+    const prefill: ReportPrefill = {
+      reportType: 'STR',
+      title: `STR — ${cas.title}`,
+      subjectName: tx?.customer,
+      subjectAccount: tx?.senderAccount,
+      subjectType: 'individual',
+      amountNgn: tx ? String(tx.amount) : undefined,
+      transactionType: tx?.channel,
+      transactionDate: tx?.occurredAt ? tx.occurredAt.split('T')[0] : undefined,
+      transactionLocation: tx?.location || undefined,
+      transactionLat: tx?.lat,
+      transactionLng: tx?.lng,
+      linkedTransactionId: tx?.id,
+      transactionSenderAccount: tx?.senderAccount,
+      transactionSenderBank: tx?.senderBank,
+      transactionRecipientName: tx?.recipientName,
+      transactionRecipientAccount: tx?.recipientAccount,
+      transactionRecipientBank: tx?.recipientBank,
+      transactionCurrency: tx?.currency,
+      transactionNarration: tx?.narration,
+      narrative: cas.notes
+        ? `Case: ${cas.title}\nTypology: ${cas.typology}\n\n${cas.notes}`
+        : `Case: ${cas.title}\nTypology: ${cas.typology}\n\nSuspicious transaction detected on ${today}. Risk score: ${cas.riskScore}.`,
+    }
+    setNfiuPrefill(prefill)
+    setNfiuOpen(true)
+  }, [cas, data])
 
   if (!open) return null
 
@@ -190,7 +299,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                 Case
               </Typography>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                 {loading ? '—' : (cas?.id ?? '—')}
               </Typography>
             </Box>
@@ -211,7 +320,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
 
           {/* Row 2: Title + typology */}
           <Box sx={{ px: 2.5, pb: 1.25 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.3 }}>
               {loading ? '—' : (cas?.title ?? '—')}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -238,42 +347,134 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.875 }}>
                 Actions
               </Typography>
-              <Stack direction="row" gap={1} flexWrap="wrap">
-                {currentStatus === 'open' && (
-                  <ActionBtn label="Start Investigation" color={colorPalette.primary} disabled={actioning}
-                    onClick={() => requestTransition('investigating', undefined, 'Start Investigation', colorPalette.primary)} />
-                )}
-                {currentStatus === 'investigating' && (
-                  <ActionBtn label="Escalate" color="#f59e0b" disabled={actioning}
-                    onClick={() => requestTransition('escalated', undefined, 'Escalate', '#f59e0b')} />
-                )}
-                <Box sx={{ position: 'relative' }}>
-                  <ActionBtn label="Close Case" color="#64748b" disabled={actioning}
-                    onClick={() => setClosePickerOpen(v => !v)} />
-                  {closePickerOpen && (
-                    <Box sx={{
-                      position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10,
-                      border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 240,
-                    }}>
-                      <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        Resolution
-                      </Typography>
-                      {RESOLUTION_OPTIONS.map(r => (
-                        <Box key={r.key}
-                          onClick={() => requestTransition('closed', r.key, r.label, r.color)}
-                          sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                            '&:hover': { bgcolor: '#f8fafc' } }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'Jost' }}>{r.label}</Typography>
-                        </Box>
-                      ))}
-                    </Box>
+
+              {/* pending_review — L2 decision panel */}
+              {currentStatus === 'pending_review' ? (
+                <Box>
+                  <Box sx={{ p: 1.5, mb: 1, bgcolor: '#f5f3ff', border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <VerifiedRoundedIcon sx={{ fontSize: '0.9375rem', color: '#7c3aed', flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: '#5b21b6', lineHeight: 1.4 }}>
+                      {isL2
+                        ? 'This case is awaiting your review. Approve by closing with a resolution, or return it to investigation.'
+                        : 'This case has been submitted for L2 review. Only compliance/MLRO officers may act on it now.'}
+                    </Typography>
+                  </Box>
+                  {isL2 && (
+                    <Stack direction="row" gap={1} flexWrap="wrap">
+                      <Box sx={{ position: 'relative' }}>
+                        <ActionBtn label="Close with Resolution" color="#64748b" disabled={actioning}
+                          onClick={() => setClosePickerOpen(v => !v)} />
+                        {closePickerOpen && (
+                          <Box sx={{
+                            position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10,
+                            border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
+                          }}>
+                            <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                              Resolution
+                            </Typography>
+                            {RESOLUTION_OPTIONS.map(r => (
+                              <Box key={r.key}
+                                onClick={() => requestTransition('closed', r.key, r.label, r.color)}
+                                sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                                  '&:hover': { bgcolor: '#f8fafc' } }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
+                                <Box>
+                                  <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
+                                  {r.key === 'referred' && <Typography sx={{ fontSize: '0.625rem', color: '#f59e0b' }}>Customer will be watchlisted</Typography>}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                      <ActionBtn label="Return to Investigation" color={colorPalette.primary} disabled={actioning}
+                        onClick={() => requestTransition('investigating', undefined, 'Return to Investigation', colorPalette.primary, true)} />
+                    </Stack>
                   )}
                 </Box>
-              </Stack>
+              ) : (
+                <Stack direction="row" gap={1} flexWrap="wrap">
+                  {currentStatus === 'open' && (
+                    <ActionBtn label="Start Investigation" color={colorPalette.primary} disabled={actioning}
+                      onClick={() => requestTransition('investigating', undefined, 'Start Investigation', colorPalette.primary, true)} />
+                  )}
+                  {currentStatus === 'investigating' && (
+                    <ActionBtn label="Submit for Review" color="#7c3aed" disabled={actioning}
+                      onClick={() => requestTransition('pending_review', undefined, 'Submit for Review', '#7c3aed')} />
+                  )}
+                  {(currentStatus === 'open' || currentStatus === 'investigating') && (
+                    <ActionBtn label="Escalate" color="#dc2626" disabled={actioning}
+                      onClick={() => requestTransition('escalated', undefined, 'Escalate', '#dc2626')} />
+                  )}
+                  {/* SAR/STR filing — shown while case is active and no report is linked yet */}
+                  {!cas.linkedNfiuReportId && (
+                    <ActionBtn label="File SAR / STR" color="#d97706" disabled={actioning}
+                      onClick={fileSarStr} />
+                  )}
+                  {(currentStatus === 'escalated' || (isL2 && currentStatus !== 'pending_review')) && (
+                    <Box sx={{ position: 'relative' }}>
+                      <ActionBtn label="Close Case" color="#64748b" disabled={actioning}
+                        onClick={() => setClosePickerOpen(v => !v)} />
+                      {closePickerOpen && (
+                        <Box sx={{
+                          position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10,
+                          border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
+                        }}>
+                          <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Resolution
+                          </Typography>
+                          {RESOLUTION_OPTIONS.map(r => (
+                            <Box key={r.key}
+                              onClick={() => requestTransition('closed', r.key, r.label, r.color)}
+                              sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                                '&:hover': { bgcolor: '#f8fafc' } }}>
+                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
+                              <Box>
+                                <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
+                                {r.key === 'referred' && <Typography sx={{ fontSize: '0.625rem', color: '#f59e0b' }}>Customer will be watchlisted</Typography>}
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Stack>
+              )}
             </Box>
           )}
         </Box>
+
+        {/* ── Action success flash ────────────────────────────────────────── */}
+        {actionSuccess && (
+          <Box sx={{ flexShrink: 0, bgcolor: '#f0fdf4', borderBottom: '1px solid #86efac', px: 2.5, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534' }}>
+              {actionSuccess}
+            </Typography>
+            <Box onClick={() => setActionSuccess(null)} sx={{ fontSize: '0.6875rem', color: '#4ade80', cursor: 'pointer', flexShrink: 0, '&:hover': { color: '#166534' } }}>✕</Box>
+          </Box>
+        )}
+
+        {/* ── NFIU compliance banner ──────────────────────────────────────── */}
+        {cas && currentStatus !== 'closed' && (
+          <Box sx={{ flexShrink: 0, bgcolor: '#fffbeb', borderBottom: '1px solid #fde68a', px: 2.5, py: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <GavelOutlinedIcon sx={{ fontSize: '1rem', color: '#d97706', mt: 0.125, flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '0.6875rem', color: '#92400e', lineHeight: 1.55 }}>
+                Suspicious transactions must be reported to the NFIU within <strong>24 hours</strong> of the suspicion, according to the <em>Terrorism (Prevention &amp; Prohibition) Act of 2022</em>.
+              </Typography>
+            </Box>
+            <Box onClick={openNfiuDialog} sx={{
+              flexShrink: 0, px: 1.375, py: 0.5,
+              bgcolor: '#d97706', color: '#fff',
+              fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              '&:hover': { bgcolor: '#b45309' },
+            }}>
+              File STR →
+            </Box>
+          </Box>
+        )}
 
         {/* ── Tab header ──────────────────────────────────────────────────── */}
         <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
@@ -322,8 +523,21 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                 <Field label="Opened By"  value={cas.createdByName} />
                 <Field label="Opened"     value={fmtDate(cas.createdAt)} />
                 {cas.closedAt && <Field label="Closed"  value={fmtDate(cas.closedAt)} />}
-                {cas.resolution && <Field label="Resolution" value={cas.resolution.replace('_', ' ')} />}
+                {cas.resolution && <Field label="Resolution" value={cas.resolution.replace(/_/g, ' ')} />}
+                {cas.linkedNfiuReportId && (
+                  <Field label="NFIU Report" value={`Report #${cas.linkedNfiuReportId}`} />
+                )}
               </Section>
+
+              {/* Watchlisted notice when customer was watchlisted on case close */}
+              {cas.resolution && (cas.resolution === 'sar_filed' || cas.resolution === 'referred') && cas.status === 'closed' && (
+                <Box sx={{ p: 1.5, bgcolor: '#fef3c7', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#d97706', flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.45 }}>
+                    Customer has been <strong>watchlisted</strong> based on this case resolution.
+                  </Typography>
+                </Box>
+              )}
 
               {cas.notes && (
                 <Box>
@@ -344,42 +558,75 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
           {tabIndex === 1 && !loading && (
             <>
               {/* Linked transactions */}
-              <Box>
-                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
-                  Linked Transactions ({data?.transactions.length ?? 0})
-                </Typography>
-                <Box sx={{ border: '1px solid #eef0f4' }}>
-                  {(!data?.transactions || data.transactions.length === 0) ? (
-                    <Box sx={{ p: 2, textAlign: 'center' }}>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions linked yet</Typography>
+              {(() => {
+                const allTxns = data?.transactions ?? []
+                const visible = showAllTxns
+                  ? allTxns
+                  : allTxns.filter(t => !dismissedTxns.has(t.id))
+                const hiddenCount = allTxns.length - visible.length
+                return (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                        Linked Transactions ({allTxns.length})
+                      </Typography>
+                      {hiddenCount > 0 && (
+                        <Typography onClick={() => setShowAllTxns(v => !v)} sx={{ fontSize: '0.625rem', color: colorPalette.primary, fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                          {showAllTxns ? 'Hide dismissed' : `Show ${hiddenCount} dismissed`}
+                        </Typography>
+                      )}
                     </Box>
-                  ) : data.transactions.map((t, i) => (
-                    <Box key={t.id} onClick={() => onTransactionClick?.(t)} sx={{
-                      display: 'grid', gridTemplateColumns: '1fr auto', gap: 1,
-                      px: 1.5, py: 1.25, borderBottom: i < data.transactions.length - 1 ? '1px solid #f4f5f7' : 'none',
-                      cursor: onTransactionClick ? 'pointer' : 'default',
-                      '&:hover': onTransactionClick ? { bgcolor: '#fafbfc' } : {},
-                    }}>
-                      <Box sx={{ overflow: 'hidden' }}>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {t.id}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
-                          {t.customer} · {t.channel}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                          {t.amount.toLocaleString()}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.625rem', color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981', fontWeight: 700, mt: 0.25 }}>
-                          Risk {t.risk}
-                        </Typography>
-                      </Box>
+                    <Box sx={{ border: '1px solid #eef0f4' }}>
+                      {allTxns.length === 0 ? (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions linked yet</Typography>
+                        </Box>
+                      ) : visible.length === 0 ? (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>All transactions dismissed this session</Typography>
+                          <Typography onClick={() => setShowAllTxns(true)} sx={{ fontSize: '0.75rem', color: colorPalette.primary, fontWeight: 600, cursor: 'pointer', mt: 0.5 }}>Show all</Typography>
+                        </Box>
+                      ) : visible.map((t, i) => {
+                        const isDismissed = dismissedTxns.has(t.id)
+                        return (
+                          <Box key={t.id} sx={{
+                            display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 1, alignItems: 'center',
+                            px: 1.5, py: 1.25, borderBottom: i < visible.length - 1 ? '1px solid #f4f5f7' : 'none',
+                            opacity: isDismissed ? 0.45 : 1,
+                            transition: 'opacity 0.15s',
+                          }}>
+                            <Box sx={{ overflow: 'hidden', cursor: onTransactionClick ? 'pointer' : 'default', '&:hover': onTransactionClick ? { opacity: 0.8 } : {} }}
+                              onClick={() => onTransactionClick?.(t)}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {t.id}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
+                                {t.customer} · {t.channel}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ textAlign: 'right', flexShrink: 0, cursor: onTransactionClick ? 'pointer' : 'default' }} onClick={() => onTransactionClick?.(t)}>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                                {t.amount.toLocaleString()}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.625rem', color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981', fontWeight: 700, mt: 0.25 }}>
+                                Risk {t.risk}
+                              </Typography>
+                            </Box>
+                            <IconButton size="small" disableRipple
+                              title={isDismissed ? 'Dismissed this session' : 'Dismiss from view (this session)'}
+                              onClick={() => isDismissed
+                                ? setDismissedTxns(prev => { const n = new Set(prev); n.delete(t.id); saveDismissed(n); return n })
+                                : dismissTxn(t.id)}
+                              sx={{ borderRadius: 0, color: isDismissed ? '#10b981' : '#cbd5e1', '&:hover': { color: isDismissed ? '#059669' : '#94a3b8' }, flexShrink: 0 }}>
+                              <CloseRoundedIcon sx={{ fontSize: '0.875rem' }} />
+                            </IconButton>
+                          </Box>
+                        )
+                      })}
                     </Box>
-                  ))}
-                </Box>
-              </Box>
+                  </Box>
+                )
+              })()}
 
               {/* Activity timeline */}
               <Box>
@@ -399,7 +646,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         <Avatar name={a.actorName} size={28} />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                               {a.actorName}
                             </Typography>
                             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -441,7 +688,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   placeholder="Add a note for the audit trail…"
-                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a', '& textarea': { resize: 'none' } }}
+                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', '& textarea': { resize: 'none' } }}
                 />
               </Box>
               <Box onClick={submitNote} sx={{
@@ -466,8 +713,24 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
           title="Case Action"
           actionLabel={evidenceTarget.label}
           actionColor={evidenceTarget.color}
+          allowSkipDocument={!!evidenceTarget.skipDoc || evidenceTarget.status === 'closed'}
         />
       )}
+
+      <FileReportDialog
+        open={nfiuOpen}
+        onClose={() => setNfiuOpen(false)}
+        onFiled={(r: NfiuReport) => {
+          setNfiuOpen(false)
+          if (cas && r.id) {
+            caseApi.linkNfiuReport(cas.id, r.id).catch(() => {})
+            setActionSuccess('NFIU STR/SAR report filed and linked to this case.')
+            loadDetail().catch(() => {})
+          }
+        }}
+        defaultType="STR"
+        prefill={nfiuPrefill}
+      />
     </>
   )
 }
@@ -487,7 +750,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '112px 1fr', gap: 1, mb: 0.875, '&:last-child': { mb: 0 } }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, lineHeight: 1.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.4 }}>{value}</Typography>
+      <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', lineHeight: 1.4 }}>{value}</Typography>
     </Box>
   )
 }

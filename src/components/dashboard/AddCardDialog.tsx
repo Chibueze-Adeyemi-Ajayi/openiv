@@ -124,7 +124,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
       PaperProps={{ sx: { borderRadius: 0, border: '1px solid #eef0f4' } }}>
-      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#0f172a', pb: 1.5, borderBottom: '1px solid #eef0f4' }}>
+      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#00288e', pb: 1.5, borderBottom: '1px solid #eef0f4' }}>
         Add payment card
       </DialogTitle>
 
@@ -132,7 +132,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
         {step === 'done' ? (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
               Card added!
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
@@ -178,7 +178,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
             {/* ── Visual card preview ── */}
             <Box sx={{
               width: '100%', aspectRatio: '1.7',
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%)',
+              background: 'linear-gradient(135deg, #00288e 0%, #2563eb 60%, #3b82f6 100%)',
               p: 2.25, color: '#fff', position: 'relative', overflow: 'hidden', userSelect: 'none',
             }}>
               <Box sx={{ position: 'absolute', top: -30, right: -30, width: 130, height: 130, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)' }} />
@@ -296,5 +296,5 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
 
 const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem', fontWeight: 600 } }
-const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1a3896' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
+const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
 const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: '#f8fafc' } }

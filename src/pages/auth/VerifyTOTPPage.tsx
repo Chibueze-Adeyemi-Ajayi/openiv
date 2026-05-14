@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from '@/components/onboarding/AuthLayout'
 import VerifyTOTPForm from '@/components/onboarding/VerifyTOTPForm'
 import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
-import { clearOnboardingBreadcrumbs, setSessionState, clearOnboardingState } from '@/onboarding/state'
+import { clearOnboardingBreadcrumbs, setSessionState, clearOnboardingState, hydrate, getLoginName } from '@/onboarding/state'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
 import { Box, Typography } from '@mui/material'
 import { storeGeoBlock } from '@/pages/auth/GeoBlockedPage'
@@ -13,6 +13,13 @@ export default function VerifyTOTPPage() {
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
+
+  useEffect(() => {
+    hydrate().then(() => {
+      setUserName(getLoginName())
+    })
+  }, [])
 
   const handleSubmit = useSubmitGuard(async (code: string) => {
     setSubmitting(true)
@@ -47,6 +54,7 @@ export default function VerifyTOTPPage() {
         onSubmit={handleSubmit}
         submitting={submitting}
         errorMessage={errorMessage}
+        userName={userName}
       />
       <Box sx={{ mt: 3, textAlign: 'center' }}>
         <Typography 
@@ -55,7 +63,7 @@ export default function VerifyTOTPPage() {
             fontSize: '0.875rem', 
             color: '#64748b', 
             cursor: 'pointer',
-            '&:hover': { color: '#0f172a', textDecoration: 'underline' }
+            '&:hover': { color: '#00288e', textDecoration: 'underline' }
           }}
         >
           Sign in as a different user

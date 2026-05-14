@@ -131,7 +131,7 @@ export default function BillingPage() {
                 Admin only
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Billing & Usage
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -145,7 +145,7 @@ export default function BillingPage() {
               bgcolor: colorPalette.primary, color: '#fff',
               px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 700,
               fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-              boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' },
+              boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' },
             }}
           >
             Fund Wallet
@@ -225,7 +225,7 @@ export default function BillingPage() {
                   Welcome credit usage
                 </Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     {fmtNgn(creditUsedNgn, 2)} used
                   </Typography>
                   <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
@@ -249,7 +249,7 @@ export default function BillingPage() {
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
                   Pay as you go
                 </Typography>
-                <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
                   {fmtNgn(unitsToNgn(usage?.totalDebitUnits ?? 0), 2)} this month
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
@@ -271,7 +271,7 @@ export default function BillingPage() {
         <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Usage this billing period
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -285,7 +285,7 @@ export default function BillingPage() {
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   Total spend
                 </Typography>
-                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   {fmtNgn(unitsToNgn(usage.totalDebitUnits), 2)}
                 </Typography>
               </Box>
@@ -331,7 +331,7 @@ export default function BillingPage() {
                       </Box>
                     </Box>
 
-                    <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#0f172a', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
+                    <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#00288e', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
                       {cat.eventCount.toLocaleString()}
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mb: 1.25 }}>
@@ -342,7 +342,7 @@ export default function BillingPage() {
                       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600 }}>
                         {isEmpty ? 'No usage' : `${pct.toFixed(0)}% of spend`}
                       </Typography>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#0f172a', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#00288e', fontFamily: 'Jost' }}>
                         {isEmpty ? '₦0' : fmtNgn(costNgn, 2)}
                       </Typography>
                     </Box>
@@ -360,7 +360,7 @@ export default function BillingPage() {
         <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Payment methods
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -413,7 +413,7 @@ export default function BillingPage() {
                 >
                   <CreditCardOutlinedIcon sx={{ fontSize: '1.375rem', color: '#64748b', flexShrink: 0 }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>
                       {m.displayName}
                       {m.isDefault && (
                         <Chip label="default" size="small" sx={{ ml: 1, height: 18, fontSize: '0.625rem', fontWeight: 700, bgcolor: `${colorPalette.primary}12`, color: colorPalette.primary, borderRadius: 0 }} />
@@ -450,7 +450,7 @@ export default function BillingPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <ReceiptLongOutlinedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Wallet ledger
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.125 }}>
@@ -499,7 +499,7 @@ export default function BillingPage() {
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: isCredit ? '#10b981' : colorPalette.primary, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#00288e' }}>
                     {isCredit ? 'Credit' : 'Usage charges'} · {row.dayStr}
                     {row.eventCount > 1 && (
                       <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 0.75 }}>
@@ -508,7 +508,7 @@ export default function BillingPage() {
                     )}
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isCredit ? '#10b981' : '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isCredit ? '#10b981' : '#00288e', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
                   {fmtSign(isCredit ? amountNgn : -amountNgn)}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: balNgn < 0 ? '#dc2626' : '#475569', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>

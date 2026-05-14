@@ -36,7 +36,7 @@ const primaryButtonSx = {
   boxShadow: 'none',
   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover:not(:disabled)': {
-    bgcolor: '#1a3896',
+    bgcolor: '#1e293b',
     boxShadow: `0 8px 24px ${colorPalette.primary}35`,
     transform: 'translateY(-1px)',
   },
@@ -151,7 +151,7 @@ export default function Setup2FAForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -201,7 +201,7 @@ export default function Setup2FAForm({
                   <QrCodeScannerOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.375rem' }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem', fontFamily: 'Jost', mb: 0.25 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#00288e', fontSize: '1rem', fontFamily: 'Jost', mb: 0.25 }}>
                     Authenticator App
                   </Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -295,7 +295,7 @@ export default function Setup2FAForm({
                     fontSize: '0.9375rem',
                     fontWeight: 600,
                     letterSpacing: '0.08em',
-                    color: '#0f172a',
+                    color: '#00288e',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -390,7 +390,7 @@ export default function Setup2FAForm({
                           fontSize: '1.5rem',
                           fontWeight: 600,
                           padding: '24px 0',
-                          color: '#0f172a',
+                          color: '#00288e',
                         },
                       }}
                       value={digit}

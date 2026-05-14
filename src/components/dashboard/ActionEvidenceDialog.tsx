@@ -8,7 +8,7 @@ import { documentApi } from '@/api/documents'
 
 export interface EvidencePayload {
   reason: string
-  documentId: number
+  documentId: number | null
   filename: string
 }
 
@@ -19,6 +19,7 @@ interface Props {
   title: string
   actionLabel: string
   actionColor: string
+  allowSkipDocument?: boolean
 }
 
 type UploadState = 'idle' | 'uploading' | 'done' | 'error'
@@ -32,7 +33,7 @@ function fmtSize(bytes: number) {
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, actionLabel, actionColor }: Props) {
+export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, actionLabel, actionColor, allowSkipDocument }: Props) {
   const [reason,      setReason]      = useState('')
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [uploadErr,   setUploadErr]   = useState<string | null>(null)
@@ -40,10 +41,12 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
   const [filename,    setFilename]    = useState<string>('')
   const [fileSize,    setFileSize]    = useState<number>(0)
   const [dragging,    setDragging]    = useState(false)
+  const [skippedDoc,  setSkippedDoc]  = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const reasonOk = reason.trim().length >= 10
-  const canConfirm = reasonOk && uploadState === 'done'
+  const reasonOk   = reason.trim().length >= 10
+  const docSatisfied = uploadState === 'done' || (allowSkipDocument && skippedDoc)
+  const canConfirm = reasonOk && docSatisfied
 
   const reset = () => {
     setReason('')
@@ -52,6 +55,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
     setDocId(null)
     setFilename('')
     setFileSize(0)
+    setSkippedDoc(false)
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -90,8 +94,8 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
   }
 
   const handleConfirm = () => {
-    if (!canConfirm || docId === null) return
-    onConfirm({ reason: reason.trim(), documentId: docId, filename })
+    if (!canConfirm) return
+    onConfirm({ reason: reason.trim(), documentId: skippedDoc ? null : docId, filename })
     reset()
   }
 
@@ -117,7 +121,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
         <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid #eef0f4',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               {title}
             </Typography>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', mt: 0.5,
@@ -153,7 +157,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 border: `1px solid ${reason.length > 0 && !reasonOk ? '#dc2626' : '#e2e8f0'}`,
                 px: 1.25, py: 0.875,
                 fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif',
-                color: '#0f172a', bgcolor: '#fafbfc', outline: 'none',
+                color: '#00288e', bgcolor: '#fafbfc', outline: 'none',
                 '&:focus': { borderColor: colorPalette.primary, bgcolor: '#ffffff' },
                 '&::placeholder': { color: '#94a3b8' },
               }}
@@ -167,17 +171,34 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
 
           {/* Document upload */}
           <Box sx={{ mb: 0.5 }}>
-            <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
-              textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
-              Supporting Document <Box component="span" sx={{ color: '#dc2626' }}>*</Box>
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
+                textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Supporting Document {!allowSkipDocument && <Box component="span" sx={{ color: '#dc2626' }}>*</Box>}
+                {allowSkipDocument && <Box component="span" sx={{ color: '#94a3b8', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> (optional)</Box>}
+              </Typography>
+              {allowSkipDocument && !skippedDoc && uploadState !== 'done' && (
+                <Typography onClick={() => setSkippedDoc(true)} sx={{ fontSize: '0.6875rem', color: colorPalette.primary, fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                  Skip
+                </Typography>
+              )}
+              {allowSkipDocument && skippedDoc && (
+                <Typography onClick={() => setSkippedDoc(false)} sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+                  Add document
+                </Typography>
+              )}
+            </Box>
 
-            {uploadState === 'done' ? (
+            {skippedDoc ? (
+              <Box sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>No document — proceeding without evidence file</Typography>
+              </Box>
+            ) : uploadState === 'done' ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1,
                 p: 1.25, bgcolor: '#f0fdf4', border: '1px solid #86efac' }}>
                 <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1.125rem', color: '#10b981', flexShrink: 0 }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a',
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e',
                     fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {filename}
                   </Typography>
@@ -219,7 +240,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 ) : (
                   <>
                     <UploadFileOutlinedIcon sx={{ fontSize: '1.75rem', color: '#94a3b8', mb: 0.75 }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.375 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
                       {uploadState === 'error' ? 'Upload failed — try again' : 'Click or drag a file here'}
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>

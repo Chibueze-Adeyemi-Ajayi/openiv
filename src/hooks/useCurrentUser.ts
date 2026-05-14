@@ -9,6 +9,7 @@ export interface CurrentUser {
   /** First name extracted from fullName, or local part of email as fallback. */
   firstName: string
   timezone: string
+  userId: number | null
 }
 
 export function useCurrentUser(): CurrentUser | null {
@@ -23,7 +24,7 @@ export function useCurrentUser(): CurrentUser | null {
           ? fullName.split(' ')[0]
           : email.split('@')[0]
         if (res.timezone) setDisplayTimezone(res.timezone)
-        setUser({ email, fullName, role: res.role ?? null, firstName, timezone: res.timezone ?? 'Africa/Lagos' })
+        setUser({ email, fullName, role: res.role ?? null, firstName, timezone: res.timezone ?? 'Africa/Lagos', userId: res.userId ?? null })
       })
       .catch(() => {})
   }, [])

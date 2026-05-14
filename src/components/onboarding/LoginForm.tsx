@@ -1,10 +1,12 @@
 import { Alert, Box, Button, Stack, TextField, Typography, Link, IconButton } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import FormLoadingOverlay from './FormLoadingOverlay'
 import LocationPermissionModal from './LocationPermissionModal'
+import TermsModal from './TermsModal'
 import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
 
 interface LoginFormProps {
@@ -18,30 +20,32 @@ interface LoginFormProps {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#f5f3fb',
     borderRadius: 0,
-    transition: 'all 0.2s ease',
+    fontFamily: 'Jost',
+    fontSize: '0.9375rem',
+    color: '#000000',
     '& fieldset': {
-      border: '1px solid transparent',
+      borderColor: '#e2e8f0',
       transition: 'all 0.2s ease',
     },
-    '&:hover fieldset': { borderColor: '#e4dff2' },
+    '&:hover fieldset': {
+      borderColor: '#00288e',
+    },
     '&.Mui-focused fieldset': {
-      borderColor: colorPalette.primary,
+      borderColor: '#00288e',
       borderWidth: '1px',
     },
     '&.Mui-focused': {
-      bgcolor: '#ffffff',
-      boxShadow: `0 0 0 3px ${colorPalette.primary}14`,
+      boxShadow: '0 0 0 4px rgba(0, 40, 142, 0.08)',
+    },
+    '& input::placeholder': {
+      color: '#94a3b8',
+      opacity: 1,
     },
   },
   '& .MuiOutlinedInput-input': {
-    fontSize: '1rem',
-    fontFamily: 'Jost',
     py: '22px',
     px: '22px',
-    color: '#0f172a',
-    '&::placeholder': { color: '#9ca3af', opacity: 1 },
   },
 }
 
@@ -66,8 +70,8 @@ const primaryButtonSx = {
   boxShadow: 'none',
   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover:not(:disabled)': {
-    bgcolor: '#1a3896',
-    boxShadow: `0 8px 24px ${colorPalette.primary}35`,
+    bgcolor: '#1e40af',
+    boxShadow: `0 8px 24px rgba(0, 40, 142, 0.25)`,
     transform: 'translateY(-1px)',
   },
   '&:active:not(:disabled)': { transform: 'translateY(0)' },
@@ -85,15 +89,27 @@ export default function LoginForm({
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [locationModalOpen, setLocationModalOpen] = useState(false)
+  const [termsModalOpen, setTermsModalOpen] = useState(false)
+  const [termsType, setTermsType] = useState<'security' | 'ip' | 'privacy'>('security')
   const [locationError, setLocationError] = useState<string | null>(null)
   const [loadingLocation, setLoadingLocation] = useState(false)
 
+  const LOCATION_SKIP_KEY = 'openiv_skip_location_modal'
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    // Skip the modal entirely if the user previously opted out
+    if (localStorage.getItem(LOCATION_SKIP_KEY) === 'true') {
+      handleLocationConfirm(false)
+      return
+    }
     setLocationModalOpen(true)
   }
 
-  const handleLocationConfirm = () => {
+  const handleLocationConfirm = (doNotShowAgain: boolean) => {
+    if (doNotShowAgain) {
+      localStorage.setItem(LOCATION_SKIP_KEY, 'true')
+    }
     setLocationModalOpen(false)
     setLocationError(null)
     setLoadingLocation(true)
@@ -112,14 +128,15 @@ export default function LoginForm({
       },
       (error) => {
         setLoadingLocation(false)
-        console.error('Location Access Error:', error)
         if (error.code === error.PERMISSION_DENIED) {
           // User explicitly blocked — hard stop. Check both browser and OS settings.
+          console.error('Location Permission Denied:', error)
           setLocationError(
             "Location permission was denied. On macOS, go to System Settings → Privacy & Security → Location Services and enable access for your browser, then try again."
           )
         } else {
-          // POSITION_UNAVAILABLE or TIMEOUT — hardware/service limitation (common on Mac desktops).
+          // POSITION_UNAVAILABLE (2) or TIMEOUT (3) — hardware/service limitation (common on Mac desktops).
+          // We don't log this as an error because it's expected behavior in many environments.
           // Proceed without coordinates; the backend will fall back to IP-based geolocation.
           onSubmit?.(email, password)
         }
@@ -138,7 +155,7 @@ export default function LoginForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -181,6 +198,8 @@ export default function LoginForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
+              autoComplete="off"
+              spellCheck={false}
               sx={inputSx}
             />
           </Box>
@@ -189,7 +208,8 @@ export default function LoginForm({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography sx={{ ...labelSx, mb: 0 }}>Passcode</Typography>
               <Link
-                href="/auth/reset-password"
+                component={RouterLink}
+                to="/auth/reset-password"
                 sx={{
                   fontSize: '0.8125rem',
                   fontWeight: 600,
@@ -208,6 +228,8 @@ export default function LoginForm({
               placeholder="Enter Your Passcode"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
               slotProps={{
                 input: {
                   endAdornment: (
@@ -260,6 +282,7 @@ export default function LoginForm({
         By proceeding, you agree to our{' '}
         <Box
           component="span"
+          onClick={() => { setTermsType('security'); setTermsModalOpen(true); }}
           sx={{
             color: '#475569',
             fontWeight: 600,
@@ -269,10 +292,24 @@ export default function LoginForm({
           }}
         >
           Security Protocols
+        </Box>,{' '}
+        <Box
+          component="span"
+          onClick={() => { setTermsType('privacy'); setTermsModalOpen(true); }}
+          sx={{
+            color: '#475569',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'color 0.2s ease',
+            '&:hover': { color: colorPalette.primary },
+          }}
+        >
+          Data Privacy
         </Box>{' '}
         and{' '}
         <Box
           component="span"
+          onClick={() => { setTermsType('ip'); setTermsModalOpen(true); }}
           sx={{
             color: '#475569',
             fontWeight: 600,
@@ -290,6 +327,12 @@ export default function LoginForm({
         open={locationModalOpen}
         onClose={() => setLocationModalOpen(false)}
         onConfirm={handleLocationConfirm}
+      />
+
+      <TermsModal 
+        open={termsModalOpen}
+        type={termsType}
+        onClose={() => setTermsModalOpen(false)}
       />
 
       {(submitting || loadingLocation) && <FormLoadingOverlay />}

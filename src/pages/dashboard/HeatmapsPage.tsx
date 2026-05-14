@@ -1,6 +1,6 @@
 import { Box, Typography, Skeleton, Tooltip } from '@mui/material'
 import { colorPalette } from '@/theme'
-// import { colorPalette } from '@/theme'
+import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -242,7 +242,7 @@ export default function HeatmapsPage() {
           Behavioral Analytics
         </Typography>
         <Typography sx={{
-          fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+          fontSize: '1.625rem', fontWeight: 700, color: '#00288e',
           fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
         }}>
           Heatmaps
@@ -308,7 +308,14 @@ export default function HeatmapsPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3, position: 'relative' }}>
+
+        {activeTab === 'user' && (
+          <ComingSoonOverlay
+            title="User Activity Heatmap"
+            description="Login and session-level behavioral density mapping is coming in the next release. Transaction density is live now."
+          />
+        )}
 
         {/* ── Heatmap panel ─────────────────────────────────────────────── */}
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
@@ -319,7 +326,7 @@ export default function HeatmapsPage() {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2
           }}>
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 {dataLabel}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -506,7 +513,7 @@ export default function HeatmapsPage() {
                 </Typography>
                 {loading
                   ? <Skeleton variant="text" width={64} height={28} sx={{ borderRadius: 0 }} />
-                  : <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  : <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     {s.value}
                   </Typography>
                 }

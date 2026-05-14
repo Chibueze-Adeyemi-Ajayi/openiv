@@ -195,16 +195,6 @@ const LOGS: Entry[] = [
     error: 'Internal server error: upstream processing timeout after 3214ms',
   },
   {
-    id: 'w005', ts: ts(61), source: 'webhook', method: 'POST',
-    endpoint: 'https://api.fcmb.com/webhooks/compliance', event: 'kyc.failed',
-    status: 200, ms: 198, bytes: 640, ip: '196.52.43.2',
-    customerId: 'CUST-0077',
-    reqHeaders: { 'Content-Type': 'application/json', 'X-OpenIV-Signature': 'sha256=b9c8d7e6…', 'X-OpenIV-Event': 'kyc.failed', 'X-Delivery-ID': 'dlv-00748' },
-    reqBody: JSON.stringify({ event: 'kyc.failed', deliveryId: 'dlv-00748', timestamp: '2026-04-28T08:59:00Z', data: { customerId: 'CUST-0077', failureReason: 'document_expired', documentType: 'NIN', retryAllowed: true } }, null, 2),
-    resHeaders: { 'Content-Type': 'application/json' },
-    resBody: JSON.stringify({ received: true }, null, 2),
-  },
-  {
     id: 'b007', ts: ts(74), source: 'beam', method: 'POST',
     endpoint: '/api/v1/ingest/activity', stream: 'activity',
     status: 201, ms: 72, bytes: 520, ip: '197.210.54.71',
@@ -503,7 +493,7 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string; 
         textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625
       }}>{label}</Typography>
       <Typography sx={{
-        fontSize: '1.5rem', fontWeight: 700, color: accent ?? '#0f172a',
+        fontSize: '1.5rem', fontWeight: 700, color: accent ?? '#00288e',
         fontFamily: 'Jost', lineHeight: 1
       }}>{value}</Typography>
       {sub && <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.5 }}>{sub}</Typography>}
@@ -633,7 +623,7 @@ export default function NetworkPage() {
           letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75
         }}>Configuration</Typography>
         <Typography sx={{
-          fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+          fontSize: '1.625rem', fontWeight: 700, color: '#00288e',
           fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
         }}>Network & Traffic</Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -764,13 +754,13 @@ export default function NetworkPage() {
                   {e.source === 'beam'
                     ? <CallReceivedIcon sx={{ fontSize: '0.7rem', color: '#2563eb' }} />
                     : <CallMadeIcon sx={{ fontSize: '0.7rem', color: '#7c3aed' }} />}
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'monospace' }}>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#00288e', fontFamily: 'monospace' }}>
                     {e.method}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography sx={{
-                    fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
+                    fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                   }}>
                     {e.source === 'webhook'
@@ -807,7 +797,7 @@ export default function NetworkPage() {
                 </Typography>
               </Box>
               <Typography sx={{
-                fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace', flex: 1,
+                fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace', flex: 1,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
               }}>
                 {selected.endpoint}
@@ -856,7 +846,7 @@ export default function NetworkPage() {
                           textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25
                         }}>{k}</Typography>
                         <Typography sx={{
-                          fontSize: '0.75rem', color: '#0f172a', fontFamily: 'monospace',
+                          fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace',
                           wordBreak: 'break-all'
                         }}>{v}</Typography>
                       </Box>
@@ -898,7 +888,7 @@ export default function NetworkPage() {
                               </Box>
                               <Box sx={{ flex: 1 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                                     Attempt {r.attempt}
                                   </Typography>
                                   <StatusBadge code={r.status} />
@@ -944,7 +934,7 @@ export default function NetworkPage() {
                         </IconButton>
                       </Tooltip>
                     </Stack>
-                    <Box sx={{ p: 1.5, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 340 }}>
+                    <Box sx={{ p: 1.5, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 340 }}>
                       <Box component="pre"
                         dangerouslySetInnerHTML={{
                           __html: selected.reqBody
@@ -1001,7 +991,7 @@ export default function NetworkPage() {
                           </IconButton>
                         </Tooltip>
                       </Stack>
-                      <Box sx={{ p: 1.5, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 320 }}>
+                      <Box sx={{ p: 1.5, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 320 }}>
                         <Box component="pre"
                           dangerouslySetInnerHTML={{
                             __html: selected.resBody
@@ -1045,7 +1035,7 @@ export default function NetworkPage() {
                       </Typography>
                     </Box>
                   </Stack>
-                  <Box sx={{ p: 1.75, bgcolor: '#0f172a', border: '1px solid #1e293b', overflow: 'auto' }}>
+                  <Box sx={{ p: 1.75, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto' }}>
                     <Box component="pre" sx={{
                       m: 0, fontSize: '0.7rem', fontFamily: 'SF Mono, Fira Code, monospace',
                       color: '#e2e8f0', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word'
@@ -1080,7 +1070,7 @@ export default function NetworkPage() {
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
             <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Request Volume
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>Hourly — last 24 h</Typography>
@@ -1106,7 +1096,7 @@ export default function NetworkPage() {
 
         {/* Latency percentiles */}
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
             Latency Distribution
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mb: 2 }}>Across filtered entries</Typography>
@@ -1143,7 +1133,7 @@ export default function NetworkPage() {
 
         {/* Status distribution */}
         <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
             Status Distribution
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mb: 2 }}>By response class</Typography>
@@ -1171,7 +1161,7 @@ export default function NetworkPage() {
           ))}
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between' }}>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Total requests</Typography>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               {filtered.length}
             </Typography>
           </Box>

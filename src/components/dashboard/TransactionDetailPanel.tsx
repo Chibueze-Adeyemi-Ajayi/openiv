@@ -5,6 +5,7 @@ import { colorPalette } from '@/theme'
 import { transactionApi, type Transaction, type FlaggedStatus } from '@/api/transactions'
 import { authApi } from '@/api/auth'
 import { caseApi, type Case } from '@/api/cases'
+import { customerApi } from '@/api/customers'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
 import InvestigationWorkspace from '@/components/dashboard/InvestigationWorkspace'
 import ActionEvidenceDialog, { type EvidencePayload } from '@/components/dashboard/ActionEvidenceDialog'
@@ -88,6 +89,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
   const [activeCaseId,    setActiveCaseId]    = useState<string | null>(null)
   const [creating,        setCreating]        = useState(false)
   const [createErr,       setCreateErr]       = useState<string | null>(null)
+  const [watchlisted,     setWatchlisted]     = useState(false)
 
   const navigate = useNavigate()
 
@@ -97,16 +99,20 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
 
   const canOpenCase = currentFlagged != null && CASE_ELIGIBLE_FLAGS.has(currentFlagged)
 
-  // Check for existing case whenever the transaction changes
+  // Check for existing case and customer watchlist status whenever the transaction changes
   useEffect(() => {
     if (!open || !txn) return
     setExistingCase(null)
     setActionFlaggedStatus(null)
+    setWatchlisted(false)
     setCheckingCase(true)
     caseApi.forTransaction(txn.id)
       .then(res => setExistingCase(res.case))
       .catch(() => {})
       .finally(() => setCheckingCase(false))
+    customerApi.getCustomer(txn.customerId)
+      .then(c => setWatchlisted(c.watchlisted))
+      .catch(() => {})
   }, [open, txn?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const requestFlag = (flag: FlaggedStatus) => {
@@ -192,7 +198,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                     Transaction
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
                     {txn.id}
                   </Typography>
                 </Box>
@@ -205,6 +211,13 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   <Box sx={{ px: 1, py: 0.375, bgcolor: flaggedCfg.bg, border: `1px solid ${flaggedCfg.color}30`, flexShrink: 0 }}>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: flaggedCfg.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                       {flaggedCfg.label}
+                    </Typography>
+                  </Box>
+                )}
+                {watchlisted && (
+                  <Box sx={{ px: 1, py: 0.375, bgcolor: '#fef3c7', border: '1px solid #fde68a', flexShrink: 0 }}>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Watchlisted
                     </Typography>
                   </Box>
                 )}
@@ -231,7 +244,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
 
               {/* Row 2: Amount */}
               <Box sx={{ px: 2.5, pb: 1.5 }}>
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
                   {fmtAmount(txn.amount, txn.currency)}
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -279,7 +292,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                     sx={{ px: 1.5, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` } }}>
                     <Stack direction="row" alignItems="center" gap={0.75}>
                       <GavelOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary }} />
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                         Open Investigation Case
                       </Typography>
                     </Stack>
@@ -402,7 +415,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
             {/* Dialog header */}
             <Box sx={{ px: 2.5, pt: 2.5, pb: 1.75, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Confirm Status Change
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.375 }}>
@@ -446,7 +459,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   px: 1.75, py: 1.25,
                   fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.35em',
                   fontFamily: 'SF Mono, Monaco, monospace',
-                  color: '#0f172a', outline: 'none',
+                  color: '#00288e', outline: 'none',
                   textAlign: 'center',
                   transition: 'border-color 0.15s',
                   '&:focus': { borderColor: colorPalette.primary, bgcolor: '#ffffff' },
@@ -514,7 +527,7 @@ function Field({ label, value, mono = false }: { label: string; value?: string |
         {label}
       </Typography>
       <Typography sx={{
-        fontSize: '0.8125rem', color: value ? '#0f172a' : '#cbd5e1',
+        fontSize: '0.8125rem', color: value ? '#00288e' : '#cbd5e1',
         fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost, sans-serif',
         fontWeight: mono ? 500 : 400, lineHeight: 1.4, wordBreak: 'break-all',
       }}>

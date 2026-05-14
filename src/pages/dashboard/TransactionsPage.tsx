@@ -209,7 +209,7 @@ export default function TransactionsPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Real-Time Monitor
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Transactions
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -263,7 +263,7 @@ export default function TransactionsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by ID, customer or customer ID…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a' }}
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
             />
           </Box>
 
@@ -369,7 +369,7 @@ export default function TransactionsPage() {
                   </Box>
 
                   {/* Reference */}
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.id}
                   </Typography>
 
@@ -406,7 +406,7 @@ export default function TransactionsPage() {
                   </Box>
 
                   {/* Amount */}
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', textAlign: 'right', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', textAlign: 'right', fontFamily: 'SF Mono, Monaco, monospace' }}>
                     {t.amount.toLocaleString()}
                   </Typography>
 
@@ -420,7 +420,7 @@ export default function TransactionsPage() {
                     <Box sx={{ width: 32, height: 4, bgcolor: '#f1f5f9', position: 'relative', flexShrink: 0 }}>
                       <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${t.risk}%`, bgcolor: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }} />
                     </Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', minWidth: 20, textAlign: 'right' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', minWidth: 20, textAlign: 'right' }}>
                       {t.risk}
                     </Typography>
                   </Box>
@@ -437,7 +437,7 @@ export default function TransactionsPage() {
                   <Box sx={{ overflow: 'hidden' }}>
                     {t.occurredAt ? (
                       <>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontWeight: 500, whiteSpace: 'nowrap' }}>
                           {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.occurredAt))}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
@@ -453,7 +453,7 @@ export default function TransactionsPage() {
                   <Box sx={{ overflow: 'hidden' }}>
                     {t.createdAt ? (
                       <>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontWeight: 500, whiteSpace: 'nowrap' }}>
                           {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.createdAt))}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
@@ -528,7 +528,7 @@ export default function TransactionsPage() {
       >
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Filter</Typography>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Filter</Typography>
             <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' }, mr: -0.5 }}>
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
             </IconButton>

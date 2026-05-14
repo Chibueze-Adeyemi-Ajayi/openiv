@@ -63,7 +63,7 @@ export default function Setup2FAPage() {
             fontSize: '0.875rem', 
             color: '#64748b', 
             cursor: 'pointer',
-            '&:hover': { color: '#0f172a', textDecoration: 'underline' }
+            '&:hover': { color: '#00288e', textDecoration: 'underline' }
           }}
         >
           Sign in as a different user

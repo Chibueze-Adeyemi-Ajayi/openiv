@@ -1,14 +1,5 @@
 import { apiRequest } from './client'
 
-export interface KycConfig {
-  lookupUrl: string | null
-  hasLookupApiKey: boolean
-  lookupTimeout: number
-  listenerUrl: string | null
-  hasListenerApiKey: boolean
-  updatedAt: string | null
-}
-
 export interface KycLookupLog {
   id: number
   customerRef: string
@@ -38,22 +29,16 @@ export interface KycLookupResult {
   case?: KycOpenedCase
 }
 
-export interface KycConfigInput {
-  lookupUrl?: string | null
-  lookupApiKey?: string | null
-  lookupTimeout?: number
+export interface KycBeamPayload {
+  customer_id: string
+  name?: string
+  bvn?: string
+  nin?: string
+  photo?: string
+  occurred_at: string
 }
 
 export const kycApi = {
-  getConfig: () =>
-    apiRequest<{ config: KycConfig | null }>('/api/v1/kyc/config'),
-
-  saveConfig: (data: KycConfigInput) =>
-    apiRequest<{ config: KycConfig }>('/api/v1/kyc/config', {
-      method: 'PUT',
-      body: data,
-    }),
-
   lookup: (customerRef: string, openCase = false) =>
     apiRequest<KycLookupResult>('/api/v1/kyc/lookup', {
       method: 'POST',
@@ -62,4 +47,7 @@ export const kycApi = {
 
   listLogs: () =>
     apiRequest<{ logs: KycLookupLog[] }>('/api/v1/kyc/logs'),
+
+  searchPEP: (name: string) =>
+    apiRequest<{ results: any[] }>(`/api/v1/kyc/pep-search?name=${encodeURIComponent(name)}`),
 }

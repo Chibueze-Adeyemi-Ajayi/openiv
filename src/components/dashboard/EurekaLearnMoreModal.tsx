@@ -185,7 +185,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
             }} />
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2 }}>
               Eureka Companion
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'Jost' }}>
@@ -196,7 +196,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
             onClick={onClose}
             size="small"
             disableRipple
-            sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: '#0f172a', bgcolor: '#f8fafc' } }}
+            sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: '#00288e', bgcolor: '#f8fafc' } }}
           >
             <CloseRoundedIcon sx={{ fontSize: '1.1rem' }} />
           </IconButton>
@@ -376,7 +376,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
               flex: 1,
               fontSize: '0.8125rem',
               fontFamily: 'Jost',
-              color: '#0f172a',
+              color: '#00288e',
               '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
             }}
           />
@@ -397,7 +397,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
                 ? '#ffffff'
                 : '#94a3b8',
               transition: 'all 0.18s',
-              '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+              '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
             }}
           >
             <SendRoundedIcon sx={{ fontSize: '1rem' }} />

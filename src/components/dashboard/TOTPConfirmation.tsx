@@ -206,7 +206,7 @@ export default function TOTPConfirmation({
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                 Authentication required · {cfg.label}
               </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
                 {title}
               </Typography>
             </Box>
@@ -247,7 +247,7 @@ export default function TOTPConfirmation({
               >
                 <WarningAmberRoundedIcon sx={{ fontSize: '1.875rem', color: '#dc2626' }} />
               </Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Session terminated
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
@@ -275,7 +275,7 @@ export default function TOTPConfirmation({
               >
                 <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1.875rem', color: '#10b981' }} />
               </Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Identity verified
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -320,7 +320,7 @@ export default function TOTPConfirmation({
                         {resourceType}
                       </Typography>
                     )}
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
                       {resourceName}
                     </Typography>
                   </Box>
@@ -380,7 +380,7 @@ export default function TOTPConfirmation({
               {/* TOTP code input */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     Enter the 6-digit code from Google Authenticator
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -406,7 +406,7 @@ export default function TOTPConfirmation({
                           fontSize: '1.5rem',
                           fontWeight: 700,
                           padding: '20px 0',
-                          color: error ? '#dc2626' : '#0f172a',
+                          color: error ? '#dc2626' : '#00288e',
                         },
                       }}
                       value={digit}

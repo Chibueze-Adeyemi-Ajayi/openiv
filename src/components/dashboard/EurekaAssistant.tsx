@@ -1,10 +1,11 @@
 import { Box, IconButton, InputBase, Typography, Stack } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined'
+import { useEffect, useRef, useState } from 'react'
+import { getEurekaResponse, getGreeting, type Message } from '@/utils/eurekaBrain'
 
 interface EurekaAssistantProps {
   open: boolean
@@ -12,26 +13,60 @@ interface EurekaAssistantProps {
   context?: string
 }
 
-const suggestedPrompts = [
+const initialPrompts = [
   'Recommend optimal AML thresholds for retail banking',
   'Why did fraud spike in Lagos this week?',
   'Explain transaction #TXN-4827 risk score',
   'Generate weekly compliance summary for the board',
 ]
 
-const sampleConversation = [
-  {
-    role: 'eureka',
-    text: "Hi Adaeze. I'm Eureka — your compliance copilot. I've reviewed your last 7 days of activity. There's a pattern in Northern Lagos worth your attention.",
-  },
-  {
-    role: 'eureka',
-    text: '4 accounts flagged for SIM-swap risk in Ikorodu LGA, all triggered after midnight. Same IP cluster. Recommended action: freeze pending review, file STR.',
-  },
-]
+
 
 export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps) {
   const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'eureka', text: getGreeting() }
+  ])
+  const [isTyping, setIsTyping] = useState(false)
+  const [streamingText, setStreamingText] = useState('')
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(initialPrompts)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages, streamingText])
+
+  const handleSend = async (forcedInput?: string) => {
+    const text = (forcedInput ?? input).trim()
+    if (!text || isTyping) return
+
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', text }])
+    setIsTyping(true)
+    setStreamingText('')
+
+    // Artificial "thinking" delay
+    await new Promise(r => setTimeout(r, 600 + Math.random() * 800))
+
+    const { text: response, followUps } = getEurekaResponse(text, messages)
+    let index = 0
+
+    const interval = setInterval(() => {
+      setStreamingText(response.slice(0, index + 1))
+      index++
+      if (index >= response.length) {
+        clearInterval(interval)
+        setMessages(prev => [...prev, { role: 'eureka', text: response }])
+        setStreamingText('')
+        setIsTyping(false)
+        if (followUps.length > 0) {
+          setSuggestedPrompts(followUps)
+        }
+      }
+    }, 15)
+  }
 
   return (
     <>
@@ -90,7 +125,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
               <AutoAwesomeOutlinedIcon sx={{ color: '#ffffff', fontSize: '1.125rem' }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Eureka
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -122,9 +157,9 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
         </Box>
 
         {/* Conversation */}
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+        <Box ref={scrollRef} sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
           <Stack sx={{ gap: 2 }}>
-            {sampleConversation.map((msg, i) => (
+            {messages.map((msg, i) => (
               <Box
                 key={i}
                 sx={{
@@ -154,17 +189,69 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                 <Box
                   sx={{
                     bgcolor: msg.role === 'eureka' ? '#f5f3fb' : colorPalette.primary,
-                    color: msg.role === 'eureka' ? '#0f172a' : '#ffffff',
+                    color: msg.role === 'eureka' ? '#00288e' : '#ffffff',
                     px: 1.75,
                     py: 1.5,
                     fontSize: '0.875rem',
                     lineHeight: 1.55,
+                    borderRadius: 0,
                   }}
                 >
                   {msg.text}
                 </Box>
               </Box>
             ))}
+
+            {/* Streaming Reply */}
+            {streamingText && (
+              <Box
+                sx={{
+                  alignSelf: 'flex-start',
+                  maxWidth: '92%',
+                  display: 'flex',
+                  gap: 1.25,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    bgcolor: `${colorPalette.primary}10`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    mt: 0.25,
+                  }}
+                >
+                  <AutoAwesomeOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '0.875rem' }} />
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: '#f5f3fb',
+                    color: '#00288e',
+                    px: 1.75,
+                    py: 1.5,
+                    fontSize: '0.875rem',
+                    lineHeight: 1.55,
+                    borderRadius: 0,
+                  }}
+                >
+                  {streamingText}
+                  <Box component="span" sx={{ display: 'inline-block', width: 2, height: '1em', bgcolor: colorPalette.primary, ml: 0.5, verticalAlign: 'middle', animation: 'blink 1s step-end infinite', '@keyframes blink': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0 } } }} />
+                </Box>
+              </Box>
+            )}
+
+            {/* Typing Indicator */}
+            {isTyping && !streamingText && (
+              <Box sx={{ alignSelf: 'flex-start', display: 'flex', gap: 1, p: 2, bgcolor: '#f5f3fb' }}>
+                {[0, 1, 2].map(i => (
+                  <Box key={i} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colorPalette.primary, animation: 'typing 1.4s infinite', animationDelay: `${i * 0.2}s`, '@keyframes typing': { '0%, 100%': { transform: 'translateY(0)', opacity: 0.3 }, '50%': { transform: 'translateY(-4px)', opacity: 1 } } }} />
+                ))}
+              </Box>
+            )}
           </Stack>
 
           {/* Suggested Prompts */}
@@ -180,14 +267,14 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                   letterSpacing: '0.12em',
                 }}
               >
-                Try Asking
+                {messages.length === 1 ? 'Try Asking' : 'Next Steps'}
               </Typography>
             </Box>
             <Stack sx={{ gap: 0.75 }}>
               {suggestedPrompts.map((prompt, i) => (
                 <Box
                   key={i}
-                  onClick={() => setInput(prompt)}
+                  onClick={() => handleSend(prompt)}
                   sx={{
                     px: 1.75,
                     py: 1.25,
@@ -231,20 +318,28 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
             <InputBase
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
               placeholder="Ask Eureka anything…"
               multiline
               maxRows={4}
+              disabled={isTyping}
               sx={{
                 flex: 1,
                 fontSize: '0.875rem',
                 fontFamily: 'Jost',
-                color: '#0f172a',
+                color: '#00288e',
                 '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
               }}
             />
             <IconButton
               disableRipple
-              disabled={!input}
+              disabled={!input || isTyping}
+              onClick={() => handleSend()}
               sx={{
                 bgcolor: input ? colorPalette.primary : '#e2e8f0',
                 color: '#ffffff',
@@ -253,7 +348,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                 borderRadius: 0,
                 transition: 'all 0.18s',
                 '&:hover': {
-                  bgcolor: input ? '#1a3896' : '#e2e8f0',
+                  bgcolor: input ? '#1e293b' : '#e2e8f0',
                 },
                 '&:disabled': { color: '#94a3b8' },
               }}

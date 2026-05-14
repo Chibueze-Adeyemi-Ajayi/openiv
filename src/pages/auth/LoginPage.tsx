@@ -15,6 +15,7 @@ import {
   getInviteEmail,
   hydrate,
   setLoginEmail,
+  setLoginName,
   setSessionState,
 } from '@/onboarding/state'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
@@ -63,7 +64,7 @@ function TransferDialog({
           <LockOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Active session detected
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -112,7 +113,7 @@ function TransferDialog({
             fullWidth
             sx={{ bgcolor: colorPalette.primary, color: '#fff', py: 1.25, borderRadius: 0,
               fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none',
-              boxShadow: 'none', '&:hover': { bgcolor: '#1a3896' }, '&:disabled': { bgcolor: '#e2e8f0' } }}
+              boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0' } }}
           >
             {submitting ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : 'Continue Here'}
           </Button>
@@ -167,12 +168,13 @@ export default function LoginPage() {
     setErrorMessage(null)
     setLastLocation(location)
     try {
-      const { state } = await authApi.login(
+      const { state, fullName } = await authApi.login(
         email, password, inviteCode ?? undefined,
         location?.lat, location?.lon, location?.accuracy,
       )
       await setSessionState(state)
       await setLoginEmail(email)
+      if (fullName) await setLoginName(fullName)
       clearInviteState()
       await afterLogin(state)
     } catch (err) {

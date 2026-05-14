@@ -105,7 +105,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
           <GpsNotFixedIcon sx={{ fontSize: '1rem', color: '#f59e0b' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Geo-access request
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
@@ -129,7 +129,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
               ? <CheckOutlinedIcon sx={{ fontSize: '1.25rem', color: '#10b981' }} />
               : <BlockOutlinedIcon sx={{ fontSize: '1.25rem', color: '#dc2626' }} />}
           </Box>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             {decision === 'approved' ? 'Access Granted' : 'Access Denied'}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.5 }}>
@@ -242,7 +242,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
                   '& input': {
                     textAlign: 'center', py: '10px',
                     fontFamily: 'SF Mono, Monaco, monospace',
-                    fontSize: '1.25rem', letterSpacing: '0.25em', color: '#0f172a',
+                    fontSize: '1.25rem', letterSpacing: '0.25em', color: '#00288e',
                   },
                 }}
               />
@@ -301,7 +301,7 @@ function Detail({ label, value, mono = false }: { label: string; value: string; 
         {label}
       </Typography>
       <Typography sx={{
-        fontSize: '0.75rem', color: '#0f172a', wordBreak: 'break-all',
+        fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all',
         fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
         fontWeight: mono ? 500 : 400,
       }}>

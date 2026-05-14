@@ -7,6 +7,7 @@ interface VerifyTOTPFormProps {
   onSubmit?: (code: string) => void
   submitting?: boolean
   errorMessage?: string | null
+  userName?: string | null
 }
 
 const primaryButtonSx = {
@@ -22,8 +23,8 @@ const primaryButtonSx = {
   boxShadow: 'none',
   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover:not(:disabled)': {
-    bgcolor: '#1a3896',
-    boxShadow: `0 8px 24px ${colorPalette.primary}35`,
+    bgcolor: '#1e40af',
+    boxShadow: `0 8px 24px rgba(0, 40, 142, 0.25)`,
     transform: 'translateY(-1px)',
   },
   '&:active:not(:disabled)': { transform: 'translateY(0)' },
@@ -42,6 +43,7 @@ export default function VerifyTOTPForm({
   onSubmit,
   submitting = false,
   errorMessage = null,
+  userName = null,
 }: VerifyTOTPFormProps) {
   const [code, setCode] = useState(['', '', '', '', '', ''])
 
@@ -90,15 +92,15 @@ export default function VerifyTOTPForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
         >
-          Two-Factor Authentication
+          {userName ? `Welcome back, ${userName}` : 'Two-Factor Authentication'}
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
-          Please enter the 6-digit verification code from your authenticator app to continue.
+          Please verify this is you using the 6 digits verification code from your authenticator app
         </Typography>
       </Box>
 
@@ -120,7 +122,7 @@ export default function VerifyTOTPForm({
                       fontSize: '1.5rem',
                       fontWeight: 600,
                       padding: '24px 0',
-                      color: '#0f172a',
+                      color: '#000000',
                     },
                   }}
                   value={digit}
@@ -131,16 +133,16 @@ export default function VerifyTOTPForm({
                   sx={{
                     flex: 1,
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: digit ? '#ffffff' : '#f5f3fb',
+                      bgcolor: '#ffffff',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
                       '& fieldset': {
-                        border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                        borderColor: digit ? '#00288e' : '#e2e8f0',
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover fieldset': { borderColor: digit ? colorPalette.primary : '#e4dff2' },
-                      '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                      '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                      '&:hover fieldset': { borderColor: '#00288e' },
+                      '&.Mui-focused fieldset': { borderColor: '#00288e', borderWidth: '1px' },
+                      '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(0, 40, 142, 0.08)' },
                     },
                   }}
                 />

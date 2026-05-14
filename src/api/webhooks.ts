@@ -112,7 +112,7 @@ export const webhookApi = {
   generateApiKey: (id: number) =>
     apiRequest<{ apiKey: string }>(`/api/v1/webhooks/${id}/security/api-key`, { method: 'POST' }),
 
-  verify: (url: string, type: 'notification' | 'kyc') =>
+  verify: (url: string, type: 'notification') =>
     apiRequest<{ ok: boolean; statusCode: number | null; durationMs: number; error: string | null }>(
       '/api/v1/webhooks/verify',
       { method: 'POST', body: { url, type } },

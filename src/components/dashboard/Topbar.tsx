@@ -78,12 +78,12 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
   }
 
   const iconBtn = {
-    color: '#64748b',
+    color: '#475569',
     width: 38,
     height: 38,
     borderRadius: 0,
     transition: 'all 0.18s',
-    '&:hover': { bgcolor: '#f8fafc', color: colorPalette.primary },
+    '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' },
   }
 
   return (
@@ -92,13 +92,14 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
         height: 64,
         px: 4,
         bgcolor: '#ffffff',
-        borderBottom: '1px solid #eef0f4',
+        borderBottom: '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
         gap: 2,
         position: 'sticky',
         top: 0,
         zIndex: 10,
+        color: '#0f172a',
       }}
     >
       {/* Search */}
@@ -111,46 +112,47 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
           display: 'flex',
           alignItems: 'center',
           gap: 1.25,
-          bgcolor: '#f8fafc',
+          bgcolor: '#f1f5f9',
           px: 2,
           height: 38,
           transition: 'all 0.18s ease',
           '&:focus-within': {
             bgcolor: '#ffffff',
-            boxShadow: `0 0 0 3px ${colorPalette.primary}15`,
-            borderColor: colorPalette.primary,
+            boxShadow: `0 0 0 3px rgba(0, 40, 142, 0.05)`,
+            borderColor: '#00288e',
           },
           border: '1px solid transparent',
-          '&:hover': { borderColor: '#e5e7eb' },
+          '&:hover': { borderColor: '#e2e8f0' },
         }}
       >
-        <SearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#94a3b8' }} />
+        <SearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#64748b' }} />
         <InputBase
           placeholder="Search transactions, customers, cases…"
           sx={{
             flex: 1,
             fontSize: '0.875rem',
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#000000',
             '& input::placeholder': { color: '#94a3b8', opacity: 1 },
           }}
         />
-        <Box
-          sx={{
-            display: { xs: 'none', md: 'flex' },
-            alignItems: 'center',
-            gap: 0.5,
-            px: 1,
-            py: 0.25,
-            border: '1px solid #e5e7eb',
-            bgcolor: '#ffffff',
-            fontSize: '0.6875rem',
-            color: '#94a3b8',
-            fontWeight: 600,
-          }}
-        >
-          ⌘K
-        </Box>
+          <Box
+            sx={{
+              display: { xs: 'none', md: 'flex' },
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1,
+              py: 0.25,
+              border: '1px solid #e2e8f0',
+              bgcolor: '#ffffff',
+              fontSize: '0.6875rem',
+              color: '#94a3b8',
+              fontWeight: 600,
+              borderRadius: '4px',
+            }}
+          >
+            ⌘K
+          </Box>
       </Box>
 
       <Box sx={{ flex: 1 }} />
@@ -201,7 +203,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
           '&:hover': {
-            bgcolor: eurekaEnabled ? `${colorPalette.primary}08` : '#f1f5f9'
+            bgcolor: '#f1f5f9'
           },
         }}
       >
@@ -211,37 +213,26 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            bgcolor: eurekaEnabled ? colorPalette.primary : '#e2e8f0',
+            bgcolor: eurekaEnabled ? '#d9f99d' : '#f1f5f9',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative',
-            boxShadow: eurekaEnabled ? `0 0 0 2px ${colorPalette.primary}20, 0 2px 8px ${colorPalette.primary}15` : 'none',
+            boxShadow: eurekaEnabled ? `0 0 0 2px rgba(217, 249, 157, 0.2), 0 2px 8px rgba(217, 249, 157, 0.15)` : 'none',
             '&::after': eurekaEnabled ? {
               content: '""',
               position: 'absolute',
               inset: 0,
               borderRadius: '50%',
-              border: `2px solid ${colorPalette.primary}`,
+              border: `2px solid #d9f99d`,
               opacity: 0.3,
               animation: 'pulse-ring 2s ease-in-out infinite',
-              '@keyframes pulse-ring': {
-                '0%': {
-                  boxShadow: `0 0 0 0 ${colorPalette.primary}60`,
-                },
-                '70%': {
-                  boxShadow: `0 0 0 10px ${colorPalette.primary}00`,
-                },
-                '100%': {
-                  boxShadow: `0 0 0 0 ${colorPalette.primary}00`,
-                },
-              },
             } : 'none',
           }}
         >
-          <PsychologyIcon sx={{ fontSize: '1.125rem', color: eurekaEnabled ? '#fff' : '#94a3b8' }} />
+          <PsychologyIcon sx={{ fontSize: '1.125rem', color: eurekaEnabled ? '#00288e' : '#94a3b8' }} />
         </Box>
 
         {/* Status Label */}
@@ -250,7 +241,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
             sx={{
               fontSize: '0.6875rem',
               fontWeight: 700,
-              color: '#64748b',
+              color: '#94a3b8',
               fontFamily: 'Jost',
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -264,12 +255,8 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                bgcolor: eurekaEnabled ? '#10b981' : '#cbd5e1',
+                bgcolor: eurekaEnabled ? '#10b981' : 'rgba(255,255,255,0.2)',
                 animation: eurekaEnabled ? 'pulse 2s ease-in-out infinite' : 'none',
-                '@keyframes pulse': {
-                  '0%, 100%': { opacity: 1 },
-                  '50%': { opacity: 0.4 },
-                },
               }}
             />
             <Typography
@@ -298,23 +285,23 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
           gap: 1,
           px: 1.75,
           height: 38,
-          bgcolor: colorPalette.primary,
-          border: `1px solid ${colorPalette.primary}`,
+          bgcolor: '#d9f99d',
+          border: `1px solid #d9f99d`,
           cursor: 'pointer',
           transition: 'all 0.18s ease',
           '&:hover': {
-            bgcolor: '#1a3896',
-            boxShadow: `0 4px 12px ${colorPalette.primary}30`,
+            bgcolor: '#bef264',
+            boxShadow: `0 4px 12px rgba(217, 249, 157, 0.3)`,
             transform: 'translateY(-1px)',
           },
         }}
       >
-        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem', color: '#fff' }} />
+        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem', color: '#00288e' }} />
         <Typography
           sx={{
             fontSize: '0.8125rem',
-            fontWeight: 600,
-            color: '#fff',
+            fontWeight: 800,
+            color: '#00288e',
             fontFamily: 'Jost',
           }}
         >
@@ -366,7 +353,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
         {/* Header */}
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Notifications</Typography>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Notifications</Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
               {unreadCount} unread · {notifications.length} total
             </Typography>
@@ -414,7 +401,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: unread ? 700 : 500, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: unread ? 700 : 500, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {n.title}
                     </Typography>
                     <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', flexShrink: 0, ml: 1, fontWeight: 500 }}>
@@ -458,7 +445,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
         }}
       >
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Help & resources
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>
@@ -503,7 +490,7 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                     {item.label}
                   </Typography>
                   {item.badge && (

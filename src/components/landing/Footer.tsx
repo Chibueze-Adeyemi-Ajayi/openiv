@@ -9,11 +9,24 @@ export default function Footer() {
           {/* Top Section */}
           <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" sx={{ gap: 4 }}>
             <Stack sx={{ gap: 2, maxWidth: '300px' }}>
-              <Typography sx={{ fontWeight: 700, fontSize: '1.25rem', color: colorPalette.on_surface, fontFamily: 'Jost' }}>
-                OpenIV
-              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', position: 'relative' }}>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -4,
+                    left: 0,
+                    width: 24,
+                    height: '2px',
+                    bgcolor: colorPalette.primary,
+                    borderRadius: '1px',
+                  }}
+                />
+                <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: colorPalette.on_surface, fontFamily: 'Jost', letterSpacing: '0.05em' }}>
+                  OPENIV
+                </Typography>
+              </Box>
               <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
-                Real-time fraud detection and AML compliance for financial institutions across Africa.
+                Strategic AML/CFT/CPF intelligence and fraud detection for high-growth financial institutions.
               </Typography>
             </Stack>
 

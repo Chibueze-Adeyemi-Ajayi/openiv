@@ -261,7 +261,7 @@ export default function TeamPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Manage
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Team & Roles
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -282,7 +282,7 @@ export default function TeamPage() {
               borderRadius: 0,
               textTransform: 'none',
               boxShadow: 'none',
-              '&:hover': { bgcolor: '#1a3896' },
+              '&:hover': { bgcolor: '#1e293b' },
             }}
           >
             Invite Member
@@ -370,7 +370,7 @@ export default function TeamPage() {
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Search by name or email…"
-                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a' }}
+                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
                 />
               </Box>
             </Box>
@@ -439,7 +439,7 @@ export default function TeamPage() {
                       >
                         {m.initials}
                       </Box>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                         {m.name}
                         {m.email === currentUserEmail && (
                           <Box component="span" sx={{ color: colorPalette.primary, ml: 1, fontWeight: 700, fontSize: '0.75rem' }}>
@@ -617,7 +617,7 @@ export default function TeamPage() {
                           <MailOutlineRoundedIcon sx={{ fontSize: '1rem' }} />
                         </Box>
                         <Box>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                             {p.email}
                           </Typography>
                           <Chip
@@ -683,7 +683,7 @@ export default function TeamPage() {
             {/* Roles header with Create button */}
             <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Roles & permissions
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -704,7 +704,7 @@ export default function TeamPage() {
                   borderRadius: 0,
                   textTransform: 'none',
                   boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1a3896' },
+                  '&:hover': { bgcolor: '#1e293b' },
                 }}
               >
                 Create Custom Role
@@ -725,7 +725,7 @@ export default function TeamPage() {
                       <Box key={r.id} sx={{ px: 1.5, py: 2, textAlign: 'center', borderLeft: '1px solid #eef0f4', position: 'relative', '&:hover .role-actions': { opacity: 1 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.625, mb: 0.5 }}>
                           <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: r.color }} />
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                             {r.name}
                           </Typography>
                         </Box>
@@ -837,7 +837,7 @@ export default function TeamPage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                     Invite member
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
                     Send a secure invitation
                   </Typography>
                 </Box>
@@ -875,7 +875,7 @@ export default function TeamPage() {
                           '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                           '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                         },
-                        '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: '#0f172a' },
+                        '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: '#00288e' },
                       }}
                     />
                   </Box>
@@ -908,7 +908,7 @@ export default function TeamPage() {
                           pr: 4,
                           fontSize: '0.875rem',
                           fontFamily: 'Jost',
-                          color: '#0f172a',
+                          color: '#00288e',
                           cursor: 'pointer',
                         }}
                       >
@@ -969,7 +969,7 @@ export default function TeamPage() {
                     borderRadius: 0,
                     textTransform: 'none',
                     boxShadow: 'none',
-                    '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                    '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
                     '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
                   }}
                 >

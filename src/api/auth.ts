@@ -16,6 +16,7 @@ export interface InviteVerifyResponse {
 export interface LoginResponse {
   state: SessionState
   accountType: AccountType
+  fullName?: string
 }
 
 export interface SessionStateResponse {
@@ -25,6 +26,7 @@ export interface SessionStateResponse {
   role?: string
   fullName?: string
   timezone?: string
+  userId?: number
 }
 
 export interface TotpEnrollment {

@@ -30,7 +30,7 @@ const inputSx = {
     fontFamily: 'Jost',
     py: '22px',
     px: '22px',
-    color: '#0f172a',
+    color: '#00288e',
     '&::placeholder': { color: '#9ca3af', opacity: 1 },
   },
 }
@@ -106,7 +106,7 @@ export default function ChangePasswordForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -222,7 +222,7 @@ export default function ChangePasswordForm({
               transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               mt: 1,
               '&:hover:not(:disabled)': {
-                bgcolor: '#1a3896',
+                bgcolor: '#1e293b',
                 boxShadow: `0 8px 24px ${colorPalette.primary}35`,
                 transform: 'translateY(-1px)',
               },

@@ -76,7 +76,7 @@ function AlertRow({ alert }: { alert: OtpAlertItem }) {
             {cfg.shortLabel}
           </Box>
           {alert.customerId && (
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {alert.customerId}
             </Typography>
           )}
@@ -131,7 +131,7 @@ export default function OtpAlertsPanel() {
       {/* Header */}
       <Box sx={{ px: 2.5, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             OTP Alerts
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -157,13 +157,13 @@ export default function OtpAlertsPanel() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#dc2626' }} />
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              <strong style={{ color: '#0f172a' }}>{criticalCount}</strong> critical
+              <strong style={{ color: '#00288e' }}>{criticalCount}</strong> critical
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f59e0b' }} />
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              <strong style={{ color: '#0f172a' }}>{warningCount}</strong> warning
+              <strong style={{ color: '#00288e' }}>{warningCount}</strong> warning
             </Typography>
           </Box>
         </Box>

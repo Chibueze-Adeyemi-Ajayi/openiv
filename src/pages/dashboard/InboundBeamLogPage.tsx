@@ -153,7 +153,7 @@ function RecordRow({ record }: { record: BeamRecord }) {
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>
                   {label}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a' }}>
+                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>
                   {value}
                 </Typography>
               </Box>
@@ -185,7 +185,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
+      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#00288e', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
         {value}
       </Typography>
     </Box>
@@ -250,7 +250,7 @@ export default function InboundBeamLogPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Developer Console
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           Inbound Beam Log
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>

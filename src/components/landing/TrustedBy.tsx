@@ -46,133 +46,121 @@ const StatCard = styled(Box)(({ theme }) => ({
   },
 }))
 
+const scroll = keyframes`
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+`
+
 export default function TrustedBy() {
   const { ref, isVisible } = useIntersectionAnimation()
 
   return (
-    <Box ref={ref} sx={{ bgcolor: '#ffffff', py: { xs: 8, md: 12 }, borderBottom: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <Box ref={ref} sx={{ bgcolor: '#ffffff', py: { xs: 8, md: 10 }, borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }}>
       <Container maxWidth="lg">
-        <Stack sx={{ gap: 8 }}>
-          {/* Header */}
-          <Stack sx={{ maxWidth: '600px', gap: 3 }}>
+        <Stack sx={{ gap: 6 }}>
+          {/* Trust Bar / Scrolling Logos */}
+          <Stack sx={{ gap: 4, alignItems: 'center' }}>
             <Typography
               sx={{
                 fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.15em',
-                color: colorPalette.primary,
+                fontWeight: 800,
+                letterSpacing: '0.25em',
+                color: '#94a3b8',
                 textTransform: 'uppercase',
                 animation: isVisible ? `${fadeInUp} 0.8s ease-out both` : 'none',
               }}
             >
-              Trusted by Global Institutions
+              The Standard for Trusted Institutions
             </Typography>
-            <Typography
-              sx={{
-                fontSize: { xs: '2rem', md: '2.75rem' },
-                fontWeight: 700,
-                color: colorPalette.on_surface,
-                lineHeight: 1.2,
-                letterSpacing: '-0.01em',
-                fontFamily: 'Jost',
-                animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
-              }}
+            
+            <Box 
+                sx={{ 
+                    width: '100%', 
+                    overflow: 'hidden', 
+                    position: 'relative',
+                    animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
+                    '&::before, &::after': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        width: '100px',
+                        height: '100%',
+                        zIndex: 2,
+                    },
+                    '&::before': {
+                        left: 0,
+                        background: 'linear-gradient(to right, #ffffff, rgba(255,255,255,0))',
+                    },
+                    '&::after': {
+                        right: 0,
+                        background: 'linear-gradient(to left, #ffffff, rgba(255,255,255,0))',
+                    }
+                }}
             >
-              Battle-tested at scale.
-            </Typography>
+                <Stack 
+                    direction="row" 
+                    spacing={10} 
+                    sx={{ 
+                        width: 'max-content',
+                        animation: `${scroll} 30s linear infinite`,
+                        opacity: 0.5,
+                        filter: 'grayscale(1)',
+                        py: 2
+                    }}
+                >
+                    {[...Array(2)].map((_, i) => (
+                        <Stack key={i} direction="row" spacing={10}>
+                            {['WEMA', 'ACCESS', 'ZENITH', 'GTCO', 'VFD', 'FAIRMONEY', 'KUDA', 'OPAY'].map(bank => (
+                                <Typography key={bank} sx={{ fontWeight: 900, fontSize: '1.25rem', fontFamily: 'Jost', letterSpacing: '0.1em' }}>
+                                    {bank}
+                                </Typography>
+                            ))}
+                        </Stack>
+                    ))}
+                </Stack>
+            </Box>
           </Stack>
 
-          {/* Stats Grid */}
-          <Grid container spacing={3}>
+          {/* Core Metrics */}
+          <Grid container spacing={4} sx={{ pt: 4, borderTop: '1px solid #f1f5f9' }}>
             {[
-              { label: 'Daily Transactions', desc: 'Analyzed in real time', target: 50, suffix: 'M+', isNum: true },
-              { label: 'Fraud Prevented', desc: 'Year to date', target: 18, suffix: 'B+', isNum: true },
-              { label: 'System Uptime', desc: 'Enterprise SLA', target: 99, suffix: '.98%', isNum: true },
-              { label: 'Faster Case Resolution', desc: 'With KYC integration', target: 37, suffix: '%', isNum: true },
-              { label: 'Fewer False Positives', desc: 'ML-driven precision', target: 62, suffix: '%', isNum: true },
-              { label: 'Compliance Coverage', desc: 'CBN + NFIU aligned', target: 100, suffix: '%', isNum: true },
+              { label: 'Secure Volume', target: 1.5, suffix: 'B+', isNum: true, desc: 'Naira protected monthly' },
+              { label: 'Institutional Trust', target: 400, suffix: '+', isNum: true, desc: 'Connected institutions' },
+              { label: 'Detection Speed', target: 14, suffix: 'ms', isNum: true, desc: 'Real-time orchestration' },
             ].map((item, idx) => (
               <Grid
-                size={{ xs: 12, sm: 6, md: 4 }}
+                size={{ xs: 12, md: 4 }}
                 key={idx}
                 sx={{
-                  animation: isVisible ? `${fadeInUp} 0.8s ease-out ${0.2 + idx * 0.08}s both` : 'none',
+                  animation: isVisible ? `${fadeInUp} 0.8s ease-out ${0.2 + idx * 0.1}s both` : 'none',
                 }}
               >
-                <StatCard>
-                  <Stack sx={{ gap: 1, textAlign: 'center' }}>
-                    <Typography
-                      sx={{
-                        fontSize: '2.5rem',
-                        fontWeight: 700,
-                        color: colorPalette.primary,
-                        fontFamily: 'Jost',
-                      }}
-                    >
-                      {isVisible && item.isNum ? (
-                        <StatCounter target={item.target} suffix={item.suffix} shouldCount={isVisible} />
-                      ) : (
-                        `${item.target}${item.suffix}`
-                      )}
-                    </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: colorPalette.on_surface, fontFamily: 'Jost' }}>
-                      {item.label}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                      {item.desc}
-                    </Typography>
-                  </Stack>
-                </StatCard>
+                <Stack sx={{ gap: 0.5, textAlign: 'center' }}>
+                  <Typography
+                    sx={{
+                      fontSize: '3rem',
+                      fontWeight: 900,
+                      color: '#00288e',
+                      fontFamily: 'Jost',
+                      letterSpacing: '-0.04em'
+                    }}
+                  >
+                    {isVisible && item.isNum ? (
+                      <StatCounter target={item.target} suffix={item.suffix} shouldCount={isVisible} />
+                    ) : (
+                      `${item.target}${item.suffix}`
+                    )}
+                  </Typography>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e' }}>
+                    {item.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
+                    {item.desc}
+                  </Typography>
+                </Stack>
               </Grid>
             ))}
           </Grid>
-
-          {/* Certifications */}
-          <Box sx={{ pt: 4, borderTop: '1px solid #e5e7eb' }}>
-            <Typography
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.15em',
-                color: '#94a3b8',
-                textTransform: 'uppercase',
-                mb: 3,
-                animation: isVisible ? `${fadeInUp} 0.8s ease-out both` : 'none',
-              }}
-            >
-              Certifications & Compliance
-            </Typography>
-            <Grid container spacing={2}>
-              {['CBN Aligned', 'NFIU SAR/STR', 'ISO 27001', 'NDPR Ready', 'PCI DSS', 'SOC 2 Type II'].map((cert, idx) => (
-                <Grid
-                  size={{ xs: 6, sm: 4, md: 2 }}
-                  key={cert}
-                  sx={{
-                    animation: isVisible ? `${fadeInUp} 0.8s ease-out ${0.1 + idx * 0.08}s both` : 'none',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      p: 2,
-                      bgcolor: '#f8fafc',
-                      border: '1px solid #e5e7eb',
-                      textAlign: 'center',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        borderColor: colorPalette.primary,
-                        bgcolor: '#ffffff',
-                      },
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary }}>
-                      {cert}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
         </Stack>
       </Container>
     </Box>

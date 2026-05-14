@@ -93,7 +93,7 @@ function TotpInput({
           autoFocus={i === 0}
           inputProps={{ maxLength: 1, inputMode: 'numeric' as const,
             style: { textAlign: 'center', fontSize: '1.375rem', fontWeight: 600,
-              padding: '16px 0', color: '#0f172a' } }}
+              padding: '16px 0', color: '#00288e' } }}
           sx={{
             flex: 1,
             '& .MuiOutlinedInput-root': {
@@ -288,7 +288,7 @@ export default function InactivityGuard() {
           <LockOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             {guardState === 'warning' ? 'Are you still there?' : 'Confirm it\'s you'}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -316,7 +316,7 @@ export default function InactivityGuard() {
                 sx={{ bgcolor: colorPalette.primary, color: '#ffffff', py: 1.25,
                   fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0,
                   textTransform: 'none', boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1a3896' } }}
+                  '&:hover': { bgcolor: '#1e293b' } }}
               >
                 I'm still here
               </Button>
@@ -324,7 +324,7 @@ export default function InactivityGuard() {
                 onClick={doLogout}
                 sx={{ color: '#64748b', py: 1.25, fontSize: '0.875rem', fontWeight: 600,
                   fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-                  '&:hover': { bgcolor: '#f8fafc', color: '#0f172a' } }}
+                  '&:hover': { bgcolor: '#f8fafc', color: '#00288e' } }}
               >
                 Sign out
               </Button>
@@ -355,7 +355,7 @@ export default function InactivityGuard() {
               sx={{ bgcolor: colorPalette.primary, color: '#ffffff', py: 1.25,
                 fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0,
                 textTransform: 'none', boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896' }, '&:disabled': { bgcolor: '#94a3b8' } }}
+                '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#94a3b8' } }}
             >
               {submitting
                 ? <CircularProgress size={16} sx={{ color: '#ffffff' }} />

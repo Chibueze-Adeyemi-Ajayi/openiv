@@ -1,10 +1,11 @@
 export const colorPalette = {
-  // Primary Blue - Authoritative Core
-  primary: '#1e40af',
-  primary_container: '#00288e',
+  // Primary - Institutional Royal Blue (Corrected)
+  primary: '#00288e',
+  primary_container: '#1e40af',
 
-  // Tertiary - Subtle Accents
-  tertiary: '#611e00',
+  // Accent - Lime Green for high-conversion CTAs
+  accent: '#d9f99d',
+  accent_dark: '#bef264',
 
   // Surfaces - The Layering System
   surface: '#fbf8ff',

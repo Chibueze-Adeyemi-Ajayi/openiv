@@ -24,6 +24,7 @@ const KEYS = {
   // can claim it. A better design is a server-side "invite ticket"; see follow-ups.
   inviteCode: 'openiv.inviteCode',
   loginEmail: 'openiv.loginEmail',
+  loginName: 'openiv.loginName',
 } as const
 
 type Key = (typeof KEYS)[keyof typeof KEYS]
@@ -77,6 +78,9 @@ export const getInviteCode = () => readCached(KEYS.inviteCode)
 export const setLoginEmail = (v: string | null) => writeEncrypted(KEYS.loginEmail, v)
 export const getLoginEmail = () => readCached(KEYS.loginEmail)
 
+export const setLoginName = (v: string | null) => writeEncrypted(KEYS.loginName, v)
+export const getLoginName = () => readCached(KEYS.loginName)
+
 /**
  * Load all breadcrumbs from (encrypted) sessionStorage into the in-memory cache. Call once at
  * app startup (or on each page mount that needs the data) before reading with the sync getters.
@@ -97,6 +101,7 @@ export function clearOnboardingBreadcrumbs(): void {
   setInviteCode(null)
   setInviteEmail(null)
   setLoginEmail(null)
+  setLoginName(null)
 }
 
 /** Wipe only the invite-related fields (after the invite is claimed). */

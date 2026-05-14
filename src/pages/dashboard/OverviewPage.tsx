@@ -1,22 +1,19 @@
-import { Box, Typography, Stack, Grid, Button, Snackbar, Alert, CircularProgress, IconButton } from '@mui/material'
+import { Box, Typography, Stack, Grid, Button, Snackbar, Alert, CircularProgress } from '@mui/material'
 import { colorPalette } from '@/theme'
 import MetricCard from '@/components/dashboard/MetricCard'
 import NigeriaRiskMap from '@/components/dashboard/NigeriaRiskMap'
 import TransactionFlowChart from '@/components/dashboard/TransactionFlowChart'
 import ActivityFeed from '@/components/dashboard/ActivityFeed'
-import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
+import FileReportDialog from '@/components/dashboard/FileReportDialog'
 import OtpAlertsPanel from '@/components/dashboard/OtpAlertsPanel'
-import { useState, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { kycApi, type KycConfig } from '@/api/kyc'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 
 function pct(a: number, b: number) {
   if (b === 0) return 0
@@ -28,22 +25,11 @@ function fmt(n: number) {
 }
 
 export default function OverviewPage() {
-  const navigate = useNavigate()
   const [fileNFIUOpen, setFileNFIUOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
-  const [nfiuLoading, setNfiuLoading] = useState(false)
   const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
-  const [kycConfig, setKycConfig] = useState<KycConfig | null | undefined>(undefined)
-  const [bannerDismissed, setBannerDismissed] = useState(false)
-
   const { stats, activity, beamEvents, caseEvents, connected } = useDashboardData()
   const currentUser = useCurrentUser()
-
-  useEffect(() => {
-    kycApi.getConfig()
-      .then(r => setKycConfig(r.config))
-      .catch(() => setKycConfig(null))
-  }, [])
 
   // Combine all events into unified activity feed (most recent first)
   const allActivity = [
@@ -88,26 +74,6 @@ export default function OverviewPage() {
     }
   }, [])
 
-  const handleNfiuConfirm = useCallback(async () => {
-    setNfiuLoading(true)
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const res = await fetch('/api/v1/dashboard/nfiu-return', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ from: today, to: today }),
-      })
-      if (!res.ok) throw new Error('Filing failed')
-      const data = await res.json()
-      setSnack({ msg: `NFIU return filed · ${data.reference}`, sev: 'success' })
-      setFileNFIUOpen(false)
-    } catch {
-      setSnack({ msg: 'NFIU filing failed. Please try again.', sev: 'error' })
-    } finally {
-      setNfiuLoading(false)
-    }
-  }, [])
   return (
     <>
       <Box sx={{ p: 4 }}>
@@ -126,7 +92,7 @@ export default function OverviewPage() {
             >
               Compliance Operations
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Good morning, {currentUser?.firstName ?? '…'}
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -163,7 +129,6 @@ export default function OverviewPage() {
             </Button>
             <Button
               onClick={() => setFileNFIUOpen(true)}
-              disabled={nfiuLoading}
               data-ai-analyzable="true"
               data-ai-description="Submits the daily suspicious activity report (SAR) to the Nigerian Financial Intelligence Unit (NFIU) for regulatory compliance."
               sx={{
@@ -178,7 +143,7 @@ export default function OverviewPage() {
                 textTransform: 'none',
                 boxShadow: 'none',
                 transition: 'all 0.18s',
-                '&:hover:not(:disabled)': { bgcolor: '#1a3896', boxShadow: `0 4px 12px ${colorPalette.primary}30` },
+                '&:hover:not(:disabled)': { bgcolor: '#1e293b', boxShadow: `0 4px 12px ${colorPalette.primary}30` },
                 '&:disabled': { opacity: 0.6 },
               }}
             >
@@ -186,47 +151,6 @@ export default function OverviewPage() {
             </Button>
           </Stack>
         </Box>
-
-        {/* KYC Warning Banner */}
-        {kycConfig !== undefined && !kycConfig?.lookupUrl && !bannerDismissed && (
-          <Box sx={{ mb: 3, p: 2.5, bgcolor: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#92400e', mb: 0.5 }}>
-                As mandated by CBN — set up your customer database
-              </Typography>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', mb: 1.5 }}>
-                Connect your customer database to enable automatic identity verification during fraud investigations.
-                This ensures compliance with CBN AML/CFT requirements and delivers faster, more accurate case outcomes.
-              </Typography>
-              <Stack direction="row" gap={1.5}>
-                <Button
-                  size="small" variant="contained"
-                  onClick={() => navigate('/dashboard/webhooks')}
-                  sx={{
-                    bgcolor: '#d97706', borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
-                    fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: '#b45309' }
-                  }}
-                >
-                  Setup Now
-                </Button>
-                <Button
-                  size="small" variant="outlined"
-                  href="https://docs.openiv.io/kyc-webhook" target="_blank"
-                  sx={{
-                    borderRadius: 0, textTransform: 'none', fontFamily: 'Jost',
-                    fontSize: '0.8125rem', borderColor: '#d97706', color: '#92400e',
-                    '&:hover': { bgcolor: '#fff8f0' }
-                  }}
-                >
-                  Learn More
-                </Button>
-              </Stack>
-            </Box>
-            <IconButton size="small" onClick={() => setBannerDismissed(true)} sx={{ color: '#92400e' }}>
-              <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
-            </IconButton>
-          </Box>
-        )}
 
         {/* KPI Row */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -367,15 +291,11 @@ export default function OverviewPage() {
           </Stack>
         </Box>
 
-        <TOTPConfirmation
+        <FileReportDialog
           open={fileNFIUOpen}
           onClose={() => setFileNFIUOpen(false)}
-          onConfirm={handleNfiuConfirm}
-          operation="create"
-          title="File NFIU return"
-          description="Filing the daily NFIU return submits today's aggregated suspicious activity data to the Nigerian Financial Intelligence Unit. This is a regulated submission and cannot be retracted."
-          resourceType="NFIU daily return"
-          resourceName={`Today · ${flaggedToday !== null ? fmt(flaggedToday) : '—'} flagged transactions`}
+          onFiled={r => setSnack({ msg: `NFIU report filed · ${r.reference}`, sev: 'success' })}
+          defaultType="STR"
         />
 
         <Snackbar

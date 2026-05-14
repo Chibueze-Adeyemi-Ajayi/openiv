@@ -398,12 +398,12 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
                       ? <ErrorOutlineRoundedIcon sx={{ fontSize: '0.875rem', color: '#ef4444' }} />
                       : <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#10b981' }} />
                     }
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: hasErr ? '#b91c1c' : '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: hasErr ? '#b91c1c' : '#00288e', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row.id || <Box component="span" sx={{ color: '#ef4444', fontStyle: 'italic' }}>missing</Box>}
                     </Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.customerId || '—'}</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.customerName || '—'}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount ? row.amount.toLocaleString() : '—'}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount ? row.amount.toLocaleString() : '—'}</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{row.channel || '—'}</Typography>
                     <StatusBadge status={row.status || 'pending'} />
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{row.riskScore ?? 0}</Typography>
@@ -452,7 +452,7 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
               <WarningAmberRoundedIcon sx={{ fontSize: '1.5rem', color: '#d97706' }} />
             </Box>
 
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               API Ingestion
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.7, mb: 2 }}>
@@ -507,11 +507,11 @@ function ModalHeader({ title, showBack, onBack, onClose }: {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
       {showBack && (
-        <IconButton disableRipple size="small" onClick={onBack} sx={{ borderRadius: 0, color: '#64748b', mr: 0.5, ml: -0.5, '&:hover': { color: '#0f172a' } }}>
+        <IconButton disableRipple size="small" onClick={onBack} sx={{ borderRadius: 0, color: '#64748b', mr: 0.5, ml: -0.5, '&:hover': { color: '#00288e' } }}>
           <ArrowBackRoundedIcon sx={{ fontSize: '1rem' }} />
         </IconButton>
       )}
-      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', flex: 1 }}>
+      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', flex: 1 }}>
         {title}
       </Typography>
       <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
@@ -536,7 +536,7 @@ function OptionCard({ icon, title, description, onClick, loading }: {
     >
       <Box sx={{ flexShrink: 0 }}>{icon}</Box>
       <Box sx={{ flex: 1 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
           {title}
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>

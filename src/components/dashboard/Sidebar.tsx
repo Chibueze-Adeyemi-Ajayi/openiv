@@ -21,10 +21,12 @@ import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import CallMadeIcon        from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import { authApi } from '@/api/auth'
+import { caseApi } from '@/api/cases'
 import { clearOnboardingState } from '@/onboarding/state'
 import { useNavigate } from 'react-router-dom'
 import { useEureka } from '@/contexts/EurekaContext'
 import { useDashboardEvents } from '@/contexts/DashboardEventsContext'
+import { isBuildOne, COMING_SOON_ROUTES } from '@/utils/build'
 
 interface NavItem {
   to: string
@@ -82,7 +84,8 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
-  const [unreadCounts, setUnreadCounts] = useState<{ flags: number; cases: number }>({ flags: 0, cases: 0 })
+  const [unreadFlagCount,    setUnreadFlagCount]    = useState(0)
+  const [unseenCasesCount,   setUnseenCasesCount]   = useState(0)
 
   // AI bubble hover tracking
   const [activeNavItem,   setActiveNavItem]   = useState<ActiveNavItem | null>(null)
@@ -92,49 +95,55 @@ export default function Sidebar() {
   const bubbleCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { notifications } = useDashboardEvents()
-  
-  // Fetch unread counts
-  const fetchCounts = useCallback(async () => {
+
+  // Fetch transaction flag unread count (notification-based)
+  const fetchFlagCount = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/notifications/unread-counts')
       if (res.ok) {
         const data = await res.json()
-        setUnreadCounts(data)
+        setUnreadFlagCount(data.flags ?? 0)
       }
-    } catch (err) {
-      console.error('Failed to fetch unread counts', err)
-    }
+    } catch { /* ignore */ }
+  }, [])
+
+  // Fetch per-user unseen case count (case_views-based)
+  const fetchUnseenCases = useCallback(async () => {
+    try {
+      const data = await caseApi.unseenCount()
+      setUnseenCasesCount(data.count)
+    } catch { /* ignore */ }
   }, [])
 
   // Initial fetch
   useEffect(() => {
-    fetchCounts()
-  }, [fetchCounts])
+    fetchFlagCount()
+    fetchUnseenCases()
+  }, [fetchFlagCount, fetchUnseenCases])
 
-  // Real-time update: refresh counts when notifications array changes (new push)
+  // Real-time: refresh when SSE pushes new notifications (new flag or new case)
   useEffect(() => {
     if (notifications.length > 0) {
-      fetchCounts()
+      fetchFlagCount()
+      fetchUnseenCases()
     }
-  }, [notifications, fetchCounts])
+  }, [notifications, fetchFlagCount, fetchUnseenCases])
 
-  // Auto-clear logic: when user views a page, mark that category as read
+  // Real-time: decrement badge immediately when user opens a case
   useEffect(() => {
-    const markAsRead = async (category: 'flags' | 'cases') => {
-      try {
-        await fetch(`/api/v1/notifications/read-category/${category}`, { method: 'PATCH' })
-        fetchCounts() // update sidebar badges
-      } catch (err) {
-        // ignore
-      }
-    }
+    const handler = () => setUnseenCasesCount(n => Math.max(0, n - 1))
+    window.addEventListener('case:seen', handler)
+    return () => window.removeEventListener('case:seen', handler)
+  }, [])
 
-    if (location.pathname === '/dashboard/transactions' && unreadCounts.flags > 0) {
-      markAsRead('flags')
-    } else if (location.pathname === '/dashboard/aml' && unreadCounts.cases > 0) {
-      markAsRead('cases')
+  // When visiting transactions, mark flag notifications as read
+  useEffect(() => {
+    if (location.pathname === '/dashboard/transactions' && unreadFlagCount > 0) {
+      fetch('/api/v1/notifications/read-category/flags', { method: 'PATCH' })
+        .then(() => fetchFlagCount())
+        .catch(() => { /* ignore */ })
     }
-  }, [location.pathname, unreadCounts.flags, unreadCounts.cases, fetchCounts])
+  }, [location.pathname, unreadFlagCount, fetchFlagCount])
 
   const handleNavMouseEnter = (item: NavItem, e: React.MouseEvent<HTMLElement>) => {
     if (!eurekaEnabled) return
@@ -190,45 +199,46 @@ export default function Sidebar() {
         height: '100vh',
         position: 'sticky',
         top: 0,
-        bgcolor: '#ffffff',
-        borderRight: '1px solid #eef0f4',
+        bgcolor: '#00288e',
+        borderRight: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         flexDirection: 'column',
         py: 2.5,
       }}
     >
       {/* Brand */}
-      <Box sx={{ px: 3, pb: 2.5, mb: 1.5, borderBottom: '1px solid #eef0f4' }}>
+      <Box sx={{ px: 3, pb: 2.5, mb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-          <Box
-            sx={{
-              width: 30,
-              height: 30,
-              bgcolor: colorPalette.primary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Box sx={{ width: 14, height: 14, bgcolor: '#ffffff' }} />
+          <Box sx={{ position: 'relative' }}>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -4,
+                left: 0,
+                width: 24,
+                height: '2px',
+                bgcolor: '#ffffff',
+                borderRadius: '1px',
+              }}
+            />
+            <Typography
+              sx={{
+                fontSize: '1rem',
+                fontWeight: 700,
+                fontFamily: 'Jost',
+                letterSpacing: '0.1em',
+                color: '#ffffff',
+              }}
+            >
+              OPENIV
+            </Typography>
           </Box>
-          <Typography
-            sx={{
-              fontSize: '1rem',
-              fontWeight: 700,
-              fontFamily: 'Jost',
-              letterSpacing: '0.1em',
-              color: '#0f172a',
-            }}
-          >
-            OPENIV
-          </Typography>
         </Box>
         <Typography
           sx={{
             fontSize: '0.6875rem',
             fontWeight: 600,
-            color: '#94a3b8',
+            color: 'rgba(255,255,255,0.5)',
             mt: 1,
             letterSpacing: '0.04em',
           }}
@@ -239,13 +249,21 @@ export default function Sidebar() {
 
       {/* Nav */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5 }}>
-        {navGroups.map((group) => (
-          <Box key={group.label} sx={{ mb: 2.5 }}>
+        {navGroups
+          .map((group) => ({
+            ...group,
+            items: isBuildOne
+              ? group.items.filter((item) => !COMING_SOON_ROUTES.includes(item.to))
+              : group.items,
+          }))
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
+            <Box key={group.label} sx={{ mb: 2.5 }}>
             <Typography
               sx={{
                 fontSize: '0.6875rem',
                 fontWeight: 700,
-                color: '#94a3b8',
+                color: 'rgba(255,255,255,0.4)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.14em',
                 px: 1.5,
@@ -277,12 +295,12 @@ export default function Sidebar() {
                       cursor: 'pointer',
                       position: 'relative',
                       overflow: 'hidden',
-                      color: active ? colorPalette.primary : '#475569',
-                      bgcolor: active ? `${colorPalette.primary}0a` : 'transparent',
+                      color: active ? '#d9f99d' : 'rgba(255,255,255,0.7)',
+                      bgcolor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
                       transition: 'all 0.18s ease',
                       '&:hover': {
-                        bgcolor: active ? `${colorPalette.primary}0f` : '#f8fafc',
-                        color: colorPalette.primary,
+                        bgcolor: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                        color: active ? '#d9f99d' : '#ffffff',
                       },
                       '&::before': active
                         ? {
@@ -291,8 +309,8 @@ export default function Sidebar() {
                             left: 0,
                             top: 6,
                             bottom: 6,
-                            width: '2px',
-                            bgcolor: colorPalette.primary,
+                            width: '3px',
+                            bgcolor: '#d9f99d',
                           }
                         : {},
                     }}
@@ -333,10 +351,10 @@ export default function Sidebar() {
                     </Typography>
                     {(() => {
                       let badgeValue = item.badge;
-                      if (item.to === '/dashboard/transactions' && unreadCounts.flags > 0) {
-                        badgeValue = unreadCounts.flags.toString();
-                      } else if (item.to === '/dashboard/aml' && unreadCounts.cases > 0) {
-                        badgeValue = unreadCounts.cases.toString();
+                      if (item.to === '/dashboard/transactions' && unreadFlagCount > 0) {
+                        badgeValue = unreadFlagCount.toString();
+                      } else if (item.to === '/dashboard/aml' && unseenCasesCount > 0) {
+                        badgeValue = unseenCasesCount.toString();
                       }
                       
                       if (!badgeValue) return null;
@@ -368,7 +386,7 @@ export default function Sidebar() {
       </Box>
 
       {/* User Block */}
-      <Box sx={{ px: 1.5, pt: 2, borderTop: '1px solid #eef0f4', mx: 1.5 }}>
+      <Box sx={{ px: 1.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.1)', mx: 1.5 }}>
         <Box
           sx={{
             display: 'flex',
@@ -378,7 +396,7 @@ export default function Sidebar() {
             py: 1,
             cursor: 'pointer',
             transition: 'background 0.18s ease',
-            '&:hover': { bgcolor: '#f8fafc' },
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
           }}
         >
           <Box
@@ -386,8 +404,8 @@ export default function Sidebar() {
               width: 32,
               height: 32,
               borderRadius: '50%',
-              bgcolor: colorPalette.primary,
-              color: '#ffffff',
+              bgcolor: '#d9f99d',
+              color: '#00288e',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -400,10 +418,10 @@ export default function Sidebar() {
             AC
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#ffffff', lineHeight: 1.2 }}>
               Adaeze Chukwu
             </Typography>
-            <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+            <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.5)' }}>
               Head of Compliance
             </Typography>
           </Box>
@@ -412,9 +430,9 @@ export default function Sidebar() {
               onClick={() => setLogoutDialogOpen(true)}
               sx={{
                 fontSize: '1.125rem',
-                color: '#94a3b8',
+                color: 'rgba(255,255,255,0.4)',
                 transition: 'color 0.18s',
-                '&:hover': { color: colorPalette.primary },
+                '&:hover': { color: '#d9f99d' },
               }}
             />
           </Tooltip>
@@ -471,7 +489,7 @@ export default function Sidebar() {
               fontWeight: 600,
               px: 3,
               borderRadius: 0,
-              '&:hover': { bgcolor: '#1a3896' }
+              '&:hover': { bgcolor: '#1e293b' }
             }}
           >
             Sign Out

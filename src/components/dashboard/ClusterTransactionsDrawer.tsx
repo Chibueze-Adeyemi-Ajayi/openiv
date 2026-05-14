@@ -217,7 +217,7 @@ function AiFlagDialog({
               <AutoAwesomeOutlinedIcon sx={{ color: '#fff', fontSize: '1rem' }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 AI Risk Analysis
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
@@ -296,7 +296,7 @@ function AiFlagDialog({
                   width: '100%', boxSizing: 'border-box', display: 'block', resize: 'vertical',
                   border: '1px solid #e2e8f0', px: 1.25, py: 0.875,
                   fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif',
-                  color: '#0f172a', bgcolor: '#fafbfc', outline: 'none', lineHeight: 1.65,
+                  color: '#00288e', bgcolor: '#fafbfc', outline: 'none', lineHeight: 1.65,
                   '&:focus': { borderColor: colorPalette.primary, bgcolor: '#fff' },
                 }}
               />
@@ -381,10 +381,10 @@ function TxnRow({
       {/* Content */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {txn.customer || txn.customerId}
           </Typography>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0, ml: 1 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0, ml: 1 }}>
             {fmtAmt(txn.amount)}
           </Typography>
         </Box>
@@ -498,7 +498,7 @@ function TxnDetail({
               <Typography sx={{ width: 140, flexShrink: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
                 {label}
               </Typography>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', wordBreak: 'break-all', fontFamily: label === 'Transaction ID' || label === 'Device ID' || label.includes('Account') ? 'SF Mono, Monaco, monospace' : 'inherit' }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', wordBreak: 'break-all', fontFamily: label === 'Transaction ID' || label === 'Device ID' || label.includes('Account') ? 'SF Mono, Monaco, monospace' : 'inherit' }}>
                 {String(value)}
               </Typography>
             </Box>
@@ -651,7 +651,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
                 {source?.type === 'cluster'
                   ? <LocationOnOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
                   : <CalendarTodayOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />}
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   {drawerTitle}
                 </Typography>
               </Box>
@@ -762,7 +762,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
                 borderRadius: 0, textTransform: 'none',
                 fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 700,
                 px: 2, py: 0.875, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896', boxShadow: 'none' },
+                '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
               }}
             >
               View All Transactions

@@ -5,6 +5,7 @@ import ResetPasswordForm from '@/components/onboarding/ResetPasswordForm'
 import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { useSubmitGuard } from '@/hooks/useSubmitGuard'
+import { Box, Typography } from '@mui/material'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -64,6 +65,19 @@ export default function ResetPasswordPage() {
         submitting={submitting}
         errorMessage={errorMessage}
       />
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Typography 
+          onClick={() => navigate('/auth/login')}
+          sx={{ 
+            fontSize: '0.875rem', 
+            color: '#64748b', 
+            cursor: 'pointer',
+            '&:hover': { color: '#00288e', textDecoration: 'underline' }
+          }}
+        >
+          Return to login
+        </Typography>
+      </Box>
     </AuthLayout>
   )
 }

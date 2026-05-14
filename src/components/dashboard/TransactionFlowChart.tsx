@@ -76,7 +76,7 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
     >
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             {title}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -158,11 +158,11 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
 
         {hover !== null && (
           <Box sx={{ mt: 1, px: 1.5, py: 1.25, bgcolor: '#f8fafc', display: 'flex', gap: 3, alignItems: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e' }}>
               {data[hover].h}:00
             </Typography>
             {[
-              { label: 'Total',   value: data[hover].total.toLocaleString(),   color: '#0f172a' },
+              { label: 'Total',   value: data[hover].total.toLocaleString(),   color: '#00288e' },
               { label: 'Flagged', value: data[hover].flagged.toLocaleString(), color: '#f59e0b' },
               { label: 'Blocked', value: data[hover].blocked.toLocaleString(), color: '#dc2626' },
             ].map(col => (

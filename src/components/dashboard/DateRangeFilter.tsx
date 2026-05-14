@@ -157,7 +157,7 @@ export default function DateRangeFilter({
         }}
       >
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Custom date range
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>
@@ -185,7 +185,7 @@ export default function DateRangeFilter({
                   px: '14px',
                   fontSize: '0.875rem',
                   fontFamily: 'Jost',
-                  color: '#0f172a',
+                  color: '#00288e',
                   outline: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.18s',
@@ -212,7 +212,7 @@ export default function DateRangeFilter({
                   px: '14px',
                   fontSize: '0.875rem',
                   fontFamily: 'Jost',
-                  color: '#0f172a',
+                  color: '#00288e',
                   outline: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.18s',
@@ -308,7 +308,7 @@ export default function DateRangeFilter({
                 borderRadius: 0,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
                 '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >

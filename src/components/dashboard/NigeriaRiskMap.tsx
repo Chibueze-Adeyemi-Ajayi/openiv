@@ -174,7 +174,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
       {/* Header */}
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Risk Map · Nigeria
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -330,7 +330,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                   Transactions
                 </Typography>
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', lineHeight: 1, fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', lineHeight: 1, fontFamily: 'Jost' }}>
                   {selected.point.count.toLocaleString()}
                 </Typography>
               </Box>
@@ -434,7 +434,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 {riskColors[level].label}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               {(count ?? 0).toLocaleString()}
             </Typography>
           </Box>
@@ -443,7 +443,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
             Total clusters
           </Typography>
-          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             {txnDots.length.toLocaleString()}
           </Typography>
         </Box>

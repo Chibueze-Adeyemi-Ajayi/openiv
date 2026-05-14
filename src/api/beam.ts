@@ -52,12 +52,19 @@ export const beamApi = {
       ok: boolean;
       record_id: number;
       analysis?: {
-        transaction_id: string;
-        risk_score: number;
-        risk_level: string;
-        recommended_action: string;
-        case_id: string | null;
-        priority: string | null;
+        // transaction stream
+        transaction_id?: string;
+        risk_score?: number;
+        risk_level?: string;
+        recommended_action?: string;
+        case_id?: string | null;
+        priority?: string | null;
+        // kyc stream
+        customer_id?: string;
+        kyc_status?: string;
+        bvn_received?: boolean;
+        nin_received?: boolean;
+        photo_received?: boolean;
         processed_at: string;
       };
     }>(`/api/v1/beam/${stream}`, {

@@ -13,8 +13,8 @@ export interface NotificationItem {
 export type NotifSeverity = 'critical' | 'warning' | 'info' | 'success'
 
 export function notifSeverity(type: string): NotifSeverity {
-  if (type.startsWith('critical') || type === 'kyc_data_not_found' || type === 'cyber_breach_timestamp') return 'critical'
-  if (type.startsWith('high') || type.startsWith('case_high') || type === 'kyc_webhook_missing') return 'warning'
+  if (type.startsWith('critical') || type === 'cyber_breach_timestamp') return 'critical'
+  if (type.startsWith('high') || type.startsWith('case_high')) return 'warning'
   if (type.startsWith('case_') || type.startsWith('medium')) return 'info'
   return 'info'
 }

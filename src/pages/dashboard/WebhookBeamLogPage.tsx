@@ -282,7 +282,7 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
                   {label}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a', wordBreak: 'break-all' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', wordBreak: 'break-all' }}>
                     {value}
                   </Typography>
                   {label === 'Delivery ID' && d.deliveryId && (
@@ -323,7 +323,7 @@ function DeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: stri
         </Typography>
 
         {/* Endpoint URL */}
-        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {endpointUrl}
         </Typography>
 
@@ -378,7 +378,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
+      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#00288e', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
         {value}
       </Typography>
       {sub && (
@@ -429,13 +429,21 @@ app.post('/webhooks/openiv', express.raw({ type: 'application/json' }), (req, re
     case 'case.escalated':
       escalateCase(event.data)
       break
-    case 'kyc.failed':
-      // event.data.customer, event.data.verification, event.data.risk
-      handleKycFailure(event.data)
-      break
     case 'sar.filed':
       // event.data.report, event.data.subject
       recordSar(event.data)
+      break
+    case 'kyc.verified':
+      // event.data.customer_id, event.data.bvn_received, event.data.nin_received
+      handleKycVerified(event.data)
+      break
+    case 'kyc.partial':
+      // event.data.customer_id, event.data.bvn_received, event.data.nin_received
+      handleKycPartial(event.data)
+      break
+    case 'kyc.flagged':
+      // event.data.customer_id, event.data.risk_reason, event.data.pep_match
+      handleKycFlagged(event.data)
       break
   }
 
@@ -466,8 +474,10 @@ def handle_webhook():
         'tx.blocked':    block_transaction,
         'case.opened':   open_case,
         'case.escalated': escalate_case,
-        'kyc.failed':    handle_kyc_failure,
         'sar.filed':     record_sar,
+        'kyc.verified':  handle_kyc_verified,
+        'kyc.partial':   handle_kyc_partial,
+        'kyc.flagged':   handle_kyc_flagged,
     }
     handler = handlers.get(event['event'])
     if handler:
@@ -520,8 +530,12 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
         flagTransaction(event["data"])
     case "case.opened":
         openCase(event["data"])
-    case "kyc.failed":
-        handleKycFailure(event["data"])
+    case "kyc.verified":
+        handleKycVerified(event["data"])
+    case "kyc.partial":
+        handleKycPartial(event["data"])
+    case "kyc.flagged":
+        handleKycFlagged(event["data"])
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -579,8 +593,10 @@ public class OpenIVWebhookController {
         switch (event) {
             case "tx.flagged"    -> flagTransaction(payload.get("data"));
             case "case.opened"   -> openCase(payload.get("data"));
-            case "kyc.failed"    -> handleKycFailure(payload.get("data"));
             case "sar.filed"     -> recordSar(payload.get("data"));
+            case "kyc.verified"  -> handleKycVerified(payload.get("data"));
+            case "kyc.partial"   -> handleKycPartial(payload.get("data"));
+            case "kyc.flagged"   -> handleKycFlagged(payload.get("data"));
         }
 
         return ResponseEntity.ok(Map.of("received", true));
@@ -615,11 +631,17 @@ switch ($event['event']) {
     case 'case.opened':
         openCase($event['data']);
         break;
-    case 'kyc.failed':
-        handleKycFailure($event['data']);
-        break;
     case 'sar.filed':
         recordSar($event['data']);
+        break;
+    case 'kyc.verified':
+        handleKycVerified($event['data']);
+        break;
+    case 'kyc.partial':
+        handleKycPartial($event['data']);
+        break;
+    case 'kyc.flagged':
+        handleKycFlagged($event['data']);
         break;
 }
 
@@ -662,8 +684,10 @@ app.MapPost("/webhooks/openiv", async (HttpContext ctx) =>
     {
         "tx.flagged"  => HandleFlaggedTx(payload),
         "case.opened" => HandleCaseOpened(payload),
-        "kyc.failed"  => HandleKycFailure(payload),
-        _             => Results.Ok(new { received = true }),
+        "kyc.verified" => HandleKycVerified(payload),
+        "kyc.partial"  => HandleKycPartial(payload),
+        "kyc.flagged"  => HandleKycFlagged(payload),
+        _              => Results.Ok(new { received = true }),
     };
 });
 
@@ -766,7 +790,7 @@ export default function WebhookBeamLogPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Developer Console
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           Beam Log
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -787,7 +811,7 @@ export default function WebhookBeamLogPage() {
           <>
             <StatCard label="TOTAL BEAMS" value={String(stats.total)} />
             <StatCard label="DELIVERED" value={String(stats.delivered)} sub={`${stats.rate}% success rate`} color="#10b981" />
-            <StatCard label="FAILED" value={String(stats.failed)} color={stats.failed > 0 ? '#dc2626' : '#0f172a'} />
+            <StatCard label="FAILED" value={String(stats.failed)} color={stats.failed > 0 ? '#dc2626' : '#00288e'} />
             <StatCard label="SUCCESS RATE" value={`${stats.rate}%`} color={stats.rate >= 99 ? '#10b981' : stats.rate >= 95 ? '#f59e0b' : '#dc2626'} />
             <StatCard label="AVG DURATION" value={stats.avgMs != null ? fmtDuration(stats.avgMs) : '—'} sub="of successful deliveries" />
           </>
@@ -887,7 +911,7 @@ export default function WebhookBeamLogPage() {
       {/* Integration guide */}
       <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
         <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Integration Guide
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -903,7 +927,7 @@ export default function WebhookBeamLogPage() {
           <Stack gap={0.75}>
             {[
               ['X-OpenIV-Signature', 'HMAC-SHA256 hex of the raw request body — verify this first'],
-              ['X-OpenIV-Event', 'Event type: tx.flagged, case.opened, kyc.failed, etc.'],
+              ['X-OpenIV-Event', 'Event type: tx.flagged, case.opened, sar.filed, etc.'],
               ['X-OpenIV-Delivery', 'Unique delivery ID (beam_timestamp_random) for idempotency'],
               ['X-OpenIV-Institution', 'Your institution ID for multi-tenant setups'],
               ['X-OpenIV-Api-Key', 'Your per-endpoint API key if security rules are configured'],

@@ -95,13 +95,13 @@ code {
   --surface-sunken: #f5f3fb;
   --border-subtle: #eef0f4;
   --border-strong: #e5e7eb;
-  --text-primary: #0f172a;
+  --text-primary: #00288e;
   --text-secondary: #475569;
   --text-tertiary: #94a3b8;
 }
 
 [data-theme='dark'] {
-  --app-bg: #0b1020;
+  --app-bg: #00288e;
   --surface: #131a2e;
   --surface-muted: #161e35;
   --surface-sunken: #1c2440;
@@ -126,12 +126,12 @@ code {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: #1e40af;
+  background: #00288e;
   border-radius: 3px;
   transition: background 0.2s ease;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #1a3896;
+  background: #1e293b;
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
@@ -140,5 +140,5 @@ code {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1e40af transparent;
+  scrollbar-color: #00288e transparent;
 }

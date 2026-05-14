@@ -75,7 +75,7 @@ export default function PlatformIntelligence() {
                 animation: isVisible ? `${fadeInUp} 0.8s ease-out both` : 'none',
               }}
             >
-              How It Works
+              Strategic Orchestration
             </Typography>
             <Typography
               sx={{
@@ -88,7 +88,7 @@ export default function PlatformIntelligence() {
                 animation: isVisible ? `${fadeInUp} 0.8s ease-out 0.1s both` : 'none',
               }}
             >
-              From transaction to decision in milliseconds.
+              From ingestion to compliance in milliseconds.
             </Typography>
           </Stack>
 
@@ -100,18 +100,18 @@ export default function PlatformIntelligence() {
                 {[
                   {
                     num: '1',
-                    title: 'Ingest',
-                    desc: 'All transactions stream to OpenIV in real time. No code changes needed. Works with your existing payments infrastructure.',
+                    title: 'Seamless Integration',
+                    desc: 'Connect your existing payments infrastructure in minutes. No complex code changes required to start monitoring your institutional data.',
                   },
                   {
                     num: '2',
-                    title: 'Analyze',
-                    desc: 'Behavioral patterns, device signals, network effects, and AML rules trigger in <14ms per transaction. No delays.',
+                    title: 'Intelligent Surveillance',
+                    desc: 'Detect behavioral anomalies and network effects in sub-14ms. Our cutting-edge engine ensures 24/7 protection without affecting user experience.',
                   },
                   {
                     num: '3',
-                    title: 'Act',
-                    desc: 'Approve, challenge, or escalate. Auto-generate compliance reports. Integrate webhook responses directly into your workflow.',
+                    title: 'Automated Governance',
+                    desc: 'Approve, challenge, or escalate with confidence. Generate CBN-aligned reports automatically to maintain institutional trust and regulatory standing.',
                   },
                 ].map((step, idx) => (
                   <StepBox
@@ -161,8 +161,8 @@ export default function PlatformIntelligence() {
                 }}
               >
                 <img
-                  alt="OpenIV transaction flow diagram: transaction ingestion → behavioral analysis → risk decision → compliance reporting"
-                  src="https://via.placeholder.com/500x500/ffffff/cbd5e1?text=Transaction+Flow+Diagram"
+                  alt="OpenIV professional environment representing security and trust"
+                  src="/assets/landing/speed.png"
                   style={{
                     width: '100%',
                     height: '100%',

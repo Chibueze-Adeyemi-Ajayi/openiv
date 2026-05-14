@@ -10,8 +10,19 @@ import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined'
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
-import { useNavigate } from 'react-router-dom'
-import { kycApi, type KycLookupLog, type KycConfig } from '@/api/kyc'
+import { kycApi, type KycLookupLog } from '@/api/kyc'
+import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+
+export interface PEPPerson {
+  id: string
+  name: string
+  position: string
+  organization: string
+  country: string
+  riskLevel: 'Low' | 'Medium' | 'High'
+  lastUpdated: string
+}
 
 // ── Advisory logic ────────────────────────────────────────────────────────────
 // OpenIV pulls KYC from the bank, cross-references against PEP/sanctions,
@@ -148,7 +159,7 @@ function CustomersView() {
               textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75
             }}>{s.label}</Typography>
             <Typography sx={{
-              fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+              fontSize: '1.625rem', fontWeight: 700, color: '#00288e',
               fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5
             }}>
               {loading ? '—' : s.value.toLocaleString()}
@@ -165,7 +176,7 @@ function CustomersView() {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               KYC lookup history
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -200,7 +211,7 @@ function CustomersView() {
             <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
             <InputBase value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by customer reference…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a' }} />
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }} />
           </Box>
         </Box>
 
@@ -226,11 +237,11 @@ function CustomersView() {
           <Box sx={{ py: 6, textAlign: 'center' }}>
             {logs.length === 0 ? (
               <>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', mb: 0.75 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#00288e', mb: 0.75 }}>
                   No lookups yet
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                  Configure your KYC webhook endpoint in Webhooks → KYC Data Source, then run a manual lookup to get started.
+                  Beam customer KYC data (BVN, NIN, photo) via the Beam API using the <strong>kyc</strong> stream to get started.
                 </Typography>
               </>
             ) : (
@@ -255,7 +266,7 @@ function CustomersView() {
             >
               <Box>
                 <Typography sx={{
-                  fontSize: '0.875rem', fontWeight: 600, color: '#0f172a',
+                  fontSize: '0.875rem', fontWeight: 600, color: '#00288e',
                   fontFamily: 'SF Mono, Monaco, monospace',
                 }}>
                   {log.customerRef}
@@ -286,54 +297,147 @@ function CustomersView() {
   )
 }
 
-// ── Integration view ──────────────────────────────────────────────────────────
+function PEPScreeningView() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<PEPPerson[]>([])
+  const [searched, setSearched] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-function IntegrationView() {
-  const [config, setConfig] = useState<KycConfig | null>(null)
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    kycApi.getConfig()
-      .then(r => setConfig(r.config))
-      .catch(() => { })
-  }, [])
+  const handleSearch = async () => {
+    if (!query) return
+    setLoading(true)
+    setSearched(true)
+    try {
+      const res = await kycApi.searchPEP(query)
+      setResults(res.results)
+    } catch (err) {
+      console.error(err)
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ bgcolor: '#fff8f0', border: '1px solid #fed7aa', p: 2.5, mb: 3 }}>
-        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#c2410c', mb: 0.5 }}>
-          Customer database integration
-        </Typography>
-        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 1.5 }}>
-          Connect your customer database endpoint under Webhooks → KYC Data Source
-          to enable automatic verification during fraud investigations.
-        </Typography>
-        <Button
-          variant="outlined" size="small"
-          onClick={() => navigate('/dashboard/webhooks')}
-          sx={{
-            borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontSize: '0.8125rem',
-            borderColor: '#c2410c', color: '#c2410c', '&:hover': { bgcolor: '#fff8f0' }
-          }}
-        >
-          Configure in Webhooks →
-        </Button>
+    <Box>
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
+        <Box sx={{ p: 3, borderBottom: '1px solid #eef0f4' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+            PEP & Sanctions Screening
+          </Typography>
+          <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+            Search the global Politically Exposed Persons database to identify high-risk individuals.
+          </Typography>
+        </Box>
+        
+        <Box sx={{ p: 3, display: 'flex', gap: 2 }}>
+          <Box sx={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: '#f8fafc',
+            px: 2, height: 44, border: '1px solid #eef0f4',
+            transition: 'all 0.18s', '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary }
+          }}>
+            <SearchOutlinedIcon sx={{ fontSize: '1.25rem', color: '#94a3b8' }} />
+            <InputBase 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Enter full name (e.g. Bola Tinubu)..."
+              sx={{ flex: 1, fontSize: '0.9375rem', fontFamily: 'Jost', color: '#00288e' }} 
+            />
+          </Box>
+            <Button 
+            variant="contained" 
+            disableElevation
+            onClick={handleSearch}
+            disabled={loading}
+            sx={{ 
+              borderRadius: 0, px: 4, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
+              bgcolor: colorPalette.primary, '&:hover': { bgcolor: '#1e293b' },
+              '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#ffffff' }
+            }}
+          >
+            {loading ? 'Searching...' : 'Run Screening'}
+          </Button>
+        </Box>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, border: '1px solid #eef0f4', bgcolor: '#fff' }}>
-        {config?.lookupUrl
-          ? <>
-            <CheckCircleOutlineRoundedIcon sx={{ color: '#10b981' }} />
-            <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600 }}>Customer database connected</Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>{config.lookupUrl}</Typography>
+
+      {searched && (
+        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+          <Box sx={{ px: 3, py: 2, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {loading ? 'Searching OpenSanctions Database...' : `Search Results (${results.length})`}
+            </Typography>
+          </Box>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress size={26} sx={{ color: colorPalette.primary }} />
             </Box>
-          </>
-          : <>
-            <CancelOutlinedIcon sx={{ color: '#94a3b8' }} />
-            <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>No customer database connected</Typography>
-          </>
-        }
-      </Box>
+          ) : results.length === 0 ? (
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+              <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 2, opacity: 0.5 }} />
+              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: '#00288e', mb: 0.5 }}>No Direct PEP Matches Found</Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                The name "{query}" does not appear in the OpenSanctions PEP registry.
+              </Typography>
+            </Box>
+          ) : (
+            results.map((person, i) => (
+              <Box 
+                key={person.id}
+                sx={{ 
+                  p: 3, display: 'flex', alignItems: 'flex-start', gap: 3,
+                  borderBottom: i === results.length - 1 ? 'none' : '1px solid #f4f5f7'
+                }}
+              >
+                <Box sx={{ 
+                  width: 48, height: 48, bgcolor: person.riskLevel === 'High' ? '#fef2f2' : '#fffbeb',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                }}>
+                  <PublicOutlinedIcon sx={{ color: person.riskLevel === 'High' ? '#dc2626' : '#f59e0b' }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+                    <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      {person.name}
+                    </Typography>
+                    <Box sx={{ 
+                      px: 1, py: 0.25, bgcolor: person.riskLevel === 'High' ? '#dc2626' : '#f59e0b', 
+                      color: '#ffffff', fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.05em'
+                    }}>
+                      {person.riskLevel.toUpperCase()} RISK
+                    </Box>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#475569', fontWeight: 500 }}>
+                    {person.position} at {person.organization}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 1 }}>
+                    Location: {person.country} • ID: {person.id} • Verified: {person.lastUpdated}
+                  </Typography>
+                </Box>
+                <Button 
+                  variant="outlined" size="small"
+                  sx={{ 
+                    borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', color: '#dc2626', borderColor: '#dc2626',
+                    '&:hover': { bgcolor: '#fef2f2', borderColor: '#dc2626' }
+                  }}
+                >
+                  Escalate to Case
+                </Button>
+              </Box>
+            ))
+          )}
+        </Box>
+      )}
+
+      {!searched && (
+        <Box sx={{ bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', p: 8, textAlign: 'center' }}>
+          <WarningAmberRoundedIcon sx={{ fontSize: '2.5rem', color: '#94a3b8', mb: 2 }} />
+          <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
+            Enter a customer's name above to cross-reference against the PEP database.
+          </Typography>
+        </Box>
+      )}
     </Box>
   )
 }
@@ -353,13 +457,13 @@ export default function KYCPage() {
           Customer Due Diligence
         </Typography>
         <Typography sx={{
-          fontSize: '1.625rem', fontWeight: 700, color: '#0f172a',
+          fontSize: '1.625rem', fontWeight: 700, color: '#00288e',
           fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
         }}>
           KYC
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-          Connect your customer database to verify customer identity during fraud investigations and maintain compliance
+          Beam customer KYC data (BVN, NIN, photo) via the Beam API — the platform is the source of truth for identity verification
         </Typography>
       </Box>
 
@@ -378,11 +482,11 @@ export default function KYCPage() {
         }}
       >
         <Tab label="Lookup History" />
-        <Tab label="Webhook Integration" />
+        <Tab label="PEP Screening" />
       </Tabs>
 
       {tabValue === 0 && <CustomersView />}
-      {tabValue === 1 && <IntegrationView />}
+      {tabValue === 1 && <PEPScreeningView />}
     </Box>
   )
 }

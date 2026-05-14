@@ -143,7 +143,7 @@ export default function GeoBlockedPage() {
             }}>
               <GpsNotFixedIcon sx={{ fontSize: '2rem', color: '#f59e0b' }} />
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               Unauthorized Location
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#475569', mb: 3, lineHeight: 1.6 }}>
@@ -182,7 +182,7 @@ export default function GeoBlockedPage() {
             }}>
               <CheckCircleOutlineIcon sx={{ fontSize: '2rem', color: '#10b981' }} />
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               Access Granted
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6 }}>
@@ -201,7 +201,7 @@ export default function GeoBlockedPage() {
             }}>
               <CancelOutlinedIcon sx={{ fontSize: '2rem', color: '#dc2626' }} />
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               Access Denied
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#475569', mb: 3, lineHeight: 1.6 }}>
@@ -220,7 +220,7 @@ export default function GeoBlockedPage() {
             }}>
               <AccessTimeIcon sx={{ fontSize: '2rem', color: '#64748b' }} />
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               {watchState === 'expired' ? 'Request Expired' : 'Connection Lost'}
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#475569', mb: 3, lineHeight: 1.6 }}>
@@ -235,7 +235,7 @@ export default function GeoBlockedPage() {
                 bgcolor: colorPalette.primary, color: '#fff', borderRadius: 0,
                 textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
                 fontSize: '0.875rem', py: 1.25, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896' },
+                '&:hover': { bgcolor: '#1e293b' },
               }}
             >
               Back to Sign In

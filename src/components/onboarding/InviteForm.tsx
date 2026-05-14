@@ -26,7 +26,7 @@ export default function InviteForm({ onSubmit, submitting = false, errorMessage 
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#0f172a',
+            color: '#00288e',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
@@ -55,7 +55,7 @@ export default function InviteForm({ onSubmit, submitting = false, errorMessage 
             sx={{
               fontSize: '0.875rem',
               fontWeight: 700,
-              color: '#0f172a',
+              color: '#00288e',
               mb: 0.5,
             }}
           >
@@ -112,7 +112,7 @@ export default function InviteForm({ onSubmit, submitting = false, errorMessage 
                   letterSpacing: '0.1em',
                   py: '22px',
                   px: '22px',
-                  color: '#0f172a',
+                  color: '#00288e',
                   '&::placeholder': { color: '#9ca3af', opacity: 1, letterSpacing: '0.06em' },
                 },
               }}
@@ -136,7 +136,7 @@ export default function InviteForm({ onSubmit, submitting = false, errorMessage 
               boxShadow: 'none',
               transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover:not(:disabled)': {
-                bgcolor: '#1a3896',
+                bgcolor: '#1e293b',
                 boxShadow: `0 8px 24px ${colorPalette.primary}35`,
                 transform: 'translateY(-1px)',
               },

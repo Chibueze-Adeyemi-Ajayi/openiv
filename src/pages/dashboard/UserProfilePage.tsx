@@ -100,13 +100,13 @@ const PageBtn = ({ label, disabled, onClick, active }: { label: string | number,
       px: typeof label === 'number' ? 0 : 1.5,
       height: 32,
       bgcolor: active ? '#f1f5f9' : 'transparent',
-      color: active ? '#0f172a' : '#64748b',
+      color: active ? '#00288e' : '#64748b',
       fontSize: '0.8125rem',
       fontWeight: active ? 700 : 600,
       fontFamily: 'Jost',
       borderRadius: 1,
       textTransform: 'none',
-      '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' }
+      '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' }
     }}
   >
     {label}
@@ -265,11 +265,11 @@ export default function UserProfilePage() {
             <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#f1f5f9', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
               <SearchOffRoundedIcon sx={{ fontSize: '2.5rem' }} />
             </Box>
-            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
               Customer Not Found
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b', maxWidth: 400, mb: 4 }}>
-              We couldn't find any transactions or behavioral records associated with the ID <Typography component="span" sx={{ fontWeight: 700, color: '#0f172a' }}>"{id}"</Typography>. Please verify the identifier and try again.
+              We couldn't find any transactions or behavioral records associated with the ID <Typography component="span" sx={{ fontWeight: 700, color: '#00288e' }}>"{id}"</Typography>. Please verify the identifier and try again.
             </Typography>
             <Button
               variant="contained"
@@ -287,7 +287,7 @@ export default function UserProfilePage() {
               </Box>
               <Box sx={{ flex: 1, minWidth: 280 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1 }}>
-                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>
                     {userDetails.name}
                   </Typography>
                   <Chip icon={<VerifiedOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />} label="TIER 3 VERIFIED" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22, '& .MuiChip-icon': { color: '#10b981', ml: 0.875 } }} />
@@ -296,7 +296,7 @@ export default function UserProfilePage() {
                   {[{ label: 'Customer ID', value: id }, { label: 'BVN', value: userDetails.bvn }, { label: 'Last IP', value: userDetails.lastIp }].map((d) => (
                     <Box key={d.label}>
                       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>{d.label}</Typography>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
                     </Box>
                   ))}
                 </Stack>
@@ -322,20 +322,20 @@ export default function UserProfilePage() {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2.5fr 1fr' }, gap: 3, mb: 3 }}>
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', display: 'flex' }}>
                 <Box sx={{ p: 3, borderRight: '1px solid #eef0f4', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: 360, flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', width: '100%', mb: 2 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', width: '100%', mb: 2 }}>
                     Behavioral Risk Profile
                   </Typography>
                   <RadarChart data={riskAxes} />
                 </Box>
                 <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 2 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 2 }}>
                     Dimension Breakdown
                   </Typography>
                   <Stack gap={2}>
                     {riskAxes.map(r => (
                       <Box key={r.axis}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>{r.axis}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e' }}>{r.axis}</Typography>
                           <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: r.value >= 70 ? '#dc2626' : r.value >= 40 ? '#f59e0b' : '#10b981' }}>{r.value}/100</Typography>
                         </Box>
                         <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{r.desc}</Typography>
@@ -348,18 +348,18 @@ export default function UserProfilePage() {
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <FilterCenterFocusOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.25rem' }} />
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>KYC Identity</Typography>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>KYC Identity</Typography>
                 </Box>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 3 }}>Fetched securely via partner webhook</Typography>
 
                 <Box sx={{ border: '1px solid #eef0f4', bgcolor: '#f8fafc', p: 2, mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
                     <AssignmentIndOutlinedIcon sx={{ color: '#10b981' }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NIMC Verification Match</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NIMC Verification Match</Typography>
                   </Box>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1.5 }}>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>NIN</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>819382****</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>819382****</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>DOB Match</Typography>
                     <Typography sx={{ fontSize: '0.8125rem', color: '#10b981', fontWeight: 600 }}>100% Exact</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>Face Match</Typography>
@@ -373,7 +373,7 @@ export default function UserProfilePage() {
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
                 <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Behavioral Fingerprint</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Behavioral Fingerprint</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Time-of-day logins and activity ({heatmapRange})</Typography>
                   </Box>
                   <Stack direction="row" gap={0.5}>
@@ -425,7 +425,7 @@ export default function UserProfilePage() {
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
                 <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Transaction Value Heatmap</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Transaction Value Heatmap</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>When does this user move money? ({heatmapRange})</Typography>
                   </Box>
                   <Stack direction="row" gap={0.5}>
@@ -526,7 +526,7 @@ export default function UserProfilePage() {
                           {e.icon}
                         </Box>
                         <Box sx={{ flex: 1 }}>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.25, textTransform: 'capitalize' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25, textTransform: 'capitalize' }}>
                             {e.title}
                           </Typography>
                           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{e.detail}</Typography>
@@ -549,7 +549,7 @@ export default function UserProfilePage() {
                       <Box key={t.id} onClick={() => setDetailTx(t)} sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', cursor: 'pointer', '&:hover': { bgcolor: '#fafbfc' } }}>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(t.occurredAt || new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }}>{t.risk}</Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>₦{t.amount.toLocaleString()}</Typography>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e' }}>₦{t.amount.toLocaleString()}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.recipientName || t.counterparty}</Typography>
                         <Box><Chip label={t.status.toUpperCase()} size="small" sx={{ bgcolor: t.status === 'successful' ? '#f0fdf4' : t.status === 'failed' ? '#fef2f2' : '#f8fafc', color: t.status === 'successful' ? '#16a34a' : t.status === 'failed' ? '#dc2626' : '#64748b', fontWeight: 700, fontSize: '0.625rem', height: 20, borderRadius: 0 }} /></Box>
                       </Box>
@@ -585,7 +585,7 @@ export default function UserProfilePage() {
                             <Box key={b.id} onClick={() => setDetailBeam(b)} sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', cursor: 'pointer', '&:hover': { bgcolor: '#fafbfc' } }}>
                               <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(b.receivedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
                               <Box><Chip label={st.label} sx={{ bgcolor: st.bg, color: st.color, fontWeight: 700, fontSize: '0.6rem', height: 20, borderRadius: 0 }} /></Box>
-                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', textTransform: 'capitalize' }}>{b.stream}</Typography>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', textTransform: 'capitalize' }}>{b.stream}</Typography>
                               <Typography sx={{ fontSize: '0.8125rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.activity_name || p.note || 'Interaction'}</Typography>
                               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>{b.ip || '—'}</Typography>
                             </Box>
@@ -618,13 +618,13 @@ export default function UserProfilePage() {
         {detailTx && (
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ px: 3, py: 2.5, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Transaction Details</Typography>
+              <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Transaction Details</Typography>
               <IconButton onClick={() => setDetailTx(null)} size="small"><ChevronRightRoundedIcon /></IconButton>
             </Box>
             <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, mb: 2 }}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', mb: 1 }}>Raw Metadata</Typography>
-                <Box sx={{ bgcolor: '#0f172a', p: 2, borderRadius: 1, overflowX: 'auto' }}>
+                <Box sx={{ bgcolor: '#00288e', p: 2, borderRadius: 1, overflowX: 'auto' }}>
                   <Typography component="pre" sx={{ fontSize: '0.75rem', color: '#e2e8f0', fontFamily: 'SF Mono, Monaco, monospace', m: 0 }}>
                     {JSON.stringify(detailTx, null, 2)}
                   </Typography>

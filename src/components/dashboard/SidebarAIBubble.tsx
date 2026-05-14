@@ -6,6 +6,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined'
+import { getEurekaResponse, type Message } from '@/utils/eurekaBrain'
 
 // ── Knowledge base ─────────────────────────────────────────────────────────────
 const NAV_KNOWLEDGE: Record<string, { explanation: string; suggestions: string[] }> = {
@@ -156,55 +157,12 @@ const NAV_KNOWLEDGE: Record<string, { explanation: string; suggestions: string[]
 }
 
 // ── AI response simulator ──────────────────────────────────────────────────────
-function simulateAIResponse(label: string, msg: string): string {
-  const lower = msg.toLowerCase()
-
-  if (lower.includes('risk') || lower.includes('score')) {
-    return `Risk scores range from 0–100. Above 75 triggers automatic flagging for analyst review. The model weighs transaction velocity, counterparty history, geographic anomalies, and deviation from the customer's 30-day behavioral baseline. You can tune sensitivity thresholds in the Thresholds module.`
-  }
-  if (lower.includes('cost') || lower.includes('billed') || lower.includes('wallet') || lower.includes('₦') || lower.includes('price')) {
-    return `Billing is deducted from your institution's prepaid wallet in real time. The highest-cost actions are NFIU filings (₦500) and KYC lookups (₦50). Beam ingest runs at ₦0.10 per record. Check Billing & Usage for your current balance and the full rate card.`
-  }
-  if (lower.includes('export') || lower.includes('csv') || lower.includes('download')) {
-    return `Most views support CSV export via the button in the top-right corner of the page. Exports are billed at ₦5 and include all currently filtered records. For large datasets the download starts automatically when the file is ready — typically within a few seconds.`
-  }
-  if (lower.includes('threshold') || lower.includes('flag') || lower.includes('block')) {
-    return `Flagging rules are driven by your active Thresholds configuration. Each threshold defines a category, operator, and value. When a transaction crosses one, it's automatically queued for analyst review. Bulk status updates let you clear or escalate multiple flagged transactions at once.`
-  }
-  if (lower.includes('nfiu') || lower.includes('cbn') || lower.includes('compliance') || lower.includes('filing') || lower.includes('sar')) {
-    return `NFIU and CBN reporting are tracked separately. SARs are managed in Reports & Filings; CBN compliance metrics live in CBN Compliance. Filing deadlines and compliance scores update daily — missing a window directly impacts your institution's posture score.`
-  }
-  if (lower.includes('webhook') || lower.includes('beam') || lower.includes('integration') || lower.includes('api') || lower.includes('key')) {
-    return `OpenIV integrates via two channels: Beam (inbound data via API key) and Webhooks (outbound event delivery to your endpoints). Beam uses SHA-256 hashed keys; webhook payloads are HMAC-SHA256 signed. The Network log gives you a full audit trail of every request and response.`
-  }
-  if (lower.includes('kyc') || lower.includes('identity') || lower.includes('tier') || lower.includes('verify')) {
-    return `KYC lookups call your configured external identity service with a customer reference. Results include tier (1–4) and verification status. Tier 1 is basic identity; Tier 4 is enhanced due diligence. Failed lookups can auto-create AML cases depending on your configuration.`
-  }
-  if (lower.includes('team') || lower.includes('role') || lower.includes('permission') || lower.includes('invite') || lower.includes('admin')) {
-    return `Roles in OpenIV are scoped: admin has full access including team and billing; CCO can file reports and manage cases; analyst can investigate and flag; viewer is read-only. Custom roles let you compose any subset of permissions for specialized needs like external auditor access.`
-  }
-  if (lower.includes('geofence') || lower.includes('location') || lower.includes('geo') || lower.includes('fence')) {
-    return `Geofencing restricts analyst logins to a configured geographic polygon — typically your office or branch perimeter. Out-of-bounds attempts create a GeoAccessRequest that a super-admin must approve before the session is granted access. Admin-role users always bypass geofence enforcement.`
-  }
-  if (lower.includes('case') || lower.includes('aml') || lower.includes('investigat') || lower.includes('sla')) {
-    return `AML cases are opened against suspicious patterns and linked to transactions. SLA deadlines are calculated at case creation based on priority — high-priority cases have tighter windows. Overdue cases reduce your compliance score. Resolution notes are mandatory before a case can be closed.`
-  }
-
-  const fallbacks = [
-    `Great question about ${label}. In OpenIV's compliance framework this typically relates to how your institution's risk posture is evaluated against CBN guidelines. I'd recommend reviewing your recent case activity and threshold hit rates to get the full picture.`,
-    `For ${label}, the key principle is that all actions are audit-logged and tied to your session identity — critical for regulatory accountability. If you're seeing unexpected behavior, the Network log and case activity trail are your best starting points for investigation.`,
-    `That's worth exploring. OpenIV's multi-tenant design ensures your institution's data is fully isolated. Actions in ${label} are scoped to your institution and role permissions. If certain features appear restricted, your institution admin can adjust your role configuration.`,
-  ]
-  return fallbacks[msg.length % fallbacks.length]
+function simulateAIResponse(msg: string, history: Message[]): { text: string; followUps: string[] } {
+  return getEurekaResponse(msg, history)
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Phase = 'thinking' | 'streaming' | 'ready'
-
-interface ChatMsg {
-  role: 'user' | 'ai'
-  text: string
-}
 
 export interface SidebarAIBubbleProps {
   anchorRect: DOMRect
@@ -214,11 +172,11 @@ export interface SidebarAIBubbleProps {
 }
 
 // ── Layout constants ───────────────────────────────────────────────────────────
-const SIDEBAR_W  = 244
-const GAP        = 14
-const PANEL_W    = 348
+const SIDEBAR_W = 244
+const GAP = 14
+const PANEL_W = 348
 const PANEL_MAX_H = 530
-const LEFT       = SIDEBAR_W + GAP
+const LEFT = SIDEBAR_W + GAP
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosing = false }: SidebarAIBubbleProps) {
@@ -227,17 +185,18 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
     suggestions: ['Tell me more about this feature', 'How do I get started here?', 'What are the key actions?'],
   }
 
-  const [phase,         setPhase]         = useState<Phase>('thinking')
+  const [phase, setPhase] = useState<Phase>('thinking')
   const [displayedText, setDisplayedText] = useState('')
-  const [messages,      setMessages]      = useState<ChatMsg[]>([])
-  const [streamingAI,   setStreamingAI]   = useState('')
-  const [aiTyping,      setAiTyping]      = useState(false)
-  const [input,         setInput]         = useState('')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [streamingAI, setStreamingAI] = useState('')
+  const [aiTyping, setAiTyping] = useState(false)
+  const [input, setInput] = useState('')
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([])
 
-  const allIntervalsRef    = useRef<Set<ReturnType<typeof setInterval>>>(new Set())
-  const chatEndRef         = useRef<HTMLDivElement>(null)
-  const [isTransitioning,  setIsTransitioning]  = useState(false)
-  const prevNavToRef       = useRef(navItem.to)
+  const allIntervalsRef = useRef<Set<ReturnType<typeof setInterval>>>(new Set())
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const prevNavToRef = useRef(navItem.to)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 2 s thinking → start streaming; also re-triggers when phase resets to 'thinking'
@@ -317,7 +276,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
     // Simulated thinking delay
     await new Promise<void>(r => setTimeout(r, 650 + Math.random() * 450))
 
-    const response = simulateAIResponse(navItem.label, userText)
+    const { text: response, followUps } = simulateAIResponse(userText, messages)
     let i = 0
     const id = setInterval(() => {
       i++
@@ -326,17 +285,20 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
         clearInterval(id)
         allIntervalsRef.current.delete(id)
         setAiTyping(false)
-        setMessages(prev => [...prev, { role: 'ai', text: response }])
+        setMessages(prev => [...prev, { role: 'eureka', text: response }])
         setStreamingAI('')
+        if (followUps.length > 0) {
+          setDynamicSuggestions(followUps)
+        }
       }
     }, 13)
     allIntervalsRef.current.add(id)
   }, [input, aiTyping, navItem.label])
 
   // ── Positioning ────────────────────────────────────────────────────────────
-  const itemCenterY   = anchorRect.top + anchorRect.height / 2
-  const thinkingTop   = itemCenterY - 26
-  const panelTop      = Math.max(16, Math.min(
+  const itemCenterY = anchorRect.top + anchorRect.height / 2
+  const thinkingTop = itemCenterY - 26
+  const panelTop = Math.max(16, Math.min(
     window.innerHeight - PANEL_MAX_H - 16,
     itemCenterY - 90,
   ))
@@ -360,14 +322,14 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
               : 'bubblePop 0.48s cubic-bezier(0.34, 1.56, 0.64, 1)',
             transformOrigin: 'left center',
             '@keyframes bubblePop': {
-              '0%':   { opacity: 0, transform: 'scale(0.3) translateX(-10px)', filter: 'blur(6px)'  },
-              '60%':  {                                                          filter: 'blur(0px)'  },
-              '100%': { opacity: 1, transform: 'scale(1) translateX(0)',        filter: 'blur(0px)'  },
+              '0%': { opacity: 0, transform: 'scale(0.3) translateX(-10px)', filter: 'blur(6px)' },
+              '60%': { filter: 'blur(0px)' },
+              '100%': { opacity: 1, transform: 'scale(1) translateX(0)', filter: 'blur(0px)' },
             },
             '@keyframes bubbleClose': {
-              '0%':   { opacity: 1, transform: 'scale(1) translateX(0)',        filter: 'blur(0px)'  },
-              '25%':  { opacity: 1, transform: 'scale(1.06) translateX(2px)',   filter: 'blur(0px)'  },
-              '100%': { opacity: 0, transform: 'scale(0.08) translateX(-6px)', filter: 'blur(5px)'  },
+              '0%': { opacity: 1, transform: 'scale(1) translateX(0)', filter: 'blur(0px)' },
+              '25%': { opacity: 1, transform: 'scale(1.06) translateX(2px)', filter: 'blur(0px)' },
+              '100%': { opacity: 0, transform: 'scale(0.08) translateX(-6px)', filter: 'blur(5px)' },
             },
           }}
         >
@@ -410,9 +372,9 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                   border: `2px solid ${colorPalette.primary}55`,
                   animation: 'rippleContract 0.38s cubic-bezier(0.4, 0, 1, 1) forwards',
                   '@keyframes rippleContract': {
-                    '0%':   { transform: 'scale(1.4)', opacity: 0.7 },
-                    '60%':  { transform: 'scale(0.6)', opacity: 0.4 },
-                    '100%': { transform: 'scale(0)',   opacity: 0   },
+                    '0%': { transform: 'scale(1.4)', opacity: 0.7 },
+                    '60%': { transform: 'scale(0.6)', opacity: 0.4 },
+                    '100%': { transform: 'scale(0)', opacity: 0 },
                   },
                 }}
               />
@@ -441,8 +403,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                 flexShrink: 0,
                 animation: 'sparkleGlow 2.8s ease-in-out infinite',
                 '@keyframes sparkleGlow': {
-                  '0%, 100%': { opacity: 0.45, transform: 'scale(1) rotate(0deg)'   },
-                  '50%':      { opacity: 0.95, transform: 'scale(1.2) rotate(18deg)' },
+                  '0%, 100%': { opacity: 0.45, transform: 'scale(1) rotate(0deg)' },
+                  '50%': { opacity: 0.95, transform: 'scale(1.2) rotate(18deg)' },
                 },
               }}
             />
@@ -460,8 +422,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                     boxShadow: `0 1px 4px rgba(30, 64, 175, 0.45)`,
                     animation: `dotWave 1.5s ease-in-out ${i * 0.2}s infinite`,
                     '@keyframes dotWave': {
-                      '0%, 100%': { transform: 'translateY(0) scale(0.82)',   opacity: 0.4  },
-                      '45%':      { transform: 'translateY(-7px) scale(1.15)', opacity: 1   },
+                      '0%, 100%': { transform: 'translateY(0) scale(0.82)', opacity: 0.4 },
+                      '45%': { transform: 'translateY(-7px) scale(1.15)', opacity: 1 },
                     },
                   }}
                 />
@@ -512,11 +474,11 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
             pointerEvents: (isClosing || isTransitioning) ? 'none' : 'auto',
             '@keyframes panelExpand': {
               from: { opacity: 0, transform: 'scale(0.7) translateY(-8px)' },
-              to:   { opacity: 1, transform: 'scale(1) translateY(0)' },
+              to: { opacity: 1, transform: 'scale(1) translateY(0)' },
             },
             '@keyframes panelCollapse': {
               from: { opacity: 1, transform: 'scale(1) translateY(0)' },
-              to:   { opacity: 0, transform: 'scale(0.82) translateY(8px)', filter: 'blur(2px)' },
+              to: { opacity: 0, transform: 'scale(0.82) translateY(8px)', filter: 'blur(2px)' },
             },
           }}
         >
@@ -556,7 +518,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
               <Box>
                 <Typography sx={{
                   fontSize: '0.8125rem', fontWeight: 700,
-                  color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.2,
+                  color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2,
                 }}>
                   Eureka
                 </Typography>
@@ -574,7 +536,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                 color: '#94a3b8',
                 borderRadius: 0,
                 p: 0.5,
-                '&:hover': { color: '#0f172a', bgcolor: '#f8fafc' },
+                '&:hover': { color: '#00288e', bgcolor: '#f8fafc' },
               }}
             >
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
@@ -606,7 +568,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                       animation: 'cursorBlink 0.75s step-end infinite',
                       '@keyframes cursorBlink': {
                         '0%, 100%': { opacity: 1 },
-                        '50%':      { opacity: 0 },
+                        '50%': { opacity: 0 },
                       },
                     }}
                   />
@@ -614,7 +576,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
               </Typography>
             </Box>
 
-            {/* Suggestions (visible only before first message) */}
+            {/* Initial Suggestions */}
             {showSuggestions && (
               <Box sx={{ px: 2, pt: 1.75, pb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
@@ -671,7 +633,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                           px: 1.5,
                           py: 1,
                           bgcolor: msg.role === 'user' ? colorPalette.primary : '#f5f3fb',
-                          color:   msg.role === 'user' ? '#ffffff' : '#334155',
+                          color: msg.role === 'user' ? '#ffffff' : '#334155',
                           fontSize: '0.75rem',
                           lineHeight: 1.65,
                           fontFamily: 'Jost',
@@ -706,8 +668,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                                   width: 5, height: 5, borderRadius: '50%', bgcolor: '#94a3b8',
                                   animation: `chatDot 1s ease-in-out ${i * 0.15}s infinite`,
                                   '@keyframes chatDot': {
-                                    '0%, 60%, 100%': { transform: 'translateY(0)',    opacity: 0.4 },
-                                    '30%':           { transform: 'translateY(-3px)', opacity: 1   },
+                                    '0%, 60%, 100%': { transform: 'translateY(0)', opacity: 0.4 },
+                                    '30%': { transform: 'translateY(-3px)', opacity: 1 },
                                   },
                                 }}
                               />
@@ -727,13 +689,39 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                                 animation: 'cursorBlink2 0.75s step-end infinite',
                                 '@keyframes cursorBlink2': {
                                   '0%, 100%': { opacity: 1 },
-                                  '50%':      { opacity: 0 },
+                                  '50%': { opacity: 0 },
                                 },
                               }}
                             />
                           </>
                         )}
                       </Box>
+                    </Box>
+                  )}
+                  {/* Dynamic Suggestions */}
+                  {messages.length > 0 && !aiTyping && !streamingAI && dynamicSuggestions.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                        <LightbulbOutlinedIcon sx={{ fontSize: '0.8rem', color: '#94a3b8' }} />
+                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.13em', fontFamily: 'Jost' }}>
+                          Next Steps
+                        </Typography>
+                      </Box>
+                      <Stack sx={{ gap: 0.625 }}>
+                        {dynamicSuggestions.map((s, i) => (
+                          <Box
+                            key={i}
+                            onClick={() => handleSend(s)}
+                            sx={{
+                              px: 1.5, py: 0.875, fontSize: '0.75rem', color: '#475569', border: '1px solid #eef0f4',
+                              cursor: 'pointer', fontFamily: 'Jost', lineHeight: 1.5, transition: 'all 0.15s ease',
+                              '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary, bgcolor: `${colorPalette.primary}07` },
+                            }}
+                          >
+                            {s}
+                          </Box>
+                        ))}
+                      </Stack>
                     </Box>
                   )}
                 </Stack>
@@ -778,7 +766,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                   flex: 1,
                   fontSize: '0.75rem',
                   fontFamily: 'Jost',
-                  color: '#0f172a',
+                  color: '#00288e',
                   '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
                 }}
               />
@@ -799,7 +787,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                     ? '#ffffff'
                     : '#94a3b8',
                   transition: 'all 0.18s',
-                  '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                  '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
                 }}
               >
                 <SendRoundedIcon sx={{ fontSize: '0.875rem' }} />

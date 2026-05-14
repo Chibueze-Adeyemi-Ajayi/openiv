@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
 import {
   Box, Typography, Stack, Button, TextField, Switch,
   IconButton, Popover, Skeleton, Collapse, Dialog, CircularProgress,
@@ -14,7 +13,6 @@ import {
   type WebhookDelivery,
   type WebhookSecurityRule,
 } from '@/api/webhooks'
-import { kycApi } from '@/api/kyc'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -48,7 +46,7 @@ const inputSx = {
     fontFamily: 'Jost',
     py: '12px',
     px: '14px',
-    color: '#0f172a',
+    color: '#00288e',
   },
 }
 
@@ -73,8 +71,10 @@ const eventTypes = [
   { id: 'tx.blocked', label: 'Transaction blocked', desc: 'Fires when an inbound transaction is auto-blocked' },
   { id: 'case.opened', label: 'Case opened', desc: 'Fires when an investigation case is created' },
   { id: 'case.escalated', label: 'Case escalated', desc: 'Fires when a case is escalated to a senior officer' },
-  { id: 'kyc.failed', label: 'KYC verification failed', desc: 'Fires when a customer fails identity verification' },
   { id: 'sar.filed', label: 'SAR/STR filed', desc: 'Fires after an NFIU report is successfully filed' },
+  { id: 'kyc.verified', label: 'KYC verified', desc: 'Fires when a customer reaches full verification — BVN and NIN both on file' },
+  { id: 'kyc.partial', label: 'KYC partial', desc: 'Fires when a customer submits only one identifier (BVN or NIN without the other)' },
+  { id: 'kyc.flagged', label: 'KYC flagged', desc: 'Fires when a beamed KYC record triggers a risk concern — PEP match or suspicious identity pattern' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
                   {label}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a', wordBreak: 'break-all' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', wordBreak: 'break-all' }}>
                     {value}
                   </Typography>
                   {label === 'Delivery ID' && d.deliveryId && <CopyBtn text={d.deliveryId} label="Copy" />}
@@ -400,7 +400,7 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
         <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
           {shortId(d.deliveryId)}
         </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {endpointUrl}
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
@@ -443,7 +443,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
+      <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: color ?? '#00288e', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
         {value}
       </Typography>
       {sub && (
@@ -541,7 +541,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <SecurityOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
             <Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                 Security Rules
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.125, maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -568,7 +568,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875 }}>
                     <VpnKeyOutlinedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                       API Key
                     </Typography>
                   </Box>
@@ -590,7 +590,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
                       NEW KEY — COPY NOW, IT WON'T BE SHOWN AGAIN
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#0f172a', wordBreak: 'break-all' }}>
+                      <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all' }}>
                         {newKey}
                       </Typography>
                       <Button
@@ -604,7 +604,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
                           px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
                           borderRadius: 0, textTransform: 'none', boxShadow: 'none',
                           '& .MuiButton-startIcon': { color: '#ffffff', mr: 0.5 },
-                          '&:hover': { bgcolor: keyCopied ? '#10b981' : '#1a3896' },
+                          '&:hover': { bgcolor: keyCopied ? '#10b981' : '#1e293b' },
                         }}
                       >
                         <Box component="span" sx={{ color: '#ffffff' }}>{keyCopied ? 'Copied' : 'Copy'}</Box>
@@ -666,7 +666,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
 
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
                 <Box>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                     Require acknowledgement
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -711,7 +711,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
               bgcolor: colorPalette.primary, color: '#ffffff',
               px: 2.5, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
               borderRadius: 0, textTransform: 'none', boxShadow: 'none',
-              '&:hover': { bgcolor: '#1a3896' },
+              '&:hover': { bgcolor: '#1e293b' },
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
@@ -833,7 +833,7 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
     <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
       <Box sx={{ px: 3, py: 2, display: 'grid', gridTemplateColumns: '1fr 80px 100px 110px 44px 44px', gap: 2, alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {ep.url}
           </Typography>
           {ep.description && (
@@ -868,19 +868,19 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', border: '1px solid #eef0f4', minWidth: 180 } } }}
       >
-        <Box onClick={handleTest} sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#0f172a', '&:hover': { bgcolor: '#f8fafc' } }}>
+        <Box onClick={handleTest} sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' } }}>
           {testing ? 'Sending…' : 'Send test event'}
         </Box>
         <Box
           onClick={() => { setMenuAnchor(null); setSecRulesOpen(true) }}
-          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#0f172a', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7', display: 'flex', alignItems: 'center', gap: 1 }}
+          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7', display: 'flex', alignItems: 'center', gap: 1 }}
         >
           <SecurityOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
           Security rules
         </Box>
         <Box
           onClick={() => openTotp(ep.status === 'active' ? 'pause' : 'resume')}
-          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#0f172a', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7' }}
+          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7' }}
         >
           {ep.status === 'active' ? 'Pause endpoint' : 'Resume endpoint'}
         </Box>
@@ -986,11 +986,20 @@ app.post('/webhooks/openiv', express.raw({ type: 'application/json' }), (req, re
     case 'case.escalated':
       escalateCase(event.data)
       break
-    case 'kyc.failed':
-      handleKycFailure(event.data)
-      break
     case 'sar.filed':
       recordSar(event.data)
+      break
+    case 'kyc.verified':
+      // event.data.customer_id, event.data.bvn_received, event.data.nin_received
+      handleKycVerified(event.data)
+      break
+    case 'kyc.partial':
+      // event.data.customer_id, event.data.bvn_received, event.data.nin_received
+      handleKycPartial(event.data)
+      break
+    case 'kyc.flagged':
+      // event.data.customer_id, event.data.risk_reason, event.data.pep_match
+      handleKycFlagged(event.data)
       break
   }
 
@@ -1021,8 +1030,10 @@ def handle_webhook():
         'tx.blocked':    block_transaction,
         'case.opened':   open_case,
         'case.escalated': escalate_case,
-        'kyc.failed':    handle_kyc_failure,
         'sar.filed':     record_sar,
+        'kyc.verified':  handle_kyc_verified,
+        'kyc.partial':   handle_kyc_partial,
+        'kyc.flagged':   handle_kyc_flagged,
     }
     handler = handlers.get(event['event'])
     if handler:
@@ -1075,8 +1086,12 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
         flagTransaction(event["data"])
     case "case.opened":
         openCase(event["data"])
-    case "kyc.failed":
-        handleKycFailure(event["data"])
+    case "kyc.verified":
+        handleKycVerified(event["data"])
+    case "kyc.partial":
+        handleKycPartial(event["data"])
+    case "kyc.flagged":
+        handleKycFlagged(event["data"])
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -1134,8 +1149,10 @@ public class OpenIVWebhookController {
         switch (event) {
             case "tx.flagged"    -> flagTransaction(payload.get("data"));
             case "case.opened"   -> openCase(payload.get("data"));
-            case "kyc.failed"    -> handleKycFailure(payload.get("data"));
             case "sar.filed"     -> recordSar(payload.get("data"));
+            case "kyc.verified"  -> handleKycVerified(payload.get("data"));
+            case "kyc.partial"   -> handleKycPartial(payload.get("data"));
+            case "kyc.flagged"   -> handleKycFlagged(payload.get("data"));
         }
 
         return ResponseEntity.ok(Map.of("received", true));
@@ -1170,11 +1187,17 @@ switch ($event['event']) {
     case 'case.opened':
         openCase($event['data']);
         break;
-    case 'kyc.failed':
-        handleKycFailure($event['data']);
-        break;
     case 'sar.filed':
         recordSar($event['data']);
+        break;
+    case 'kyc.verified':
+        handleKycVerified($event['data']);
+        break;
+    case 'kyc.partial':
+        handleKycPartial($event['data']);
+        break;
+    case 'kyc.flagged':
+        handleKycFlagged($event['data']);
         break;
 }
 
@@ -1217,8 +1240,10 @@ app.MapPost("/webhooks/openiv", async (HttpContext ctx) =>
     {
         "tx.flagged"  => HandleFlaggedTx(payload),
         "case.opened" => HandleCaseOpened(payload),
-        "kyc.failed"  => HandleKycFailure(payload),
-        _             => Results.Ok(new { received = true }),
+        "kyc.verified" => HandleKycVerified(payload),
+        "kyc.partial"  => HandleKycPartial(payload),
+        "kyc.flagged"  => HandleKycFlagged(payload),
+        _              => Results.Ok(new { received = true }),
     };
 });
 
@@ -1227,7 +1252,7 @@ app.Run();`,
 
 // ── VerifyButton ──────────────────────────────────────────────────────────────
 
-function VerifyButton({ url, type }: { url: string; type: 'notification' | 'kyc' }) {
+function VerifyButton({ url, type }: { url: string; type: 'notification' }) {
   const [state, setState] = useState<'idle' | 'loading' | 'ok' | 'fail'>('idle')
   const [ms, setMs] = useState<number | null>(null)
 
@@ -1281,221 +1306,6 @@ function VerifyButton({ url, type }: { url: string; type: 'notification' | 'kyc'
   )
 }
 
-// ── KycWebhookTab ────────────────────────────────────────────────────────────
-
-function KycWebhookTab({ bounce = false }: { bounce?: boolean }) {
-  const configBoxRef = useRef<HTMLDivElement>(null)
-  const [kycUrl, setKycUrl] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [timeout, setTimeout_] = useState(10)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const [totpOpen, setTotpOpen] = useState(false)
-
-  useEffect(() => {
-    kycApi.getConfig()
-      .then(r => {
-        setKycUrl(r.config?.lookupUrl ?? '')
-        setTimeout_(r.config?.lookupTimeout ?? 10)
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (!bounce || !configBoxRef.current) return
-    const el = configBoxRef.current
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [bounce])
-
-  const isFormValid = kycUrl && kycUrl.trim().length > 0
-
-  const handleSaveClick = () => {
-    if (!isFormValid) return
-    setTotpOpen(true)
-  }
-
-  const handleSaveWithTotp = async () => {
-    setSaving(true)
-    setSaveMsg(null)
-    try {
-      await kycApi.saveConfig({
-        lookupUrl: kycUrl || null,
-        lookupApiKey: apiKey || null,
-        lookupTimeout: timeout,
-      })
-      setSaveMsg({ ok: true, text: 'KYC webhook configuration saved' })
-      setTimeout(() => setSaveMsg(null), 2500)
-    } catch (e: any) {
-      setSaveMsg({ ok: false, text: e?.detail ?? e?.message ?? 'Failed to save' })
-    } finally {
-      setSaving(false)
-      setTotpOpen(false)
-    }
-  }
-
-  return (
-    <Box sx={{ p: 3 }}>
-      <Stack gap={3}>
-        {/* Explainer box */}
-        <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', p: 2.5 }}>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#16a34a', mb: 0.5 }}>
-            Connect your customer database
-          </Typography>
-          <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6 }}>
-            OpenIV queries your customer database when a transaction is flagged. If the customer is found and verified in your system, the case proceeds normally. If not found, the case is automatically escalated to HIGH priority for immediate investigation.
-          </Typography>
-          <Typography sx={{ fontSize: '0.8125rem', color: '#65a30d', lineHeight: 1.6, mt: 1 }}>
-            <strong>Request format:</strong> OpenIV sends a GET request to your endpoint with the customer reference ID in the path, plus optional Bearer token authentication.
-          </Typography>
-        </Box>
-
-        {/* Config form */}
-        <Box
-          ref={configBoxRef}
-          sx={{
-            bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3,
-            ...(bounce && {
-              animation: 'kycBounce 0.6s ease 0.3s 3',
-              '@keyframes kycBounce': {
-                '0%,100%': { transform: 'translateY(0)', boxShadow: 'none' },
-                '30%': { transform: 'translateY(-6px)', boxShadow: '0 8px 24px rgba(79,70,229,0.18)' },
-                '60%': { transform: 'translateY(-3px)', boxShadow: '0 4px 12px rgba(79,70,229,0.12)' },
-              },
-            }),
-          }}
-        >
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>
-            Customer Database Configuration
-          </Typography>
-
-          <Stack gap={2.5}>
-            {/* URL field */}
-            <Box>
-              <Typography sx={labelSx}>Database Endpoint URL</Typography>
-              <TextField fullWidth
-                placeholder="https://your-bank.com/api/customers/verify"
-                value={kycUrl}
-                onChange={e => setKycUrl(e.target.value)}
-                disabled={loading || saving}
-                sx={inputSx}
-              />
-              <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
-                OpenIV will append the customer reference ID to this URL: GET {'{url}/{customerRef}'}
-              </Typography>
-              {kycUrl && <VerifyButton url={kycUrl} type="kyc" />}
-            </Box>
-
-            {/* API Key field */}
-            <Box>
-              <Typography sx={labelSx}>
-                API Key <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>(optional)</Typography>
-              </Typography>
-              <TextField fullWidth
-                type="password"
-                placeholder="Bearer token for KYC provider authentication"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                disabled={loading || saving}
-                sx={inputSx}
-              />
-            </Box>
-
-            {/* Timeout field */}
-            <Box>
-              <Typography sx={labelSx}>Lookup Timeout</Typography>
-              <TextField
-                select
-                value={timeout}
-                onChange={e => setTimeout_(Number(e.target.value))}
-                disabled={loading || saving}
-                sx={selectSx}
-              >
-                {[5, 10, 15, 20, 30].map(v => (
-                  <MenuItem key={v} value={v}>{v}s</MenuItem>
-                ))}
-              </TextField>
-            </Box>
-
-            {/* Save message */}
-            {saveMsg && (
-              <Box sx={{ px: 2, py: 1.5, bgcolor: saveMsg.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${saveMsg.ok ? '#bbf7d0' : '#fecaca'}` }}>
-                <Typography sx={{ fontSize: '0.75rem', color: saveMsg.ok ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
-                  {saveMsg.text}
-                </Typography>
-              </Box>
-            )}
-
-            {/* Save button */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                onClick={handleSaveClick}
-                disabled={!isFormValid || saving || loading}
-                startIcon={saving && <CircularProgress size={16} sx={{ color: '#ffffff' }} />}
-                sx={{
-                  bgcolor: colorPalette.primary, color: '#ffffff',
-                  px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-                  borderRadius: 0, textTransform: 'none', boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1a3896' },
-                  '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
-                }}
-              >
-                Save Configuration
-              </Button>
-            </Box>
-          </Stack>
-        </Box>
-
-        {/* TOTP Confirmation */}
-        <TOTPConfirmation
-          open={totpOpen}
-          onClose={() => setTotpOpen(false)}
-          onConfirm={handleSaveWithTotp}
-          operation="update"
-          title="Confirm KYC Configuration"
-          description="Saving KYC webhook configuration requires identity verification. Enter your TOTP code to proceed."
-          resourceType="KYC Data Source"
-          resourceName={kycUrl || 'Not configured'}
-        />
-
-        {/* Sample payloads */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 2 }}>
-            Sample Request & Response
-          </Typography>
-
-          <Stack gap={2.5}>
-            {/* Request */}
-            <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
-                REQUEST FORMAT
-              </Typography>
-              <CodeBlock highlight content={`GET https://your-bank.com/api/customers/verify/CUST-12345
-Authorization: Bearer sk_test_...`} copyLabel="Copy request" />
-            </Box>
-
-            {/* Response */}
-            <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
-                EXPECTED RESPONSE
-              </Typography>
-              <CodeBlock highlight content={`{
-  "tier": 2,
-  "status": "active",
-  "name": "John Doe",
-  "bvn": "22*********",
-  "idType": "NIN",
-  "verifiedAt": "2024-09-14T08:22:00Z"
-}`} copyLabel="Copy response" />
-            </Box>
-          </Stack>
-        </Box>
-      </Stack>
-    </Box>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
@@ -1513,23 +1323,7 @@ export default function WebhooksPage() {
   const [submitting, setSubmitting] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
-  const location = useLocation()
   const [tabValue, setTabValue] = useState(0)
-  const [kycConfigured, setKycConfigured] = useState(true) // optimistic — flip after load
-  const [kycBounce, setKycBounce] = useState(false)
-
-  useEffect(() => {
-    if ((location.state as any)?.openKycTab) {
-      setTabValue(1)
-      setKycBounce(true)
-    }
-  }, [location.state])
-
-  useEffect(() => {
-    kycApi.getConfig()
-      .then(r => setKycConfigured(!!(r.config?.lookupUrl)))
-      .catch(() => {})
-  }, [])
 
   // ── Loaders ─────────────────────────────────────────────────────────────────
 
@@ -1602,7 +1396,7 @@ export default function WebhooksPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Configure
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Webhooks
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -1626,32 +1420,6 @@ export default function WebhooksPage() {
           }}
         >
           <Tab label="Notification Webhooks" />
-          <Tab
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                Customer Database
-                {!kycConfigured && (
-                  <Box
-                    component="span"
-                    sx={{
-                      width: 7, height: 7,
-                      borderRadius: '50%',
-                      bgcolor: '#dc2626',
-                      flexShrink: 0,
-                      display: 'inline-block',
-                      mb: 0.75,
-                      boxShadow: '0 0 0 2px #fff',
-                      animation: 'kycPulse 2s ease-in-out infinite',
-                      '@keyframes kycPulse': {
-                        '0%,100%': { opacity: 1, transform: 'scale(1)' },
-                        '50%': { opacity: 0.55, transform: 'scale(0.8)' },
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            }
-          />
         </Tabs>
 
         {/* Tab 0: Notification Webhooks ────────────────────────────────────── */}
@@ -1661,7 +1429,7 @@ export default function WebhooksPage() {
               {/* New endpoint form */}
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
                 <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     Add new endpoint
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1714,7 +1482,7 @@ export default function WebhooksPage() {
                                 {checked && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
                               </Box>
                               <Box sx={{ flex: 1 }}>
-                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                                   {e.label}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{e.desc}</Typography>
@@ -1742,7 +1510,7 @@ export default function WebhooksPage() {
                           px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
                           borderRadius: 0, textTransform: 'none', boxShadow: 'none',
                           '& .MuiButton-startIcon': { color: '#ffffff' },
-                          '&:hover': { bgcolor: '#1a3896' },
+                          '&:hover': { bgcolor: '#1e293b' },
                           '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
                         }}
                       >
@@ -1756,7 +1524,7 @@ export default function WebhooksPage() {
               {/* Endpoint list */}
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
                 <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                     {epLoading ? 'Endpoints' : `Endpoints (${endpoints.length})`}
                   </Typography>
                 </Box>
@@ -1786,14 +1554,14 @@ export default function WebhooksPage() {
             {/* Right sidebar */}
             <Stack gap={3}>
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
                   Signing Secret
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
                   Use this secret to verify the HMAC-SHA256 signature on every webhook delivery.
                 </Typography>
 
-                <Box sx={{ bgcolor: '#0f172a', color: '#e2e8f0', p: 1.75, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', wordBreak: 'break-all', mb: 1.25 }}>
+                <Box sx={{ bgcolor: '#00288e', color: '#e2e8f0', p: 1.75, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', wordBreak: 'break-all', mb: 1.25 }}>
                   {secretLoading
                     ? <Skeleton variant="text" sx={{ bgcolor: '#1e293b' }} />
                     : showSecret
@@ -1831,7 +1599,7 @@ export default function WebhooksPage() {
                       fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
                       borderRadius: 0, textTransform: 'none', boxShadow: 'none',
                       '& .MuiButton-startIcon': { color: '#ffffff' },
-                      '&:hover': { bgcolor: copied ? '#10b981' : '#1a3896' },
+                      '&:hover': { bgcolor: copied ? '#10b981' : '#1e293b' },
                       '&:disabled': { bgcolor: '#e2e8f0' },
                     }}
                   >
@@ -1887,14 +1655,14 @@ export default function WebhooksPage() {
               </Box>
 
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
                   Verify a payload
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
                   Sample Node.js verification snippet
                 </Typography>
                 <Box sx={{
-                  bgcolor: '#0f172a', color: '#e2e8f0',
+                  bgcolor: '#00288e', color: '#e2e8f0',
                   p: 1.75, fontFamily: 'SF Mono, Monaco, monospace',
                   fontSize: '0.6875rem', lineHeight: 1.6,
                   overflowX: 'auto', whiteSpace: 'pre',
@@ -1912,8 +1680,6 @@ if (sig !== hash) return res.sendStatus(401)`}
           </Box>
         )}
 
-        {/* Tab 1: KYC Data Source ──────────────────────────────────────────── */}
-        {tabValue === 1 && <KycWebhookTab bounce={kycBounce} />}
 
       </Box>
 

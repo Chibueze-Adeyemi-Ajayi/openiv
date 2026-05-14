@@ -188,7 +188,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
             <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
               {mode === 'create' ? 'Create custom role' : 'Edit role'}
             </Typography>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mt: 0.125 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
               {mode === 'create' ? 'Define a new role' : `${initial?.name}`}
             </Typography>
           </Box>
@@ -219,7 +219,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                     '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                   },
-                  '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '12px', color: '#0f172a' },
+                  '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '12px', color: '#00288e' },
                 }}
               />
             </Box>
@@ -246,7 +246,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                     '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                   },
-                  '& textarea': { fontSize: '0.875rem', fontFamily: 'Jost', color: '#0f172a' },
+                  '& textarea': { fontSize: '0.875rem', fontFamily: 'Jost', color: '#00288e' },
                 }}
               />
             </Box>
@@ -268,7 +268,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                       bgcolor: c,
                       cursor: 'pointer',
                       border: '2px solid',
-                      borderColor: color === c ? '#0f172a' : 'transparent',
+                      borderColor: color === c ? '#00288e' : 'transparent',
                       boxShadow: color === c ? `0 0 0 2px #ffffff inset` : 'none',
                       transition: 'all 0.15s',
                       '&:hover': { transform: 'scale(1.1)' },
@@ -332,7 +332,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                             {granted && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
                           </Box>
                           <Box sx={{ flex: 1 }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                               {a.label}
                             </Typography>
                             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.125 }}>
@@ -387,7 +387,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                 borderRadius: 0,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover:not(:disabled)': { bgcolor: '#1a3896' },
+                '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
                 '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >

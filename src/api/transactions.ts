@@ -103,6 +103,9 @@ export const transactionApi = {
       body: { transactions: rows },
     }),
 
+  get: (id: string) =>
+    apiRequest<Transaction>(`/api/v1/transactions/${id}`),
+
   markSeen: (id: string) =>
     apiRequest<{ ok: boolean }>(`/api/v1/transactions/${id}/seen`, { method: 'PATCH' }),
 

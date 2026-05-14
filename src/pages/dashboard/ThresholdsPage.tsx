@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { isBuildOne } from '@/utils/build'
 import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogActions, Grid, Tabs, Tab } from '@mui/material'
 import { colorPalette } from '@/theme'
-// import { colorPalette } from '@/theme'
+import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { thresholdApi, type ThresholdRule, type ThresholdMetrics, type KycTierRecord } from '@/api/thresholds'
 import { behavioralRuleApi, type BehavioralRule } from '@/api/behavioralRules'
@@ -14,11 +14,7 @@ import SmartphoneOutlinedIcon from '@mui/icons-material/SmartphoneOutlined'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import { kycApi, type KycConfig } from '@/api/kyc'
 import { amlApi, type AmlSettings } from '@/api/aml'
 import RiskSeekbar from '@/components/dashboard/RiskSeekbar'
 
@@ -170,7 +166,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
         <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
           Detection Rule
         </Typography>
-        <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
           {lang?.friendlyName ?? rule.name}
         </Typography>
         <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6 }}>
@@ -362,8 +358,6 @@ const plainEnglishDescriptions: Record<string, {
 }
 
 export default function ThresholdsPage() {
-  const navigate = useNavigate()
-
   // Thresholds state
   const [rules, setRules] = useState<ThresholdRule[]>([])
   const [loading, setLoading] = useState(true)
@@ -389,10 +383,7 @@ export default function ThresholdsPage() {
   const [behDrafts, setBehDrafts] = useState<Record<number, Record<string, any>>>({})
   const [behPendingSave, setBehPendingSave] = useState<{ rule: BehavioralRule; newParams?: Record<string, any>, newActive?: boolean } | null>(null)
 
-  const [kycConfig, setKycConfig] = useState<KycConfig | null>(null)
-  const [kycSuppressed, setKycSuppressed] = useState(false)
   const [kycTiers, setKycTiers] = useState<KycTierRecord[]>([])
-  const [suppressConfirmOpen, setSuppressConfirmOpen] = useState(false)
 
   const kycRef = useRef<HTMLDivElement>(null)
 
@@ -400,20 +391,16 @@ export default function ThresholdsPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [r, m, p, k, s, t, a] = await Promise.all([
+      const [r, m, p, t, a] = await Promise.all([
         thresholdApi.list(),
         thresholdApi.metrics(),
         behavioralRuleApi.list(),
-        kycApi.getConfig(),
-        thresholdApi.getKycStatus(),
         thresholdApi.listKycTiers(),
         amlApi.getSettings(),
       ])
       setRules(r.rules)
       setMetrics(m)
       setBehRules(p.rules)
-      setKycConfig(k.config)
-      setKycSuppressed(s.suppressed)
       setKycTiers(t.tiers)
       setAmlSettings(a.settings)
     } catch (err) {
@@ -441,16 +428,6 @@ export default function ThresholdsPage() {
     } finally { setSaving(false); setPendingSave(null) }
   }, [pendingSave, saving, loadData])
 
-  const handleSuppressKyc = async () => {
-    try {
-      await thresholdApi.suppressKyc()
-      setKycSuppressed(true)
-      setSuppressConfirmOpen(false)
-    } catch (e) {
-      console.error('Skip failed', e)
-    }
-  }
-
   const handleUpdateTierRule = async (tier: number, field: string, value: number) => {
     try {
       await thresholdApi.updateKycTier(tier, field, value)
@@ -460,7 +437,7 @@ export default function ThresholdsPage() {
     }
   }
 
-  const hasKycWarning = kycConfig && !kycConfig.lookupUrl && !kycSuppressed
+
 
   const handleToggleConfirm = useCallback(async () => {
     if (!pendingToggle || saving) return
@@ -576,102 +553,13 @@ export default function ThresholdsPage() {
 
   return (
     <Box sx={{ p: 4 }}>
-      {/* KYC Skipped Banner — shown after user clicks "Skip for now" */}
-      {kycSuppressed && (
-        <Box
-          sx={{
-            mb: 4, p: 2.5,
-            bgcolor: '#f8fafc', border: '1px solid #cbd5e1',
-            display: 'flex', alignItems: 'flex-start', gap: 2,
-          }}
-        >
-          <Box sx={{ p: 1, bgcolor: '#fff', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#64748b', display: 'flex' }}>
-            <InfoOutlinedIcon sx={{ fontSize: '1.25rem' }} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#334155', fontFamily: 'Jost', mb: 0.5 }}>
-              System not connected to your customer KYC database
-            </Typography>
-            <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', lineHeight: 1.5, mb: 1.5, maxWidth: 700 }}>
-              Your KYC lookup is currently unconfigured. Transaction scoring accuracy is reduced and automated identity verification is disabled.
-              Connect your KYC database now to enhance your security posture and meet CBN compliance requirements.
-            </Typography>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => navigate('/dashboard/webhooks', { state: { openKycTab: true } })}
-              sx={{
-                bgcolor: colorPalette.primary, color: '#fff',
-                borderRadius: 0, textTransform: 'none',
-                fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 700,
-                px: 2, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1a3896', boxShadow: 'none' },
-              }}
-            >
-              Configure Now
-            </Button>
-          </Box>
-        </Box>
-      )}
-
-      {/* KYC Warning Banner */}
-      {hasKycWarning && (
-        <Box
-          sx={{
-            mb: 4, p: 2.5,
-            bgcolor: '#fffbeb', border: '1px solid #fde68a',
-            display: 'flex', alignItems: 'flex-start', gap: 2,
-          }}
-        >
-          <Box sx={{ p: 1, bgcolor: '#fff', borderRadius: '4px', border: '1px solid #fde68a', color: '#f59e0b', display: 'flex' }}>
-            <WarningAmberRoundedIcon sx={{ fontSize: '1.25rem' }} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#92400e', fontFamily: 'Jost', mb: 0.5 }}>
-              KYC Webhook Not Configured
-            </Typography>
-            <Typography sx={{ fontSize: '0.8125rem', color: '#b45309', lineHeight: 1.5, mb: 1.5, maxWidth: 700 }}>
-              You haven't set a KYC lookup URL. Without this, the system cannot automatically verify customer data for fraud investigations.
-              Scoring accuracy will be reduced for new transactions.
-            </Typography>
-            <Stack direction="row" gap={2}>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => navigate('/dashboard/webhooks', { state: { openKycTab: true } })}
-                sx={{
-                  bgcolor: '#f59e0b', color: '#fff',
-                  borderRadius: 0, textTransform: 'none',
-                  fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 700,
-                  px: 2, boxShadow: 'none',
-                  '&:hover': { bgcolor: '#d97706', boxShadow: 'none' },
-                }}
-              >
-                Configure Webhook
-              </Button>
-              <Button
-                size="small"
-                onClick={() => setSuppressConfirmOpen(true)}
-                sx={{
-                  color: '#b45309', textTransform: 'none',
-                  fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
-                  '&:hover': { bgcolor: '#fef3c7' },
-                }}
-              >
-                Skip for now
-              </Button>
-            </Stack>
-          </Box>
-        </Box>
-      )}
-
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
         {/* Page header */}
         <Box sx={{ mb: 4 }}>
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Configure
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Detection Thresholds
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -696,7 +584,7 @@ export default function ThresholdsPage() {
         }}
       >
         <Tab label="Transaction Rules" />
-        <Tab label="Behavioural Pattern Rules" />
+        {!isBuildOne && <Tab label="Behavioural Pattern Rules" />}
         <Tab label="Risk Score Configuration" />
       </Tabs>
 
@@ -721,7 +609,7 @@ export default function ThresholdsPage() {
                 {metricsLoading ? (
                   <Box sx={{ height: 28, width: 56, bgcolor: '#f1f5f9', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 ) : (
-                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.1 }}>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.1 }}>
                     {s.value ?? '—'}
                   </Typography>
                 )}
@@ -734,7 +622,7 @@ export default function ThresholdsPage() {
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Transaction Detection Rules
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -774,7 +662,7 @@ export default function ThresholdsPage() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.25 }}>
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.625 }}>
-                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                           {lang?.friendlyName ?? rule.name}
                         </Typography>
                         <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${tagColor}10`, borderRadius: 0 }}>
@@ -817,7 +705,7 @@ export default function ThresholdsPage() {
                       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                         Threshold
                       </Typography>
-                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
                         {fmtThreshold(rule, displayValue)}
                       </Typography>
                     </Box>
@@ -885,13 +773,14 @@ export default function ThresholdsPage() {
           </>
           )}
 
-          {activeTab === 1 && (
-          <>
+          {(activeTab === 1 && !isBuildOne) && (
+          <Box sx={{ position: 'relative' }}>
+          <ComingSoonOverlay title="Behavioral Pattern Rules" />
           {/* Behavioral Pattern Rules Config Card */}
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
             <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Behavioral Pattern Rules
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -935,7 +824,7 @@ export default function ThresholdsPage() {
                         </Box>
                         <Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
-                            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                               {p.name}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -1051,13 +940,13 @@ export default function ThresholdsPage() {
               })}
             </Stack>
           </Box>
-          </>
+          </Box>
           )}
 
-          {activeTab === 2 && (
+          {((activeTab === 1 && isBuildOne) || (activeTab === 2 && !isBuildOne)) && (
             <Box sx={{ maxWidth: 800, mx: 'auto', mt: 3 }}>
               <Box sx={{ mb: 5 }}>
-                <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>
+                <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
                   Global Risk Score Thresholds
                 </Typography>
                 <Typography sx={{ fontSize: '0.9375rem', color: '#475569', lineHeight: 1.6 }}>
@@ -1072,7 +961,7 @@ export default function ThresholdsPage() {
                   
                   {/* Transaction Scoring Thresholds */}
                   <Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
                       Transaction Scoring
                     </Typography>
                     <Stack gap={3}>
@@ -1131,65 +1020,67 @@ export default function ThresholdsPage() {
                   </Box>
 
                   {/* Behavioral Scoring Thresholds */}
-                  <Box sx={{ mt: 2 }}>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
-                      Behavioral Analysis Scoring
-                    </Typography>
-                    <Stack gap={3}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
-                        Behavioral pattern scores are generated by the topology engine. Set zone boundaries to control when a pattern match triggers a review flag or opens an investigation case.
+                  {!isBuildOne && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                        Behavioral Analysis Scoring
                       </Typography>
-                      <RiskSeekbar
-                        values={[
-                          amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45,
-                          amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85,
-                        ]}
-                        zoneLabels={['Normal', 'Suspicious', 'Case']}
-                        onChange={([v0, v1]) =>
-                          setAmlDrafts(prev => ({
-                            ...prev,
-                            behRiskScoreNormalThreshold: v0,
-                            behRiskScoreFlagThreshold: v0,
-                            behRiskScoreCaseThreshold: v1,
-                          }))
-                        }
-                      />
-                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
-                        {[
-                          {
-                            label: 'Normal',
-                            range: `0 – ${(amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45) - 1}`,
-                            note: 'Pattern within expected bounds.',
-                            bg: '#f0fdf4', border: '#bbf7d0', title: '#15803d', sub: '#166534',
-                          },
-                          {
-                            label: 'Suspicious',
-                            range: `${amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45} – ${(amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85) - 1}`,
-                            note: 'Anomalous pattern flagged for review.',
-                            bg: '#fffbeb', border: '#fde68a', title: '#d97706', sub: '#92400e',
-                          },
-                          {
-                            label: 'Case',
-                            range: `${amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85} – 100`,
-                            note: 'Severe anomaly — case auto-opened.',
-                            bg: '#fff1f2', border: '#fecdd3', title: '#b91c1c', sub: '#7f1d1d',
-                          },
-                        ].map(({ label, range, note, bg, border, title, sub }) => (
-                          <Box key={label} sx={{ p: 2, bgcolor: bg, borderRadius: 0, border: `1px solid ${border}` }}>
-                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: title, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
-                              {label}
-                            </Typography>
-                            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: title, fontFamily: 'SF Mono, Monaco, monospace', mb: 0.25 }}>
-                              {range}
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.75rem', color: sub, lineHeight: 1.45 }}>
-                              {note}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Stack>
-                  </Box>
+                      <Stack gap={3}>
+                        <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
+                          Behavioral pattern scores are generated by the topology engine. Set zone boundaries to control when a pattern match triggers a review flag or opens an investigation case.
+                        </Typography>
+                        <RiskSeekbar
+                          values={[
+                            amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45,
+                            amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85,
+                          ]}
+                          zoneLabels={['Normal', 'Suspicious', 'Case']}
+                          onChange={([v0, v1]) =>
+                            setAmlDrafts(prev => ({
+                              ...prev,
+                              behRiskScoreNormalThreshold: v0,
+                              behRiskScoreFlagThreshold: v0,
+                              behRiskScoreCaseThreshold: v1,
+                            }))
+                          }
+                        />
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
+                          {[
+                            {
+                              label: 'Normal',
+                              range: `0 – ${(amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45) - 1}`,
+                              note: 'Pattern within expected bounds.',
+                              bg: '#f0fdf4', border: '#bbf7d0', title: '#15803d', sub: '#166534',
+                            },
+                            {
+                              label: 'Suspicious',
+                              range: `${amlDrafts.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45} – ${(amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85) - 1}`,
+                              note: 'Anomalous pattern flagged for review.',
+                              bg: '#fffbeb', border: '#fde68a', title: '#d97706', sub: '#92400e',
+                            },
+                            {
+                              label: 'Case',
+                              range: `${amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85} – 100`,
+                              note: 'Severe anomaly — case auto-opened.',
+                              bg: '#fff1f2', border: '#fecdd3', title: '#b91c1c', sub: '#7f1d1d',
+                            },
+                          ].map(({ label, range, note, bg, border, title, sub }) => (
+                            <Box key={label} sx={{ p: 2, bgcolor: bg, borderRadius: 0, border: `1px solid ${border}` }}>
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: title, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+                                {label}
+                              </Typography>
+                              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: title, fontFamily: 'SF Mono, Monaco, monospace', mb: 0.25 }}>
+                                {range}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', color: sub, lineHeight: 1.45 }}>
+                                {note}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Stack>
+                    </Box>
+                  )}
 
                   {(Object.keys(amlDrafts).length > 0) && (
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 4, mt: 2, borderTop: '1px solid #eef0f4' }}>
@@ -1199,7 +1090,7 @@ export default function ThresholdsPage() {
                       <Button
                         variant="contained"
                         onClick={() => setAmlPendingSave(amlDrafts)}
-                        sx={{ textTransform: 'none', bgcolor: '#0f172a', color: '#ffffff', fontSize: '0.9375rem', fontWeight: 600, px: 4, py: 1, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}
+                        sx={{ textTransform: 'none', bgcolor: '#00288e', color: '#ffffff', fontSize: '0.9375rem', fontWeight: 600, px: 4, py: 1, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}
                       >
                         Apply Thresholds
                       </Button>
@@ -1222,7 +1113,7 @@ export default function ThresholdsPage() {
                 <AutoAwesomeOutlinedIcon sx={{ color: '#ffffff', fontSize: '1rem' }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                   Eureka Assist
                 </Typography>
                 <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
@@ -1268,7 +1159,7 @@ export default function ThresholdsPage() {
                   placeholder="e.g. We process B2B salary disbursements at month-end with average ticket size of ₦25M..."
                   variant="standard"
                   InputProps={{ disableUnderline: true }}
-                  sx={{ '& textarea': { fontSize: '0.8125rem', fontFamily: 'Jost', color: '#0f172a', lineHeight: 1.5 } }}
+                  sx={{ '& textarea': { fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', lineHeight: 1.5 } }}
                 />
               </Box>
 
@@ -1296,58 +1187,17 @@ export default function ThresholdsPage() {
       <Box ref={kycRef} sx={{ mt: 8, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
           <VerifiedOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.5rem' }} />
-          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost' }}>
             KYC Tier-Based Limits
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mb: !kycConfig?.lookupUrl ? 2 : 4 }}>
+        <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mb: 4 }}>
           Define different transaction thresholds based on your customer's verification level.
         </Typography>
 
-        {/* Notice — shown when KYC lookup webhook is not configured */}
-        {!kycConfig?.lookupUrl && (
-          <Box sx={{
-            mb: 3,
-            display: 'flex', alignItems: 'flex-start', gap: 1.5,
-            p: 2, bgcolor: '#fffbeb', border: '1px solid #fde68a',
-          }}>
-            <LockOutlinedIcon sx={{ fontSize: '1.125rem', color: '#d97706', mt: 0.125, flexShrink: 0 }} />
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#92400e', fontFamily: 'Jost', mb: 0.375 }}>
-                KYC webhook not configured
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#78350f', lineHeight: 1.6, mb: 1 }}>
-                These limits are inactive because OpenIV has no way to look up a customer's KYC tier at transaction time.
-                Set up a KYC lookup URL under <strong>KYC → Integration</strong> so the risk engine knows which tier applies
-                to each customer before enforcing these limits.
-              </Typography>
-              <Box
-                component="span"
-                onClick={() => navigate('/dashboard/webhooks', { state: { openKycTab: true } })}
-                sx={{
-                  display: 'inline-flex', alignItems: 'center', gap: 0.5,
-                  fontSize: '0.75rem', fontWeight: 700, color: '#d97706',
-                  cursor: 'pointer', textDecoration: 'underline',
-                  '&:hover': { color: '#92400e' },
-                }}
-              >
-                Go to KYC Integration →
-              </Box>
-            </Box>
-          </Box>
-        )}
-
-        {/* Tier cards — visually disabled until KYC webhook is set */}
+        {/* Tier cards */}
         <Box sx={{ position: 'relative' }}>
-          {!kycConfig?.lookupUrl && (
-            <Box sx={{
-              position: 'absolute', inset: 0, zIndex: 2,
-              bgcolor: 'rgba(255,255,255,0.55)',
-              cursor: 'not-allowed',
-              backdropFilter: 'grayscale(0.4)',
-            }} />
-          )}
-          <Box sx={{ opacity: !kycConfig?.lookupUrl ? 0.45 : 1, pointerEvents: !kycConfig?.lookupUrl ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+          <Box>
         <Grid container spacing={3}>
           {kycTiers.map((tier) => (
             <Grid key={tier.kycTier} size={{ xs: 12, md: 6 }}>
@@ -1357,7 +1207,7 @@ export default function ThresholdsPage() {
                     <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                       Tier {tier.kycTier}
                     </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                       {tier.kycTier === 0 ? 'Unverified' : tier.kycTier === 1 ? 'Basic' : tier.kycTier === 2 ? 'Intermediate' : 'Full KYC'}
                     </Typography>
                   </Box>
@@ -1393,7 +1243,7 @@ export default function ThresholdsPage() {
                           flex: 1, border: 'none', outline: 'none',
                           px: 1.25, py: 1,
                           fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace',
-                          color: '#0f172a', bgcolor: 'transparent',
+                          color: '#00288e', bgcolor: 'transparent',
                           '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
                         }}
                       />
@@ -1423,7 +1273,7 @@ export default function ThresholdsPage() {
                           flex: 1, border: 'none', outline: 'none',
                           px: 1.25, py: 1,
                           fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace',
-                          color: '#0f172a', bgcolor: 'transparent',
+                          color: '#00288e', bgcolor: 'transparent',
                           '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
                         }}
                       />
@@ -1455,34 +1305,6 @@ export default function ThresholdsPage() {
 
       </Box>
       )}
-
-      {/* Suppression TOTP Confirmation */}
-      <TOTPConfirmation
-        open={suppressConfirmOpen}
-        onClose={() => setSuppressConfirmOpen(false)}
-        onConfirm={handleSuppressKyc}
-        operation="update"
-        title="Suppress KYC Warning"
-        description={
-          <Stack gap={1.5}>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6 }}>
-              You are about to suppress the KYC webhook warning.
-            </Typography>
-            <Box sx={{ p: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <LockOutlinedIcon sx={{ fontSize: '1rem' }} /> IMPLICATION
-              </Typography>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#991b1b', lineHeight: 1.5 }}>
-                By suppressing this, the system will <strong>permanently stop</strong> attempting to retrieve KYC data for beamed transactions.
-                This may leave your institution exposed to higher risk as automatic identity verification will be disabled.
-              </Typography>
-            </Box>
-            <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
-              To proceed, please enter your 2FA token.
-            </Typography>
-          </Stack>
-        }
-      />
 
       {/* TOTP — save threshold value */}
       <TOTPConfirmation

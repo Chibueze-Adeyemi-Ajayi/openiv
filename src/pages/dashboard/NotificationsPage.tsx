@@ -194,7 +194,7 @@ function NotifRow({
             sx={{
               fontSize: '0.875rem',
               fontWeight: unread ? 700 : 600,
-              color: '#0f172a',
+              color: '#00288e',
               fontFamily: 'Jost',
               lineHeight: 1.4,
             }}
@@ -277,7 +277,7 @@ function NotifDetailDrawer({
               bgcolor: '#fafbfc',
             }}
           >
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               Notification detail
             </Typography>
             <Box
@@ -287,7 +287,7 @@ function NotifDetailDrawer({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', color: '#64748b', borderRadius: '4px',
                 transition: 'all 0.15s',
-                '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' },
+                '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' },
               }}
             >
               <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
@@ -347,7 +347,7 @@ function NotifDetailDrawer({
           <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
             <Typography
               sx={{
-                fontSize: '1rem', fontWeight: 700, color: '#0f172a',
+                fontSize: '1rem', fontWeight: 700, color: '#00288e',
                 fontFamily: 'Jost', lineHeight: 1.45, mb: 2,
               }}
             >
@@ -382,7 +382,7 @@ function NotifDetailDrawer({
                   borderRadius: 0, textTransform: 'none',
                   fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
                   px: 2, boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1a3896', boxShadow: 'none' },
+                  '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
                 }}
               >
                 Mark as read
@@ -569,7 +569,7 @@ export default function NotificationsPage() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
-            <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost', mb: 0.25 }}>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
               Notifications
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
