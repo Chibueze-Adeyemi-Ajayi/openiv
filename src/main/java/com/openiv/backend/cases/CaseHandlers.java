@@ -47,8 +47,11 @@ public final class CaseHandlers {
       String range    = first(ctx, "range");
       Integer minRisk = intParamOrNull(ctx, "minRisk");
       Integer maxRisk = intParamOrNull(ctx, "maxRisk");
+      Boolean assignedToMe   = "true".equals(first(ctx, "assignedToMe")) ? Boolean.TRUE : null;
+      Long    assignedToUser = longParamOrNull(ctx, "assignedToUser");
 
-      service.list(session, status, priority, q, page, pageSize, sort, range, minRisk, maxRisk)
+      service.list(session, status, priority, q, page, pageSize, sort, range, minRisk, maxRisk,
+              assignedToMe, assignedToUser)
           .onSuccess(result -> {
             var arr = new JsonArray();
             result.cases().forEach(c -> arr.add(caseJson(c)));
@@ -58,6 +61,21 @@ public final class CaseHandlers {
                 .put("page",     result.page())
                 .put("pageSize", result.pageSize()));
           })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /cases/:id/assign
+  public Handler<RoutingContext> assignCase() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      Long toUserId = body.getLong("toUserId"); // null = assign to self
+      service.assignCase(session, caseId, toUserId)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
           .onFailure(ctx::fail);
     };
   }
@@ -109,11 +127,13 @@ public final class CaseHandlers {
       String transactionId = body.getString("transactionId");
       String reason        = body.getString("reason");
       Long   documentId    = body.getLong("documentId");
+      String customerId    = body.getString("customerId");
+      String customerName  = body.getString("customerName");
       if (reason == null || reason.isBlank()) { badRequest(ctx, "reason is required");     return; }
       if (documentId == null)                 { badRequest(ctx, "documentId is required"); return; }
 
       service.create(session, title, typology, priority, riskScore, assignedTo, notes,
-          transactionId, reason, documentId)
+          transactionId, reason, documentId, customerId, customerName)
           .onSuccess(cas -> {
             ok(ctx, new JsonObject().put("case", caseJson(cas)));
             billing.chargeCaseOpenAsync(session);
@@ -196,16 +216,20 @@ public final class CaseHandlers {
       String reason     = body.getString("reason");
       Long   documentId = body.getLong("documentId");
 
-      if (newStatus == null || !Set.of("open","investigating","escalated","closed").contains(newStatus)) {
+      if (newStatus == null || !Set.of("open","investigating","escalated","pending_review","closed").contains(newStatus)) {
         badRequest(ctx, "invalid status value"); return;
       }
       if ("closed".equals(newStatus) && (resolution == null || resolution.isBlank())) {
         badRequest(ctx, "resolution required when closing a case"); return;
       }
-      if (reason == null || reason.isBlank()) { badRequest(ctx, "reason is required");     return; }
-      if (documentId == null)                 { badRequest(ctx, "documentId is required"); return; }
+      // reason is optional for the investigating transition (acknowledgment flow)
+      String effectiveReason = (reason != null && !reason.isBlank())
+          ? reason : "Investigation initiated";
+      if (!("investigating".equals(newStatus)) && (reason == null || reason.isBlank())) {
+        badRequest(ctx, "reason is required"); return;
+      }
 
-      service.updateStatus(session, id, newStatus, resolution, reason, documentId)
+      service.updateStatus(session, id, newStatus, resolution, effectiveReason, documentId)
           .onSuccess(updated -> {
             if (!updated) { ctx.fail(404); return; }
             ok(ctx, new JsonObject().put("ok", true));
@@ -248,6 +272,23 @@ public final class CaseHandlers {
     };
   }
 
+  // PATCH /cases/:id/link-nfiu-report
+  public Handler<RoutingContext> linkNfiuReport() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      Long nfiuReportId = body.getLong("nfiuReportId");
+      if (nfiuReportId == null) { badRequest(ctx, "nfiuReportId is required"); return; }
+
+      service.linkNfiuReport(session, caseId, nfiuReportId)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // PATCH /cases/:id/seen
   public Handler<RoutingContext> markSeen() {
     return ctx -> {
@@ -255,6 +296,15 @@ public final class CaseHandlers {
       String caseId = ctx.pathParam("id");
       service.markSeen(session, caseId)
           .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  public Handler<RoutingContext> unseenCount() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.unseenCount(session)
+          .onSuccess(count -> ok(ctx, new JsonObject().put("count", count)))
           .onFailure(ctx::fail);
     };
   }
@@ -279,7 +329,10 @@ public final class CaseHandlers {
         .put("updatedAt",     c.updatedAt().toString())
         .put("seen",          c.seen())
         .put("brief",         c.brief())
-        .put("isAvailableForInvestigation", c.isAvailableForInvestigation());
+        .put("isAvailableForInvestigation", c.isAvailableForInvestigation())
+        .put("linkedNfiuReportId", c.linkedNfiuReportId())
+        .put("customerId",   c.customerId())
+        .put("customerName", c.customerName());
     if (c.assignedTo() != null) {
       o.put("assignedTo",   c.assignedTo());
       o.put("assigneeName", c.assigneeName());
@@ -367,6 +420,13 @@ public final class CaseHandlers {
     try {
       String v = first(ctx, key);
       return v != null ? Integer.parseInt(v) : null;
+    } catch (Exception e) { return null; }
+  }
+
+  private static Long longParamOrNull(RoutingContext ctx, String key) {
+    try {
+      String v = first(ctx, key);
+      return v != null ? Long.parseLong(v) : null;
     } catch (Exception e) { return null; }
   }
 

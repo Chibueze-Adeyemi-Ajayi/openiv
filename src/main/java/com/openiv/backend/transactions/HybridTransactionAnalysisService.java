@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Rule-based fraud detection for transactions.
@@ -78,7 +79,8 @@ public class HybridTransactionAnalysisService {
       long yesterdayCount,
       long customerTxnCount24h,
       boolean hasOtpAlert,
-      boolean skipKyc) {
+      boolean skipKyc,
+      Optional<Transaction> previousTransactionWithLocation) {
 
     Future<List<ThresholdRecord>>  fThresholds    = thresholdRepository.list(institutionId);
     Future<List<KycTierRecord>>    fTierThresholds = thresholdRepository.listKycTierThresholds(institutionId);
@@ -213,6 +215,40 @@ public class HybridTransactionAnalysisService {
             }
           }
 
+          // ─────────────────────────────────────────────────────────────────
+          // GEO-VELOCITY CHECK
+          // Compare this transaction's coordinates with the customer's most
+          // recent prior transaction.  Impossible travel (> 1,050 km/h, the
+          // absolute ceiling for any commercial aircraft) short-circuits with
+          // a hard score of 93 and an auto-created case, matching the same
+          // pattern used by the timestamp anomaly rules above.
+          // Lower-severity tiers (air-travel-required, high-velocity) are
+          // folded into the normal weighted-average scoring below.
+          // ─────────────────────────────────────────────────────────────────
+          GeoVelocityChecker.GeoVelocityResult geoResult =
+              GeoVelocityChecker.check(transaction, previousTransactionWithLocation);
+
+          if (geoResult.triggered() && "TXN_IMPOSSIBLE_TRAVEL".equals(geoResult.ruleId())) {
+            log.warn("[CRITICAL] TXN_IMPOSSIBLE_TRAVEL on txn={}: dist={}km speed={}km/h elapsed={}min",
+                transaction.id(),
+                String.format("%.1f", geoResult.distanceKm()),
+                geoResult.impliedSpeedKmh() == Double.MAX_VALUE ? "∞" : String.format("%.0f", geoResult.impliedSpeedKmh()),
+                String.format("%.1f", geoResult.elapsedMinutes()));
+            java.util.List<String> geoFlags = java.util.List.of("TXN_IMPOSSIBLE_TRAVEL");
+            return updateTransactionRisk(institutionId, transaction.id(), 93)
+                .compose(v -> caseService.createCaseFromTransaction(institutionId, transaction,
+                    new TransactionScorer.ScoringResult(93, geoFlags, geoResult.reason())))
+                .compose(caseRecord -> {
+                  AnalysisResult caseResult = new AnalysisResult(
+                      93, TransactionScorer.getPriority(93), geoFlags,
+                      caseRecord.id(), null, true, false, true, "DECLINE");
+                  sendCaseNotificationEmails(institutionId, caseRecord)
+                      .onFailure(e -> log.warn("[Case Notifications] Failed for geo-velocity case {}: {}",
+                          caseRecord.id(), e.getMessage()));
+                  return Future.succeededFuture(caseResult);
+                });
+          }
+
           TransactionScorer.ScoringResult txnResult = scoreWithThresholds(
               transaction, thresholds, tierThresholds,
               todayCount, yesterdayCount, customerTxnCount24h, hasOtpAlert, kycTierCheckEnabled, zone);
@@ -223,6 +259,11 @@ public class HybridTransactionAnalysisService {
           java.util.List<Integer> allRuleScores = new java.util.ArrayList<>();
           allRuleScores.addAll(txnResult.ruleScores);
           allRuleScores.addAll(behResult.ruleScores);
+
+          // Fold non-critical geo-velocity flags into the weighted average
+          if (geoResult.triggered()) {
+            allRuleScores.add(geoResult.scoreContribution());
+          }
 
           int finalScore = 0;
           if (!allRuleScores.isEmpty()) {
@@ -235,6 +276,9 @@ public class HybridTransactionAnalysisService {
           java.util.List<String> combinedFlags = new java.util.ArrayList<>();
           combinedFlags.addAll(txnResult.flags);
           combinedFlags.addAll(behResult.flags);
+          if (geoResult.triggered()) {
+            combinedFlags.add(geoResult.ruleId());
+          }
 
           String finalReason = buildHumanReadableReason(combinedFlags, finalScore);
           TransactionScorer.ScoringResult scoringResult = new TransactionScorer.ScoringResult(
@@ -510,6 +554,10 @@ public class HybridTransactionAnalysisService {
       case "STALE_TIMESTAMP_ANOMALY" -> "suspiciously old transaction timestamp (possible replay)";
       case "FUTURE_TIMESTAMP_ANOMALY" -> "transaction timestamp set in the future (possible clock tampering)";
       case "MICRO_TIMING_ANOMALY" -> "transaction timing is suspiciously precise (possible automated injection)";
+      case "TXN_IMPOSSIBLE_TRAVEL" -> "geo-velocity impossible — transaction locations are too far apart for the time elapsed (no civil aircraft can travel that fast)";
+      case "TXN_SUSPICIOUS_TRAVEL" -> "geo-velocity borderline — implied speed is at the absolute limit of commercial aviation";
+      case "TXN_AIR_TRAVEL_REQUIRED" -> "geo-velocity anomaly — reaching the second transaction location required air travel";
+      case "TXN_HIGH_VELOCITY" -> "geo-velocity elevated — implied ground speed is unusually high";
       default -> flag.toLowerCase().replace("_", " ");
     };
   }

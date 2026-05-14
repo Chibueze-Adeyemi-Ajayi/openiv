@@ -97,6 +97,9 @@ public final class ApiRouter {
     // BodyHandler is idempotent — the global handler below is a no-op for this path.
     router.post("/api/v1/documents/upload")
         .handler(BodyHandler.create().setBodyLimit(10L * 1024 * 1024).setHandleFileUploads(true));
+    // Signing credentials carry base64-encoded PNG images — allow up to 5 MB.
+    router.patch("/api/v1/institution/signing-credentials")
+        .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024));
     router.route().handler(BodyHandler.create().setBodyLimit(security.maxBodyBytes()));
     router.route().handler(ContentTypeGuard.create());
     // SSE stream must not be subject to the per-request timeout — bypass it for that path.

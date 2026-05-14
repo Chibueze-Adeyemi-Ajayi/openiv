@@ -55,6 +55,8 @@ import com.openiv.backend.analytics.UserAnalyticsService;
 import com.openiv.backend.customers.CustomerHandlers;
 import com.openiv.backend.customers.CustomerRepository;
 import com.openiv.backend.customers.CustomerService;
+import com.openiv.backend.institution.InstitutionHandlers;
+import com.openiv.backend.auth.repository.InstitutionRepository;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -134,6 +136,7 @@ public final class V1Router {
     router.get("/nfiu/reports").handler(nfiuAuth).handler(nfiuHandlers.listReports());
     router.post("/nfiu/reports").handler(nfiuAuth).handler(nfiuHandlers.createReport());
     router.post("/nfiu/reports/:id/file").handler(nfiuAuth).handler(nfiuHandlers.fileReport());
+    router.post("/nfiu/reports/:id/approve").handler(nfiuAuth).handler(nfiuHandlers.approveReport());
     router.get("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.getReport());
     router.patch("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.updateReport());
     router.delete("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuHandlers.deleteReport());
@@ -151,6 +154,7 @@ public final class V1Router {
     router.post("/transactions/bulk-status").handler(txnAuth).handler(txnHandlers.bulkStatus());
     router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
     router.patch("/transactions/:id/seen").handler(txnAuth).handler(txnHandlers.markSeen());
+    router.get("/transactions/:id").handler(txnAuth).handler(txnHandlers.getById());
 
     // Cases — metrics must be registered before /:id to avoid path collision
     CaseHandlers caseHandlers = new CaseHandlers(caseService, billingService);
@@ -165,7 +169,10 @@ public final class V1Router {
     router.post("/cases/:id/transactions").handler(caseAuth).handler(caseHandlers.linkTransaction());
     router.post("/cases/:id/notes").handler(caseAuth).handler(caseHandlers.addNote());
     router.post("/cases/:id/evidence").handler(caseAuth).handler(caseHandlers.addEvidence());
+    router.post("/cases/:id/assign").handler(caseAuth).handler(caseHandlers.assignCase());
+    router.get("/cases/unseen-count").handler(caseAuth).handler(caseHandlers.unseenCount());
     router.patch("/cases/:id/seen").handler(caseAuth).handler(caseHandlers.markSeen());
+    router.patch("/cases/:id/link-nfiu-report").handler(caseAuth).handler(caseHandlers.linkNfiuReport());
 
     // Thresholds — metrics before /:id to avoid path collision
     ThresholdHandlers thresholdHandlers = new ThresholdHandlers(thresholdService);
@@ -231,7 +238,9 @@ public final class V1Router {
     Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
     router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
+    router.get("/kyc/pep-search").handler(kycAuth).handler(kycHandlers.searchPEP());
     router.post("/kyc/lookup").handler(kycAuth).handler(kycHandlers.lookup());
+
     router.get("/kyc/logs").handler(kycAuth).handler(kycHandlers.listLogs());
 
     // AML Settings — institution-level configuration for auto case opening
@@ -256,10 +265,22 @@ public final class V1Router {
     router.get("/heatmap/transactions").handler(heatmapAuth).handler(heatmapHandlers.transactions());
     router.get("/heatmap/activity").handler(heatmapAuth).handler(heatmapHandlers.activity());
     
-    // Customers — centralized profile lookup
+    // Institution profile
+    InstitutionHandlers institutionHandlers = new InstitutionHandlers(new InstitutionRepository(dbPool), new UserRepository(dbPool));
+    Handler<RoutingContext> institutionAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/institution/profile").handler(institutionAuth).handler(institutionHandlers.getProfile());
+    router.patch("/institution/profile").handler(institutionAuth).handler(institutionHandlers.updateProfile());
+    router.get("/institution/signing-credentials").handler(institutionAuth).handler(institutionHandlers.getSigningCredentials());
+    router.patch("/institution/signing-credentials").handler(institutionAuth).handler(institutionHandlers.updateSigningCredentials());
+
+    // Customers — list + profile lookup
     CustomerHandlers customerHandlers = new CustomerHandlers(customerService, new UserRepository(dbPool));
     Handler<RoutingContext> customerAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/customers").handler(customerAuth).handler(customerHandlers.listCustomers());
     router.get("/customers/:id").handler(customerAuth).handler(customerHandlers.getCustomer());
+    router.patch("/customers/:id/profile").handler(customerAuth).handler(customerHandlers.updateProfile());
+    router.patch("/customers/:id/watchlist").handler(customerAuth).handler(customerHandlers.watchlistCustomer());
+    router.patch("/customers/:id/unwatchlist").handler(customerAuth).handler(customerHandlers.unwatchlistCustomer());
 
     // User-specific detailed analytics
     UserAnalyticsService userAnalyticsService = new UserAnalyticsService(

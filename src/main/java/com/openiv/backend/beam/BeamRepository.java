@@ -98,7 +98,7 @@ public final class BeamRepository {
   }
 
   public Future<BeamRecordsResult> listRecords(long institutionId, String stream, String q, String range, int page, int pageSize) {
-    StringBuilder where = new StringBuilder(" WHERE institution_id = $1");
+    StringBuilder where = new StringBuilder(" WHERE institution_id = $1 AND stream != 'transactions'");
     List<Object> params = new ArrayList<>();
     params.add(institutionId);
 

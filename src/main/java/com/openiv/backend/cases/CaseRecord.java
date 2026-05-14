@@ -22,5 +22,8 @@ public record CaseRecord(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     boolean isAvailableForInvestigation,
-    boolean seen
+    boolean seen,
+    Long linkedNfiuReportId,
+    String customerId,
+    String customerName
 ) {}

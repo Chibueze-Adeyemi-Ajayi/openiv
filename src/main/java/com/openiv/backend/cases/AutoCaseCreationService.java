@@ -54,7 +54,9 @@ public final class AutoCaseCreationService {
           slaDeadline,
           null, // system-created, no user
           "Auto-created by fraud detection rules",
-          null // no document yet
+          null, // no document yet
+          transaction.customerId(),
+          transaction.customerName()
       ).compose(caseRecord -> {
         // Link transaction to case
         return caseRepository.linkTransaction(caseRecord.id(), transaction.id(), institutionId)

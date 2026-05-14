@@ -40,3 +40,5 @@ config/application.json
 # Security scan archive — reports can reference specific versions/paths you may not
 # want in public history. Keep locally; rely on CI artifacts for the source of truth.
 security-reports/
+
+file-uploads/

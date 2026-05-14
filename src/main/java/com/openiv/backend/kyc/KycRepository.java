@@ -22,7 +22,7 @@ public final class KycRepository {
   public Future<Optional<KycConfig>> findConfig(long institutionId) {
     String sql =
         "SELECT id, institution_id, lookup_url, lookup_api_key, lookup_timeout,"
-        + " listener_url, listener_api_key, created_at, updated_at"
+        + " created_at, updated_at"
         + " FROM kyc_config WHERE institution_id = $1";
     return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
         .map(rs -> {
@@ -33,23 +33,19 @@ public final class KycRepository {
 
   public Future<KycConfig> saveConfig(long institutionId,
       String lookupUrl, String lookupApiKey,
-      Integer lookupTimeout,
-      String listenerUrl, String listenerApiKey) {
+      Integer lookupTimeout) {
     String sql =
-        "INSERT INTO kyc_config (institution_id, lookup_url, lookup_api_key, lookup_timeout,"
-        + " listener_url, listener_api_key)"
-        + " VALUES ($1, $2, $3, COALESCE($4, 10), $5, $6)"
+        "INSERT INTO kyc_config (institution_id, lookup_url, lookup_api_key, lookup_timeout)"
+        + " VALUES ($1, $2, $3, COALESCE($4, 10))"
         + " ON CONFLICT (institution_id) DO UPDATE SET"
         + "   lookup_url       = COALESCE(EXCLUDED.lookup_url,    kyc_config.lookup_url),"
         + "   lookup_api_key   = COALESCE(EXCLUDED.lookup_api_key, kyc_config.lookup_api_key),"
         + "   lookup_timeout   = COALESCE(EXCLUDED.lookup_timeout, kyc_config.lookup_timeout),"
-        + "   listener_url     = COALESCE(EXCLUDED.listener_url,   kyc_config.listener_url),"
-        + "   listener_api_key = COALESCE(EXCLUDED.listener_api_key, kyc_config.listener_api_key),"
         + "   updated_at       = now()"
         + " RETURNING id, institution_id, lookup_url, lookup_api_key, lookup_timeout,"
-        + "   listener_url, listener_api_key, created_at, updated_at";
+        + "   created_at, updated_at";
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, lookupUrl, lookupApiKey, lookupTimeout, listenerUrl, listenerApiKey))
+        .execute(Tuple.of(institutionId, lookupUrl, lookupApiKey, lookupTimeout))
         .map(rs -> mapConfig(rs.iterator().next()));
   }
 
@@ -101,8 +97,6 @@ public final class KycRepository {
         r.getString("lookup_url"),
         r.getString("lookup_api_key"),
         r.getInteger("lookup_timeout"),
-        r.getString("listener_url"),
-        r.getString("listener_api_key"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"));
   }

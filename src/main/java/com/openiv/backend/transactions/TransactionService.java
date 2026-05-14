@@ -9,6 +9,7 @@ import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Future;
 
 import java.util.List;
+import java.util.Optional;
 
 public final class TransactionService {
 
@@ -28,6 +29,10 @@ public final class TransactionService {
     return resolveUser(session).compose(u -> repository.list(
         u.institutionId(), status, flaggedStatus, q, page, pageSize,
         range, channel, minRisk, maxRisk, sort, u.id()));
+  }
+
+  public Future<Optional<Transaction>> getById(Session session, String id) {
+    return resolveUser(session).compose(u -> repository.findById(id, u.institutionId()));
   }
 
   public Future<Void> markSeen(Session session, String transactionId) {
@@ -84,6 +89,11 @@ public final class TransactionService {
 
   public Future<Long> getCustomerTxnCount24h(long institutionId, String customerId) {
     return repository.countByCustomerLast24h(institutionId, customerId);
+  }
+
+  public Future<Optional<Transaction>> getLastTransactionWithLocation(
+      long institutionId, String customerId, String excludeId) {
+    return repository.findLastWithLocation(institutionId, customerId, excludeId);
   }
 
   private Future<User> resolveUser(Session session) {

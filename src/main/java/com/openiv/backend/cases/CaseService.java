@@ -7,6 +7,7 @@ import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.cases.CaseRepository.CasePage;
+import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
 
 import java.time.OffsetDateTime;
@@ -20,11 +21,14 @@ public final class CaseService {
   private final CaseRepository repository;
   private final UserRepository users;
   private final AmlSettingsRepository amlSettingsRepository;
+  private final NotificationService notifications;
 
-  public CaseService(CaseRepository repository, UserRepository users, AmlSettingsRepository amlSettingsRepository) {
+  public CaseService(CaseRepository repository, UserRepository users,
+      AmlSettingsRepository amlSettingsRepository, NotificationService notifications) {
     this.repository = repository;
     this.users = users;
     this.amlSettingsRepository = amlSettingsRepository;
+    this.notifications = notifications;
   }
 
   public Future<CaseMetrics> metrics(Session session) {
@@ -33,10 +37,10 @@ public final class CaseService {
 
   public Future<CasePage> list(Session session, String status, String priority,
       String q, int page, int pageSize, String sort, String range,
-      Integer minRisk, Integer maxRisk) {
+      Integer minRisk, Integer maxRisk, Boolean assignedToMe, Long assignedToUser) {
     return resolveUser(session)
         .compose(u -> repository.list(u.institutionId(), status, priority, q, page, pageSize,
-            sort, range, minRisk, maxRisk, u.id()));
+            sort, range, minRisk, maxRisk, u.id(), u.role(), assignedToMe, assignedToUser));
   }
 
   public Future<CasePage> listUnavailable(Session session, String status, String priority,
@@ -49,7 +53,7 @@ public final class CaseService {
 
   public Future<CaseRecord> create(Session session, String title, String typology,
       String priority, int riskScore, Long assignedTo, String notes, String transactionId,
-      String reason, Long documentId) {
+      String reason, Long documentId, String customerId, String customerName) {
     return resolveUser(session).compose(u -> {
       OffsetDateTime sla = computeSla(priority);
       return repository.nextSeq().compose(seq -> {
@@ -57,7 +61,8 @@ public final class CaseService {
             + YearMonth.now().format(DateTimeFormatter.ofPattern("yyyyMM"))
             + "-" + String.format("%06d", seq);
         return repository.create(id, u.institutionId(), title, title, typology,
-                priority, riskScore, assignedTo, notes, sla, u.id(), reason, documentId)
+                priority, riskScore, assignedTo, notes, sla, u.id(), reason, documentId,
+                customerId, customerName)
             .compose(cas -> {
               Future<Void> linkFuture = (transactionId != null && !transactionId.isBlank())
                   ? repository.linkTransaction(cas.id(), transactionId, u.institutionId()).mapEmpty()
@@ -85,10 +90,19 @@ public final class CaseService {
     return resolveUser(session).compose(u ->
         repository.findById(id, u.institutionId(), u.id()).compose(opt -> {
           if (opt.isEmpty()) return Future.succeededFuture(false);
-          String current = opt.get().status();
+          CaseRecord cas = opt.get();
+          String current = cas.status();
           if (!isValidTransition(current, newStatus)) {
             return Future.failedFuture(new IllegalArgumentException(
                 "Invalid transition: " + current + " → " + newStatus));
+          }
+          if ("pending_review".equals(current) && !isL2Role(u.role())) {
+            return Future.failedFuture(AuthException.security("insufficient_role_for_pending_review"));
+          }
+          // Can only close a case if it is assigned to the current user (or elevated role)
+          if ("closed".equals(newStatus) && cas.assignedTo() != null
+              && !cas.assignedTo().equals(u.id()) && !isL2Role(u.role())) {
+            return Future.failedFuture(AuthException.security("must_be_assigned_to_close"));
           }
           return repository.updateStatus(id, u.institutionId(), newStatus, resolution)
               .compose(updated -> {
@@ -96,10 +110,54 @@ public final class CaseService {
                 String detail = reason
                     + "\nStatus changed from " + current + " to " + newStatus
                     + (resolution != null ? " · resolution: " + resolution : "");
-                String action = "closed".equals(newStatus) ? "closed" : "status_changed";
-                return repository.addActivity(id, u.id(), action, detail, documentId).map(v -> true);
+                String action = "closed".equals(newStatus) ? "closed"
+                    : "pending_review".equals(newStatus) ? "submitted_for_review"
+                    : "status_changed";
+                Future<Void> actFuture = documentId != null
+                    ? repository.addActivity(id, u.id(), action, detail, documentId)
+                    : repository.addActivity(id, u.id(), action, detail);
+                // Auto-assign to current user when starting investigation
+                Future<Void> assignFuture = "investigating".equals(newStatus)
+                    ? repository.assignCase(id, u.institutionId(), u.id())
+                    : Future.succeededFuture();
+                // Notifications
+                Future<Void> notifyFuture = switch (newStatus) {
+                  case "investigating" -> notifications
+                      .notifyCaseInvestigationStarted(u.institutionId(), id, u.displayName())
+                      .mapEmpty();
+                  case "closed" -> notifications
+                      .notifyCaseClosed(u.institutionId(), id, resolution, u.displayName())
+                      .mapEmpty();
+                  case "escalated" -> notifications
+                      .notifyCaseEscalated(u.institutionId(), id, u.displayName())
+                      .mapEmpty();
+                  default -> Future.succeededFuture();
+                };
+                return Future.all(actFuture, assignFuture, notifyFuture).map(v -> true);
               });
         }));
+  }
+
+  public Future<Void> assignCase(Session session, String caseId, Long toUserId) {
+    return resolveUser(session).compose(u -> {
+      long targetId = toUserId != null ? toUserId : u.id();
+      if (!isL2Role(u.role()) && targetId != u.id()) {
+        return Future.failedFuture(AuthException.security("insufficient_role_to_assign_others"));
+      }
+      return repository.assignCase(caseId, u.institutionId(), targetId)
+          .compose(v -> repository.addActivity(caseId, u.id(), "assigned",
+              "Case assigned to user #" + targetId + " by " + u.displayName()))
+          .compose(v -> notifications
+              .notifyCaseAssigned(u.institutionId(), caseId, targetId, u.displayName())
+              .mapEmpty());
+    });
+  }
+
+  public Future<Void> linkNfiuReport(Session session, String caseId, long nfiuReportId) {
+    return resolveUser(session).compose(u ->
+        repository.linkNfiuReport(caseId, u.institutionId(), nfiuReportId)
+            .compose(v -> repository.addActivity(caseId, u.id(), "nfiu_report_linked",
+                "NFIU report #" + nfiuReportId + " linked to case")));
   }
 
   public Future<Boolean> linkTransaction(Session session, String caseId, String transactionId) {
@@ -120,6 +178,11 @@ public final class CaseService {
   public Future<Void> markSeen(Session session, String caseId) {
     return resolveUser(session)
         .compose(u -> repository.markSeen(caseId, u.institutionId(), u.id()));
+  }
+
+  public Future<Long> unseenCount(Session session) {
+    return resolveUser(session)
+        .compose(u -> repository.unseenCount(u.institutionId(), u.id()));
   }
 
   public Future<CaseEvidence> addEvidence(Session session, String caseId,
@@ -223,10 +286,15 @@ public final class CaseService {
 
   private static boolean isValidTransition(String from, String to) {
     return switch (from) {
-      case "open"          -> Set.of("investigating", "closed").contains(to);
-      case "investigating" -> Set.of("escalated", "closed").contains(to);
-      case "escalated"     -> "closed".equals(to);
-      default              -> false;
+      case "open"           -> Set.of("investigating", "escalated", "pending_review", "closed").contains(to);
+      case "investigating"  -> Set.of("escalated", "pending_review", "closed").contains(to);
+      case "escalated"      -> Set.of("pending_review", "closed").contains(to);
+      case "pending_review" -> Set.of("investigating", "closed").contains(to);
+      default               -> false;
     };
+  }
+
+  private static boolean isL2Role(String role) {
+    return role != null && Set.of("owner", "admin", "compliance", "cmlco", "mlro").contains(role);
   }
 }

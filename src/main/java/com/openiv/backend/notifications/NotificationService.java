@@ -47,18 +47,110 @@ public class NotificationService {
         "Case " + caseId + " created: " + caseTitle);
   }
 
-  public Future<Notification> notifyKycWebhookMissing(long institutionId) {
-    return registerNotification(institutionId, "kyc_webhook_missing",
-        "KYC Webhook Not Configured",
-        "No KYC lookup URL is set. Configure one under KYC → Integration " +
-        "to enable automatic customer verification during fraud investigations.");
+  // ── Case action notifications ──────────────────────────────────────────────
+
+  public Future<Notification> notifyCaseInvestigationStarted(long instId, String caseId, String actorName) {
+    return registerNotification(instId, "case_investigation_started",
+        "Investigation Started — " + caseId,
+        actorName + " has begun investigating case " + caseId +
+        ". The case has been auto-assigned to them and SLA tracking is active.");
   }
 
-  public Future<Notification> notifyKycDataNotFound(long institutionId, String customerRef, String caseId) {
-    return registerNotification(institutionId, "kyc_data_not_found",
-        "KYC Record Not Found — Investigate",
-        "Customer KYC data for ref " + customerRef + " was not found. " +
-        "Case " + caseId + " has been escalated to HIGH priority.");
+  public Future<Notification> notifyCaseAssigned(long instId, String caseId, long toUserId, String actorName) {
+    return registerNotification(instId, "case_assigned",
+        "Case Assigned — " + caseId,
+        actorName + " assigned case " + caseId + " to user #" + toUserId + ".");
+  }
+
+  public Future<Notification> notifyCaseClosed(long instId, String caseId, String resolution, String actorName) {
+    String res = resolution != null ? resolution.replace("_", " ") : "unspecified";
+    return registerNotification(instId, "case_closed",
+        "Case Closed — " + caseId,
+        actorName + " closed case " + caseId + " with resolution: " + res +
+        ". An immutable audit entry has been created.");
+  }
+
+  public Future<Notification> notifyCaseEscalated(long instId, String caseId, String actorName) {
+    return registerNotification(instId, "case_escalated",
+        "Case Escalated — " + caseId,
+        actorName + " escalated case " + caseId +
+        ". This case requires senior AML or compliance review.");
+  }
+
+  public Future<Notification> notifySarFiled(long instId, String caseId, long reportId, String actorName) {
+    return registerNotification(instId, "case_sar_filed",
+        "SAR/STR Filed — " + caseId,
+        actorName + " filed a Suspicious Activity Report (report #" + reportId +
+        ") linked to case " + caseId + ". This is a statutory filing under CBN AML guidelines.");
+  }
+
+  public Future<Notification> notifyFreezeRequested(long instId, String caseId, String actorName) {
+    return registerNotification(instId, "case_freeze_requested",
+        "Account Freeze Requested — " + caseId,
+        actorName + " has requested an account freeze for case " + caseId +
+        ". Route immediately to the Compliance desk for action.");
+  }
+
+  public Future<Notification> notifyBehavioralAlert(
+      long institutionId, com.openiv.backend.beam.BehavioralAlert alert) {
+
+    String type = alert.riskScore() >= 85 ? "behavioral_critical"
+        : alert.riskScore() >= 70 ? "behavioral_high" : "behavioral_flag";
+
+    String title = buildBehavioralTitle(alert);
+    String body  = buildBehavioralBody(alert);
+    return registerNotification(institutionId, type, title, body);
+  }
+
+  private static String buildBehavioralTitle(com.openiv.backend.beam.BehavioralAlert a) {
+    return switch (a.rule()) {
+      case "LOGIN_IMPOSSIBLE_TRAVEL"      -> "Impossible Travel Login Detected";
+      case "LOGIN_TIME_ANOMALY"           -> "Off-Hours Login Alert";
+      case "LOGIN_VELOCITY"               -> "Login Velocity Spike";
+      case "LOGIN_NEW_COUNTRY"            -> "Login from New Country";
+      case "LOGIN_MICRO_TIMING"           -> "Suspicious Login Timestamp";
+      case "LOGIN_TIMESTAMP_STALE"        -> "Stale Login Event — Possible Replay";
+      case "LOGIN_TIMESTAMP_FUTURE"       -> "Future Login Timestamp — Clock Tampering";
+      case "ACTIVITY_TIME_ANOMALY"        -> "Off-Hours Activity Detected";
+      case "ACTIVITY_BURST"               -> "Abnormal Activity Burst";
+      case "ACTIVITY_SESSION_ANOMALY"     -> "Session Hijacking Signal";
+      case "ACTIVITY_MICRO_TIMING"        -> "Suspicious Activity Timestamp";
+      case "ACTIVITY_TIMESTAMP_STALE"     -> "Stale Activity Event — Possible Replay";
+      case "ACTIVITY_TIMESTAMP_FUTURE"    -> "Future Activity Timestamp";
+      case "LOCATION_IMPOSSIBLE_TRAVEL"   -> "Impossible GPS Travel Detected";
+      case "LOCATION_HIGH_RISK_REGION"    -> "Customer in High-Risk Jurisdiction";
+      case "LOCATION_RAPID_CHANGE"        -> "Rapid GPS Ping Flood — Possible Spoofing";
+      case "LOCATION_COUNTRY_CHANGE"      -> "Customer Location Changed Country";
+      case "LOCATION_MICRO_TIMING"        -> "Suspicious Location Timestamp";
+      case "LOCATION_TIMESTAMP_STALE"     -> "Stale Location Event — Possible Replay";
+      case "LOCATION_TIMESTAMP_FUTURE"    -> "Future Location Timestamp";
+      case "DEVICE_SHARED_ACCOUNTS"       -> "Device Shared Across Multiple Accounts";
+      case "DEVICE_JAILBREAK_ROOT"        -> "Jailbroken/Rooted Device Detected";
+      case "DEVICE_EMULATOR"              -> "Emulator Detected — Possible Bot Attack";
+      case "DEVICE_RAPID_SWAP"            -> "Rapid Device Change — SIM-Swap Precursor";
+      case "DEVICE_CLONED"                -> "Cloned Device Detected";
+      case "DEVICE_MICRO_TIMING"          -> "Suspicious Device Event Timestamp";
+      case "DEVICE_TIMESTAMP_STALE"       -> "Stale Device Event — Possible Replay";
+      case "DEVICE_TIMESTAMP_FUTURE"      -> "Future Device Timestamp";
+      case "OTP_MICRO_TIMING"             -> "Suspicious OTP Event Timestamp";
+      case "OTP_TIMESTAMP_STALE"          -> "Stale OTP Event — Possible Replay";
+      case "OTP_TIMESTAMP_FUTURE"         -> "Future OTP Timestamp";
+      default -> "Behavioral Alert — Risk Score " + a.riskScore();
+    };
+  }
+
+  private static String buildBehavioralBody(com.openiv.backend.beam.BehavioralAlert a) {
+    var sb = new StringBuilder();
+    sb.append(a.detail());
+    if (a.reasons() != null && a.reasons().length > 0) {
+      sb.append(" Signals: ");
+      sb.append(String.join("; ", a.reasons()));
+      sb.append(".");
+    }
+    sb.append(" Risk score: ").append(a.riskScore()).append("/100.");
+    if (a.customerId() != null) sb.append(" Customer: ").append(a.customerId()).append(".");
+    if (a.deviceId()   != null) sb.append(" Device: ").append(a.deviceId()).append(".");
+    return sb.toString();
   }
 
   public Future<Notification> notifyCyberBreachTimestampAnomaly(long institutionId,

@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public final class CaseRepository {
 
@@ -25,7 +26,8 @@ public final class CaseRepository {
       "SELECT c.id, c.institution_id, c.title, c.brief, c.typology, c.status, c.priority, c.risk_score, "
       + "c.assigned_to, COALESCE(u1.full_name, u1.email) AS assignee_name, "
       + "c.notes, c.resolution, c.created_by, COALESCE(u2.full_name, u2.email) AS created_by_name, "
-      + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at, c.is_available_for_investigation";
+      + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at, c.is_available_for_investigation, "
+      + "c.linked_nfiu_report_id, c.customer_id, c.customer_name";
 
   private static final String CASE_FROM =
       " FROM cases c "
@@ -46,11 +48,27 @@ public final class CaseRepository {
 
   public Future<CasePage> list(long institutionId, String status, String priority,
       String q, int page, int pageSize, String sort, String range,
-      Integer minRisk, Integer maxRisk, long userId) {
+      Integer minRisk, Integer maxRisk, long userId, String userRole,
+      Boolean assignedToMe, Long assignedToUser) {
 
     var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = true");
     var params = new ArrayList<Object>();
     params.add(institutionId);
+
+    // Visibility: non-elevated roles only see unassigned cases + cases assigned to them
+    if (!isElevatedRole(userRole)) {
+      where.append(" AND (c.assigned_to IS NULL OR c.assigned_to = $").append(params.size() + 1).append(")");
+      params.add(userId);
+    }
+
+    // Assignment filters (stackable on top of visibility)
+    if (Boolean.TRUE.equals(assignedToMe)) {
+      where.append(" AND c.assigned_to = $").append(params.size() + 1);
+      params.add(userId);
+    } else if (assignedToUser != null) {
+      where.append(" AND c.assigned_to = $").append(params.size() + 1);
+      params.add(assignedToUser);
+    }
 
     if (status != null && !status.isBlank()) {
       where.append(" AND c.status = $").append(params.size() + 1);
@@ -83,10 +101,9 @@ public final class CaseRepository {
 
     String countSql = "SELECT COUNT(*) FROM cases c WHERE " + where;
 
-    // Append userId param BEFORE the pagination params so the EXISTS subquery index is stable
     var lp = new ArrayList<>(params);
     lp.add(userId);
-    int seenIdx = lp.size(); // e.g. $2 when only institutionId is a filter param
+    int seenIdx = lp.size();
 
     String listSql = CASE_COLS
         + ", EXISTS(SELECT 1 FROM case_views cv WHERE cv.case_id = c.id AND cv.user_id = $" + seenIdx + ") AS seen"
@@ -111,6 +128,15 @@ public final class CaseRepository {
             }));
   }
 
+  // ── Assign case ───────────────────────────────────────────────────────────
+
+  public Future<Void> assignCase(String caseId, long institutionId, long toUserId) {
+    return pool.preparedQuery(
+            "UPDATE cases SET assigned_to=$1, updated_at=now() WHERE id=$2 AND institution_id=$3")
+        .execute(Tuple.of(toUserId, caseId, institutionId))
+        .mapEmpty();
+  }
+
   // ── Sequence ─────────────────────────────────────────────────────────────
 
   public Future<Long> nextSeq() {
@@ -122,16 +148,18 @@ public final class CaseRepository {
 
   public Future<CaseRecord> create(String id, long institutionId, String title, String brief, String typology,
       String priority, int riskScore, Long assignedTo, String notes,
-      OffsetDateTime slaDeadline, Long createdBy, String openReason, Long openDocumentId) {
+      OffsetDateTime slaDeadline, Long createdBy, String openReason, Long openDocumentId,
+      String customerId, String customerName) {
 
     String sql = "INSERT INTO cases "
         + "(id, institution_id, title, brief, typology, priority, risk_score, assigned_to, notes,"
-        + " created_by, sla_deadline, open_reason, open_document_id) "
-        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)";
+        + " created_by, sla_deadline, open_reason, open_document_id, customer_id, customer_name) "
+        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)";
     var p = new ArrayList<>();
     p.add(id); p.add(institutionId); p.add(title); p.add(brief); p.add(typology);
     p.add(priority); p.add(riskScore); p.add(assignedTo); p.add(notes);
     p.add(createdBy); p.add(slaDeadline); p.add(openReason); p.add(openDocumentId);
+    p.add(customerId); p.add(customerName);
     return pool.preparedQuery(sql).execute(buildTuple(p))
         .compose(v -> findById(id, institutionId, createdBy != null ? createdBy : 0L).map(opt -> opt.orElseThrow()));
   }
@@ -359,6 +387,29 @@ public final class CaseRepository {
         .mapEmpty();
   }
 
+  public Future<Long> unseenCount(long institutionId, long userId) {
+    String sql =
+        "SELECT COUNT(*) FROM cases c"
+        + " WHERE c.institution_id = $1"
+        + "   AND c.is_available_for_investigation = true"
+        + "   AND c.status != 'closed'"
+        + "   AND NOT EXISTS ("
+        + "     SELECT 1 FROM case_views cv WHERE cv.case_id = c.id AND cv.user_id = $2"
+        + "   )";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, userId))
+        .map(rs -> rs.iterator().next().getLong(0));
+  }
+
+  // ── Link NFIU report ──────────────────────────────────────────────────────
+
+  public Future<Void> linkNfiuReport(String caseId, long institutionId, long nfiuReportId) {
+    return pool.preparedQuery(
+            "UPDATE cases SET linked_nfiu_report_id = $1, updated_at = now()"
+            + " WHERE id = $2 AND institution_id = $3")
+        .execute(Tuple.of(nfiuReportId, caseId, institutionId))
+        .mapEmpty();
+  }
+
   // ── Link transaction ─────────────────────────────────────────────────────
 
   public Future<Boolean> linkTransaction(String caseId, String txnId, long institutionId) {
@@ -414,8 +465,9 @@ public final class CaseRepository {
   // ── Mappers ───────────────────────────────────────────────────────────────
 
   private static CaseRecord mapCase(Row r, Boolean seen) {
-    Object assignedToVal = r.getValue("assigned_to");
-    Object createdByVal = r.getValue("created_by");
+    Object assignedToVal  = r.getValue("assigned_to");
+    Object createdByVal   = r.getValue("created_by");
+    Object linkedNfiuVal  = r.getValue("linked_nfiu_report_id");
     return new CaseRecord(
         r.getString("id"),
         r.getLong("institution_id"),
@@ -436,7 +488,10 @@ public final class CaseRepository {
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"),
         r.getBoolean("is_available_for_investigation"),
-        seen != null && seen);
+        seen != null && seen,
+        linkedNfiuVal != null ? ((Number) linkedNfiuVal).longValue() : null,
+        r.getString("customer_id"),
+        r.getString("customer_name"));
   }
 
   private static CaseActivity mapActivity(Row r) {
@@ -467,6 +522,10 @@ public final class CaseRepository {
         r.getString("recipient_bank"), r.getString("currency"),
         r.getString("narration"), r.getString("device_id"), r.getString("ip_address"),
         false);
+  }
+
+  private static boolean isElevatedRole(String role) {
+    return role != null && Set.of("owner", "admin", "compliance", "cmlco", "mlro").contains(role);
   }
 
   private static String caseOrderBy(String sort) {

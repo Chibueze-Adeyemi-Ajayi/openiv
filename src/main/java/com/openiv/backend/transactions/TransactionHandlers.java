@@ -50,6 +50,19 @@ public final class TransactionHandlers {
     };
   }
 
+  public Handler<RoutingContext> getById() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String id = ctx.pathParam("id");
+      service.getById(session, id)
+          .onSuccess(opt -> {
+            if (opt.isEmpty()) { ctx.fail(404); return; }
+            ok(ctx, toJson(opt.get()));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
   public Handler<RoutingContext> markSeen() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);

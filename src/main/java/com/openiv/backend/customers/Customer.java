@@ -1,5 +1,6 @@
 package com.openiv.backend.customers;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public record Customer(
@@ -10,6 +11,16 @@ public record Customer(
     String email,
     String phone,
     int riskScore,
+    String bvn,
+    String nin,
+    String photo,
+    String accountNumber,
+    String subjectType,
+    LocalDate dob,
+    String address,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    boolean watchlisted,
+    OffsetDateTime watchlistedAt,
+    String watchlistedReason
 ) {}

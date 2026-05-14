@@ -8,7 +8,5 @@ public record KycConfig(
     String lookupUrl,
     String lookupApiKey,
     int lookupTimeout,
-    String listenerUrl,
-    String listenerApiKey,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {}

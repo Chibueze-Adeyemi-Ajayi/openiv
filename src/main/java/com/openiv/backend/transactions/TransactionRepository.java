@@ -7,6 +7,7 @@ import io.vertx.sqlclient.Tuple;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public final class TransactionRepository {
 
@@ -215,6 +216,39 @@ public final class TransactionRepository {
           var list = new ArrayList<Transaction>();
           rs.forEach(row -> list.add(map(row)));
           return List.copyOf(list);
+        });
+  }
+
+  /**
+   * Returns the most recent transaction for {@code customerId} that carries
+   * coordinates, excluding the transaction with id {@code excludeId} (the one
+   * just ingested), within the last 24 hours.  Used for geo-velocity checking.
+   */
+  public Future<Optional<Transaction>> findLastWithLocation(
+      long institutionId, String customerId, String excludeId) {
+    String sql = "SELECT " + SELECT_COLS
+        + ", false AS seen"
+        + " FROM transactions"
+        + " WHERE institution_id = $1"
+        + "   AND customer_id   = $2"
+        + "   AND id           <> $3"
+        + "   AND lat IS NOT NULL AND lng IS NOT NULL"
+        + "   AND occurred_at  >  now() - interval '24 hours'"
+        + " ORDER BY occurred_at DESC"
+        + " LIMIT 1";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, customerId, excludeId))
+        .map(rs -> rs.rowCount() == 0
+            ? Optional.<Transaction>empty()
+            : Optional.of(mapList(rs.iterator().next())));
+  }
+
+  public Future<Optional<Transaction>> findById(String id, long institutionId) {
+    String sql = "SELECT " + SELECT_COLS + ", FALSE AS seen FROM transactions WHERE id = $1 AND institution_id = $2";
+    return pool.preparedQuery(sql).execute(Tuple.of(id, institutionId))
+        .map(rs -> {
+          var it = rs.iterator();
+          return it.hasNext() ? Optional.of(mapList(it.next())) : Optional.empty();
         });
   }
 

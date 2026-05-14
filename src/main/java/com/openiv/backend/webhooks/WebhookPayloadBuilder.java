@@ -145,27 +145,6 @@ public final class WebhookPayloadBuilder {
             .put("sarCandidate", true));
   }
 
-  /** kyc.failed — customer failed identity verification. */
-  public static JsonObject kycFailed(long institutionId) {
-    return new JsonObject()
-        .put("customer", new JsonObject()
-            .put("id",            "CUST-7892")
-            .put("accountNumber", "3012345678")
-            .put("name",          "BLESSING NWOSU")
-            .put("bvnPartial",    "220*****781"))
-        .put("verification", new JsonObject()
-            .put("type",         "identity")
-            .put("provider",     "nibss")
-            .put("failureReason", "FACE_MISMATCH")
-            .put("failureDetail", "Liveness check failed — selfie does not match BVN photo")
-            .put("attemptCount", 2)
-            .put("nextAction",   "manual_review"))
-        .put("risk", new JsonObject()
-            .put("accountAgedays", 3)
-            .put("previousFailures", 1)
-            .put("flaggedForReview", true));
-  }
-
   /** sar.filed — a Suspicious Activity Report was filed with the NFIU. */
   public static JsonObject sarFiled(long institutionId, String reportRef) {
     return new JsonObject()

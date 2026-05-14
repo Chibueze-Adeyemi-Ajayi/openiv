@@ -22,6 +22,8 @@ import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.thresholds.ThresholdService;
 import com.openiv.backend.beam.BeamRepository;
 import com.openiv.backend.beam.BeamService;
+import com.openiv.backend.beam.BehavioralAlertRepository;
+import com.openiv.backend.beam.BehavioralBeamAnalyzer;
 import com.openiv.backend.beam.OtpAlertRepository;
 import com.openiv.backend.beam.OtpAnalyzer;
 import com.openiv.backend.dashboard.DashboardRepository;
@@ -163,7 +165,8 @@ public final class Main {
         TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users, customerService);
         var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
         AmlSettingsRepository amlSettingsRepository = new AmlSettingsRepository(pool);
-        CaseService caseService = new CaseService(caseRepository, users, amlSettingsRepository);
+        var notificationServiceForCases = new com.openiv.backend.notifications.NotificationService(pool, vertx);
+        CaseService caseService = new CaseService(caseRepository, users, amlSettingsRepository, notificationServiceForCases);
         var thresholdRepository = new com.openiv.backend.thresholds.ThresholdRepository(pool);
         ThresholdService thresholdService = new ThresholdService(thresholdRepository, users);
         WebhookRepository webhookRepository = new WebhookRepository(pool);
@@ -181,7 +184,7 @@ public final class Main {
         var autoCaseService = new com.openiv.backend.cases.AutoCaseCreationService(caseRepository);
 
         // KYC service — needed by fraud pipeline for automatic KYC lookups
-        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService);
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService);
 
         var hybridAnalysis = new com.openiv.backend.transactions.HybridTransactionAnalysisService(
             new com.openiv.backend.transactions.TransactionScorer(),
@@ -195,9 +198,14 @@ public final class Main {
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
             hybridAnalysis, fraudDetectionBillingService, notificationService);
 
+        // Behavioral beam analyzer — handles login, activity, location, device, and OTP timestamp rules
+        BehavioralAlertRepository behavioralAlertRepository = new BehavioralAlertRepository(pool, vertx);
+        BehavioralBeamAnalyzer behavioralBeamAnalyzer = new BehavioralBeamAnalyzer(
+            behavioralAlertRepository, notificationService, caseRepository);
+
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
-            webhookService,
-            orchestrator, notificationService, customerService, amlSettingsRepository);
+            webhookService, orchestrator, notificationService, customerService,
+            amlSettingsRepository, behavioralBeamAnalyzer, kycService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
         GeoFenceService geoFenceService = new GeoFenceService(

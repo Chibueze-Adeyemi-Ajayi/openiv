@@ -55,22 +55,36 @@ public final class NfiuHandlers {
       JsonObject body = body(ctx);
       if (body == null) return;
 
-      String     reportType       = body.getString("reportType");
-      String     title            = body.getString("title");
-      LocalDate  periodStart      = parseDate(body.getString("periodStart"));
-      LocalDate  periodEnd        = parseDate(body.getString("periodEnd"));
-      String     priority         = body.getString("priority");
-      String     subjectName      = body.getString("subjectName");
-      String     subjectAccount   = body.getString("subjectAccount");
-      String     subjectBvn       = body.getString("subjectBvn");
-      String     subjectType      = body.getString("subjectType");
-      Double     amountNgn        = body.getDouble("amountNgn");
-      int        transactionCount = body.getInteger("transactionCount", 0);
-      String     narrative        = body.getString("narrative");
-
-      service.createReport(session, reportType, title, periodStart, periodEnd, priority,
-              subjectName, subjectAccount, subjectBvn, subjectType,
-              amountNgn, transactionCount, narrative)
+      service.createReport(session,
+              body.getString("reportType"),
+              body.getString("title"),
+              parseDate(body.getString("periodStart")),
+              parseDate(body.getString("periodEnd")),
+              body.getString("priority"),
+              parseLongVal(body, "officerUserId"),
+              body.getString("officerName"),
+              body.getString("subjectName"),
+              body.getString("subjectAccount"),
+              body.getString("subjectBvn"),
+              body.getString("subjectType"),
+              parseDate(body.getString("subjectDob")),
+              body.getString("subjectAddress"),
+              body.getDouble("amountNgn"),
+              body.getInteger("transactionCount", 0),
+              body.getString("transactionType"),
+              parseDate(body.getString("transactionDate")),
+              body.getString("linkedTransactionId"),
+              body.getString("transactionLocation"),
+              parseDouble(body, "transactionLat"),
+              parseDouble(body, "transactionLng"),
+              body.getString("transactionSenderAccount"),
+              body.getString("transactionSenderBank"),
+              body.getString("transactionRecipientName"),
+              body.getString("transactionRecipientAccount"),
+              body.getString("transactionRecipientBank"),
+              body.getString("transactionCurrency"),
+              body.getString("transactionNarration"),
+              body.getString("narrative"))
           .onSuccess(r -> ok(ctx, reportJson(r)))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
@@ -106,12 +120,29 @@ public final class NfiuHandlers {
               parseDate(body.getString("periodStart")),
               parseDate(body.getString("periodEnd")),
               body.getString("priority"),
+              parseLongVal(body, "officerUserId"),
+              body.getString("officerName"),
               body.getString("subjectName"),
               body.getString("subjectAccount"),
               body.getString("subjectBvn"),
               body.getString("subjectType"),
+              parseDate(body.getString("subjectDob")),
+              body.getString("subjectAddress"),
               body.getDouble("amountNgn"),
               body.getInteger("transactionCount", 0),
+              body.getString("transactionType"),
+              parseDate(body.getString("transactionDate")),
+              body.getString("linkedTransactionId"),
+              body.getString("transactionLocation"),
+              parseDouble(body, "transactionLat"),
+              parseDouble(body, "transactionLng"),
+              body.getString("transactionSenderAccount"),
+              body.getString("transactionSenderBank"),
+              body.getString("transactionRecipientName"),
+              body.getString("transactionRecipientAccount"),
+              body.getString("transactionRecipientBank"),
+              body.getString("transactionCurrency"),
+              body.getString("transactionNarration"),
               body.getString("narrative"))
           .onSuccess(r -> ok(ctx, reportJson(r)))
           .onFailure(err -> {
@@ -128,6 +159,21 @@ public final class NfiuHandlers {
       var session = SessionAuthHandler.require(ctx);
       long id = parseLong(ctx, "id"); if (id < 0) return;
       service.fileReport(session, id)
+          .onSuccess(r -> ok(ctx, reportJson(r)))
+          .onFailure(err -> {
+            if (err instanceof IllegalArgumentException || err instanceof IllegalStateException)
+              badRequest(ctx, err.getMessage());
+            else ctx.fail(err);
+          });
+    };
+  }
+
+  // POST /nfiu/reports/:id/approve
+  public Handler<RoutingContext> approveReport() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = parseLong(ctx, "id"); if (id < 0) return;
+      service.approveReport(session, id)
           .onSuccess(r -> ok(ctx, reportJson(r)))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException || err instanceof IllegalStateException)
@@ -169,13 +215,12 @@ public final class NfiuHandlers {
       JsonObject body = body(ctx);
       if (body == null) return;
 
-      String    reportType = body.getString("reportType");
-      String    name       = body.getString("name");
-      String    frequency  = body.getString("frequency", "monthly");
-      LocalDate nextDue    = parseDate(body.getString("nextDue"));
-      boolean   autoFile   = Boolean.TRUE.equals(body.getBoolean("autoFile"));
-
-      service.createSchedule(session, reportType, name, frequency, nextDue, autoFile)
+      service.createSchedule(session,
+              body.getString("reportType"),
+              body.getString("name"),
+              body.getString("frequency", "monthly"),
+              parseDate(body.getString("nextDue")),
+              Boolean.TRUE.equals(body.getBoolean("autoFile")))
           .onSuccess(s -> ok(ctx, scheduleJson(s)))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
@@ -221,26 +266,46 @@ public final class NfiuHandlers {
 
   static JsonObject reportJson(NfiuReport r) {
     return new JsonObject()
-        .put("id",                r.id())
-        .put("reportType",        r.reportType())
-        .put("reference",         r.reference())
-        .put("title",             r.title())
-        .put("periodStart",       r.periodStart().toString())
-        .put("periodEnd",         r.periodEnd().toString())
-        .put("status",            r.status())
-        .put("priority",          r.priority())
-        .put("filingDate",        r.filingDate() != null ? r.filingDate().toString() : null)
-        .put("subjectName",       r.subjectName())
-        .put("subjectAccount",    r.subjectAccount())
-        .put("subjectBvn",        r.subjectBvn())
-        .put("subjectType",       r.subjectType())
-        .put("amountNgn",         r.amountNgn())
-        .put("transactionCount",  r.transactionCount())
-        .put("narrative",         r.narrative())
-        .put("filedByName",       r.filedByName())
-        .put("acknowledgementRef", r.acknowledgementRef())
-        .put("rejectionReason",   r.rejectionReason())
-        .put("createdAt",         r.createdAt().toString());
+        .put("id",                        r.id())
+        .put("reportType",                r.reportType())
+        .put("reference",                 r.reference())
+        .put("title",                     r.title())
+        .put("periodStart",               r.periodStart().toString())
+        .put("periodEnd",                 r.periodEnd().toString())
+        .put("status",                    r.status())
+        .put("priority",                  r.priority())
+        .put("filingDate",                r.filingDate() != null ? r.filingDate().toString() : null)
+        .put("officerUserId",             r.officerUserId())
+        .put("officerName",               r.officerName())
+        .put("subjectName",               r.subjectName())
+        .put("subjectAccount",            r.subjectAccount())
+        .put("subjectBvn",                r.subjectBvn())
+        .put("subjectType",               r.subjectType())
+        .put("subjectDob",                r.subjectDob() != null ? r.subjectDob().toString() : null)
+        .put("subjectAddress",            r.subjectAddress())
+        .put("amountNgn",                 r.amountNgn())
+        .put("transactionCount",          r.transactionCount())
+        .put("transactionType",           r.transactionType())
+        .put("transactionDate",           r.transactionDate() != null ? r.transactionDate().toString() : null)
+        .put("linkedTransactionId",       r.linkedTransactionId())
+        .put("transactionLocation",       r.transactionLocation())
+        .put("transactionLat",            r.transactionLat())
+        .put("transactionLng",            r.transactionLng())
+        .put("transactionSenderAccount",  r.transactionSenderAccount())
+        .put("transactionSenderBank",     r.transactionSenderBank())
+        .put("transactionRecipientName",  r.transactionRecipientName())
+        .put("transactionRecipientAccount", r.transactionRecipientAccount())
+        .put("transactionRecipientBank",  r.transactionRecipientBank())
+        .put("transactionCurrency",       r.transactionCurrency())
+        .put("transactionNarration",      r.transactionNarration())
+        .put("narrative",                 r.narrative())
+        .put("filedByName",               r.filedByName())
+        .put("acknowledgementRef",        r.acknowledgementRef())
+        .put("rejectionReason",           r.rejectionReason())
+        .put("createdAt",                 r.createdAt().toString())
+        .put("submittedByUserId",         r.submittedByUserId())
+        .put("submittedByName",           r.submittedByName())
+        .put("submittedAt",               r.submittedAt() != null ? r.submittedAt().toString() : null);
   }
 
   static JsonObject scheduleJson(NfiuSchedule s) {
@@ -281,6 +346,18 @@ public final class NfiuHandlers {
   private static long parseLong(RoutingContext ctx, String param) {
     try { return Long.parseLong(ctx.pathParam(param)); }
     catch (NumberFormatException e) { badRequest(ctx, "invalid " + param); return -1; }
+  }
+
+  private static Long parseLongVal(JsonObject body, String key) {
+    Object v = body.getValue(key);
+    if (v == null) return null;
+    return ((Number) v).longValue();
+  }
+
+  private static Double parseDouble(JsonObject body, String key) {
+    Object v = body.getValue(key);
+    if (v == null) return null;
+    return ((Number) v).doubleValue();
   }
 
   private static LocalDate parseDate(String s) {

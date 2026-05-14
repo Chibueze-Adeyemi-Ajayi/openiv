@@ -1,15 +1,16 @@
 package com.openiv.backend.beam;
 
+import com.openiv.backend.aml.AmlSettings;
 import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.transactions.Transaction;
 import com.openiv.backend.transactions.TransactionImport;
 import com.openiv.backend.transactions.TransactionProcessingOrchestrator;
 import com.openiv.backend.transactions.TransactionService;
 import com.openiv.backend.notifications.NotificationService;
-import com.openiv.backend.webhooks.WebhookPayloadBuilder;
 import com.openiv.backend.webhooks.WebhookService;
 import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Future;
@@ -34,7 +35,7 @@ public final class BeamService {
 
   private static final Logger log = LoggerFactory.getLogger(BeamService.class);
   private static final Set<String> VALID_STREAMS = Set.of(
-      "transactions", "logins", "activity", "location", "devices", "otps");
+      "transactions", "logins", "activity", "location", "devices", "otps", "kyc");
 
   private final BeamRepository      repository;
   private final UserRepository      users;
@@ -45,26 +46,41 @@ public final class BeamService {
   private final NotificationService notificationService;
   private final CustomerService     customerService;
   private final com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository;
+  private final BehavioralBeamAnalyzer behavioralBeamAnalyzer;
+  private final KycService kycService;
 
-  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer, 
-      TransactionService transactionService, WebhookService webhookService, 
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
+      TransactionService transactionService, WebhookService webhookService,
       CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository) {
-    this(repository, users, otpAnalyzer, transactionService, webhookService, null, null, customerService, amlSettingsRepository);
+    this(repository, users, otpAnalyzer, transactionService, webhookService, null, null,
+        customerService, amlSettingsRepository, null, null);
   }
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
       TransactionService transactionService, WebhookService webhookService,
       TransactionProcessingOrchestrator orchestrator, NotificationService notificationService,
-      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository) {
-    this.repository         = repository;
-    this.users              = users;
-    this.otpAnalyzer        = otpAnalyzer;
-    this.transactionService = transactionService;
-    this.webhookService     = webhookService;
-    this.orchestrator       = orchestrator;
-    this.notificationService = notificationService;
-    this.customerService    = customerService;
-    this.amlSettingsRepository = amlSettingsRepository;
+      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
+      BehavioralBeamAnalyzer behavioralBeamAnalyzer) {
+    this(repository, users, otpAnalyzer, transactionService, webhookService, orchestrator,
+        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, null);
+  }
+
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
+      TransactionService transactionService, WebhookService webhookService,
+      TransactionProcessingOrchestrator orchestrator, NotificationService notificationService,
+      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
+      BehavioralBeamAnalyzer behavioralBeamAnalyzer, KycService kycService) {
+    this.repository              = repository;
+    this.users                   = users;
+    this.otpAnalyzer             = otpAnalyzer;
+    this.transactionService      = transactionService;
+    this.webhookService          = webhookService;
+    this.orchestrator            = orchestrator;
+    this.notificationService     = notificationService;
+    this.customerService         = customerService;
+    this.amlSettingsRepository   = amlSettingsRepository;
+    this.behavioralBeamAnalyzer  = behavioralBeamAnalyzer;
+    this.kycService              = kycService;
   }
 
   public record BeamIngestResult(BeamRecord record, JsonObject analysis) {}
@@ -104,12 +120,45 @@ public final class BeamService {
           ip, userAgent, requestHeaders, bytes, durationMs, finalOccurredAt);
     }
 
+    // Resolve AmlSettings with safe defaults so behavioral analysis always has a config object.
+    final com.openiv.backend.aml.AmlSettings amlSettings = settingsOpt.orElse(
+        new com.openiv.backend.aml.AmlSettings(
+            0L, institutionId, true, List.of(), 51, 81, 60, 85, 30, 30, 180, tz));
+
     return saved.compose(record -> {
       if (customerService != null) {
         processCustomerUpsert(institutionId, payload);
       }
-      if ("otps".equals(stream) && otpAnalyzer != null) {
-        otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
+
+      if ("otps".equals(stream)) {
+        if (otpAnalyzer != null) {
+          otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
+        }
+        // Timestamp anomaly for OTP events (micro-timing, stale, future)
+        if (behavioralBeamAnalyzer != null && finalOccurredAt != null) {
+          behavioralBeamAnalyzer.analyzeOtpTimestamp(
+              institutionId, OtpPayload.parse(payload), finalOccurredAt, zone, amlSettings);
+        }
+      }
+
+      if ("logins".equals(stream)) {
+        return analyzeLoginSynchronously(institutionId, record, payload, zone, amlSettings)
+            .map(analysis -> new BeamIngestResult(record, analysis));
+      }
+
+      if ("activity".equals(stream)) {
+        return analyzeActivitySynchronously(institutionId, record, payload, zone, amlSettings)
+            .map(analysis -> new BeamIngestResult(record, analysis));
+      }
+
+      if ("location".equals(stream) && behavioralBeamAnalyzer != null) {
+        behavioralBeamAnalyzer.analyzeLocation(
+            institutionId, LocationPayload.parse(payload), finalOccurredAt, zone, amlSettings);
+      }
+
+      if ("devices".equals(stream) && behavioralBeamAnalyzer != null) {
+        behavioralBeamAnalyzer.analyzeDevice(
+            institutionId, DevicePayload.parse(payload), finalOccurredAt, zone, amlSettings);
       }
 
       if ("transactions".equals(stream) && orchestrator != null) {
@@ -117,10 +166,51 @@ public final class BeamService {
             .map(analysis -> new BeamIngestResult(record, analysis));
       }
 
+      if ("kyc".equals(stream)) {
+        return processKycSynchronously(institutionId, record, payload)
+            .map(analysis -> new BeamIngestResult(record, analysis));
+      }
+
       return Future.succeededFuture(new BeamIngestResult(record, null));
     });
   });
 }
+
+  private Future<JsonObject> processKycSynchronously(long institutionId, BeamRecord record, String payload) {
+    try {
+      JsonObject obj = new JsonObject(payload);
+      String customerId = obj.getString("customer_id", obj.getString("customerId"));
+      String name       = obj.getString("name");
+      String bvn        = obj.getString("bvn");
+      String nin        = obj.getString("nin");
+      String photo      = obj.getString("photo");
+
+      if (customerId == null || customerId.isBlank()) {
+        return Future.failedFuture(new IllegalArgumentException("Missing required field 'customer_id'"));
+      }
+
+      return customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
+          .map(customer -> {
+            boolean hasKyc = (customer.bvn() != null && !customer.bvn().isBlank())
+                || (customer.nin() != null && !customer.nin().isBlank());
+            return new JsonObject()
+                .put("customer_id",    customerId)
+                .put("kyc_status",     hasKyc ? "verified" : "partial")
+                .put("bvn_received",   bvn != null && !bvn.isBlank())
+                .put("nin_received",   nin != null && !nin.isBlank())
+                .put("photo_received", photo != null && !photo.isBlank())
+                .put("processed_at",   OffsetDateTime.now().toString());
+          })
+          .recover(e -> {
+            log.error("[Beam/KYC] Failed to process KYC for customer {}: {}", customerId, e.getMessage());
+            return Future.succeededFuture(new JsonObject()
+                .put("error", "KYC processing failed: " + e.getMessage()));
+          });
+    } catch (Exception e) {
+      log.error("[Beam/KYC] Payload parse error", e);
+      return Future.succeededFuture(new JsonObject().put("error", "Invalid payload: " + e.getMessage()));
+    }
+  }
 
   private Future<JsonObject> analyzeTransactionSynchronously(long institutionId, BeamRecord record, String payload, ZoneId zone) {
     try {
@@ -154,24 +244,29 @@ public final class BeamService {
 
       return transactionService.ingestFromBeam(institutionId, imp)
           .compose(v -> {
-            // Fetch real-time context for scoring
+            // Fetch real-time context for scoring (all in parallel)
             Future<Long> fToday = transactionService.getTodayCount(institutionId, today);
             Future<Long> fYesterday = transactionService.getYesterdayCount(institutionId, yesterday);
             Future<Long> fCustomer24h = transactionService.getCustomerTxnCount24h(institutionId, txn.customerId());
             Future<Boolean> fOtp = otpAnalyzer != null
                 ? otpAnalyzer.hasRecentAlert(institutionId, txn.customerId(), 15)
                 : Future.succeededFuture(false);
+            // Geo-velocity: previous transaction with coordinates for this customer
+            Future<java.util.Optional<com.openiv.backend.transactions.Transaction>> fPrevLocation =
+                transactionService.getLastTransactionWithLocation(institutionId, txn.customerId(), txnId);
 
-            return Future.all(fToday, fYesterday, fCustomer24h, fOtp);
+            return Future.all(fToday, fYesterday, fCustomer24h, fOtp, fPrevLocation);
           })
           .compose(results -> {
-            long todayCount = results.resultAt(0);
+            long todayCount    = results.resultAt(0);
             long yesterdayCount = results.resultAt(1);
-            long customer24h = results.resultAt(2);
+            long customer24h   = results.resultAt(2);
             boolean hasOtpAlert = results.resultAt(3);
+            java.util.Optional<com.openiv.backend.transactions.Transaction> prevLocation = results.resultAt(4);
 
             // Pass skipKyc=true to rely on institutional thresholds only
-            return orchestrator.processTransaction(institutionId, txn, todayCount, yesterdayCount, customer24h, hasOtpAlert, true);
+            return orchestrator.processTransaction(institutionId, txn, todayCount, yesterdayCount,
+                customer24h, hasOtpAlert, true, prevLocation);
           })
           .compose(res -> {
             // Critical security gate: reject the beam request with 400 when a timing
@@ -192,6 +287,11 @@ public final class BeamService {
                     "which is not possible for a legitimate transaction. This may indicate the transaction " +
                     "details were altered. It has been flagged and a case has been opened for review. " +
                     "Case reference: " + res.caseId();
+              } else if (res.triggeredRules().contains("TXN_IMPOSSIBLE_TRAVEL")) {
+                rejectionMessage = "Geo-velocity check failed: the transaction origin is physically " +
+                    "unreachable from the customer's previous transaction location within the elapsed time — " +
+                    "no commercial aircraft can travel that fast. The transaction has been flagged and a " +
+                    "case has been opened for review. Case reference: " + res.caseId();
               }
             }
             if (rejectionMessage != null) {
@@ -225,6 +325,137 @@ public final class BeamService {
     }
   }
 
+  private Future<JsonObject> analyzeActivitySynchronously(long institutionId, BeamRecord record,
+      String payload, ZoneId zone, AmlSettings amlSettings) {
+    try {
+      JsonObject obj = new JsonObject(payload);
+
+      String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
+      if (rawTs == null || rawTs.isBlank()) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Missing required field 'occurred_at'. Provide the activity event timestamp in ISO-8601 format."));
+      }
+      OffsetDateTime occurredAt;
+      try {
+        occurredAt = parseOccurredAtOrThrow(rawTs, zone);
+      } catch (Exception e) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Invalid 'occurred_at' value '" + rawTs + "'. Expected ISO-8601 format (e.g. 2026-05-11T14:30:00+01:00)."));
+      }
+
+      OffsetDateTime now = OffsetDateTime.now(zone);
+      long signedDiff   = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
+      long secondsDiff  = Math.abs(signedDiff);
+      int  beamWindow   = amlSettings.beamWindowSeconds();
+
+      String anomalyKind    = null;
+      String rejectionMsg   = null;
+
+      if (secondsDiff <= 5) {
+        anomalyKind  = "MICRO_TIMING_ANOMALY";
+        rejectionMsg = "This activity event's timestamp matches the server clock within 5 seconds — " +
+            "a strong indicator of an automated injection. The event has been flagged for security review.";
+      } else if (signedDiff < -beamWindow) {
+        anomalyKind  = "FUTURE_TIMESTAMP_ANOMALY";
+        long minsAhead = Math.max(1, secondsDiff / 60);
+        rejectionMsg = "This activity event carries a timestamp " + minsAhead + " minute(s) ahead of " +
+            "server time. A legitimate event cannot occur in the future — this may indicate clock " +
+            "tampering. The event has been flagged for review.";
+      } else if (signedDiff > beamWindow) {
+        String ageDesc = signedDiff >= 3600
+            ? (signedDiff / 3600) + " hour(s)" : (signedDiff / 60) + " minute(s)";
+        anomalyKind  = "STALE_TIMESTAMP_ANOMALY";
+        rejectionMsg = "This activity event timestamp is " + ageDesc + " old. This may indicate a " +
+            "replay attack or backdated injection. The event has been flagged for review.";
+      }
+
+      // Always run behavioral analysis (time-of-day, burst, session, timestamp rules) async.
+      if (behavioralBeamAnalyzer != null) {
+        behavioralBeamAnalyzer.analyzeActivity(
+            institutionId, ActivityPayload.parse(payload), occurredAt, zone, amlSettings);
+      }
+
+      if (anomalyKind != null) {
+        log.warn("[Beam/Activity] {} on record={} inst={}", anomalyKind, record.id(), institutionId);
+        return Future.failedFuture(new IllegalArgumentException(rejectionMsg));
+      }
+
+      return Future.succeededFuture(new JsonObject()
+          .put("event_id",        "beam-" + record.id())
+          .put("processed_at",    now.toString())
+          .put("timestamp_valid", true));
+
+    } catch (Exception e) {
+      log.error("[Beam/Activity] Sync analysis failed for record={}", record.id(), e);
+      return Future.succeededFuture(new JsonObject().put("error", "Analysis failed: " + e.getMessage()));
+    }
+  }
+
+  private Future<JsonObject> analyzeLoginSynchronously(long institutionId, BeamRecord record,
+      String payload, ZoneId zone, AmlSettings amlSettings) {
+    try {
+      JsonObject obj = new JsonObject(payload);
+
+      String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
+      if (rawTs == null || rawTs.isBlank()) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Missing required field 'occurred_at'. Provide the login event timestamp in ISO-8601 format."));
+      }
+      OffsetDateTime occurredAt;
+      try {
+        occurredAt = parseOccurredAtOrThrow(rawTs, zone);
+      } catch (Exception e) {
+        return Future.failedFuture(new IllegalArgumentException(
+            "Invalid 'occurred_at' value '" + rawTs + "'. Expected ISO-8601 format (e.g. 2026-05-11T14:30:00+01:00)."));
+      }
+
+      OffsetDateTime now = OffsetDateTime.now(zone);
+      long signedDiff  = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
+      long secondsDiff = Math.abs(signedDiff);
+      int  beamWindow  = amlSettings.beamWindowSeconds();
+
+      String anomalyKind  = null;
+      String rejectionMsg = null;
+
+      if (secondsDiff <= 5) {
+        anomalyKind  = "MICRO_TIMING_ANOMALY";
+        rejectionMsg = "This login event's timestamp matches the server clock within 5 seconds — " +
+            "a strong indicator of an automated injection. The event has been flagged for security review.";
+      } else if (signedDiff < -beamWindow) {
+        anomalyKind  = "FUTURE_TIMESTAMP_ANOMALY";
+        long minsAhead = Math.max(1, secondsDiff / 60);
+        rejectionMsg = "This login event carries a timestamp " + minsAhead + " minute(s) ahead of " +
+            "server time. A legitimate login cannot occur in the future — this may indicate clock " +
+            "tampering. The event has been flagged for review.";
+      } else if (signedDiff > beamWindow) {
+        String ageDesc = signedDiff >= 3600
+            ? (signedDiff / 3600) + " hour(s)" : (signedDiff / 60) + " minute(s)";
+        anomalyKind  = "STALE_TIMESTAMP_ANOMALY";
+        rejectionMsg = "This login event timestamp is " + ageDesc + " old. This may indicate a " +
+            "replay attack or session injection. The event has been flagged for review.";
+      }
+
+      if (behavioralBeamAnalyzer != null) {
+        behavioralBeamAnalyzer.analyzeLogin(
+            institutionId, LoginPayload.parse(payload), occurredAt, zone, amlSettings);
+      }
+
+      if (anomalyKind != null) {
+        log.warn("[Beam/Login] {} on record={} inst={}", anomalyKind, record.id(), institutionId);
+        return Future.failedFuture(new IllegalArgumentException(rejectionMsg));
+      }
+
+      return Future.succeededFuture(new JsonObject()
+          .put("event_id",        "beam-" + record.id())
+          .put("processed_at",    now.toString())
+          .put("timestamp_valid", true));
+
+    } catch (Exception e) {
+      log.error("[Beam/Login] Sync analysis failed for record={}", record.id(), e);
+      return Future.succeededFuture(new JsonObject().put("error", "Analysis failed: " + e.getMessage()));
+    }
+  }
+
   /** Build a TransactionImport from the raw beam payload, using the given stable txnId. */
   private TransactionImport buildTransactionImport(String txnId, JsonObject obj, ZoneId zone) {
     String customerId    = obj.getString("customer_id", obj.getString("customerId", ""));
@@ -251,7 +482,7 @@ public final class BeamService {
 
     return new TransactionImport(
         txnId, customerId, customerName,
-        new java.math.BigDecimal(amtNum.toString()),
+        new BigDecimal(amtNum.toString()),
         channel, counterparty, 0, status, flaggedStatus, location, lat, lng, occurredAt,
         senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
         currency, narration, deviceId, ipAddress);
@@ -267,7 +498,7 @@ public final class BeamService {
     return new Transaction(
         txnId, institutionId, customerId,
         obj.getString("customer_name", obj.getString("customerName", "")),
-        new java.math.BigDecimal(amtNum.toString()),
+        new BigDecimal(amtNum.toString()),
         obj.getString("channel", "Unknown"),
         obj.getString("counterparty_account", obj.getString("counterparty", "")),
         0, obj.getString("status", "pending"), null,
@@ -286,42 +517,6 @@ public final class BeamService {
         false);
   }
 
-  private Transaction mapToTransaction(long institutionId, long id, JsonObject obj, ZoneId zone) {
-    String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
-    Number amtNum = obj.getNumber("amount", 0);
-    OffsetDateTime occurredAt = parseOccurredAt(obj.getString("occurred_at", obj.getString("occurredAt")), zone);
-    OffsetDateTime now = OffsetDateTime.now(zone);
-
-    return new Transaction(
-        String.valueOf(id),
-        institutionId,
-        customerId,
-        obj.getString("customer_name", obj.getString("customerName", "")),
-        new BigDecimal(amtNum.toString()),
-        obj.getString("channel", "Unknown"),
-        obj.getString("counterparty_account", obj.getString("counterparty", "")),
-        0, // riskScore
-        obj.getString("status", "pending"),
-        null, // flaggedStatus
-        obj.getString("location", ""),
-        obj.getDouble("lat"),
-        obj.getDouble("lng"),
-        occurredAt,
-        now, // createdAt
-        now, // updatedAt
-        obj.getString("sender_account", obj.getString("senderAccount", "")),
-        obj.getString("sender_bank", obj.getString("senderBank", "")),
-        obj.getString("recipient_name", obj.getString("recipientName", "")),
-        obj.getString("recipient_account", obj.getString("recipientAccount", "")),
-        obj.getString("recipient_bank", obj.getString("recipientBank", "")),
-        obj.getString("currency", "NGN"),
-        obj.getString("narration", ""),
-        obj.getString("device_id", obj.getString("deviceId", "")),
-        obj.getString("ip_address", obj.getString("ipAddress", "")),
-        false
-    );
-  }
-
   private void processCustomerUpsert(long institutionId, String payload) {
     try {
       JsonObject obj = new JsonObject(payload);
@@ -334,129 +529,6 @@ public final class BeamService {
       }
     } catch (Exception e) {
       // Best effort
-    }
-  }
-
-  private void processTransactionStream(long institutionId, String idempotencyKey, String payload, ZoneId zone) {
-    try {
-      JsonObject obj = new JsonObject(payload);
-      String id = idempotencyKey != null ? idempotencyKey : "beam-" + System.currentTimeMillis();
-
-      // Support both snake_case (frontend samples) and camelCase
-      String customerId    = obj.getString("customer_id", obj.getString("customerId", ""));
-      String customerName  = obj.getString("customer_name", obj.getString("customerName", ""));
-      Number amtNum        = obj.getNumber("amount", 0);
-      BigDecimal amount    = new BigDecimal(amtNum.toString());
-      String channel       = obj.getString("channel", "Unknown");
-      String counterparty  = obj.getString("counterparty", "");
-      String status        = sanitizeStatus(obj.getString("status"));
-      String flaggedStatus = obj.getString("flagged_status", obj.getString("flaggedStatus"));
-      String location      = obj.getString("location");
-      Double lat           = obj.getDouble("lat");
-      Double lng           = obj.getDouble("lng");
-
-      // Extract and validate occurred_at: this is when the transaction actually occurred (source of truth)
-      String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
-      if (rawTs == null || rawTs.isBlank()) {
-        log.error("[Beam] Missing required field 'occurred_at' in payload for txn {}", id);
-        throw new IllegalArgumentException("Transaction timestamp (occurred_at) is required");
-      }
-      final OffsetDateTime occurredAt = parseOccurredAt(rawTs, zone);
-
-      // Timestamp anomaly detection: use occurred_at (user's time) as source of truth
-      // This detects if the user's transaction time is in the future or unusually stale
-      final OffsetDateTime now = OffsetDateTime.now(zone);
-      final long secondsDiff = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
-      boolean timestampAnomaly = false;
-      String anomalyReason = "";
-
-      if (secondsDiff < -15) {
-        // Future timestamp: occurred_at is ahead of system time (device tamper)
-        long futureSecsDiff = Math.abs(secondsDiff);
-        timestampAnomaly = true;
-        anomalyReason = String.format("future timestamp (%d seconds ahead)", futureSecsDiff);
-      } else if (secondsDiff > 15) {
-        // Stale timestamp: transaction is too old
-        timestampAnomaly = true;
-        anomalyReason = String.format("stale timestamp (%d seconds old)", secondsDiff);
-      }
-
-      int riskScore = obj.getInteger("risk_score", obj.getInteger("riskScore", 0));
-      if (timestampAnomaly) {
-        riskScore = 95; // Critical risk score triggers case auto-creation
-        log.warn("[Beam] Timestamp anomaly detected for txn {}: {} - escalating to critical", id, anomalyReason);
-      }
-      final int finalRiskScore = riskScore;
-      final boolean isTimestampAnomaly = timestampAnomaly;
-
-      String senderAccount    = obj.getString("sender_account", obj.getString("senderAccount"));
-      String senderBank       = obj.getString("sender_bank", obj.getString("senderBank"));
-      String recipientName    = obj.getString("recipient_name", obj.getString("recipientName"));
-      String recipientAccount = obj.getString("recipient_account", obj.getString("recipientAccount"));
-      String recipientBank    = obj.getString("recipient_bank", obj.getString("recipientBank"));
-      String currency         = obj.getString("currency", "NGN");
-      String narration        = obj.getString("narration");
-      String deviceId         = obj.getString("device_id", obj.getString("deviceId"));
-      String ipAddress        = obj.getString("ip_address", obj.getString("ipAddress"));
-
-      TransactionImport imp = new TransactionImport(id, customerId, customerName, amount,
-          channel, counterparty, finalRiskScore, status, flaggedStatus, location, lat, lng, occurredAt,
-          senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
-          currency, narration, deviceId, ipAddress);
-
-      transactionService.ingestFromBeam(institutionId, imp)
-          .onSuccess(v -> {
-            webhookService.broadcast(institutionId, "tx.received", WebhookPayloadBuilder.txReceived(obj));
-
-            // Send cyber breach notification if timestamp anomaly detected
-            if (isTimestampAnomaly) {
-              if (notificationService != null) {
-                notificationService.notifyCyberBreachTimestampAnomaly(institutionId, id, Math.abs(secondsDiff))
-                    .onFailure(e -> log.warn("[Beam] Failed to create cyber breach notification: {}", e.getMessage()));
-              }
-            }
-
-            // Trigger hybrid fraud detection if orchestrator available
-            if (orchestrator != null) {
-              log.info("[Beam] Triggering hybrid fraud detection for txn {}", id);
-              // Build Transaction from import data
-              Transaction txn = new Transaction(id, institutionId, customerId, customerName,
-                  amount, channel, counterparty, finalRiskScore, status, flaggedStatus,
-                  location, lat, lng, occurredAt, now, now,
-                  senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
-                  currency, narration, deviceId, ipAddress, false);
-
-              // Query actual transaction counts from database for realistic rule evaluation
-              java.time.LocalDate today = occurredAt.toLocalDate();
-              java.time.LocalDate yesterday = today.minusDays(1);
-
-              Future<Long> fToday = transactionService.getTodayCount(institutionId, today);
-              Future<Long> fYesterday = transactionService.getYesterdayCount(institutionId, yesterday);
-              Future<Long> fCustomer24h = transactionService.getCustomerTxnCount24h(institutionId, customerId);
-              Future<Boolean> fOtp = otpAnalyzer != null
-                  ? otpAnalyzer.hasRecentAlert(institutionId, customerId, 15)
-                  : Future.succeededFuture(false);
-
-              Future.all(fToday, fYesterday, fCustomer24h, fOtp)
-                  .compose(counts -> {
-                    long todayCount = counts.resultAt(0);
-                    long yesterdayCount = counts.resultAt(1);
-                    long customer24h = counts.resultAt(2);
-                    boolean hasOtpAlert = counts.resultAt(3);
-
-                    return orchestrator.processTransaction(institutionId, txn, todayCount, yesterdayCount, customer24h, hasOtpAlert, true);
-                  })
-                  .onSuccess(result -> {
-                    log.info("[Beam] Fraud analysis complete: risk={} case={} ref={}",
-                        result.riskScore(), result.caseId(), result.billingReference());
-                  })
-                  .onFailure(e -> log.error("[Beam] Fraud analysis failed for txn {}: {}",
-                      id, e.getMessage()));
-            }
-          })
-          .onFailure(err -> log.warn("Transaction ingest failed for institution {}: {}", institutionId, err.getMessage()));
-    } catch (Exception e) {
-      // Best effort ingestion; don't fail the beam if parsing fails
     }
   }
 

@@ -56,7 +56,8 @@ public final class AuthHandlers {
         SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
         return new JsonObject()
             .put("state",       result.state().dbValue())
-            .put("accountType", result.accountType().dbValue());
+            .put("accountType", result.accountType().dbValue())
+            .put("fullName",    result.fullName());
       });
     });
   }
@@ -77,7 +78,8 @@ public final class AuthHandlers {
             SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
             return new JsonObject()
                 .put("state",       result.state().dbValue())
-                .put("accountType", result.accountType().dbValue());
+                .put("accountType", result.accountType().dbValue())
+                .put("fullName",    result.fullName());
           });
     });
   }
@@ -205,6 +207,7 @@ public final class AuthHandlers {
               body.put("email", info.email());
             if (info.fullName() != null)
               body.put("fullName", info.fullName());
+            body.put("userId", info.userId());
             okJson(ctx, body);
           })
           .onFailure(err -> handleFailure(ctx, err));

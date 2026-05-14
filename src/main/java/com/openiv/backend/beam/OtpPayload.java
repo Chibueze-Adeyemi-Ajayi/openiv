@@ -47,21 +47,41 @@ public record OtpPayload(
     if (json == null) return empty();
     try {
       JsonObject o = new JsonObject(json);
+      String customerId = o.getString("customerId",
+          o.getString("customer_id",
+          o.getString("userId",
+          o.getString("user_id"))));
+      String customerName = o.getString("customerName",
+          o.getString("customer_name",
+          o.getString("userName",
+          o.getString("user_name"))));
+      String ip = o.getString("ip",
+          o.getString("ip_address",
+          o.getString("ipAddress")));
+      String otpType = o.getString("otpType",
+          o.getString("otp_type",
+          o.getString("event_type",
+          o.getString("eventType"))));
+      String msisdn = o.getString("msisdn",
+          o.getString("phone_msisdn",
+          o.getString("phoneMsisdn")));
+      String transactionId = o.getString("transactionId",
+          o.getString("transaction_id"));
       return new OtpPayload(
-          o.getString("customerId"),
-          o.getString("customerName"),
+          customerId,
+          customerName,
           o.getString("channel"),
-          o.getString("otpType"),
+          otpType,
           o.getString("outcome"),
-          o.getString("ip"),
-          o.getString("deviceId"),
-          o.getString("deviceModel"),
+          ip,
+          o.getString("deviceId", o.getString("device_id")),
+          o.getString("deviceModel", o.getString("device_model")),
           o.getDouble("lat"),
           o.getDouble("lng"),
-          o.getString("msisdn"),
+          msisdn,
           o.getLong("amount"),
-          o.getString("beneficiaryAccount"),
-          o.getString("transactionId")
+          o.getString("beneficiaryAccount", o.getString("beneficiary_account")),
+          transactionId
       );
     } catch (Exception e) {
       return empty();

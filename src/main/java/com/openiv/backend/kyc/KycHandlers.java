@@ -37,9 +37,7 @@ public final class KycHandlers {
       String  lookupUrl      = body.getString("lookupUrl");
       String  lookupApiKey   = body.getString("lookupApiKey");
       Integer lookupTimeout  = body.getInteger("lookupTimeout");
-      String  listenerUrl    = body.getString("listenerUrl");
-      String  listenerApiKey = body.getString("listenerApiKey");
-      service.saveConfig(session, lookupUrl, lookupApiKey, lookupTimeout, listenerUrl, listenerApiKey)
+      service.saveConfig(session, lookupUrl, lookupApiKey, lookupTimeout)
           .onSuccess(cfg -> ok(ctx, new JsonObject().put("config", configJson(cfg))))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
@@ -73,6 +71,28 @@ public final class KycHandlers {
     };
   }
 
+  // GET /kyc/pep-search
+  public Handler<RoutingContext> searchPEP() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String query = ctx.request().getParam("name");
+      if (query == null || query.isBlank()) {
+        badRequest(ctx, "Query parameter 'name' is required");
+        return;
+      }
+      
+      service.searchPEP(session, query)
+          .onSuccess(results -> ok(ctx, new JsonObject().put("results", results)))
+          .onFailure(err -> {
+            if (err instanceof IllegalArgumentException || err instanceof IllegalStateException) {
+              badRequest(ctx, err.getMessage());
+            } else {
+              ctx.fail(err);
+            }
+          });
+    };
+  }
+
   // GET /kyc/logs
   public Handler<RoutingContext> listLogs() {
     return ctx -> {
@@ -91,12 +111,10 @@ public final class KycHandlers {
 
   private static JsonObject configJson(KycConfig c) {
     return new JsonObject()
-        .put("lookupUrl",        c.lookupUrl())
-        .put("hasLookupApiKey",  c.lookupApiKey() != null && !c.lookupApiKey().isBlank())
-        .put("lookupTimeout",    c.lookupTimeout())
-        .put("listenerUrl",      c.listenerUrl())
-        .put("hasListenerApiKey", c.listenerApiKey() != null && !c.listenerApiKey().isBlank())
-        .put("updatedAt",        c.updatedAt().toString());
+        .put("lookupUrl",       c.lookupUrl())
+        .put("hasLookupApiKey", c.lookupApiKey() != null && !c.lookupApiKey().isBlank())
+        .put("lookupTimeout",   c.lookupTimeout())
+        .put("updatedAt",       c.updatedAt().toString());
   }
 
   private static JsonObject logJson(KycLookupLog l) {

@@ -5,6 +5,7 @@ import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.cases.CaseService;
+import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
+import io.vertx.core.json.JsonArray;
 
 public final class KycService {
 
@@ -24,14 +26,16 @@ public final class KycService {
   private final WebClient      client;
   private final CaseService    cases;
   private final NotificationService notifications;
+  private final CustomerService customerService;
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
-      CaseService cases, NotificationService notifications) {
+      CaseService cases, NotificationService notifications, CustomerService customerService) {
     this.repository = repository;
     this.users      = users;
     this.client     = client;
     this.cases      = cases;
     this.notifications = notifications;
+    this.customerService = customerService;
   }
 
   // ── Config ────────────────────────────────────────────────────────────────
@@ -45,15 +49,87 @@ public final class KycService {
   }
 
   public Future<KycConfig> saveConfig(Session session,
-      String lookupUrl, String lookupApiKey, Integer lookupTimeout,
-      String listenerUrl, String listenerApiKey) {
+      String lookupUrl, String lookupApiKey, Integer lookupTimeout) {
     if (lookupUrl != null && !lookupUrl.isBlank() && !lookupUrl.startsWith("https://"))
       return Future.failedFuture(new IllegalArgumentException("Lookup URL must start with https://"));
-    if (listenerUrl != null && !listenerUrl.isBlank() && !listenerUrl.startsWith("https://"))
-      return Future.failedFuture(new IllegalArgumentException("Listener URL must start with https://"));
     return resolveUser(session).compose(u ->
         repository.saveConfig(u.institutionId(),
-            lookupUrl, lookupApiKey, lookupTimeout, listenerUrl, listenerApiKey));
+            lookupUrl, lookupApiKey, lookupTimeout));
+  }
+
+  // ── PEP Screening ───────────────────────────────────────────────────────────
+
+  public Future<JsonArray> searchPEP(Session session, String query) {
+    if (query == null || query.isBlank())
+      return Future.failedFuture(new IllegalArgumentException("query is required"));
+
+    return resolveUser(session).compose(u -> {
+      String apiKey = System.getenv("OPEN_SANCTIONS_API_KEY");
+      if (apiKey == null || apiKey.isBlank()) {
+        log.error("OPEN_SANCTIONS_API_KEY is not configured.");
+        return Future.failedFuture(new IllegalStateException("PEP API key is not configured on the server."));
+      }
+
+      String url = "https://api.opensanctions.org/search/default";
+      return client.getAbs(url)
+          .addQueryParam("q", query.trim())
+          .addQueryParam("limit", "10")
+          .putHeader("Authorization", "ApiKey " + apiKey)
+          .send()
+          .compose(resp -> {
+            if (resp.statusCode() != 200) {
+              log.error("OpenSanctions API failed with {}: {}", resp.statusCode(), resp.bodyAsString());
+              return Future.failedFuture("PEP screening service temporarily unavailable.");
+            }
+            try {
+              JsonObject body = resp.bodyAsJsonObject();
+              JsonArray results = body.getJsonArray("results");
+              JsonArray mapped = new JsonArray();
+              if (results != null) {
+                for (int i = 0; i < results.size(); i++) {
+                  JsonObject item = results.getJsonObject(i);
+                  String id = item.getString("id");
+                  String name = item.getString("caption");
+                  JsonObject props = item.getJsonObject("properties");
+                  
+                  String position = "";
+                  String country = "";
+                  if (props != null) {
+                    JsonArray posArr = props.getJsonArray("position");
+                    if (posArr != null && !posArr.isEmpty()) position = posArr.getString(0);
+                    JsonArray ctryArr = props.getJsonArray("country");
+                    if (ctryArr != null && !ctryArr.isEmpty()) country = ctryArr.getString(0);
+                  }
+
+                  String riskLevel = "Medium";
+                  JsonArray topics = props != null ? props.getJsonArray("topics") : null;
+                  if (topics != null) {
+                    for (int t = 0; t < topics.size(); t++) {
+                      String topic = topics.getString(t).toLowerCase();
+                      if (topic.contains("sanction") || topic.contains("wanted") || topic.contains("terrorism")) {
+                        riskLevel = "High";
+                        break;
+                      }
+                    }
+                  }
+
+                  mapped.add(new JsonObject()
+                      .put("id", id)
+                      .put("name", name)
+                      .put("position", position.isBlank() ? "Unknown Position" : position)
+                      .put("organization", "OpenSanctions Database")
+                      .put("country", country.isBlank() ? "Unknown" : country.toUpperCase())
+                      .put("riskLevel", riskLevel)
+                      .put("lastUpdated", item.getString("last_seen", "Recent")));
+                }
+              }
+              return Future.succeededFuture(mapped);
+            } catch (Exception e) {
+              log.error("Failed to parse OpenSanctions response: {}", e.getMessage());
+              return Future.failedFuture("Failed to parse PEP screening response.");
+            }
+          });
+    });
   }
 
   // ── Lookup ────────────────────────────────────────────────────────────────
@@ -64,7 +140,7 @@ public final class KycService {
     return resolveUser(session).compose(u ->
         repository.findConfig(u.institutionId()).compose(cfgOpt -> {
           if (cfgOpt.isEmpty() || cfgOpt.get().lookupUrl() == null)
-            return Future.failedFuture(new IllegalStateException("KYC lookup URL not configured"));
+            return Future.<JsonObject>failedFuture(new IllegalStateException("KYC lookup URL not configured"));
           KycConfig cfg = cfgOpt.get();
           String url = cfg.lookupUrl().endsWith("/")
               ? cfg.lookupUrl() + customerRef
@@ -123,7 +199,7 @@ public final class KycService {
                   String notes = kycNotes(customerRef, finalKycStatus, finalTier, finalError);
                   return cases.create(session, "KYC Review: " + customerRef,
                       "kyc_review", casePriority, riskScore, null, notes, null,
-                      "Automatically opened by KYC review", null)
+                      "Automatically opened by KYC review", null, customerRef, null)
                       .map(cas -> base.put("case", new JsonObject()
                           .put("id",         cas.id())
                           .put("title",      cas.title())
@@ -140,69 +216,23 @@ public final class KycService {
             String failStatus = isTimeout ? "timeout" : "failed";
             return repository.saveLog(u.institutionId(), customerRef, src,
                 failStatus, null, elapsed, null, null, err.getMessage())
-                .compose(ignored -> Future.failedFuture(err));
+                .compose(ignored -> Future.<JsonObject>failedFuture(err));
           });
         }));
   }
 
   public Future<Void> lookupForPipeline(long institutionId, String customerRef, String caseId) {
-    return repository.findConfig(institutionId).compose(cfgOpt -> {
-      if (cfgOpt.isEmpty() || cfgOpt.get().lookupUrl() == null
-          || cfgOpt.get().lookupUrl().isBlank()) {
-        return notifications.notifyKycWebhookMissing(institutionId).mapEmpty();
+    return customerService.findByExternalId(institutionId, customerRef).compose(opt -> {
+      if (opt.isPresent() && (opt.get().bvn() != null || opt.get().nin() != null)) {
+        var c = opt.get();
+        String detail = "KYC on file — BVN: " + (c.bvn() != null ? "verified" : "absent")
+            + ", NIN: " + (c.nin() != null ? "verified" : "absent");
+        return cases.addSystemActivity(caseId, institutionId, "kyc_verified", detail);
       }
-      KycConfig cfg = cfgOpt.get();
-      String url = cfg.lookupUrl().endsWith("/")
-          ? cfg.lookupUrl() + customerRef
-          : cfg.lookupUrl() + "/" + customerRef;
-      Integer timeout = cfg.lookupTimeout();
-      int timeoutMs = (timeout != null ? timeout : 10) * 1_000;
-
-      var req = client.getAbs(url).timeout(timeoutMs);
-      if (cfg.lookupApiKey() != null && !cfg.lookupApiKey().isBlank())
-        req = req.putHeader("Authorization", "Bearer " + cfg.lookupApiKey());
-      long start = System.currentTimeMillis();
-
-      return req.send()
-          .compose(resp -> {
-            int durationMs = (int) (System.currentTimeMillis() - start);
-            boolean found = resp.statusCode() >= 200 && resp.statusCode() < 300;
-            Integer tier = null;
-            String kycStatus = null;
-            if (found) {
-              try {
-                var body = resp.bodyAsJsonObject();
-                if (body != null) {
-                  tier = body.getInteger("tier");
-                  kycStatus = body.getString("status");
-                }
-              } catch (Exception ignored) {}
-            }
-            final Integer finalTier = tier;
-            final String finalKycStatus = kycStatus;
-            return repository.saveLog(institutionId, customerRef, "fraud_pipeline",
-                found ? "success" : "failed", resp.statusCode(), durationMs, finalTier, finalKycStatus,
-                found ? null : "HTTP " + resp.statusCode())
-                .compose(v -> {
-                  boolean notFound = !found || (finalTier == null && finalKycStatus == null);
-                  if (notFound) {
-                    return cases.escalatePriorityBySystem(caseId, institutionId, "high")
-                        .compose(x -> cases.addSystemActivity(caseId, institutionId, "kyc_flag",
-                            "KYC lookup for customer " + customerRef +
-                            " returned no record. Priority escalated to HIGH — investigate."))
-                        .compose(x -> notifications.notifyKycDataNotFound(
-                            institutionId, customerRef, caseId).mapEmpty());
-                  }
-                  return cases.addSystemActivity(caseId, institutionId, "kyc_verified",
-                      "KYC lookup OK: tier=" + finalTier + ", status=" + finalKycStatus);
-                });
-          })
-          .recover(err -> {
-            int elapsed = (int) (System.currentTimeMillis() - start);
-            return repository.saveLog(institutionId, customerRef, "fraud_pipeline",
-                "failed", null, elapsed, null, null, err.getMessage())
-                .mapEmpty();
-          });
+      return cases.escalatePriorityBySystem(caseId, institutionId, "high")
+          .compose(x -> cases.addSystemActivity(caseId, institutionId, "kyc_flag",
+              "No KYC data on file for customer " + customerRef
+              + ". Priority escalated to HIGH — request customer to submit KYC via beam."));
     });
   }
 

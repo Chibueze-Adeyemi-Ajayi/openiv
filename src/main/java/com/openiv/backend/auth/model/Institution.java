@@ -7,6 +7,11 @@ public record Institution(
     String name,
     AccountType type,
     String status,
+    String cbnCode,
+    String address,
+    String contactPhone,
+    String officialStamp,
+    String officialSignature,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {

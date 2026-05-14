@@ -19,7 +19,7 @@ public final class WebhookService {
   private static final Set<String> VALID_EVENTS = Set.of(
       "tx.received", "tx.flagged", "tx.blocked",
       "case.opened", "case.escalated",
-      "kyc.failed", "sar.filed");
+      "sar.filed");
 
   private final WebhookRepository     repository;
   private final UserRepository        users;

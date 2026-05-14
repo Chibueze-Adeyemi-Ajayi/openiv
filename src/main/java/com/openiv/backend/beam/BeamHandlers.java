@@ -126,6 +126,7 @@ public final class BeamHandlers {
         .put("payload", r.payload())
         .put("status", r.status())
         .put("receivedAt", r.receivedAt().toString())
+        .put("occurredAt", r.occurredAt() != null ? r.occurredAt().toString() : null)
         .put("durationMs", r.durationMs())
         .put("bytes", r.bytes())
         .put("ip", r.ip())

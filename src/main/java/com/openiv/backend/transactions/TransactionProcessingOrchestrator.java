@@ -6,6 +6,7 @@ import io.vertx.core.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 public class TransactionProcessingOrchestrator {
   private static final Logger log = LoggerFactory.getLogger(TransactionProcessingOrchestrator.class);
@@ -26,11 +27,12 @@ public class TransactionProcessingOrchestrator {
   }
 
   public Future<ProcessingResult> processTransaction(long institutionId, Transaction transaction,
-      long todayCount, long yesterdayCount, long customerTxnCount24h, boolean hasOtpAlert, boolean skipKyc) {
+      long todayCount, long yesterdayCount, long customerTxnCount24h, boolean hasOtpAlert,
+      boolean skipKyc, Optional<Transaction> previousTransactionWithLocation) {
     long startTime = System.currentTimeMillis();
 
     return analysisService.analyzeTransaction(institutionId, transaction, todayCount,
-        yesterdayCount, customerTxnCount24h, hasOtpAlert, skipKyc)
+        yesterdayCount, customerTxnCount24h, hasOtpAlert, skipKyc, previousTransactionWithLocation)
         .compose(analysisResult -> {
           Future<com.openiv.backend.notifications.NotificationService.Notification> notifFuture;
           if (analysisResult.shouldFlag() && !analysisResult.triggeredRules().isEmpty()) {
@@ -100,6 +102,14 @@ public class TransactionProcessingOrchestrator {
           "the transaction is dated in the future, which is technically impossible and suggests the time details might have been tampered with.";
       case "MICRO_TIMING_ANOMALY" ->
           "the transaction was submitted with robotic precision, matching our system clock exactly, which often points to an automated script rather than a human user.";
+      case "TXN_IMPOSSIBLE_TRAVEL" ->
+          "the customer's previous and current transaction locations are so far apart that no commercial aircraft could have covered the distance in the time available — a strong indicator of card cloning, account takeover, or simultaneous session hijacking.";
+      case "TXN_SUSPICIOUS_TRAVEL" ->
+          "the implied travel speed between this and the customer's previous transaction is at the very limit of commercial aviation — the customer would need to have been on the fastest possible flight with no delays.";
+      case "TXN_AIR_TRAVEL_REQUIRED" ->
+          "the distance between this and the customer's previous transaction location means air travel was required — worth verifying whether the customer was genuinely in transit.";
+      case "TXN_HIGH_VELOCITY" ->
+          "the customer's transaction locations changed at an unusually high speed, faster than normal road transport.";
       case "HIGH_AMOUNT", "high-value-wire" ->
           "the transfer amount is significantly higher than your institution's typical transaction range.";
       case "HIGH_FREQUENCY", "velocity-cluster" ->

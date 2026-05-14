@@ -10,7 +10,6 @@ import io.vertx.core.Future;
 
 import java.time.LocalDate;
 import java.util.List;
-// import java.util.Optional;
 
 public final class NfiuService {
 
@@ -24,13 +23,9 @@ public final class NfiuService {
     this.billing = billing;
   }
 
-  // ── Metrics ───────────────────────────────────────────────────────────────
-
   public Future<NfiuMetrics> getMetrics(Session session) {
     return resolveUser(session).compose(u -> repository.getMetrics(u.institutionId()));
   }
-
-  // ── Reports ───────────────────────────────────────────────────────────────
 
   public Future<List<NfiuReport>> listReports(Session session, String type, String status) {
     return resolveUser(session).compose(u -> repository.listReports(u.institutionId(), type, status));
@@ -44,8 +39,15 @@ public final class NfiuService {
   public Future<NfiuReport> createReport(Session session,
       String reportType, String title,
       LocalDate periodStart, LocalDate periodEnd, String priority,
+      Long officerUserId, String officerName,
       String subjectName, String subjectAccount, String subjectBvn, String subjectType,
-      Double amountNgn, int transactionCount, String narrative) {
+      LocalDate subjectDob, String subjectAddress,
+      Double amountNgn, int transactionCount, String transactionType, LocalDate transactionDate,
+      String linkedTransactionId, String transactionLocation, Double transactionLat, Double transactionLng,
+      String transactionSenderAccount, String transactionSenderBank,
+      String transactionRecipientName, String transactionRecipientAccount, String transactionRecipientBank,
+      String transactionCurrency, String transactionNarration,
+      String narrative) {
 
     if (reportType == null || reportType.isBlank())
       return Future.failedFuture(new IllegalArgumentException("reportType is required"));
@@ -59,30 +61,70 @@ public final class NfiuService {
     return resolveUser(session).compose(u -> repository.createReport(
         u.institutionId(), reportType, title, periodStart, periodEnd,
         priority != null ? priority : "medium",
-        subjectName, subjectAccount, subjectBvn, subjectType,
-        amountNgn, transactionCount, narrative));
+        officerUserId, officerName,
+        subjectName, subjectAccount, subjectBvn, subjectType, subjectDob, subjectAddress,
+        amountNgn, transactionCount, transactionType, transactionDate,
+        linkedTransactionId, transactionLocation, transactionLat, transactionLng,
+        transactionSenderAccount, transactionSenderBank,
+        transactionRecipientName, transactionRecipientAccount, transactionRecipientBank,
+        transactionCurrency, transactionNarration,
+        narrative));
   }
 
   public Future<NfiuReport> updateReport(Session session, long id,
       String title, LocalDate periodStart, LocalDate periodEnd, String priority,
+      Long officerUserId, String officerName,
       String subjectName, String subjectAccount, String subjectBvn, String subjectType,
-      Double amountNgn, int transactionCount, String narrative) {
+      LocalDate subjectDob, String subjectAddress,
+      Double amountNgn, int transactionCount, String transactionType, LocalDate transactionDate,
+      String linkedTransactionId, String transactionLocation, Double transactionLat, Double transactionLng,
+      String transactionSenderAccount, String transactionSenderBank,
+      String transactionRecipientName, String transactionRecipientAccount, String transactionRecipientBank,
+      String transactionCurrency, String transactionNarration,
+      String narrative) {
     return resolveUser(session).compose(u -> repository.updateReport(
         u.institutionId(), id, title, periodStart, periodEnd, priority,
-        subjectName, subjectAccount, subjectBvn, subjectType,
-        amountNgn, transactionCount, narrative));
+        officerUserId, officerName,
+        subjectName, subjectAccount, subjectBvn, subjectType, subjectDob, subjectAddress,
+        amountNgn, transactionCount, transactionType, transactionDate,
+        linkedTransactionId, transactionLocation, transactionLat, transactionLng,
+        transactionSenderAccount, transactionSenderBank,
+        transactionRecipientName, transactionRecipientAccount, transactionRecipientBank,
+        transactionCurrency, transactionNarration,
+        narrative));
   }
 
   public Future<NfiuReport> fileReport(Session session, long id) {
-    return resolveUser(session).compose(u -> repository.fileReport(u.institutionId(), id, u.id(), u.displayName())
-        .onSuccess(r -> billing.chargeNfiuReturnAsync(session)));
+    return resolveUser(session).compose(u -> {
+      if (isApprover(u.role())) {
+        return repository.fileReport(u.institutionId(), id, u.id(), u.displayName())
+            .onSuccess(r -> billing.chargeNfiuReturnAsync(session));
+      } else {
+        return repository.submitForApproval(u.institutionId(), id, u.id(), u.displayName());
+      }
+    });
+  }
+
+  public Future<NfiuReport> approveReport(Session session, long id) {
+    return resolveUser(session).compose(u -> {
+      if (!isApprover(u.role())) {
+        return Future.failedFuture(new IllegalStateException("Insufficient permissions to approve reports"));
+      }
+      return repository.approveReport(u.institutionId(), id, u.id(), u.displayName())
+          .onSuccess(r -> billing.chargeNfiuReturnAsync(session));
+    });
+  }
+
+  private static boolean isApprover(String role) {
+    if (role == null) return false;
+    String r = role.toLowerCase();
+    return r.contains("owner") || r.contains("admin") || r.contains("compliance")
+        || r.contains("cmlco") || r.contains("mlro");
   }
 
   public Future<Void> deleteReport(Session session, long id) {
     return resolveUser(session).compose(u -> repository.deleteReport(u.institutionId(), id));
   }
-
-  // ── Schedules ─────────────────────────────────────────────────────────────
 
   public Future<List<NfiuSchedule>> listSchedules(Session session) {
     return resolveUser(session).compose(u -> repository.listSchedules(u.institutionId()));
@@ -96,7 +138,6 @@ public final class NfiuService {
       return Future.failedFuture(new IllegalArgumentException("name is required"));
     if (nextDue == null)
       return Future.failedFuture(new IllegalArgumentException("nextDue is required"));
-
     return resolveUser(session).compose(
         u -> repository.createSchedule(u.institutionId(), reportType, name, frequency, nextDue, autoFile, u.id()));
   }
@@ -110,8 +151,6 @@ public final class NfiuService {
   public Future<Void> deleteSchedule(Session session, long id) {
     return resolveUser(session).compose(u -> repository.deleteSchedule(u.institutionId(), id));
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private Future<User> resolveUser(Session session) {
     return users.findById(session.userId())
