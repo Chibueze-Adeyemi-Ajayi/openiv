@@ -51,8 +51,10 @@ export const beamApi = {
     apiRequest<{
       ok: boolean;
       record_id: number;
+      stream?: string;
+      status?: string;
       analysis?: {
-        // transaction stream
+        // transaction stream (KYC-verified path)
         transaction_id?: string;
         risk_score?: number;
         kyc_risk_score?: number;
@@ -60,18 +62,21 @@ export const beamApi = {
         recommended_action?: string;
         case_id?: string | null;
         priority?: string | null;
-        kyc_required?: boolean;
         account_conflict?: boolean;
         conflicting_customer_id?: string | null;
+        processed_at?: string;
+        // transaction stream (no-KYC path only)
+        kyc_required?: boolean;
         notification_id?: number | null;
         message?: string | null;
         // kyc stream
         customer_id?: string;
         kyc_status?: string;
+        kyc_tier?: number;
         bvn_received?: boolean;
         nin_received?: boolean;
         photo_received?: boolean;
-        processed_at: string;
+        pipeline_ms?: number;
       };
     }>(`/api/v1/beam/${stream}`, {
       method: 'POST',

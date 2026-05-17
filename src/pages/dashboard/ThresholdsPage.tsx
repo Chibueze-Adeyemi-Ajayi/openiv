@@ -462,7 +462,8 @@ export default function ThresholdsPage() {
   const handleUpdateTierRule = async (tier: number, field: string, value: number) => {
     try {
       await thresholdApi.updateKycTier(tier, field, value)
-      setKycTiers(prev => prev.map(t => t.kycTier === tier ? { ...t, [field as keyof KycTierRecord]: value } : t))
+      const stateKey = field.replace(/_([a-z])/g, (_, c) => c.toUpperCase()) as keyof KycTierRecord
+      setKycTiers(prev => prev.map(t => t.kycTier === tier ? { ...t, [stateKey]: value } : t))
     } catch (e) {
       console.error('Tier update failed', e)
     }
@@ -1012,7 +1013,7 @@ export default function ThresholdsPage() {
           )}
 
           {((activeTab === 1 && isBuildOne) || (activeTab === 2 && !isBuildOne)) && (
-            <Box sx={{ maxWidth: 800, mx: 'auto', mt: 3 }}>
+            <Box sx={{ mt: 3 }}>
               {!amlSettings ? (
                 <Box sx={{ height: 200, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', borderRadius: '8px' }} />
               ) : (
@@ -1241,100 +1242,83 @@ export default function ThresholdsPage() {
         <Grid container spacing={3}>
           {kycTiers.map((tier) => (
             <Grid key={tier.kycTier} size={{ xs: 12, md: 6 }}>
-              <Box sx={{ p: 3, border: '1px solid #eef0f4', bgcolor: '#fff', height: '100%' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
+              <Box sx={{ p: 2.5, border: '1px solid #eef0f4', bgcolor: '#fff', height: '100%' }}>
+                {/* Card header */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Box>
-                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
                       Tier {tier.kycTier}
                     </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
                       {tier.kycTier === 0 ? 'Unverified' : tier.kycTier === 1 ? 'Basic' : tier.kycTier === 2 ? 'Intermediate' : 'Full KYC'}
                     </Typography>
                   </Box>
                   <Chip
                     label={tier.riskScoreBoost > 0 ? `+${tier.riskScoreBoost} Risk Boost` : 'Standard Risk'}
                     size="small"
-                    sx={{ borderRadius: 0, fontSize: '0.6875rem', fontWeight: 700, bgcolor: tier.riskScoreBoost > 0 ? '#fef2f2' : '#f0fdf4', color: tier.riskScoreBoost > 0 ? '#dc2626' : '#10b981' }}
+                    sx={{ borderRadius: 0, fontSize: '0.625rem', fontWeight: 700, bgcolor: tier.riskScoreBoost > 0 ? '#fef2f2' : '#f0fdf4', color: tier.riskScoreBoost > 0 ? '#dc2626' : '#10b981' }}
                   />
                 </Box>
 
-                <Stack gap={2.5}>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 1 }}>Daily Wire Limit</Typography>
-                    <Box
-                      sx={{
-                        display: 'flex', alignItems: 'center',
-                        border: '1px solid #e2e8f0', bgcolor: '#fafbfc',
-                        transition: 'border-color 0.15s, background 0.15s',
-                        '&:focus-within': { borderColor: colorPalette.primary, bgcolor: '#fff', boxShadow: `0 0 0 2px ${colorPalette.primary}15` },
-                      }}
-                    >
-                      <Typography sx={{ px: 1.25, py: 1, color: '#94a3b8', fontSize: '0.875rem', borderRight: '1px solid #e2e8f0', flexShrink: 0, lineHeight: 1 }}>
-                        ₦
-                      </Typography>
-                      <Box
-                        component="input"
-                        type="number"
-                        value={tier.dailyLimitWire}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          handleUpdateTierRule(tier.kycTier, 'daily_limit_wire', parseInt(e.target.value) || 0)
-                        }
-                        sx={{
-                          flex: 1, border: 'none', outline: 'none',
-                          px: 1.25, py: 1,
-                          fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace',
-                          color: '#00288e', bgcolor: 'transparent',
-                          '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
-                        }}
-                      />
+                {/* Daily limits table */}
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>
+                  Daily Limits (₦)
+                </Typography>
+                {/* Column headers */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '72px 1fr 1fr', gap: 0.5, mb: 0.5 }}>
+                  <Box />
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Inward ↓</Typography>
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Outward ↑</Typography>
+                </Box>
+                <Stack gap={0.5}>
+                  {([
+                    { label: 'Wire',   inField: 'daily_limit_wire_inward',    outField: 'daily_limit_wire_outward',    inVal: tier.dailyLimitWireInward   ?? tier.dailyLimitWire,   outVal: tier.dailyLimitWireOutward   ?? 0 },
+                    { label: 'Mobile', inField: 'daily_limit_mobile_inward',  outField: 'daily_limit_mobile_outward',  inVal: tier.dailyLimitMobileInward  ?? tier.dailyLimitMobile, outVal: tier.dailyLimitMobileOutward  ?? 0 },
+                    { label: 'USSD',   inField: 'daily_limit_ussd_inward',    outField: 'daily_limit_ussd_outward',    inVal: tier.dailyLimitUssdInward    ?? tier.dailyLimitUssd,   outVal: tier.dailyLimitUssdOutward    ?? 0 },
+                    { label: 'BDC',    inField: 'daily_limit_bdc_inward',     outField: 'daily_limit_bdc_outward',     inVal: tier.dailyLimitBdcInward     ?? tier.dailyLimitBdc,    outVal: tier.dailyLimitBdcOutward     ?? 0 },
+                    { label: 'Other',  inField: 'daily_limit_other_inward',   outField: 'daily_limit_other_outward',   inVal: tier.dailyLimitOtherInward   ?? tier.dailyLimitOther,  outVal: tier.dailyLimitOtherOutward   ?? 0 },
+                  ] as const).map(({ label, inField, outField, inVal, outVal }) => (
+                    <Box key={label} sx={{ display: 'grid', gridTemplateColumns: '72px 1fr 1fr', gap: 0.5, alignItems: 'center' }}>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>{label}</Typography>
+                      {([{ field: inField, val: inVal }, { field: outField, val: outVal }] as const).map(({ field, val }) => (
+                        <Box key={field} sx={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', bgcolor: '#fafbfc', '&:focus-within': { borderColor: colorPalette.primary, bgcolor: '#fff' } }}>
+                          <Typography sx={{ px: 0.75, fontSize: '0.625rem', color: '#94a3b8', borderRight: '1px solid #e2e8f0', flexShrink: 0, lineHeight: '26px' }}>₦</Typography>
+                          <Box
+                            component="input"
+                            type="number"
+                            value={val}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              handleUpdateTierRule(tier.kycTier, field, parseInt(e.target.value) || 0)
+                            }
+                            sx={{
+                              flex: 1, border: 'none', outline: 'none', px: 0.75, py: 0.375,
+                              fontSize: '0.6875rem', fontFamily: 'SF Mono, Monaco, monospace',
+                              color: '#00288e', bgcolor: 'transparent', width: 0,
+                              '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
+                            }}
+                          />
+                        </Box>
+                      ))}
                     </Box>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 1 }}>Daily USSD Limit</Typography>
-                    <Box
-                      sx={{
-                        display: 'flex', alignItems: 'center',
-                        border: '1px solid #e2e8f0', bgcolor: '#fafbfc',
-                        transition: 'border-color 0.15s, background 0.15s',
-                        '&:focus-within': { borderColor: colorPalette.primary, bgcolor: '#fff', boxShadow: `0 0 0 2px ${colorPalette.primary}15` },
-                      }}
-                    >
-                      <Typography sx={{ px: 1.25, py: 1, color: '#94a3b8', fontSize: '0.875rem', borderRight: '1px solid #e2e8f0', flexShrink: 0, lineHeight: 1 }}>
-                        ₦
-                      </Typography>
-                      <Box
-                        component="input"
-                        type="number"
-                        value={tier.dailyLimitUssd}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          handleUpdateTierRule(tier.kycTier, 'daily_limit_ussd', parseInt(e.target.value) || 0)
-                        }
-                        sx={{
-                          flex: 1, border: 'none', outline: 'none',
-                          px: 1.25, py: 1,
-                          fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace',
-                          color: '#00288e', bgcolor: 'transparent',
-                          '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 1 }}>Risk Score Boost</Typography>
-                    <Slider
-                      value={tier.riskScoreBoost}
-                      onChange={(_, v) => handleUpdateTierRule(tier.kycTier, 'risk_score_boost', v as number)}
-                      min={0}
-                      max={50}
-                      step={5}
-                      valueLabelDisplay="auto"
-                      sx={{ color: colorPalette.primary }}
-                    />
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
-                      Adds {tier.riskScoreBoost} points to the risk score of every transaction from this tier.
-                    </Typography>
-                  </Box>
+                  ))}
                 </Stack>
+
+                {/* Risk Score Boost */}
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>Risk Score Boost</Typography>
+                  <Slider
+                    value={tier.riskScoreBoost}
+                    onChange={(_, v) => handleUpdateTierRule(tier.kycTier, 'risk_score_boost', v as number)}
+                    min={0}
+                    max={50}
+                    step={5}
+                    valueLabelDisplay="auto"
+                    sx={{ color: colorPalette.primary, py: 0.75 }}
+                  />
+                  <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8' }}>
+                    Adds {tier.riskScoreBoost} points to risk score for every transaction from this tier.
+                  </Typography>
+                </Box>
               </Box>
             </Grid>
           ))}

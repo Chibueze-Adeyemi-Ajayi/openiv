@@ -27,6 +27,16 @@ export interface KycTierRecord {
   dailyLimitUssd: number
   dailyLimitBdc: number
   dailyLimitOther: number
+  dailyLimitWireInward: number | null
+  dailyLimitWireOutward: number | null
+  dailyLimitMobileInward: number | null
+  dailyLimitMobileOutward: number | null
+  dailyLimitUssdInward: number | null
+  dailyLimitUssdOutward: number | null
+  dailyLimitBdcInward: number | null
+  dailyLimitBdcOutward: number | null
+  dailyLimitOtherInward: number | null
+  dailyLimitOtherOutward: number | null
   singleTxnLimitWire: number
   singleTxnLimitMobile: number
   singleTxnLimitUssd: number

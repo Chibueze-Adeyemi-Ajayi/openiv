@@ -169,14 +169,14 @@ const streams: Stream[] = [
     schema: [
       { field: 'customer_id', type: 'string', required: true, example: 'CUS-001' },
       { field: 'customer_name', type: 'string', required: true, example: 'Adamu Ibrahim' },
-      { field: 'amount', type: 'number', required: true, example: '14250000' },
-      { field: 'channel', type: 'string', required: true, example: 'Wire | Transfer | Mobile | ATM | POS' },
+      { field: 'amount', type: 'number (kobo)', required: true, example: '14250000' },
+      { field: 'channel', type: 'wire | mobile | transfer | atm | pos | ussd | bdc | other', required: true, example: 'wire' },
       { field: 'counterparty', type: 'string', required: true, example: 'Sokoto BDC Ltd' },
-      { field: 'status', type: 'string', required: true, example: 'pending' },
+      { field: 'status', type: 'pending | completed | failed | declined', required: true, example: 'pending' },
       { field: 'location', type: 'string', required: true, example: 'Sokoto' },
       { field: 'lat', type: 'number', required: true, example: '13.0059' },
       { field: 'lng', type: 'number', required: true, example: '5.2476' },
-      { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T17:56:29Z' },
+      { field: 'occurred_at', type: 'ISO 8601 UTC', required: true, example: '2026-05-01T17:56:29Z' },
       { field: 'sender_account', type: 'string', required: true, example: '0124567890' },
       { field: 'sender_bank', type: 'string', required: true, example: 'Access Bank' },
       { field: 'recipient_name', type: 'string', required: true, example: 'Sokoto BDC Ltd' },
@@ -186,8 +186,8 @@ const streams: Stream[] = [
       { field: 'narration', type: 'string', required: true, example: 'FX Settlement — USD Purchase' },
       { field: 'device_id', type: 'string', required: true, example: 'dev_a1b2c3' },
       { field: 'ip_address', type: 'string', required: true, example: '102.89.45.67' },
-      { field: 'direction', type: 'string', required: false, example: 'outward | inward' },
-      { field: 'category', type: 'string', required: false, example: 'salary | rent | gambling | airtime | transfer' },
+      { field: 'direction', type: 'outward | inward', required: false, example: 'outward' },
+      { field: 'category', type: 'string', required: false, example: 'salary' },
     ],
   },
   {
@@ -202,7 +202,7 @@ const streams: Stream[] = [
       { field: 'activity_name', type: 'string', required: true, example: 'user login' },
       { field: 'note', type: 'string', required: true, example: 'User successfully logged into mobile app' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:21:11Z' },
-      { field: 'outcome', type: 'enum', required: true, example: 'success | failed | 2fa_required' },
+      { field: 'outcome', type: 'success | failed | 2fa_required', required: true, example: 'success' },
       { field: 'location', type: 'string', required: true, example: 'Lagos, NG' },
       { field: 'lat', type: 'number', required: true, example: '6.4541' },
       { field: 'lng', type: 'number', required: true, example: '3.3947' },
@@ -250,7 +250,7 @@ const streams: Stream[] = [
       { field: 'lng', type: 'number', required: true, example: '3.3792' },
       { field: 'ip_address', type: 'string', required: true, example: '102.89.32.18' },
       { field: 'accuracy_m', type: 'number', required: false, example: '12' },
-      { field: 'source', type: 'enum', required: true, example: 'gps | wifi | ip | cell' },
+      { field: 'source', type: 'gps | wifi | ip | cell', required: true, example: 'gps' },
     ],
   },
   {
@@ -287,7 +287,7 @@ const streams: Stream[] = [
       { field: 'activity_name', type: 'string', required: true, example: 'otp verification' },
       { field: 'note', type: 'string', required: true, example: 'User completed OTP challenge for transfer' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-01T14:22:00Z' },
-      { field: 'event_type', type: 'enum', required: true, example: 'requested | sent | verified | retry | failed' },
+      { field: 'event_type', type: 'requested | sent | verified | retry | failed', required: true, example: 'requested' },
       { field: 'location', type: 'string', required: true, example: 'Enugu, NG' },
       { field: 'lat', type: 'number', required: true, example: '6.4413' },
       { field: 'lng', type: 'number', required: true, example: '7.4988' },
@@ -311,6 +311,8 @@ const streams: Stream[] = [
       { field: 'bvn', type: 'string', required: false, example: '22123456789' },
       { field: 'nin', type: 'string', required: false, example: '12345678901' },
       { field: 'photo', type: 'string (base64)', required: false, example: '/9j/4AAQSkZJRgAB...' },
+      { field: 'monthly_inflow', type: 'integer (kobo)', required: false, example: '5000000' },
+      { field: 'monthly_outflow', type: 'integer (kobo)', required: false, example: '3200000' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-14T10:00:00Z' },
     ],
   },
@@ -327,9 +329,10 @@ const statusConfig: Record<Stream['status'], { color: string; bg: string; label:
 type Lang = 'cURL' | 'Node.js' | 'Python' | 'Go'
 
 function schemaFields(s: Stream) {
-  // For KYC, show all fields so developers see every identity field in the sample.
-  // For all other streams, only required fields keep samples concise.
-  return s.id === 'kyc' ? s.schema : s.schema.filter(f => f.required)
+  // KYC and transactions show all fields — transactions has important optional fields
+  // (direction, category) that change how the payload is processed.
+  // All other streams show only required fields to keep samples concise.
+  return (s.id === 'kyc' || s.id === 'transactions') ? s.schema : s.schema.filter(f => f.required)
 }
 
 function buildCurl(s: Stream) {
@@ -730,7 +733,7 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
 
 function generateStreamsWithCurrentTimestamps() {
   const now = new Date()
-  const ts1 = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
+  const ts1 = new Date(now.getTime() - 2 * 60 * 1000).toISOString()
   const ts2 = new Date(now.getTime() - 2 * 60 * 1000).toISOString()
   const ts3 = new Date(now.getTime() - 1 * 60 * 1000).toISOString()
   const ts4 = new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString()
@@ -779,7 +782,7 @@ export default function DataBeamingPage() {
   const [kycStreamError, setKycStreamError] = useState<string | null>(null)
 
   // KYC structured form state
-  const [kycForm, setKycForm] = useState({ customer_id: 'CUST-001', name: 'Adamu Ibrahim', bvn: '22123456789', nin: '12345678901', occurred_at: new Date().toISOString() })
+  const [kycForm, setKycForm] = useState({ customer_id: 'CUST-001', name: 'Adamu Ibrahim', bvn: '22123456789', nin: '12345678901', occurred_at: new Date().toISOString(), monthly_inflow: '', monthly_outflow: '' })
   const [kycPhotoFile, setKycPhotoFile] = useState<File | null>(null)
   const [kycPhotoPreview, setKycPhotoPreview] = useState<string | null>(null)
   const kycPhotoInputRef = useRef<HTMLInputElement>(null)
@@ -816,9 +819,11 @@ export default function DataBeamingPage() {
           customer_id: kycForm.customer_id,
           occurred_at: kycForm.occurred_at || new Date().toISOString(),
         }
-        if (kycForm.name.trim())  kycPayload.name = kycForm.name
-        if (kycForm.bvn.trim())   kycPayload.bvn  = kycForm.bvn
-        if (kycForm.nin.trim())   kycPayload.nin  = kycForm.nin
+        if (kycForm.name.trim())           kycPayload.name           = kycForm.name
+        if (kycForm.bvn.trim())            kycPayload.bvn            = kycForm.bvn
+        if (kycForm.nin.trim())            kycPayload.nin            = kycForm.nin
+        if (kycForm.monthly_inflow.trim()) kycPayload.monthly_inflow  = Number(kycForm.monthly_inflow)
+        if (kycForm.monthly_outflow.trim()) kycPayload.monthly_outflow = Number(kycForm.monthly_outflow)
         if (kycPhotoFile) {
           const b64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader()
@@ -854,8 +859,8 @@ export default function DataBeamingPage() {
         const msg = err instanceof Error ? err.message : 'Unknown error'
         if (msg.includes('MICRO_TIMING_ANOMALY')) {
           setJsonError(
-            'Beam rejected (400) — Micro-Timing Anomaly: occurred_at is within ±5 seconds of server time. ' +
-            'A cybersecurity case has been auto-opened. Verify the timestamp is real (not "now") and retry.'
+            'Beam rejected — Micro-Timing Anomaly: occurred_at is within ±5 seconds of institution time. ' +
+            'A cybersecurity case has been auto-opened. Use a timestamp at least 6 seconds in the past (e.g. 2 minutes ago) and retry.'
           )
         } else {
           setJsonError(`Test beam failed: ${msg}`)
@@ -1094,434 +1099,6 @@ export default function DataBeamingPage() {
               ))}
             </Box>
 
-            {/* Recent payloads (Moved here) */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Recent payloads</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-                  <Box sx={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    bgcolor: recordsLoading ? '#94a3b8' : activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8',
-                    animation: !recordsLoading && activeStreamRecords.length > 0 ? 'pulse 2s infinite' : 'none',
-                    '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
-                  }} />
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: !recordsLoading && activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    {recordsLoading ? 'loading' : activeStreamRecords.length > 0 ? 'live' : 'idle'}
-                  </Typography>
-                  <IconButton
-                    size="small" onClick={loadRecords} disabled={recordsLoading}
-                    sx={{ ml: 0.5, borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}08` } }}
-                  >
-                    <RefreshRoundedIcon sx={{ fontSize: '0.875rem' }} />
-                  </IconButton>
-                </Box>
-              </Box>
-              <Stack>
-                {recordsLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
-                      <Skeleton variant="rectangular" width={90} height={18} />
-                      <Skeleton variant="rectangular" width="60%" height={18} />
-                      <Skeleton variant="rectangular" width={60} height={18} />
-                    </Box>
-                  ))
-                ) : activeStreamRecords.length === 0 ? (
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
-                    <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
-                      Get API Key
-                    </Button>
-                  </Box>
-                ) : (
-                  activeStreamRecords.map(r => <RecordRow key={r.id} record={r} />)
-                )}
-              </Stack>
-            </Box>
-          </Stack>
-
-          <Stack gap={3} sx={{ minWidth: 0 }}>
-            {/* Code sample */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>How to beam</Typography>
-                <Box sx={{ display: 'flex' }}>
-                  {langs.map(lang => (
-                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
-                      {lang}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-              <SyntaxCode code={codeByLang[activeLang]} />
-            </Box>
-
-            {/* Expected Result Documentation */}
-            {(() => {
-              const expectedResultConfig: Record<StreamId, {
-                intro: string
-                fields: { label: string; desc: string }[]
-                label: string
-                json: string
-              }> = {
-                transactions: {
-                  intro: 'OpenIV runs a multi-factor analysis pipeline on every transaction and returns a synchronous risk decision. Time anomalies are checked first; then the customer\'s KYC risk score (40% weight) is blended with the transaction risk score. Sender account conflicts are flagged automatically.',
-                  fields: [
-                    { label: 'risk_score', desc: 'Blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Higher means riskier.' },
-                    { label: 'kyc_risk_score', desc: 'The customer\'s KYC risk score at the time of the transaction. High values significantly boost the blended risk score.' },
-                    { label: 'risk_level', desc: 'Categorical threat level derived from the blended score: LOW (<30), MEDIUM (30–59), HIGH (60–74), or CRITICAL (≥75).' },
-                    { label: 'recommended_action', desc: 'Automated decision based on your configured thresholds: ALLOW, REVIEW, HOLD, DECLINE, or KYC_REQUIRED.' },
-                    { label: 'case_id', desc: 'ID of the compliance case auto-created for your team to review, if applicable.' },
-                    { label: 'kyc_required', desc: 'True when the customer has no KYC record on file. Transaction is flagged at 75 risk score (90 if account conflict also detected). Complete KYC before retrying.' },
-                    { label: 'account_conflict', desc: 'True when the sender account number is already linked to a different customer ID — a strong indicator of account sharing or fraudulent reuse.' },
-                    { label: 'conflicting_customer_id', desc: 'The other customer ID that the sender account is registered under, when account_conflict is true.' },
-                    { label: 'notification_id', desc: 'ID of the internal notification registered for this flagged transaction (present when kyc_required or account_conflict is true).' },
-                  ],
-                  label: 'Transaction response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
-                },
-                logins: {
-                  intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload was accepted and validated against the login schema.' },
-                    { label: 'record_id', desc: 'Unique ID assigned to this login event in the OpenIV system.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 quantifying the account-takeover probability for this login attempt. Used to decide whether to challenge the user.' },
-                    { label: 'session_risk', desc: 'Categorical label derived from risk_score: NORMAL, SUSPICIOUS, or BLOCKED.' },
-                    { label: 'status', desc: 'Always "received" for successful ingestions.' },
-                  ],
-                  label: 'Login event response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 204512,\n  "stream": "logins",\n  "risk_score": 57,\n  "session_risk": "SUSPICIOUS",\n  "status": "received"\n}`,
-                },
-                activity: {
-                  intro: 'In-app behaviour is a direct input to the fraud prediction engine. OpenIV processes every session event against the user\'s baseline and returns a behavioural risk score you can act on immediately.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload passed schema validation.' },
-                    { label: 'record_id', desc: 'Unique ID of this activity record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 representing the predicted fraud probability derived from behavioural pattern matching. Higher means more anomalous.' },
-                    { label: 'recommended_action', desc: 'Automated guidance: ALLOW, MONITOR, HOLD, or FLAG. Use this to decide whether to let the session continue or challenge the user.' },
-                    { label: 'profile_updated', desc: 'True if this event updated the user\'s long-term behavioural baseline.' },
-                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
-                  ],
-                  label: 'In-app activity response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 305871,\n  "stream": "activity",\n  "risk_score": 68,\n  "recommended_action": "HOLD",\n  "profile_updated": true,\n  "status": "received"\n}`,
-                },
-                location: {
-                  intro: 'Location signals are matched against the customer\'s recent geo-footprint in real time. OpenIV returns an acknowledgment, a geo-anomaly flag, and a location-derived risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload was accepted.' },
-                    { label: 'record_id', desc: 'Unique ID of this location ping.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the impossibility of the travel path. A score above 70 typically indicates a SIM-swap or account takeover.' },
-                    { label: 'geo_anomaly', desc: 'True if this location is impossible given the customer\'s previous ping — potential SIM-swap or account takeover indicator.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'Location signal response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 406230,\n  "stream": "location",\n  "risk_score": 82,\n  "geo_anomaly": true,\n  "status": "received"\n}`,
-                },
-                devices: {
-                  intro: 'Device fingerprints are checked against the customer\'s device-of-record history. OpenIV returns an acknowledgment, a new-device flag, and a device-context risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the fingerprint payload was accepted.' },
-                    { label: 'record_id', desc: 'Unique ID of this device fingerprint record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 based on device novelty, jailbreak status, and historical device patterns for this account.' },
-                    { label: 'new_device', desc: 'True if this device has never been seen on this account — a key SIM-swap and account-takeover signal.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'Device fingerprint response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 507441,\n  "stream": "devices",\n  "risk_score": 63,\n  "new_device": true,\n  "status": "received"\n}`,
-                },
-                otps: {
-                  intro: 'OTP events are processed in real time to detect SIM-swap patterns. OpenIV returns an acknowledgment, hold status, and an OTP-pattern risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the OTP event was accepted and processed.' },
-                    { label: 'record_id', desc: 'Unique ID of this OTP event record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the suspicion level of the OTP pattern — high retry counts and cross-device OTPs score near 100.' },
-                    { label: 'transaction_held', desc: 'True if an associated transaction was automatically held pending OTP verification outcome.' },
-                    { label: 'retry_alert', desc: 'True if retry count exceeded your configured threshold, triggering a real-time alert.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'OTP event response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 608992,\n  "stream": "otps",\n  "risk_score": 91,\n  "transaction_held": true,\n  "retry_alert": true,\n  "status": "received"\n}`,
-                },
-                kyc: {
-                  intro: 'KYC records are processed synchronously. OpenIV updates the customer\'s identity profile immediately — the next transaction beam for this customer will reflect the new KYC tier in its risk score. At least one of bvn, nin, or photo must be present for a meaningful verification.',
-                  fields: [
-                    { label: 'customer_id', desc: 'The external customer ID you passed in the payload — echoed back for confirmation.' },
-                    { label: 'kyc_status', desc: '"verified" when both BVN and NIN are on file. "partial" when only one identifier is present. "unverified" if only a name or photo was submitted.' },
-                    { label: 'bvn_received', desc: 'True if a BVN (11-digit Bank Verification Number) was included in the payload and stored. A kyc.verified or kyc.partial webhook fires immediately after.' },
-                    { label: 'nin_received', desc: 'True if a NIN (11-digit National Identification Number) was included and stored.' },
-                    { label: 'photo_received', desc: 'True if a base64-encoded biometric photo was included and stored for future face-match checks.' },
-                    { label: 'processed_at', desc: 'ISO 8601 timestamp at which the customer profile was updated. Use this for audit logging on your side.' },
-                  ],
-                  label: 'KYC beam response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 709123,\n  "customer_id": "CUST-001",\n  "kyc_status": "verified",\n  "bvn_received": true,\n  "nin_received": true,\n  "photo_received": false,\n  "processed_at": "2026-05-14T10:00:01Z"\n}`,
-                },
-              }
-
-              // Parse risk_score from the example json for the visual bar
-              const cfg = expectedResultConfig[activeStream]
-              let riskScore: number | null = null
-              try {
-                const parsed = JSON.parse(cfg.json)
-                const score = parsed?.risk_score ?? parsed?.analysis?.risk_score
-                if (typeof score === 'number') riskScore = score
-              } catch { /* ignore */ }
-
-              const riskColor = riskScore == null ? '#94a3b8'
-                : riskScore >= 75 ? '#dc2626'
-                  : riskScore >= 50 ? '#f59e0b'
-                    : '#10b981'
-
-              const riskLabel = riskScore == null ? '—'
-                : riskScore >= 75 ? 'HIGH RISK'
-                  : riskScore >= 50 ? 'MODERATE'
-                    : 'LOW RISK'
-
-              // Error response configs (apply to all streams)
-              const errorConfig = {
-                400: {
-                  title: 'Bad Request',
-                  color: '#dc2626',
-                  bg: '#fef2f2',
-                  border: '#fecaca',
-                  intro: 'OpenIV returns 400 when a beam payload is rejected by validation or by a critical security rule. Your client should surface the error and not retry without fixing the cause.',
-                  fields: [
-                    { label: 'error', desc: 'Machine-readable error code prefixed with the rule name (e.g., "MICRO_TIMING_ANOMALY: ...") or a short reason for malformed payloads.' },
-                  ],
-                  scenarios: [
-                    {
-                      name: 'Micro-Timing Anomaly',
-                      desc: 'Transaction occurred_at is within ±5s of server time — likely API injection or system clock manipulation. A cybersecurity case is auto-opened, but the request is still rejected with 400. Action: verify the timestamp is real, not "now()".',
-                      json: `{\n  "error": "MICRO_TIMING_ANOMALY: transaction occurred_at is within \\u00b15s of server time. Possible API injection or clock manipulation. Case opened: CASE-12384"\n}`,
-                    },
-                    {
-                      name: 'Malformed Payload',
-                      desc: 'Required fields missing or wrong type. Action: validate against the stream schema before beaming.',
-                      json: `{\n  "error": "amount must be a positive number"\n}`,
-                    },
-                  ],
-                  label: 'Error response body (JSON)',
-                },
-                401: {
-                  title: 'Unauthorized',
-                  color: '#f59e0b',
-                  bg: '#fffbeb',
-                  border: '#fde68a',
-                  intro: 'OpenIV returns 401 when the API key is missing, malformed, revoked, or the session cookie is invalid. Your client must regenerate the key from the dashboard or re-authenticate.',
-                  fields: [
-                    { label: 'error', desc: 'One of: "missing_api_key_or_session", "invalid_api_key_or_session", or "invalid_session_cookie".' },
-                  ],
-                  scenarios: [
-                    {
-                      name: 'Missing API Key',
-                      desc: 'No Authorization header and no session cookie. Action: include "Authorization: Bearer <key>" or sign in via cookie.',
-                      json: `{\n  "error": "missing_api_key_or_session"\n}`,
-                    },
-                    {
-                      name: 'Invalid / Revoked API Key',
-                      desc: 'Key was revoked or never existed. Action: regenerate from Data Beaming → API Key.',
-                      json: `{\n  "error": "invalid_api_key_or_session"\n}`,
-                    },
-                    {
-                      name: 'Expired Session Cookie',
-                      desc: 'Session expired or was logged out. Action: re-authenticate via /auth/login.',
-                      json: `{\n  "error": "invalid_session_cookie"\n}`,
-                    },
-                  ],
-                  label: 'Error response body (JSON)',
-                },
-              }
-
-              const tabs: Array<{ status: 200 | 400 | 401; label: string; color: string }> = [
-                { status: 200, label: '200 OK', color: '#10b981' },
-                { status: 400, label: '400 Bad Request', color: '#dc2626' },
-                { status: 401, label: '401 Unauthorized', color: '#f59e0b' },
-              ]
-
-              return (
-                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                      <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
-                      </Box>
-                      <Box>
-                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Expected Result</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Response shapes your server should handle for {stream.title.toLowerCase()} beams</Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  {/* Status tabs */}
-                  <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4' }}>
-                    {tabs.map(({ status, label, color }) => {
-                      const active = expectedStatus === status
-                      return (
-                        <Box
-                          key={status}
-                          onClick={() => setExpectedStatus(status)}
-                          sx={{
-                            flex: 1,
-                            px: 2.5,
-                            py: 1.5,
-                            cursor: 'pointer',
-                            borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
-                            bgcolor: active ? `${color}08` : 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            transition: 'background 0.15s',
-                            '&:hover': { bgcolor: `${color}05` },
-                          }}
-                        >
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-                          <Typography sx={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: active ? color : '#64748b',
-                            fontFamily: 'Jost',
-                            letterSpacing: '0.02em',
-                          }}>
-                            {label}
-                          </Typography>
-                        </Box>
-                      )
-                    })}
-                  </Box>
-
-                  <Box sx={{ p: 3 }}>
-                    {expectedStatus === 200 ? (
-                      <>
-                        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
-                          {cfg.intro}
-                        </Typography>
-
-                        {/* Risk score percentage visual */}
-                        {riskScore !== null && (
-                          <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                Example risk_score
-                              </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
-                                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
-                                    {riskLabel}
-                                  </Typography>
-                                </Box>
-                                <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
-                                  {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
-                                </Typography>
-                              </Box>
-                            </Box>
-                            <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                              <Box sx={{
-                                position: 'absolute', inset: 0, width: `${riskScore}%`,
-                                background: riskScore >= 75
-                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
-                                  : riskScore >= 50
-                                    ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
-                                    : '#10b981',
-                                borderRadius: '4px',
-                                transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                              }} />
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
-                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
-                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
-                            </Box>
-                          </Box>
-                        )}
-
-                        <Stack gap={2}>
-                          {cfg.fields.map(item => (
-                            <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
-                                {item.label}
-                              </Typography>
-                              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                                {item.desc}
-                              </Typography>
-                            </Box>
-                          ))}
-                        </Stack>
-                        <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', mb: 1, fontFamily: 'Jost' }}>
-                            {cfg.label}
-                          </Typography>
-                          <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre', overflowX: 'auto' }}>
-                            {cfg.json}
-                          </Box>
-                        </Box>
-                      </>
-                    ) : (
-                      <>
-                        {(() => {
-                          const errCfg = errorConfig[expectedStatus]
-                          return (
-                            <>
-                              <Box sx={{ mb: 2.5, p: 2, bgcolor: errCfg.bg, border: `1px solid ${errCfg.border}` }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '0.04em' }}>
-                                    HTTP {expectedStatus}
-                                  </Typography>
-                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'Jost' }}>
-                                    {errCfg.title}
-                                  </Typography>
-                                </Box>
-                                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55 }}>
-                                  {errCfg.intro}
-                                </Typography>
-                              </Box>
-
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
-                                Response Fields
-                              </Typography>
-                              <Stack gap={2} sx={{ mb: 3 }}>
-                                {errCfg.fields.map(item => (
-                                  <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
-                                      {item.label}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                                      {item.desc}
-                                    </Typography>
-                                  </Box>
-                                ))}
-                              </Stack>
-
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>
-                                Common Scenarios
-                              </Typography>
-                              <Stack gap={1.5}>
-                                {errCfg.scenarios.map((sc, idx) => (
-                                  <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
-                                      {sc.name}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 1 }}>
-                                      {sc.desc}
-                                    </Typography>
-                                    <Box sx={{ bgcolor: '#0d1117', p: 1.25, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#ff7b72', whiteSpace: 'pre', overflowX: 'auto', maxWidth: '100%' }}>
-                                      {sc.json}
-                                    </Box>
-                                  </Box>
-                                ))}
-                              </Stack>
-                            </>
-                          )
-                        })()}
-                      </>
-                    )}
-                  </Box>
-                </Box>
-              )
-            })()}
-
             {/* Simulation Box - Beam Test Transaction */}
             <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1624,6 +1201,28 @@ export default function DataBeamingPage() {
                           }}
                         />
                       </Box>
+                    </Box>
+
+                    {/* Row 3: monthly_inflow · monthly_outflow */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.875 }}>
+                      {([
+                        { key: 'monthly_inflow',  label: 'monthly_inflow (kobo)',  placeholder: '5000000' },
+                        { key: 'monthly_outflow', label: 'monthly_outflow (kobo)', placeholder: '3200000' },
+                      ] as const).map(({ key, label, placeholder }) => (
+                        <Box key={key}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.375, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</Typography>
+                          <Box
+                            component="input"
+                            type="number"
+                            placeholder={placeholder}
+                            value={kycForm[key]}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
+                            sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
+                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              '&:focus': { borderColor: colorPalette.primary } }}
+                          />
+                        </Box>
+                      ))}
                     </Box>
 
                     {jsonError && (
@@ -1862,6 +1461,447 @@ export default function DataBeamingPage() {
                 </Box>
               )}
             </Box>
+
+            {/* Recent payloads (Moved here) */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Recent payloads</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                  <Box sx={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    bgcolor: recordsLoading ? '#94a3b8' : activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8',
+                    animation: !recordsLoading && activeStreamRecords.length > 0 ? 'pulse 2s infinite' : 'none',
+                    '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+                  }} />
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: !recordsLoading && activeStreamRecords.length > 0 ? '#10b981' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    {recordsLoading ? 'loading' : activeStreamRecords.length > 0 ? 'live' : 'idle'}
+                  </Typography>
+                  <IconButton
+                    size="small" onClick={loadRecords} disabled={recordsLoading}
+                    sx={{ ml: 0.5, borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}08` } }}
+                  >
+                    <RefreshRoundedIcon sx={{ fontSize: '0.875rem' }} />
+                  </IconButton>
+                </Box>
+              </Box>
+              <Stack>
+                {recordsLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                      <Skeleton variant="rectangular" width={90} height={18} />
+                      <Skeleton variant="rectangular" width="60%" height={18} />
+                      <Skeleton variant="rectangular" width={60} height={18} />
+                    </Box>
+                  ))
+                ) : activeStreamRecords.length === 0 ? (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
+                    <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
+                      Get API Key
+                    </Button>
+                  </Box>
+                ) : (
+                  activeStreamRecords.map(r => <RecordRow key={r.id} record={r} />)
+                )}
+              </Stack>
+            </Box>
+          </Stack>
+
+          <Stack gap={3} sx={{ minWidth: 0 }}>
+            {/* Code sample */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>How to beam</Typography>
+                <Box sx={{ display: 'flex' }}>
+                  {langs.map(lang => (
+                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
+                      {lang}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <SyntaxCode code={codeByLang[activeLang]} />
+            </Box>
+
+            {/* Expected Result Documentation */}
+            {(() => {
+              const expectedResultConfig: Record<StreamId, {
+                intro: string
+                fields: { label: string; desc: string }[]
+                label: string
+                json: string
+              }> = {
+                transactions: {
+                  intro: 'OpenIV runs a multi-factor analysis pipeline on every transaction and returns a synchronous risk decision. KYC status is checked first — if no record exists for the customer, the transaction is immediately flagged with kyc_required: true. For verified customers, the blended risk score is computed as 60% transaction signals + 40% KYC risk profile. Sender account conflicts add a +20 point bump to the final score.',
+                  fields: [
+                    { label: 'stream', desc: 'Always "transactions" — echoes the stream back for client-side routing.' },
+                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
+                    { label: 'risk_score', desc: 'Blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Sender account conflicts add +20. Higher means riskier.' },
+                    { label: 'kyc_risk_score', desc: 'The customer\'s KYC risk score at the time of the transaction. High values significantly boost the blended risk score.' },
+                    { label: 'risk_level', desc: 'Categorical threat level: LOW (<30), MEDIUM (30–59), HIGH (60–74), or CRITICAL (≥75).' },
+                    { label: 'recommended_action', desc: 'Automated decision based on your configured thresholds: ALLOW, HOLD, DECLINE, or KYC_REQUIRED (when no KYC is on file).' },
+                    { label: 'case_id', desc: 'ID of the compliance case auto-created for your team to review. Null if no case was opened.' },
+                    { label: 'priority', desc: 'Case priority when a case is opened: LOW, MEDIUM, HIGH, or CRITICAL. Null when no case was created.' },
+                    { label: 'direction', desc: 'Echoed from your payload: "outward" (money leaving the customer) or "inward" (money arriving). Determines which directional tier limit is evaluated for the transaction.' },
+                    { label: 'account_conflict', desc: 'True when the sender account number is already linked to a different customer ID — a strong indicator of account sharing or fraudulent reuse.' },
+                    { label: 'conflicting_customer_id', desc: 'The other customer ID that the sender account is registered under. Present only when account_conflict is true.' },
+                    { label: 'kyc_required', desc: 'Present and true only when no KYC record exists for the customer. Transaction is held at risk score 75 (90 if account conflict also detected). Complete KYC via the /kyc stream before retrying.' },
+                    { label: 'notification_id', desc: 'Present only in the kyc_required path — ID of the notification raised for the flagged transaction.' },
+                    { label: 'message', desc: 'Present only in the kyc_required path — plain-English reason why the transaction was held.' },
+                    { label: 'processed_at', desc: 'ISO 8601 timestamp at which the analysis completed, in your institution\'s local time zone.' },
+                  ],
+                  label: 'Transaction response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "stream": "transactions",\n  "status": "received",\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "direction": "outward",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
+                },
+                logins: {
+                  intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload was accepted and validated against the login schema.' },
+                    { label: 'record_id', desc: 'Unique ID assigned to this login event in the OpenIV system.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 quantifying the account-takeover probability for this login attempt. Used to decide whether to challenge the user.' },
+                    { label: 'session_risk', desc: 'Categorical label derived from risk_score: NORMAL, SUSPICIOUS, or BLOCKED.' },
+                    { label: 'status', desc: 'Always "received" for successful ingestions.' },
+                  ],
+                  label: 'Login event response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 204512,\n  "stream": "logins",\n  "risk_score": 57,\n  "session_risk": "SUSPICIOUS",\n  "status": "received"\n}`,
+                },
+                activity: {
+                  intro: 'In-app behaviour is a direct input to the fraud prediction engine. OpenIV processes every session event against the user\'s baseline and returns a behavioural risk score you can act on immediately.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload passed schema validation.' },
+                    { label: 'record_id', desc: 'Unique ID of this activity record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 representing the predicted fraud probability derived from behavioural pattern matching. Higher means more anomalous.' },
+                    { label: 'recommended_action', desc: 'Automated guidance: ALLOW, MONITOR, HOLD, or FLAG. Use this to decide whether to let the session continue or challenge the user.' },
+                    { label: 'profile_updated', desc: 'True if this event updated the user\'s long-term behavioural baseline.' },
+                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
+                  ],
+                  label: 'In-app activity response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 305871,\n  "stream": "activity",\n  "risk_score": 68,\n  "recommended_action": "HOLD",\n  "profile_updated": true,\n  "status": "received"\n}`,
+                },
+                location: {
+                  intro: 'Location signals are matched against the customer\'s recent geo-footprint in real time. OpenIV returns an acknowledgment, a geo-anomaly flag, and a location-derived risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the payload was accepted.' },
+                    { label: 'record_id', desc: 'Unique ID of this location ping.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the impossibility of the travel path. A score above 70 typically indicates a SIM-swap or account takeover.' },
+                    { label: 'geo_anomaly', desc: 'True if this location is impossible given the customer\'s previous ping — potential SIM-swap or account takeover indicator.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'Location signal response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 406230,\n  "stream": "location",\n  "risk_score": 82,\n  "geo_anomaly": true,\n  "status": "received"\n}`,
+                },
+                devices: {
+                  intro: 'Device fingerprints are checked against the customer\'s device-of-record history. OpenIV returns an acknowledgment, a new-device flag, and a device-context risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the fingerprint payload was accepted.' },
+                    { label: 'record_id', desc: 'Unique ID of this device fingerprint record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 based on device novelty, jailbreak status, and historical device patterns for this account.' },
+                    { label: 'new_device', desc: 'True if this device has never been seen on this account — a key SIM-swap and account-takeover signal.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'Device fingerprint response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 507441,\n  "stream": "devices",\n  "risk_score": 63,\n  "new_device": true,\n  "status": "received"\n}`,
+                },
+                otps: {
+                  intro: 'OTP events are processed in real time to detect SIM-swap patterns. OpenIV returns an acknowledgment, hold status, and an OTP-pattern risk score.',
+                  fields: [
+                    { label: 'ok', desc: 'True if the OTP event was accepted and processed.' },
+                    { label: 'record_id', desc: 'Unique ID of this OTP event record.' },
+                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the suspicion level of the OTP pattern — high retry counts and cross-device OTPs score near 100.' },
+                    { label: 'transaction_held', desc: 'True if an associated transaction was automatically held pending OTP verification outcome.' },
+                    { label: 'retry_alert', desc: 'True if retry count exceeded your configured threshold, triggering a real-time alert.' },
+                    { label: 'status', desc: 'Always "received" on success.' },
+                  ],
+                  label: 'OTP event response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 608992,\n  "stream": "otps",\n  "risk_score": 91,\n  "transaction_held": true,\n  "retry_alert": true,\n  "status": "received"\n}`,
+                },
+                kyc: {
+                  intro: 'KYC records are processed synchronously through a multi-step identity pipeline (BVN/NIN verification, phone match, liveness check, PEP screening). OpenIV updates the customer\'s identity profile and KYC tier immediately — the next transaction beam for this customer reflects the new tier in its blended risk score. At least one of bvn, nin, or photo must be present for a meaningful verification.',
+                  fields: [
+                    { label: 'stream', desc: 'Always "kyc" — echoes the stream back for client-side routing.' },
+                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
+                    { label: 'customer_id', desc: 'The external customer ID you passed in the payload — echoed back for confirmation.' },
+                    { label: 'kyc_status', desc: '"verified" when both BVN and NIN are on file. "partial" when only one identifier is present. "unverified" if only a name or photo was submitted.' },
+                    { label: 'kyc_tier', desc: 'The KYC tier assigned after pipeline completion: 0 (Unverified), 1 (Basic), 2 (Intermediate), or 3 (Full KYC). Determines transaction limits and risk score adjustments for future transactions.' },
+                    { label: 'risk_score', desc: 'The customer\'s overall KYC risk score 0–100 as computed by the identity pipeline. This score is blended into every future transaction risk score at 40% weight.' },
+                    { label: 'bvn_received', desc: 'True if a BVN (11-digit Bank Verification Number) was included in the payload and stored. A kyc.verified or kyc.partial webhook fires immediately after.' },
+                    { label: 'nin_received', desc: 'True if a NIN (11-digit National Identification Number) was included and stored.' },
+                    { label: 'photo_received', desc: 'True if a base64-encoded biometric photo was included and stored for future face-match checks.' },
+                    { label: 'monthly_inflow', desc: 'Optional. Total amount (in the smallest currency unit, e.g. kobo) received by the customer in the current month. Used to build a financial profile for velocity and AML rules.' },
+                    { label: 'monthly_outflow', desc: 'Optional. Total amount (in the smallest currency unit) sent by the customer in the current month. Tracked alongside inflow to detect unusual net cash-flow patterns.' },
+                    { label: 'pipeline_ms', desc: 'Total time in milliseconds for the identity pipeline to complete all steps. Useful for monitoring your KYC processing SLA.' },
+                    { label: 'processed_at', desc: 'ISO 8601 timestamp at which the customer profile was updated. Use this for audit logging on your side.' },
+                  ],
+                  label: 'KYC beam response body (JSON)',
+                  json: `{\n  "ok": true,\n  "record_id": 709123,\n  "stream": "kyc",\n  "status": "received",\n  "analysis": {\n    "customer_id": "CUST-001",\n    "kyc_status": "verified",\n    "kyc_tier": 2,\n    "risk_score": 18,\n    "bvn_received": true,\n    "nin_received": true,\n    "photo_received": false,\n    "pipeline_ms": 1240,\n    "processed_at": "2026-05-14T10:00:01Z"\n  }\n}`,
+                },
+              }
+
+              // Parse risk_score from the example json for the visual bar
+              const cfg = expectedResultConfig[activeStream]
+              let riskScore: number | null = null
+              try {
+                const parsed = JSON.parse(cfg.json)
+                const score = parsed?.risk_score ?? parsed?.analysis?.risk_score
+                if (typeof score === 'number') riskScore = score
+              } catch { /* ignore */ }
+
+              const riskColor = riskScore == null ? '#94a3b8'
+                : riskScore >= 75 ? '#dc2626'
+                  : riskScore >= 50 ? '#f59e0b'
+                    : '#10b981'
+
+              const riskLabel = riskScore == null ? '—'
+                : riskScore >= 75 ? 'HIGH RISK'
+                  : riskScore >= 50 ? 'MODERATE'
+                    : 'LOW RISK'
+
+              // Error response configs (apply to all streams)
+              const errorConfig = {
+                400: {
+                  title: 'Bad Request',
+                  color: '#dc2626',
+                  bg: '#fef2f2',
+                  border: '#fecaca',
+                  intro: 'OpenIV returns 400 when a beam payload is rejected by validation or by a critical security rule. Your client should surface the error and not retry without fixing the cause.',
+                  fields: [
+                    { label: 'error', desc: 'Machine-readable error code prefixed with the rule name (e.g., "MICRO_TIMING_ANOMALY: ...") or a short reason for malformed payloads.' },
+                  ],
+                  scenarios: [
+                    {
+                      name: 'Micro-Timing Anomaly',
+                      desc: 'occurred_at is within ±5 seconds of institution-local time — suggests the timestamp was set programmatically to "right now" rather than reflecting the actual transaction moment. Use a timestamp at least 6 s in the past. The default test payload uses 2 minutes ago, which is always safe.',
+                      json: `{\n  "error": "MICRO_TIMING_ANOMALY: occurred_at is within \\u00b15 s of institution time — possible automated injection or clock manipulation. Case opened: CASE-12384"\n}`,
+                    },
+                    {
+                      name: 'Malformed Payload',
+                      desc: 'Required fields missing or wrong type. Action: validate against the stream schema before beaming.',
+                      json: `{\n  "error": "amount must be a positive number"\n}`,
+                    },
+                  ],
+                  label: 'Error response body (JSON)',
+                },
+                401: {
+                  title: 'Unauthorized',
+                  color: '#f59e0b',
+                  bg: '#fffbeb',
+                  border: '#fde68a',
+                  intro: 'OpenIV returns 401 when the API key is missing, malformed, revoked, or the session cookie is invalid. Your client must regenerate the key from the dashboard or re-authenticate.',
+                  fields: [
+                    { label: 'error', desc: 'One of: "missing_api_key_or_session", "invalid_api_key_or_session", or "invalid_session_cookie".' },
+                  ],
+                  scenarios: [
+                    {
+                      name: 'Missing API Key',
+                      desc: 'No Authorization header and no session cookie. Action: include "Authorization: Bearer <key>" or sign in via cookie.',
+                      json: `{\n  "error": "missing_api_key_or_session"\n}`,
+                    },
+                    {
+                      name: 'Invalid / Revoked API Key',
+                      desc: 'Key was revoked or never existed. Action: regenerate from Data Beaming → API Key.',
+                      json: `{\n  "error": "invalid_api_key_or_session"\n}`,
+                    },
+                    {
+                      name: 'Expired Session Cookie',
+                      desc: 'Session expired or was logged out. Action: re-authenticate via /auth/login.',
+                      json: `{\n  "error": "invalid_session_cookie"\n}`,
+                    },
+                  ],
+                  label: 'Error response body (JSON)',
+                },
+              }
+
+              const tabs: Array<{ status: 200 | 400 | 401; label: string; color: string }> = [
+                { status: 200, label: '200 OK', color: '#10b981' },
+                { status: 400, label: '400 Bad Request', color: '#dc2626' },
+                { status: 401, label: '401 Unauthorized', color: '#f59e0b' },
+              ]
+
+              return (
+                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                      <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Expected Result</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Response shapes your server should handle for {stream.title.toLowerCase()} beams</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Status tabs */}
+                  <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4' }}>
+                    {tabs.map(({ status, label, color }) => {
+                      const active = expectedStatus === status
+                      return (
+                        <Box
+                          key={status}
+                          onClick={() => setExpectedStatus(status)}
+                          sx={{
+                            flex: 1,
+                            px: 2.5,
+                            py: 1.5,
+                            cursor: 'pointer',
+                            borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
+                            bgcolor: active ? `${color}08` : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
+                            transition: 'background 0.15s',
+                            '&:hover': { bgcolor: `${color}05` },
+                          }}
+                        >
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: active ? color : '#64748b',
+                            fontFamily: 'Jost',
+                            letterSpacing: '0.02em',
+                          }}>
+                            {label}
+                          </Typography>
+                        </Box>
+                      )
+                    })}
+                  </Box>
+
+                  <Box sx={{ p: 3 }}>
+                    {expectedStatus === 200 ? (
+                      <>
+                        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+                          {cfg.intro}
+                        </Typography>
+
+                        {/* Risk score percentage visual */}
+                        {riskScore !== null && (
+                          <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                Example risk_score
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
+                                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
+                                    {riskLabel}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
+                                  {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                              <Box sx={{
+                                position: 'absolute', inset: 0, width: `${riskScore}%`,
+                                background: riskScore >= 75
+                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
+                                  : riskScore >= 50
+                                    ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
+                                    : '#10b981',
+                                borderRadius: '4px',
+                                transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
+                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
+                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
+                            </Box>
+                          </Box>
+                        )}
+
+                        <Stack gap={2}>
+                          {cfg.fields.map(item => (
+                            <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
+                                {item.label}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                                {item.desc}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                        <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', mb: 1, fontFamily: 'Jost' }}>
+                            {cfg.label}
+                          </Typography>
+                          <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre', overflowX: 'auto' }}>
+                            {cfg.json}
+                          </Box>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        {(() => {
+                          const errCfg = errorConfig[expectedStatus]
+                          return (
+                            <>
+                              <Box sx={{ mb: 2.5, p: 2, bgcolor: errCfg.bg, border: `1px solid ${errCfg.border}` }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '0.04em' }}>
+                                    HTTP {expectedStatus}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'Jost' }}>
+                                    {errCfg.title}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55 }}>
+                                  {errCfg.intro}
+                                </Typography>
+                              </Box>
+
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
+                                Response Fields
+                              </Typography>
+                              <Stack gap={2} sx={{ mb: 3 }}>
+                                {errCfg.fields.map(item => (
+                                  <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
+                                      {item.label}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                                      {item.desc}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Stack>
+
+                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>
+                                Common Scenarios
+                              </Typography>
+                              <Stack gap={1.5}>
+                                {errCfg.scenarios.map((sc, idx) => (
+                                  <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
+                                      {sc.name}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 1 }}>
+                                      {sc.desc}
+                                    </Typography>
+                                    <Box sx={{ bgcolor: '#0d1117', p: 1.25, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#ff7b72', whiteSpace: 'pre', overflowX: 'auto', maxWidth: '100%' }}>
+                                      {sc.json}
+                                    </Box>
+                                  </Box>
+                                ))}
+                              </Stack>
+                            </>
+                          )
+                        })()}
+                      </>
+                    )}
+                  </Box>
+                </Box>
+              )
+            })()}
 
           </Stack>
         </Box>
