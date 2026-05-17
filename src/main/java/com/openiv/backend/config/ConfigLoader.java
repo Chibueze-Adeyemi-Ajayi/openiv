@@ -130,9 +130,14 @@ public final class ConfigLoader {
     // Auto-enable SSL in production environment (e.g. Render) if not explicitly
     // overridden by the system env
     String env = merged.getString("environment", "production");
+    System.out.println("[Config] Detected Environment: " + env);
+    System.out.println("[Config] OPENIV_DB_SSL_MODE Env Var: " + System.getenv("OPENIV_DB_SSL_MODE"));
+    System.out.println("[Config] DB sslMode before auto-enable check: " + db.getString("sslMode"));
     if ("production".equalsIgnoreCase(env) && System.getenv("OPENIV_DB_SSL_MODE") == null) {
       db.put("sslMode", "require");
+      System.out.println("[Config] Auto-enabled production SSL: sslMode=require");
     }
+    System.out.println("[Config] Final DB sslMode: " + db.getString("sslMode"));
 
     merged.put("db", db);
 
