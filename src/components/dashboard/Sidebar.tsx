@@ -21,6 +21,7 @@ import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
+import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
 import { transactionApi } from '@/api/transactions'
@@ -79,6 +80,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Workspace',
     items: [
+      { to: '/dashboard/waitlist',  icon: <HowToRegOutlinedIcon sx={{ fontSize: '1.25rem' }} />,            label: 'Waitlist' },
       { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles' },
       { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', badge: 'ADMIN' },
       { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings' },

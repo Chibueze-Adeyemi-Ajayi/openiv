@@ -32,6 +32,7 @@ import NotificationsPage from '@/pages/dashboard/NotificationsPage'
 import UserProfilePage from '@/pages/dashboard/UserProfilePage'
 import HighRiskCustomersPage from '@/pages/dashboard/HighRiskCustomersPage'
 import CustomersPage from '@/pages/dashboard/CustomersPage'
+import WaitlistPage from '@/pages/dashboard/WaitlistPage'
 import AuthVerifyTOTPPage from '@/pages/auth/VerifyTOTPPage'
 import GeoBlockedPage from '@/pages/auth/GeoBlockedPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -90,6 +91,7 @@ function App() {
         <Route path="team" element={<TeamPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="waitlist" element={<WaitlistPage />} />
       </Route>
     </Routes>
   )

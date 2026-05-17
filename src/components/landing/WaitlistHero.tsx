@@ -213,15 +213,13 @@ export default function WaitlistHero() {
         finalExpectations.push(customExpectation.trim())
       }
 
-      const res = await fetch('/api/v1/access-requests', {
+      const res = await fetch('/api/v1/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contactName: name,
-          contactEmail: email,
+          name,
+          email,
           description: finalExpectations.join(', '),
-          institutionName: 'Waitlist Registration',
-          institutionType: 'COMPANY'
         })
       })
 
