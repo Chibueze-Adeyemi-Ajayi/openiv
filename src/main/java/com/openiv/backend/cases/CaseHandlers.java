@@ -300,6 +300,15 @@ public final class CaseHandlers {
     };
   }
 
+  public Handler<RoutingContext> unassignedCount() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.unassignedCount(session)
+          .onSuccess(count -> ok(ctx, new JsonObject().put("count", count)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   public Handler<RoutingContext> unseenCount() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);

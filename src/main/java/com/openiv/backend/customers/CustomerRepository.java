@@ -11,10 +11,42 @@ import java.util.Optional;
 
 public final class CustomerRepository {
 
+  // Used in RETURNING clauses (mutations). Scored columns return 0 — fresh reads recompute them live.
   private static final String SELECT_COLS =
       "id, institution_id, external_id, name, email, phone, risk_score,"
+      + " 0 AS risk_profile_score, 0 AS transaction_risk_score,"
       + " bvn, nin, photo, account_number, subject_type, dob, address, created_at, updated_at,"
       + " watchlisted, watchlisted_at, watchlisted_reason";
+
+  // Average risk score of all cases for this customer, excluding closed+cleared (innocent) ones.
+  private static final String RISK_PROFILE_SUBQ =
+      " COALESCE(("
+      + "   SELECT ROUND(AVG(cs.risk_score))::INT FROM cases cs"
+      + "   WHERE cs.customer_id = c.external_id"
+      + "     AND cs.institution_id = c.institution_id"
+      + "     AND NOT (cs.status = 'closed' AND cs.resolution = 'cleared')"
+      + " ), 0) AS risk_profile_score";
+
+  // Flag rate × severity multiplier, capped at 100.
+  // severity multiplier = avg risk of flagged transactions / 50  (anchored at medium risk).
+  private static final String TXN_RISK_SUBQ =
+      " COALESCE(("
+      + "   SELECT LEAST(100, ROUND("
+      + "     (COUNT(*) FILTER (WHERE t2.flagged_status IS NOT NULL)::float"
+      + "      / GREATEST(COUNT(*), 1)) * 100.0"
+      + "     * (COALESCE(AVG(t2.risk_score) FILTER (WHERE t2.flagged_status IS NOT NULL), 50.0) / 50.0)"
+      + "   ))::INT"
+      + "   FROM transactions t2"
+      + "   WHERE t2.customer_id = c.external_id"
+      + "     AND t2.institution_id = c.institution_id"
+      + " ), 0) AS transaction_risk_score";
+
+  private static final String READ_COLS =
+      "c.id, c.institution_id, c.external_id, c.name, c.email, c.phone, c.risk_score,"
+      + RISK_PROFILE_SUBQ + ","
+      + TXN_RISK_SUBQ + ","
+      + " c.bvn, c.nin, c.photo, c.account_number, c.subject_type, c.dob, c.address,"
+      + " c.created_at, c.updated_at, c.watchlisted, c.watchlisted_at, c.watchlisted_reason";
 
   private final Pool pool;
 
@@ -35,7 +67,9 @@ public final class CustomerRepository {
   }
 
   public Future<Optional<Customer>> findByExternalId(long institutionId, String externalId) {
-    return pool.preparedQuery("SELECT " + SELECT_COLS + " FROM customers WHERE institution_id = $1 AND external_id = $2")
+    String sql = "SELECT " + READ_COLS + " FROM customers c"
+        + " WHERE c.institution_id = $1 AND c.external_id = $2";
+    return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, externalId))
         .map(rs -> {
           var it = rs.iterator();
@@ -44,12 +78,12 @@ public final class CustomerRepository {
   }
 
   public Future<List<Customer>> list(long institutionId, String q, int pageSize) {
-    String sql = "SELECT " + SELECT_COLS + " FROM customers"
-        + " WHERE institution_id = $1"
-        + "   AND ($2::text IS NULL OR name ILIKE '%' || $2 || '%'"
-        + "                        OR external_id ILIKE '%' || $2 || '%'"
-        + "                        OR email ILIKE '%' || $2 || '%')"
-        + " ORDER BY risk_score DESC, name ASC"
+    String sql = "SELECT " + READ_COLS + " FROM customers c"
+        + " WHERE c.institution_id = $1"
+        + "   AND ($2::text IS NULL OR c.name ILIKE '%' || $2 || '%'"
+        + "                        OR c.external_id ILIKE '%' || $2 || '%'"
+        + "                        OR c.email ILIKE '%' || $2 || '%')"
+        + " ORDER BY c.risk_score DESC, c.name ASC"
         + " LIMIT $3";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId, q, pageSize))
@@ -96,6 +130,8 @@ public final class CustomerRepository {
         r.getString("email"),
         r.getString("phone"),
         r.getInteger("risk_score"),
+        r.getInteger("risk_profile_score"),
+        r.getInteger("transaction_risk_score"),
         r.getString("bvn"),
         r.getString("nin"),
         r.getString("photo"),
@@ -134,6 +170,113 @@ public final class CustomerRepository {
           var it = rs.iterator();
           if (!it.hasNext()) throw new RuntimeException("Customer not found");
           return mapRow(it.next());
+        });
+  }
+
+  public Future<Void> updateOverallRiskScore(long institutionId, String externalId, int score) {
+    return pool.preparedQuery(
+            "UPDATE customers SET overall_risk_score = $3, updated_at = now()"
+            + " WHERE institution_id = $1 AND external_id = $2")
+        .execute(Tuple.of(institutionId, externalId, score))
+        .mapEmpty();
+  }
+
+  public Future<Void> refreshAllScores(long institutionId) {
+    String sql = "UPDATE customers SET"
+        + " overall_risk_score = LEAST(100, ROUND("
+        + "   risk_score * 0.20"
+        + "   + COALESCE(("
+        + "       SELECT ROUND(AVG(cs.risk_score))::INT FROM cases cs"
+        + "       WHERE cs.customer_id = customers.external_id"
+        + "         AND cs.institution_id = customers.institution_id"
+        + "         AND NOT (cs.status = 'closed' AND cs.resolution = 'cleared')"
+        + "     ), 0) * 0.55"
+        + "   + COALESCE(("
+        + "       SELECT LEAST(100, ROUND("
+        + "         (COUNT(*) FILTER (WHERE t2.flagged_status IS NOT NULL)::float"
+        + "          / GREATEST(COUNT(*), 1)) * 100.0"
+        + "         * (COALESCE(AVG(t2.risk_score) FILTER (WHERE t2.flagged_status IS NOT NULL), 50.0) / 50.0)"
+        + "       ))::INT"
+        + "       FROM transactions t2"
+        + "       WHERE t2.customer_id = customers.external_id"
+        + "         AND t2.institution_id = customers.institution_id"
+        + "     ), 0) * 0.25"
+        + " ))::INT,"
+        + " updated_at = now()"
+        + " WHERE institution_id = $1";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId))
+        .mapEmpty();
+  }
+
+  public Future<List<Customer>> listHighRisk(long institutionId, int limit, int offset) {
+    String sql = "SELECT " + READ_COLS + " FROM customers c"
+        + " WHERE c.institution_id = $1 AND c.overall_risk_score > 75"
+        + " ORDER BY c.overall_risk_score DESC"
+        + " LIMIT $2 OFFSET $3";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, limit, offset))
+        .map(rs -> {
+          List<Customer> list = new ArrayList<>();
+          rs.forEach(r -> list.add(mapRow(r)));
+          return list;
+        });
+  }
+
+  public Future<Long> countHighRisk(long institutionId) {
+    return pool.preparedQuery(
+            "SELECT COUNT(*) FROM customers WHERE institution_id = $1 AND overall_risk_score > 75")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> rs.iterator().next().getLong(0));
+  }
+
+  /** Recomputes overall_risk_score for a single customer from live transaction + case data. */
+  public Future<Void> refreshCustomerScore(long institutionId, String externalId) {
+    String sql = "UPDATE customers SET"
+        + " overall_risk_score = LEAST(100, ROUND("
+        + "   risk_score * 0.20"
+        + "   + COALESCE(("
+        + "       SELECT ROUND(AVG(cs.risk_score))::INT FROM cases cs"
+        + "       WHERE cs.customer_id = customers.external_id"
+        + "         AND cs.institution_id = customers.institution_id"
+        + "         AND NOT (cs.status = 'closed' AND cs.resolution = 'cleared')"
+        + "     ), 0) * 0.55"
+        + "   + COALESCE(("
+        + "       SELECT LEAST(100, ROUND("
+        + "         (COUNT(*) FILTER (WHERE t2.flagged_status IS NOT NULL)::float"
+        + "          / GREATEST(COUNT(*), 1)) * 100.0"
+        + "         * (COALESCE(AVG(t2.risk_score) FILTER (WHERE t2.flagged_status IS NOT NULL), 50.0) / 50.0)"
+        + "       ))::INT"
+        + "       FROM transactions t2"
+        + "       WHERE t2.customer_id = customers.external_id"
+        + "         AND t2.institution_id = customers.institution_id"
+        + "     ), 0) * 0.25"
+        + " ))::INT,"
+        + " updated_at = now()"
+        + " WHERE institution_id = $1 AND external_id = $2";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, externalId))
+        .mapEmpty();
+  }
+
+  /** Returns the stored overall_risk_score for a customer (0 if not found). */
+  public Future<Integer> getOverallRiskScore(long institutionId, String externalId) {
+    return pool.preparedQuery(
+            "SELECT overall_risk_score FROM customers WHERE institution_id = $1 AND external_id = $2")
+        .execute(Tuple.of(institutionId, externalId))
+        .map(rs -> {
+          var it = rs.iterator();
+          return it.hasNext() ? it.next().getInteger("overall_risk_score") : 0;
+        });
+  }
+
+  public Future<List<Long>> distinctInstitutionIds() {
+    return pool.preparedQuery("SELECT DISTINCT institution_id FROM customers")
+        .execute(Tuple.tuple())
+        .map(rs -> {
+          List<Long> ids = new ArrayList<>();
+          rs.forEach(r -> ids.add(r.getLong(0)));
+          return ids;
         });
   }
 }

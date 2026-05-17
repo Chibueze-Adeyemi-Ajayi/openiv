@@ -20,4 +20,8 @@ public interface EmailSender {
 
   Future<Void> sendCaseNotification(String toEmail, String caseId, String caseTitle,
       String priority, String brief);
+
+  Future<Void> sendDailyRiskReport(String toEmail, String recipientName, String htmlBody);
+
+  Future<Void> sendWaitlistNotification(String adminEmail, String userName, String userEmail, String expectation);
 }

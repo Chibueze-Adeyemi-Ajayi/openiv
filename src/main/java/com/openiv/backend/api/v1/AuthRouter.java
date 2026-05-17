@@ -3,6 +3,7 @@ package com.openiv.backend.api.v1;
 import com.openiv.backend.auth.handler.AuthHandlers;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.customers.CustomerService;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
 
@@ -20,8 +21,9 @@ public final class AuthRouter {
 
   private AuthRouter() {}
 
-  public static Router create(Vertx vertx, AuthService authService, boolean productionCookies) {
-    AuthHandlers handlers = new AuthHandlers(authService, productionCookies);
+  public static Router create(Vertx vertx, AuthService authService, boolean productionCookies,
+      CustomerService customerService) {
+    AuthHandlers handlers = new AuthHandlers(authService, productionCookies, customerService);
     Router router = Router.router(vertx);
 
     // Public

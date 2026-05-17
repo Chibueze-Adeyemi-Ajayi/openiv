@@ -1,0 +1,172 @@
+package com.openiv.backend.customers;
+
+import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
+import io.vertx.sqlclient.Pool;
+import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class CustomerTransactionRuleRepository {
+  private static final Logger log = LoggerFactory.getLogger(CustomerTransactionRuleRepository.class);
+  private final Pool pool;
+
+  public CustomerTransactionRuleRepository(Pool pool) {
+    this.pool = pool;
+  }
+
+  public Future<List<CustomerTransactionRule>> listByExternalCustomerId(long institutionId, String externalCustomerId) {
+    return pool.preparedQuery(
+        "SELECT r.* FROM customer_transaction_rules r " +
+        "JOIN customers c ON c.id = r.customer_id " +
+        "WHERE c.external_id = $1 AND r.institution_id = $2 " +
+        "ORDER BY r.created_at DESC"
+    ).execute(Tuple.of(externalCustomerId, institutionId))
+    .map(rows -> {
+      List<CustomerTransactionRule> list = new ArrayList<>();
+      rows.forEach(r -> list.add(fromRow(r)));
+      return list;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] listByExternalCustomerId failed: {}", e.getMessage()));
+  }
+
+  public Future<List<CustomerTransactionRule>> listActiveByExternalCustomerId(long institutionId, String externalCustomerId) {
+    return pool.preparedQuery(
+        "SELECT r.* FROM customer_transaction_rules r " +
+        "JOIN customers c ON c.id = r.customer_id " +
+        "WHERE c.external_id = $1 AND r.institution_id = $2 AND r.is_active = true " +
+        "ORDER BY r.created_at DESC"
+    ).execute(Tuple.of(externalCustomerId, institutionId))
+    .map(rows -> {
+      List<CustomerTransactionRule> list = new ArrayList<>();
+      rows.forEach(r -> list.add(fromRow(r)));
+      return list;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] listActiveByExternalCustomerId failed: {}", e.getMessage()));
+  }
+
+  public Future<CustomerTransactionRule> create(
+      long institutionId, String externalCustomerId,
+      String ruleType, JsonObject params, String action, String description, Long createdBy, String direction) {
+    return pool.preparedQuery(
+        "INSERT INTO customer_transaction_rules " +
+        "(institution_id, customer_id, rule_type, params, action, description, created_by, direction) " +
+        "SELECT $1, c.id, $2, $3::jsonb, $4, $5, $6, $7 " +
+        "FROM customers c WHERE c.external_id = $8 AND c.institution_id = $1 " +
+        "RETURNING *"
+    ).execute(Tuple.of(institutionId, ruleType, params.encode(), action, description, createdBy, direction, externalCustomerId))
+    .map(rows -> fromRow(rows.iterator().next()))
+    .onFailure(e -> log.error("[CustomerRuleRepo] create failed: {}", e.getMessage()));
+  }
+
+  public Future<CustomerTransactionRule> update(
+      long institutionId, long id,
+      JsonObject params, String action, boolean isActive, String description, String direction) {
+    return pool.preparedQuery(
+        "UPDATE customer_transaction_rules " +
+        "SET params = $1::jsonb, action = $2, is_active = $3, description = $4, direction = $5, updated_at = NOW() " +
+        "WHERE id = $6 AND institution_id = $7 " +
+        "RETURNING *"
+    ).execute(Tuple.of(params.encode(), action, isActive, description, direction, id, institutionId))
+    .map(rows -> {
+      var it = rows.iterator();
+      if (!it.hasNext()) throw new RuntimeException("rule_not_found");
+      return fromRow(it.next());
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] update failed: {}", e.getMessage()));
+  }
+
+  public Future<Void> delete(long institutionId, long id) {
+    return pool.preparedQuery(
+        "DELETE FROM customer_transaction_rules WHERE id = $1 AND institution_id = $2"
+    ).execute(Tuple.of(id, institutionId))
+    .<Void>mapEmpty()
+    .onFailure(e -> log.error("[CustomerRuleRepo] delete failed: {}", e.getMessage()));
+  }
+
+  public Future<Void> toggleActive(long institutionId, long id, boolean isActive) {
+    return pool.preparedQuery(
+        "UPDATE customer_transaction_rules SET is_active = $1, updated_at = NOW() " +
+        "WHERE id = $2 AND institution_id = $3"
+    ).execute(Tuple.of(isActive, id, institutionId))
+    .<Void>mapEmpty()
+    .onFailure(e -> log.error("[CustomerRuleRepo] toggleActive failed: {}", e.getMessage()));
+  }
+
+  public Future<BigDecimal> sumTodayAmount(long institutionId, String externalCustomerId) {
+    return pool.preparedQuery(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND occurred_at::date = CURRENT_DATE"
+    ).execute(Tuple.of(institutionId, externalCustomerId))
+    .map(rows -> {
+      var n = rows.iterator().next().getNumeric(0);
+      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmount failed: {}", e.getMessage()));
+  }
+
+  public Future<BigDecimal> sumMonthAmount(long institutionId, String externalCustomerId) {
+    return pool.preparedQuery(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND DATE_TRUNC('month', occurred_at) = DATE_TRUNC('month', NOW())"
+    ).execute(Tuple.of(institutionId, externalCustomerId))
+    .map(rows -> {
+      var n = rows.iterator().next().getNumeric(0);
+      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] sumMonthAmount failed: {}", e.getMessage()));
+  }
+
+  public Future<Long> countInVelocityWindow(long institutionId, String externalCustomerId, int hours) {
+    return pool.preparedQuery(
+        "SELECT COUNT(*) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND occurred_at > NOW() - (CAST($3 AS INTEGER) * INTERVAL '1 hour')"
+    ).execute(Tuple.of(institutionId, externalCustomerId, hours))
+    .map(rows -> rows.iterator().next().getLong(0))
+    .onFailure(e -> log.error("[CustomerRuleRepo] countInVelocityWindow failed: {}", e.getMessage()));
+  }
+
+  /** Sum of inward (deposit) transactions for the customer within the past N hours. */
+  public Future<BigDecimal> sumInwardAmountInWindow(long institutionId, String externalCustomerId, int hours) {
+    return pool.preparedQuery(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND direction = 'inward' " +
+        "AND occurred_at > NOW() - (CAST($3 AS INTEGER) * INTERVAL '1 hour')"
+    ).execute(Tuple.of(institutionId, externalCustomerId, hours))
+    .map(rows -> {
+      var n = rows.iterator().next().getNumeric(0);
+      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] sumInwardAmountInWindow failed: {}", e.getMessage()));
+  }
+
+  private CustomerTransactionRule fromRow(Row row) {
+    String paramsStr = row.getString("params");
+    JsonObject params = (paramsStr != null && !paramsStr.isBlank()) ? new JsonObject(paramsStr) : new JsonObject();
+    Long createdBy = row.getLong("created_by");
+    String direction = row.getString("direction");
+    return new CustomerTransactionRule(
+        row.getLong("id"),
+        row.getLong("institution_id"),
+        row.getLong("customer_id"),
+        row.getString("rule_type"),
+        params,
+        row.getString("action"),
+        Boolean.TRUE.equals(row.getBoolean("is_active")),
+        row.getString("description"),
+        createdBy,
+        row.getOffsetDateTime("created_at"),
+        row.getOffsetDateTime("updated_at"),
+        direction != null ? direction : "both"
+    );
+  }
+}

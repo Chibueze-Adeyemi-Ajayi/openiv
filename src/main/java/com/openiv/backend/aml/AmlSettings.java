@@ -14,5 +14,7 @@ public record AmlSettings(
     int riskScoreNormalThreshold,
     int behRiskScoreNormalThreshold,
     int beamWindowSeconds,
-    String timezone
+    String timezone,
+    int kycRiskNormalThreshold,
+    int kycRiskCaseThreshold
 ) {}

@@ -2,12 +2,15 @@ package com.openiv.backend.auth.handler;
 
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.security.AuditLog;
 import com.openiv.backend.security.RequestId;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
@@ -18,6 +21,8 @@ import java.util.function.Function;
  */
 public final class AuthHandlers {
 
+  private static final Logger log = LoggerFactory.getLogger(AuthHandlers.class);
+
   /**
    * Matches AuthService SESSION_TTL_MINUTES (24h); used as the cookie's Max-Age.
    */
@@ -25,10 +30,12 @@ public final class AuthHandlers {
 
   private final AuthService auth;
   private final boolean productionCookies;
+  private final CustomerService customerService;
 
-  public AuthHandlers(AuthService auth, boolean productionCookies) {
+  public AuthHandlers(AuthService auth, boolean productionCookies, CustomerService customerService) {
     this.auth = auth;
     this.productionCookies = productionCookies;
+    this.customerService = customerService;
   }
 
   public Handler<RoutingContext> verifyInvite() {
@@ -54,6 +61,9 @@ public final class AuthHandlers {
       return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc, deviceId).map(result -> {
         AuditLog.authSuccess(ctx, email);
         SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
+        customerService.refreshAllScores(result.institutionId())
+            .onFailure(e -> log.warn("[Login] Background risk refresh failed for institution {}: {}",
+                result.institutionId(), e.getMessage()));
         return new JsonObject()
             .put("state",       result.state().dbValue())
             .put("accountType", result.accountType().dbValue())
@@ -76,6 +86,9 @@ public final class AuthHandlers {
       return auth.transferSession(transferRef, totpCode, deviceId, ip, ua, lat, lon, acc)
           .map(result -> {
             SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
+            customerService.refreshAllScores(result.institutionId())
+                .onFailure(e -> log.warn("[TransferSession] Background risk refresh failed for institution {}: {}",
+                    result.institutionId(), e.getMessage()));
             return new JsonObject()
                 .put("state",       result.state().dbValue())
                 .put("accountType", result.accountType().dbValue())

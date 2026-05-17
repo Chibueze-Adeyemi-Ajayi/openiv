@@ -40,6 +40,7 @@ import com.openiv.backend.webhooks.WebhookRepository;
 import com.openiv.backend.webhooks.WebhookService;
 import com.openiv.backend.customers.CustomerRepository;
 import com.openiv.backend.customers.CustomerService;
+import com.openiv.backend.customers.RiskReportService;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import com.openiv.backend.auth.service.AuthService;
@@ -157,7 +158,7 @@ public final class Main {
         AuthService authService = new AuthService(
             users, invitations, codes, totp, sessions, emailSender, totpCipher,
             blockedDevices, transfers, vertx);
-        AccessRequestService accessRequestService = new AccessRequestService(accessRequests);
+        AccessRequestService accessRequestService = new AccessRequestService(accessRequests, emailSender);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
         TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
         CustomerRepository customerRepository = new CustomerRepository(pool);
@@ -183,8 +184,17 @@ public final class Main {
         var fraudDetectionBillingService = new com.openiv.backend.billing.FraudDetectionBillingService(pool);
         var autoCaseService = new com.openiv.backend.cases.AutoCaseCreationService(caseRepository);
 
+        // Doja.io identity verification client
+        com.openiv.backend.doja.DojaClient dojaClient =
+            new com.openiv.backend.doja.DojaClient(webClient, config.doja());
+        if (config.doja().isConfigured()) {
+          log.info("[Doja] Sandbox client configured → {}", config.doja().baseUrl());
+        } else {
+          log.warn("[Doja] Not configured — set DOJA_APP_ID and DOJA_API_KEY to enable BVN/NIN verification");
+        }
+
         // KYC service — needed by fraud pipeline for automatic KYC lookups
-        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService);
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService, dojaClient, new com.openiv.backend.kyc.KycPipelineResultRepository(pool));
 
         var hybridAnalysis = new com.openiv.backend.transactions.HybridTransactionAnalysisService(
             new com.openiv.backend.transactions.TransactionScorer(),
@@ -194,7 +204,10 @@ public final class Main {
             kycService,
             amlSettingsRepository,
             emailSender,
-            new com.openiv.backend.behavioral.BehavioralRuleRepository(pool));
+            new com.openiv.backend.behavioral.BehavioralRuleRepository(pool),
+            new com.openiv.backend.customers.CustomerTransactionRuleRepository(pool),
+            new com.openiv.backend.customers.CustomerBehavioralProfileRepository(pool),
+            customerRepository);
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
             hybridAnalysis, fraudDetectionBillingService, notificationService);
 
@@ -205,12 +218,15 @@ public final class Main {
 
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
             webhookService, orchestrator, notificationService, customerService,
-            amlSettingsRepository, behavioralBeamAnalyzer, kycService);
+            amlSettingsRepository, behavioralBeamAnalyzer, kycService, autoCaseService);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
         GeoFenceService geoFenceService = new GeoFenceService(
             new GeoFenceRepository(pool), users, sessions, vertx);
         authService.setGeoFence(geoFenceService);
+
+        RiskReportService riskReportService = new RiskReportService(
+            customerRepository, users, emailSender, notificationService);
 
         return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
@@ -218,7 +234,10 @@ public final class Main {
                 vertx, config, pool, sessions, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
                 beamService, kycService, heatmapService, dashboardService, geoFenceService, customerService, cores))
-            .onSuccess(res -> scheduleWebhookAutoRotation(vertx, webhookService));
+            .onSuccess(res -> {
+              scheduleWebhookAutoRotation(vertx, webhookService);
+              scheduleNightlyRiskReport(vertx, riskReportService);
+            });
       });
     });
   }
@@ -248,6 +267,22 @@ public final class Main {
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();
+  }
+
+  private static void scheduleNightlyRiskReport(Vertx vertx, RiskReportService riskReportService) {
+    long msUntilMidnight = msUntilMidnight();
+    log.info("[RiskReport] Scheduled for midnight; first run in {}m", msUntilMidnight / 60_000);
+    vertx.setTimer(msUntilMidnight, id -> {
+      riskReportService.run();
+      vertx.setPeriodic(24 * 3_600_000L, pid -> riskReportService.run());
+    });
+  }
+
+  private static long msUntilMidnight() {
+    java.time.ZoneId zone = java.time.ZoneId.of("Africa/Lagos");
+    java.time.ZonedDateTime now = java.time.ZonedDateTime.now(zone);
+    java.time.ZonedDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay(zone);
+    return java.time.Duration.between(now, midnight).toMillis();
   }
 
   private static void scheduleWebhookAutoRotation(Vertx vertx, WebhookService webhookService) {

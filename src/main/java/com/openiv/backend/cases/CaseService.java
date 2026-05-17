@@ -180,6 +180,11 @@ public final class CaseService {
         .compose(u -> repository.markSeen(caseId, u.institutionId(), u.id()));
   }
 
+  public Future<Long> unassignedCount(Session session) {
+    return resolveUser(session)
+        .compose(u -> repository.unassignedCount(u.institutionId()));
+  }
+
   public Future<Long> unseenCount(Session session) {
     return resolveUser(session)
         .compose(u -> repository.unseenCount(u.institutionId(), u.id()));
@@ -224,9 +229,9 @@ public final class CaseService {
     return resolveUser(session).compose(u -> amlSettingsRepository.getByInstitution(u.institutionId()));
   }
 
-  public Future<AmlSettings> updateAmlSettings(Session session, boolean autoOpenCase, Integer flagThreshold, Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold, Integer normalThreshold, Integer behNormalThreshold) {
+  public Future<AmlSettings> updateAmlSettings(Session session, boolean autoOpenCase, Integer flagThreshold, Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold, Integer normalThreshold, Integer behNormalThreshold, Integer kycNormalThreshold, Integer kycCaseThreshold) {
     return resolveUser(session).compose(u ->
-        amlSettingsRepository.upsert(u.institutionId(), autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold));
+        amlSettingsRepository.upsert(u.institutionId(), autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold, kycNormalThreshold, kycCaseThreshold));
   }
 
   public Future<AmlSettings> updateBeamWindow(Session session, int beamWindowSeconds) {
@@ -244,7 +249,7 @@ public final class CaseService {
         amlSettingsRepository.getByInstitution(u.institutionId())
             .compose(opt -> {
               if (opt.isEmpty()) {
-                return amlSettingsRepository.upsert(u.institutionId(), true, null, null, null, null, null, null)
+                return amlSettingsRepository.upsert(u.institutionId(), true, null, null, null, null, null, null, null, null)
                     .compose(settings -> amlSettingsRepository.addNotificationEmail(settings.id(), email)
                         .map(v -> settings));
               }

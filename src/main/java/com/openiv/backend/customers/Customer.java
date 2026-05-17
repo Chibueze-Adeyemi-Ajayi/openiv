@@ -11,6 +11,8 @@ public record Customer(
     String email,
     String phone,
     int riskScore,
+    int riskProfileScore,
+    int transactionRiskScore,
     String bvn,
     String nin,
     String photo,

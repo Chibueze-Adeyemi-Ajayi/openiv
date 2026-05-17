@@ -67,6 +67,53 @@ public final class BeamHandlers {
     };
   }
 
+  /** POST /beam/kyc/stream — SSE response, one event per pipeline step. */
+  public Handler<RoutingContext> ingestKycStream() {
+    return ctx -> {
+      long institutionId = ctx.get(BeamApiKeyHandler.INSTITUTION_ID_KEY);
+      String ct = ctx.request().getHeader("Content-Type");
+      JsonObject body = (ct != null && ct.toLowerCase().startsWith("multipart/form-data"))
+          ? kycBodyFromMultipart(ctx)
+          : body(ctx);
+      if (body == null) return;
+
+      String customerId = body.getString("customer_id", body.getString("customerId", "unknown"));
+
+      var resp = ctx.response();
+      resp.setChunked(true)
+          .putHeader("Content-Type",      "text/event-stream; charset=utf-8")
+          .putHeader("Cache-Control",     "no-cache")
+          .putHeader("Connection",        "keep-alive")
+          .putHeader("X-Accel-Buffering", "no");
+
+      writeSse(resp, "started", new JsonObject()
+          .put("customerId", customerId)
+          .put("steps", new io.vertx.core.json.JsonArray()
+              .add("bvn_nin").add("phone_match").add("liveness").add("pep_check")));
+
+      String ip        = ctx.request().remoteAddress().hostAddress();
+      String userAgent = ctx.request().getHeader("User-Agent");
+      int    bytes     = ctx.body().buffer() != null ? ctx.body().buffer().length() : 0;
+
+      service.processKycStream(institutionId, body.encode(), ip, userAgent, bytes,
+              stepEvent -> writeSse(resp, "step", stepEvent))
+          .onSuccess(result -> {
+            billing.chargeBeamIngestAsync(institutionId, "beam_kyc_" + System.currentTimeMillis());
+            writeSse(resp, "result", result);
+            writeSse(resp, "done",   new JsonObject());
+            resp.end();
+          })
+          .onFailure(err -> {
+            writeSse(resp, "error", new JsonObject().put("message", err.getMessage()));
+            resp.end();
+          });
+    };
+  }
+
+  private static void writeSse(io.vertx.core.http.HttpServerResponse r, String event, JsonObject data) {
+    r.write("event: " + event + "\ndata: " + data.encode() + "\n\n");
+  }
+
   public Handler<RoutingContext> listRecords() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
@@ -164,5 +211,26 @@ public final class BeamHandlers {
       ctx.fail(400);
       return null;
     }
+  }
+
+  /** Read a multipart/form-data KYC request into a JsonObject.
+   *  Text fields are copied verbatim; the "photo" file part is base64-encoded. */
+  private static JsonObject kycBodyFromMultipart(RoutingContext ctx) {
+    JsonObject obj = new JsonObject();
+    for (String field : new String[]{ "customer_id", "customerId", "name", "bvn", "nin", "phone", "phone_number", "occurred_at" }) {
+      String val = ctx.request().getFormAttribute(field);
+      if (val != null && !val.isBlank()) obj.put(field, val);
+    }
+    for (io.vertx.ext.web.FileUpload f : ctx.fileUploads()) {
+      if ("photo".equals(f.name())) {
+        try {
+          byte[] bytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(f.uploadedFileName()));
+          obj.put("photo", java.util.Base64.getEncoder().encodeToString(bytes));
+        } catch (Exception ignored) {}
+      }
+    }
+    String id = obj.getString("customer_id", obj.getString("customerId"));
+    if (id == null || id.isBlank()) { ctx.fail(400); return null; }
+    return obj;
   }
 }

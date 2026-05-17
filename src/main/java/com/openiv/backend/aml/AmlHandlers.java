@@ -47,13 +47,15 @@ public final class AmlHandlers {
       Integer behCaseThreshold = body.getInteger("behRiskScoreCaseThreshold");
       Integer normalThreshold = body.getInteger("riskScoreNormalThreshold");
       Integer behNormalThreshold = body.getInteger("behRiskScoreNormalThreshold");
+      Integer kycNormalThreshold = body.getInteger("kycRiskNormalThreshold");
+      Integer kycCaseThreshold = body.getInteger("kycRiskCaseThreshold");
 
       if (autoOpenCase == null) {
         badRequest(ctx, "autoOpenCase is required");
         return;
       }
 
-      service.updateAmlSettings(session, autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold)
+      service.updateAmlSettings(session, autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold, kycNormalThreshold, kycCaseThreshold)
           .onSuccess(settings -> ok(ctx, settingsJson(settings)))
           .onFailure(ctx::fail);
     };
@@ -153,7 +155,9 @@ public final class AmlHandlers {
         .put("riskScoreNormalThreshold", settings.riskScoreNormalThreshold())
         .put("behRiskScoreNormalThreshold", settings.behRiskScoreNormalThreshold())
         .put("beamWindowSeconds", settings.beamWindowSeconds())
-        .put("timezone", settings.timezone());
+        .put("timezone", settings.timezone())
+        .put("kycRiskNormalThreshold", settings.kycRiskNormalThreshold())
+        .put("kycRiskCaseThreshold", settings.kycRiskCaseThreshold());
     if (settings.caseNotificationEmails() != null) {
       json.put("caseNotificationEmails", settings.caseNotificationEmails());
     }

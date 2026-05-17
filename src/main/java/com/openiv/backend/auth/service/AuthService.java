@@ -210,7 +210,7 @@ public final class AuthService {
           if (!Totp.verify(secret, totpCode.trim())) throw AuthException.invalid("code");
           return sessions.revokeAllForUser(user.id())
               .compose(v -> issueSession(user, SessionState.AUTHENTICATED, deviceId, ip, userAgent, lat, lon, accuracy))
-              .map(sess -> new LoginResult(sess.token(), SessionState.AUTHENTICATED, user.accountType(), user.displayName()));
+              .map(sess -> new LoginResult(sess.token(), SessionState.AUTHENTICATED, user.accountType(), user.displayName(), user.institutionId()));
         });
       });
     });
@@ -233,7 +233,7 @@ public final class AuthService {
     return totp.isEnabled(user.id()).compose(enabled -> {
       SessionState next = enabled ? SessionState.PENDING_TOTP_CHALLENGE : SessionState.PENDING_TOTP_SETUP;
       return issueSession(user, next, deviceId, ip, userAgent, lat, lon, accuracy)
-          .map(sess -> new LoginResult(sess.token(), next, user.accountType(), user.displayName()));
+          .map(sess -> new LoginResult(sess.token(), next, user.accountType(), user.displayName(), user.institutionId()));
     });
   }
 
@@ -241,7 +241,7 @@ public final class AuthService {
       String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, deviceId, ip, userAgent, lat, lon, accuracy)
         .compose(sess -> generateAndSendEmailCode(user).map(v -> new LoginResult(
-            sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType(), user.displayName())));
+            sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType(), user.displayName(), user.institutionId())));
   }
 
   // --- Email verification -------------------------------------------------
@@ -526,7 +526,7 @@ public final class AuthService {
       com.openiv.backend.auth.model.AccountType accountType) {}
 
   public record LoginResult(String sessionToken, SessionState state,
-      com.openiv.backend.auth.model.AccountType accountType, String fullName) {}
+      com.openiv.backend.auth.model.AccountType accountType, String fullName, long institutionId) {}
 
   public record VerifyResult(SessionState state, GeoAccessRequest geoRequest) {
     public VerifyResult(SessionState state) { this(state, null); }

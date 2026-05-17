@@ -107,4 +107,36 @@ public final class VertxEmailSender implements EmailSender {
         .onFailure(err -> log.error("Failed to send case notification email to {}: {}", toEmail, err.getMessage()))
         .mapEmpty();
   }
+
+  @Override
+  public Future<Void> sendDailyRiskReport(String toEmail, String recipientName, String htmlBody) {
+    MailMessage message = new MailMessage()
+        .setFrom(from)
+        .setTo(toEmail)
+        .setSubject("OpenIV — Daily High-Risk Customer Report")
+        .setText("Your daily fraud monitoring report is ready. Please log in to the openIV dashboard to review high-risk customers.")
+        .setHtml(EmailTemplates.dailyRiskReport(recipientName, htmlBody));
+
+    return client.sendMail(message)
+        .onFailure(err -> log.error("Failed to send daily risk report to {}: {}", toEmail, err.getMessage()))
+        .mapEmpty();
+  }
+
+  @Override
+  public Future<Void> sendWaitlistNotification(String adminEmail, String userName, String userEmail, String expectation) {
+    String html = "<h3>New Waitlist Signup</h3>" +
+                  "<p><strong>Name:</strong> " + userName + "</p>" +
+                  "<p><strong>Email:</strong> " + userEmail + "</p>" +
+                  "<p><strong>Expectation:</strong> " + expectation + "</p>";
+    MailMessage message = new MailMessage()
+        .setFrom(from)
+        .setTo(adminEmail)
+        .setSubject("OpenIV Waitlist: New Signup from " + userName)
+        .setText("New Waitlist Signup\nName: " + userName + "\nEmail: " + userEmail + "\nExpectation: " + expectation)
+        .setHtml(html);
+
+    return client.sendMail(message)
+        .onFailure(err -> log.error("Failed to send waitlist notification to {}: {}", adminEmail, err.getMessage()))
+        .mapEmpty();
+  }
 }

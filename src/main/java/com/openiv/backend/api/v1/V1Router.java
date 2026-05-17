@@ -37,6 +37,7 @@ import com.openiv.backend.settings.EurekaSettingHandlers;
 import com.openiv.backend.heatmap.HeatmapHandlers;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycHandlers;
+import com.openiv.backend.kyc.KycPipelineResultRepository;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.aml.AmlHandlers;
 import com.openiv.backend.network.NetworkHandlers;
@@ -55,6 +56,9 @@ import com.openiv.backend.analytics.UserAnalyticsService;
 import com.openiv.backend.customers.CustomerHandlers;
 import com.openiv.backend.customers.CustomerRepository;
 import com.openiv.backend.customers.CustomerService;
+import com.openiv.backend.customers.CustomerTransactionRuleHandlers;
+import com.openiv.backend.customers.CustomerTransactionRuleRepository;
+import com.openiv.backend.customers.CustomerTransactionRuleService;
 import com.openiv.backend.institution.InstitutionHandlers;
 import com.openiv.backend.auth.repository.InstitutionRepository;
 import io.vertx.core.Handler;
@@ -100,7 +104,7 @@ public final class V1Router {
     // Cookie flags: dev → not-Secure + SameSite=Lax (so :5173 can reach :8080 over
     // HTTP);
     // prod → Secure + SameSite=Strict.
-    router.route("/auth/*").subRouter(AuthRouter.create(vertx, authService, !devMode));
+    router.route("/auth/*").subRouter(AuthRouter.create(vertx, authService, !devMode, customerService));
 
     // Team management — requires an authenticated session (gate inside TeamRouter).
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService));
@@ -151,6 +155,7 @@ public final class V1Router {
     Handler<RoutingContext> txnAuth = SessionAuthHandler.authenticated(authService);
     router.get("/transactions").handler(txnAuth).handler(txnHandlers.list());
     router.get("/transactions/export").handler(txnAuth).handler(txnHandlers.export());
+    router.get("/transactions/unseen-count").handler(txnAuth).handler(txnHandlers.unseenCount());
     router.post("/transactions/bulk-status").handler(txnAuth).handler(txnHandlers.bulkStatus());
     router.post("/transactions/import").handler(txnAuth).handler(txnHandlers.importTransactions());
     router.patch("/transactions/:id/seen").handler(txnAuth).handler(txnHandlers.markSeen());
@@ -162,6 +167,8 @@ public final class V1Router {
     router.get("/transactions/:id/case").handler(txnAuth).handler(caseHandlers.forTransaction());
     router.get("/cases/metrics").handler(caseAuth).handler(caseHandlers.metrics());
     router.get("/cases/pending-approval").handler(caseAuth).handler(caseHandlers.listPendingApproval());
+    router.get("/cases/unassigned-count").handler(caseAuth).handler(caseHandlers.unassignedCount());
+    router.get("/cases/unseen-count").handler(caseAuth).handler(caseHandlers.unseenCount());
     router.get("/cases").handler(caseAuth).handler(caseHandlers.list());
     router.post("/cases").handler(caseAuth).handler(caseHandlers.create());
     router.get("/cases/:id").handler(caseAuth).handler(caseHandlers.detail());
@@ -170,7 +177,6 @@ public final class V1Router {
     router.post("/cases/:id/notes").handler(caseAuth).handler(caseHandlers.addNote());
     router.post("/cases/:id/evidence").handler(caseAuth).handler(caseHandlers.addEvidence());
     router.post("/cases/:id/assign").handler(caseAuth).handler(caseHandlers.assignCase());
-    router.get("/cases/unseen-count").handler(caseAuth).handler(caseHandlers.unseenCount());
     router.patch("/cases/:id/seen").handler(caseAuth).handler(caseHandlers.markSeen());
     router.patch("/cases/:id/link-nfiu-report").handler(caseAuth).handler(caseHandlers.linkNfiuReport());
 
@@ -183,6 +189,7 @@ public final class V1Router {
     router.get("/thresholds/kyc-tiers").handler(thresholdAuth).handler(thresholdHandlers.listKycTiers());
     router.patch("/thresholds/kyc-tiers/:tier").handler(thresholdAuth).handler(thresholdHandlers.updateKycTier());
     router.get("/thresholds").handler(thresholdAuth).handler(thresholdHandlers.list());
+    router.get("/thresholds/history").handler(thresholdAuth).handler(thresholdHandlers.allHistory());
     router.patch("/thresholds/:id").handler(thresholdAuth).handler(thresholdHandlers.update());
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(thresholdHandlers.history());
 
@@ -205,6 +212,9 @@ public final class V1Router {
     router.get("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.getApiKeyInfo());
     router.post("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.generateApiKey());
     router.delete("/beam/api-key").handler(beamSessionAuth).handler(beamHandlers.revokeApiKey());
+
+    // KYC SSE streaming endpoint — must be registered before /:stream to avoid param capture
+    router.post("/beam/kyc/stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingestKycStream());
 
     // Inbound beam ingestion — authenticated with institution API key (not session)
     router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
@@ -233,14 +243,17 @@ public final class V1Router {
     Handler<RoutingContext> networkAuth = SessionAuthHandler.authenticated(authService);
     router.get("/network/logs").handler(networkAuth).handler(networkHandlers.listLogs());
 
-    // KYC — lookup URL config and manual lookup trigger
+    // KYC — lookup URL config, manual lookup, pipeline results
+    KycPipelineResultRepository kycPipelineRepo = new KycPipelineResultRepository(dbPool);
     KycHandlers kycHandlers = new KycHandlers(kycService, billingService);
     Handler<RoutingContext> kycAuth = SessionAuthHandler.authenticated(authService);
     router.get("/kyc/config").handler(kycAuth).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycHandlers.saveConfig());
     router.get("/kyc/pep-search").handler(kycAuth).handler(kycHandlers.searchPEP());
     router.post("/kyc/lookup").handler(kycAuth).handler(kycHandlers.lookup());
-
+    router.get("/kyc/customers/stats").handler(kycAuth).handler(kycHandlers.getStats());
+    router.get("/kyc/customers").handler(kycAuth).handler(kycHandlers.listCustomers());
+    router.get("/kyc/customers/:customerId").handler(kycAuth).handler(kycHandlers.getCustomerKyc());
     router.get("/kyc/logs").handler(kycAuth).handler(kycHandlers.listLogs());
 
     // AML Settings — institution-level configuration for auto case opening
@@ -273,14 +286,25 @@ public final class V1Router {
     router.get("/institution/signing-credentials").handler(institutionAuth).handler(institutionHandlers.getSigningCredentials());
     router.patch("/institution/signing-credentials").handler(institutionAuth).handler(institutionHandlers.updateSigningCredentials());
 
-    // Customers — list + profile lookup
+    // Customers — static paths before /:id to avoid param capture
     CustomerHandlers customerHandlers = new CustomerHandlers(customerService, new UserRepository(dbPool));
     Handler<RoutingContext> customerAuth = SessionAuthHandler.authenticated(authService);
     router.get("/customers").handler(customerAuth).handler(customerHandlers.listCustomers());
+    router.get("/customers/high-risk").handler(customerAuth).handler(customerHandlers.highRisk());
     router.get("/customers/:id").handler(customerAuth).handler(customerHandlers.getCustomer());
     router.patch("/customers/:id/profile").handler(customerAuth).handler(customerHandlers.updateProfile());
     router.patch("/customers/:id/watchlist").handler(customerAuth).handler(customerHandlers.watchlistCustomer());
     router.patch("/customers/:id/unwatchlist").handler(customerAuth).handler(customerHandlers.unwatchlistCustomer());
+
+    // Per-customer transaction rules
+    CustomerTransactionRuleHandlers ruleHandlers = new CustomerTransactionRuleHandlers(
+        new CustomerTransactionRuleService(new CustomerTransactionRuleRepository(dbPool)),
+        new UserRepository(dbPool));
+    router.get("/customers/:id/rules").handler(customerAuth).handler(ruleHandlers.listRules());
+    router.post("/customers/:id/rules").handler(customerAuth).handler(ruleHandlers.createRule());
+    router.put("/customers/:id/rules/:ruleId").handler(customerAuth).handler(ruleHandlers.updateRule());
+    router.delete("/customers/:id/rules/:ruleId").handler(customerAuth).handler(ruleHandlers.deleteRule());
+    router.patch("/customers/:id/rules/:ruleId/toggle").handler(customerAuth).handler(ruleHandlers.toggleRule());
 
     // User-specific detailed analytics
     UserAnalyticsService userAnalyticsService = new UserAnalyticsService(

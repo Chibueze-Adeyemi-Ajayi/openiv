@@ -43,8 +43,45 @@ public class NotificationService {
 
   public Future<Notification> notifyCaseCreated(long instId, String caseId,
       String caseTitle, String priority) {
-    return registerNotification(instId, "case_" + priority, caseTitle,
-        "Case " + caseId + " created: " + caseTitle);
+    String riskLabel = switch (priority) {
+      case "critical" -> "CRITICAL";
+      case "high"     -> "HIGH";
+      case "medium"   -> "MEDIUM";
+      default         -> "LOW";
+    };
+    String body = "Our fraud monitoring system has automatically opened a new investigation case (" + caseId + "). "
+        + "Risk level: " + riskLabel + ". "
+        + "Please open the AML & Cases section, review the details, and take action — "
+        + "either begin an investigation, contact the customer, or close the case if no concern is found.";
+    return registerNotification(instId, "case_" + priority,
+        "New case opened — " + riskLabel + " risk", body);
+  }
+
+  public Future<Notification> notifyCaseCreated(long instId, String caseId,
+      String priority, String customerName, String amount, String currency, String channel) {
+    String riskLabel = switch (priority) {
+      case "critical" -> "CRITICAL";
+      case "high"     -> "HIGH";
+      case "medium"   -> "MEDIUM";
+      default         -> "LOW";
+    };
+    String body = "Our fraud monitoring system flagged a suspicious transaction from "
+        + customerName + " — " + formatAmount(amount, currency) + " sent via " + channel + ". "
+        + "A new investigation case (" + caseId + ") has been opened automatically. "
+        + "Risk level: " + riskLabel + ". "
+        + "Please review the case in the AML & Cases section and take action — "
+        + "investigate further, reach out to the customer, or close it if no issue is found.";
+    return registerNotification(instId, "case_" + priority,
+        "New " + riskLabel + " risk case — " + customerName, body);
+  }
+
+  private static String formatAmount(String amount, String currency) {
+    try {
+      long val = new java.math.BigDecimal(amount).longValue();
+      return String.format("%s %,d", currency != null ? currency : "NGN", val);
+    } catch (Exception e) {
+      return (currency != null ? currency : "NGN") + " " + amount;
+    }
   }
 
   // ── Case action notifications ──────────────────────────────────────────────
@@ -151,6 +188,28 @@ public class NotificationService {
     if (a.customerId() != null) sb.append(" Customer: ").append(a.customerId()).append(".");
     if (a.deviceId()   != null) sb.append(" Device: ").append(a.deviceId()).append(".");
     return sb.toString();
+  }
+
+  public Future<Notification> notifyRiskReport(long instId, int highRiskCount, int highestScore, String topCustomerName) {
+    String title = "Daily Risk Alert — " + highRiskCount + " customer" + (highRiskCount == 1 ? "" : "s") + " need your attention";
+    String body;
+    if (highRiskCount == 0) {
+      body = "Your nightly fraud check is complete. All customers are within acceptable risk levels today. "
+          + "No immediate action is required, but routine monitoring continues.";
+    } else {
+      body = "Your overnight fraud monitoring has completed. We found " + highRiskCount
+          + " customer" + (highRiskCount == 1 ? "" : "s") + " with an overall risk score above 75 — "
+          + "the level at which the risk of financial crime is considered significant. "
+          + "The highest-risk customer scored " + highestScore + " out of 100"
+          + (topCustomerName != null ? " (" + topCustomerName + ")" : "") + ". "
+          + "A high risk score means this customer has a combination of suspicious transaction history, "
+          + "open fraud cases, or a high proportion of flagged payments. "
+          + "What this means for you: these customers may be involved in money laundering, fraud, or other financial crimes. "
+          + "What you should do: open the High-Risk Customers section, review each profile, "
+          + "and either open a formal investigation case or file a Suspicious Activity Report (SAR) with the NFIU. "
+          + "Failing to act on credible high-risk signals can expose your institution to regulatory penalties under the CBN AML framework.";
+    }
+    return registerNotification(instId, "risk_report_daily", title, body);
   }
 
   public Future<Notification> notifyCyberBreachTimestampAnomaly(long institutionId,

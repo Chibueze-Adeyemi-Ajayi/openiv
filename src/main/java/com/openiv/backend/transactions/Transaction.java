@@ -2,6 +2,7 @@ package com.openiv.backend.transactions;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record Transaction(
         String id,
@@ -29,5 +30,9 @@ public record Transaction(
         String narration,
         String deviceId,
         String ipAddress,
-        boolean seen) {
+        boolean seen,
+        String flagReason,
+        String category,
+        String direction,          // 'inward' | 'outward'
+        List<String> flagReasons) {
 }

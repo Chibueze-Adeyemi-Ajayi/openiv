@@ -55,5 +55,12 @@
   "kyc": {
     "_comment": "KYC Integration settings. The backend reads OPEN_SANCTIONS_API_KEY from environment variables for live PEP screening.",
     "OPEN_SANCTIONS_API_KEY": "REPLACE_WITH_YOUR_OPENSANCTIONS_API_KEY"
+  },
+  "doja": {
+    "_comment": "Doja.io identity verification (BVN/NIN). Env-var overrides: DOJA_APP_ID, DOJA_API_KEY, DOJA_BASE_URL.",
+    "baseUrl": "https://sandbox.doja.io",
+    "appId":   "REPLACE_WITH_DOJA_APP_ID",
+    "apiKey":  "REPLACE_WITH_DOJA_API_KEY",
+    "enabled": true
   }
 }

@@ -42,7 +42,7 @@ public final class CaseRepository {
       + "t.counterparty, t.risk_score, t.status, t.flagged_status, t.location, t.lat, t.lng, "
       + "t.occurred_at, t.created_at, t.updated_at, t.sender_account, t.sender_bank, "
       + "t.recipient_name, t.recipient_account, t.recipient_bank, t.currency, "
-      + "t.narration, t.device_id, t.ip_address";
+      + "t.narration, t.device_id, t.ip_address, t.flag_reason";
 
   // ── List ────────────────────────────────────────────────────────────────────
 
@@ -387,6 +387,13 @@ public final class CaseRepository {
         .mapEmpty();
   }
 
+  public Future<Long> unassignedCount(long institutionId) {
+    return pool.preparedQuery(
+            "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND assigned_to IS NULL AND status != 'closed'")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> rs.iterator().next().getLong(0));
+  }
+
   public Future<Long> unseenCount(long institutionId, long userId) {
     String sql =
         "SELECT COUNT(*) FROM cases c"
@@ -521,7 +528,7 @@ public final class CaseRepository {
         r.getString("recipient_name"), r.getString("recipient_account"),
         r.getString("recipient_bank"), r.getString("currency"),
         r.getString("narration"), r.getString("device_id"), r.getString("ip_address"),
-        false);
+        false, r.getString("flag_reason"), null, "outward", java.util.List.of());
   }
 
   private static boolean isElevatedRole(String role) {

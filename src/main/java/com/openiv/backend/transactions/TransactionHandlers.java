@@ -63,6 +63,15 @@ public final class TransactionHandlers {
     };
   }
 
+  public Handler<RoutingContext> unseenCount() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.unseenCount(session)
+          .onSuccess(count -> ok(ctx, new JsonObject().put("count", count)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   public Handler<RoutingContext> markSeen() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
@@ -152,7 +161,7 @@ public final class TransactionHandlers {
         rows.add(new TransactionImport(id, customerId, customerName, amount,
             channel, counterparty, riskScore, status, flaggedStatus, location, lat, lng, occurredAt,
             senderAccount, senderBank, recipientName, recipientAccount, recipientBank,
-            currency, narration, deviceId, ipAddress));
+            currency, narration, deviceId, ipAddress, null, "outward"));
       }
 
       if (rows.isEmpty()) {
@@ -225,6 +234,14 @@ public final class TransactionHandlers {
     if (t.ipAddress()        != null) o.put("ipAddress",        t.ipAddress());
     if (t.createdAt()        != null) o.put("createdAt",        t.createdAt().toString());
     if (t.updatedAt()        != null) o.put("updatedAt",        t.updatedAt().toString());
+    if (t.flagReason()       != null) o.put("flagReason",       t.flagReason());
+    if (t.category()         != null) o.put("category",         t.category());
+    o.put("direction", t.direction() != null ? t.direction() : "outward");
+    if (t.flagReasons() != null && !t.flagReasons().isEmpty()) {
+      io.vertx.core.json.JsonArray rArr = new io.vertx.core.json.JsonArray();
+      t.flagReasons().forEach(rArr::add);
+      o.put("flagReasons", rArr);
+    }
     return o;
   }
 

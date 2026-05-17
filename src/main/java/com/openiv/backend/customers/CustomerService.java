@@ -63,6 +63,26 @@ public final class CustomerService {
     return repository.unwatchlist(institutionId, externalId);
   }
 
+  public Future<Void> updateOverallRiskScore(long institutionId, String externalId, int score) {
+    return repository.updateOverallRiskScore(institutionId, externalId, score);
+  }
+
+  public Future<Void> refreshAllScores(long institutionId) {
+    return repository.refreshAllScores(institutionId);
+  }
+
+  public Future<List<Customer>> listHighRisk(long institutionId, int limit, int offset) {
+    return repository.listHighRisk(institutionId, limit, offset);
+  }
+
+  public Future<Long> countHighRisk(long institutionId) {
+    return repository.countHighRisk(institutionId);
+  }
+
+  public Future<List<Long>> distinctInstitutionIds() {
+    return repository.distinctInstitutionIds();
+  }
+
   private static String blank(String s) {
     return (s != null && !s.isBlank()) ? s.trim() : null;
   }

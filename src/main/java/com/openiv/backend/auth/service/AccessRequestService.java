@@ -24,9 +24,11 @@ public final class AccessRequestService {
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
   private final AccessRequestRepository repo;
+  private final EmailSender emailSender;
 
-  public AccessRequestService(AccessRequestRepository repo) {
+  public AccessRequestService(AccessRequestRepository repo, EmailSender emailSender) {
     this.repo = repo;
+    this.emailSender = emailSender;
   }
 
   public Future<AccessRequest> submit(SubmitInput input) {
@@ -45,7 +47,15 @@ public final class AccessRequestService {
           input.contactName().trim(),
           normalizedEmail,
           blankToNull(input.contactPhone()),
-          blankToNull(input.description()));
+          blankToNull(input.description()))
+        .onSuccess(request -> {
+          emailSender.sendWaitlistNotification(
+              "chibuezeadeyemi@gmail.com",
+              input.contactName().trim(),
+              normalizedEmail,
+              input.description() != null ? input.description().trim() : "N/A"
+          );
+        });
     });
   }
 

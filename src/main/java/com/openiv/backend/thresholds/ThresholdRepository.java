@@ -46,7 +46,7 @@ public final class ThresholdRepository {
   private static final String SELECT_COLS =
       "id, institution_id, rule_id, name, description, tag, "
       + "threshold_value, unit, min_value, max_value, step_value, "
-      + "is_active, fired_count, created_at, updated_at";
+      + "is_active, fired_count, created_at, updated_at, threshold_outward, threshold_inward";
 
   // ── List ──────────────────────────────────────────────────────────────────
 
@@ -84,8 +84,8 @@ public final class ThresholdRepository {
           String insertSql =
               "INSERT INTO detection_thresholds "
               + "(institution_id, rule_id, name, description, tag, threshold_value, "
-              + " unit, min_value, max_value, step_value, is_active) "
-              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT DO NOTHING";
+              + " unit, min_value, max_value, step_value, is_active, threshold_outward, threshold_inward) "
+              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) ON CONFLICT DO NOTHING";
 
           Future<Void> chain = Future.succeededFuture();
           for (DefaultRule d : DEFAULTS) {
@@ -94,7 +94,7 @@ public final class ThresholdRepository {
                 pool.preparedQuery(insertSql).execute(Tuple.of(
                     institutionId, dr.ruleId(), dr.name(), dr.description(),
                     dr.tag(), dr.threshold(), dr.unit(),
-                    dr.min(), dr.max(), dr.step(), dr.active()
+                    dr.min(), dr.max(), dr.step(), dr.active(), dr.threshold()
                 )).mapEmpty()
             );
           }
@@ -108,6 +108,22 @@ public final class ThresholdRepository {
     String sql = "UPDATE detection_thresholds SET threshold_value = $1, updated_at = now() "
         + "WHERE id = $2 AND institution_id = $3";
     return pool.preparedQuery(sql).execute(Tuple.of(newValue, id, institutionId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
+  // ── Update per-direction thresholds ──────────────────────────────────────
+
+  public Future<Boolean> updateOutwardThreshold(long id, long institutionId, Long value) {
+    String sql = "UPDATE detection_thresholds SET threshold_outward = $1, updated_at = now() "
+        + "WHERE id = $2 AND institution_id = $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(value, id, institutionId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
+  public Future<Boolean> updateInwardThreshold(long id, long institutionId, Long value) {
+    String sql = "UPDATE detection_thresholds SET threshold_inward = $1, updated_at = now() "
+        + "WHERE id = $2 AND institution_id = $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(value, id, institutionId))
         .map(rs -> rs.rowCount() > 0);
   }
 
@@ -139,25 +155,34 @@ public final class ThresholdRepository {
     String sql =
         "SELECT tc.id, tc.threshold_id, tc.institution_id, tc.changed_by, "
         + "COALESCE(u.full_name, u.email) AS changed_by_name, "
-        + "tc.field, tc.old_value, tc.new_value, tc.created_at "
+        + "tc.field, tc.old_value, tc.new_value, tc.created_at, dt.name AS rule_name "
         + "FROM threshold_changes tc "
         + "LEFT JOIN users u ON u.id = tc.changed_by "
+        + "LEFT JOIN detection_thresholds dt ON dt.id = tc.threshold_id "
         + "WHERE tc.threshold_id = $1 AND tc.institution_id = $2 "
         + "ORDER BY tc.created_at DESC LIMIT 100";
     return pool.preparedQuery(sql).execute(Tuple.of(thresholdId, institutionId))
         .map(rs -> {
           var list = new ArrayList<ThresholdChange>();
-          rs.forEach(r -> list.add(new ThresholdChange(
-              r.getLong("id"),
-              r.getLong("threshold_id"),
-              r.getLong("institution_id"),
-              r.getLong("changed_by"),
-              r.getString("changed_by_name"),
-              r.getString("field"),
-              r.getString("old_value"),
-              r.getString("new_value"),
-              r.getOffsetDateTime("created_at")
-          )));
+          rs.forEach(r -> list.add(mapChange(r)));
+          return List.copyOf(list);
+        });
+  }
+
+  public Future<List<ThresholdChange>> allHistory(long institutionId) {
+    String sql =
+        "SELECT tc.id, tc.threshold_id, tc.institution_id, tc.changed_by, "
+        + "COALESCE(u.full_name, u.email) AS changed_by_name, "
+        + "tc.field, tc.old_value, tc.new_value, tc.created_at, dt.name AS rule_name "
+        + "FROM threshold_changes tc "
+        + "LEFT JOIN users u ON u.id = tc.changed_by "
+        + "LEFT JOIN detection_thresholds dt ON dt.id = tc.threshold_id "
+        + "WHERE tc.institution_id = $1 "
+        + "ORDER BY tc.created_at DESC LIMIT 200";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
+        .map(rs -> {
+          var list = new ArrayList<ThresholdChange>();
+          rs.forEach(r -> list.add(mapChange(r)));
           return List.copyOf(list);
         });
   }
@@ -199,13 +224,60 @@ public final class ThresholdRepository {
 
   // ── KYC Tier Thresholds ────────────────────────────────────────────────────
 
+  public Future<Void> seedKycTiersIfEmpty(long institutionId) {
+    String countSql = "SELECT COUNT(*) FROM threshold_by_kyc_tier WHERE institution_id = $1";
+    return pool.preparedQuery(countSql).execute(Tuple.of(institutionId))
+        .compose(rs -> {
+          if (rs.iterator().next().getLong(0) > 0) return Future.succeededFuture();
+
+          // CBN-aligned defaults per tier: Tier 0 (Unverified) → Tier 3 (Full KYC)
+          record TierDefaults(int tier, long dWire, long dMobile, long dUssd, long dBdc, long dOther,
+              long sTxnWire, long sTxnMobile, long sTxnUssd, long sTxnBdc, long sTxnOther,
+              int maxHr, int maxDay, int boost, boolean addlVerify) {}
+
+          List<TierDefaults> defaults = List.of(
+              new TierDefaults(0,    500_000L,  100_000L,  50_000L,  1_000_000L,  100_000L,
+                                   250_000L,   50_000L,  25_000L,    500_000L,   50_000L, 5,  10, 20, true),
+              new TierDefaults(1,  2_000_000L,  500_000L, 200_000L,  3_000_000L,  500_000L,
+                                 1_000_000L,  250_000L, 100_000L,  1_500_000L,  250_000L, 8,  30, 10, false),
+              new TierDefaults(2,  5_000_000L, 2_000_000L, 500_000L, 10_000_000L, 1_000_000L,
+                                 2_500_000L, 1_000_000L, 250_000L,  5_000_000L,  500_000L, 10, 50,  5, false),
+              new TierDefaults(3, 50_000_000L, 10_000_000L, 2_000_000L, 100_000_000L, 5_000_000L,
+                                25_000_000L,  5_000_000L, 1_000_000L, 50_000_000L, 2_000_000L, 20, 100, 0, false)
+          );
+
+          String insertSql =
+              "INSERT INTO threshold_by_kyc_tier "
+              + "(institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, daily_limit_ussd, "
+              + " daily_limit_bdc, daily_limit_other, single_txn_limit_wire, single_txn_limit_mobile, "
+              + " single_txn_limit_ussd, single_txn_limit_bdc, single_txn_limit_other, "
+              + " max_txns_per_hour, max_txns_per_day, risk_score_boost, requires_additional_verification) "
+              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT DO NOTHING";
+
+          Future<Void> chain = Future.succeededFuture();
+          for (TierDefaults d : defaults) {
+            final TierDefaults td = d;
+            chain = chain.compose(v ->
+                pool.preparedQuery(insertSql).execute(Tuple.of(
+                    institutionId, td.tier(),
+                    td.dWire(), td.dMobile(), td.dUssd(), td.dBdc(), td.dOther(),
+                    td.sTxnWire(), td.sTxnMobile(), td.sTxnUssd(), td.sTxnBdc(), td.sTxnOther(),
+                    td.maxHr(), td.maxDay(), td.boost(), td.addlVerify()
+                )).mapEmpty()
+            );
+          }
+          return chain;
+        });
+  }
+
   public Future<List<KycTierRecord>> listKycTierThresholds(long institutionId) {
     String sql = "SELECT id, institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, daily_limit_ussd, "
         + "daily_limit_bdc, daily_limit_other, single_txn_limit_wire, single_txn_limit_mobile, "
         + "single_txn_limit_ussd, single_txn_limit_bdc, single_txn_limit_other, max_txns_per_hour, "
         + "max_txns_per_day, risk_score_boost, requires_additional_verification, created_at, updated_at "
         + "FROM threshold_by_kyc_tier WHERE institution_id = $1 ORDER BY kyc_tier ASC";
-    return pool.preparedQuery(sql).execute(Tuple.of(institutionId))
+    return seedKycTiersIfEmpty(institutionId)
+        .compose(v -> pool.preparedQuery(sql).execute(Tuple.of(institutionId)))
         .map(rs -> {
           var list = new ArrayList<KycTierRecord>();
           rs.forEach(r -> list.add(mapKycTierRow(r)));
@@ -247,7 +319,24 @@ public final class ThresholdRepository {
         r.getBoolean("is_active"),
         r.getInteger("fired_count"),
         r.getOffsetDateTime("created_at"),
-        r.getOffsetDateTime("updated_at")
+        r.getOffsetDateTime("updated_at"),
+        r.getLong("threshold_outward"),
+        r.getLong("threshold_inward")
+    );
+  }
+
+  private static ThresholdChange mapChange(Row r) {
+    return new ThresholdChange(
+        r.getLong("id"),
+        r.getLong("threshold_id"),
+        r.getLong("institution_id"),
+        r.getLong("changed_by"),
+        r.getString("changed_by_name"),
+        r.getString("field"),
+        r.getString("old_value"),
+        r.getString("new_value"),
+        r.getOffsetDateTime("created_at"),
+        r.getString("rule_name")
     );
   }
 

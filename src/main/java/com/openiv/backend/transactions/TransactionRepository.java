@@ -15,7 +15,7 @@ public final class TransactionRepository {
       "id, institution_id, customer_id, customer_name, amount, channel, counterparty, "
       + "risk_score, status, flagged_status, location, lat, lng, occurred_at, created_at, updated_at, "
       + "sender_account, sender_bank, recipient_name, recipient_account, recipient_bank, "
-      + "currency, narration, device_id, ip_address";
+      + "currency, narration, device_id, ip_address, flag_reason, category, direction, flag_reasons";
 
   private final Pool pool;
 
@@ -123,11 +123,11 @@ public final class TransactionRepository {
         + " (id, institution_id, customer_id, customer_name, amount,"
         + "  channel, counterparty, risk_score, status, flagged_status, location, lat, lng, occurred_at,"
         + "  sender_account, sender_bank, recipient_name, recipient_account, recipient_bank,"
-        + "  currency, narration, device_id, ip_address, created_at)"
+        + "  currency, narration, device_id, ip_address, category, direction, created_at)"
         + " VALUES ($1,$2,$3,$4,$5,"
         + "  $6,$7,$8,$9,$10::text,$11::text,$12::double precision,$13::double precision,$14,"
         + "  $15::text,$16::text,$17::text,$18::text,$19::text,"
-        + "  $20,$21::text,$22::text,$23::text, now())"
+        + "  $20,$21::text,$22::text,$23::text,$24::text,$25::text, now())"
         + " ON CONFLICT (id) DO UPDATE SET"
         + "   customer_name = EXCLUDED.customer_name, amount = EXCLUDED.amount,"
         + "   channel = EXCLUDED.channel, counterparty = EXCLUDED.counterparty,"
@@ -140,7 +140,9 @@ public final class TransactionRepository {
         + "   recipient_name = EXCLUDED.recipient_name, recipient_account = EXCLUDED.recipient_account,"
         + "   recipient_bank = EXCLUDED.recipient_bank, currency = EXCLUDED.currency,"
         + "   narration = EXCLUDED.narration, device_id = EXCLUDED.device_id,"
-        + "   ip_address = EXCLUDED.ip_address, updated_at = now()";
+        + "   ip_address = EXCLUDED.ip_address,"
+        + "   category = EXCLUDED.category, direction = EXCLUDED.direction,"
+        + "   updated_at = now()";
 
     List<Tuple> tuples = rows.stream().map(r -> {
       var p = new ArrayList<>();
@@ -156,7 +158,8 @@ public final class TransactionRepository {
       p.add(r.recipientName());   p.add(r.recipientAccount());
       p.add(r.recipientBank());   p.add(r.currency() != null ? r.currency() : "NGN");
       p.add(r.narration());       p.add(r.deviceId());
-      p.add(r.ipAddress());
+      p.add(r.ipAddress());       p.add(r.category());
+      p.add(r.direction() != null ? r.direction() : "outward");
       return buildTuple(p);
     }).toList();
 
@@ -243,6 +246,24 @@ public final class TransactionRepository {
             : Optional.of(mapList(rs.iterator().next())));
   }
 
+  /** Returns the customer ID already associated with {@code senderAccount} for this institution,
+   *  excluding {@code excludeCustomerId} (the customer who just sent the transaction).
+   *  A non-empty result means the account number appears under a different customer — suspicious. */
+  public Future<Optional<String>> findCustomerBySenderAccount(
+      long institutionId, String senderAccount, String excludeCustomerId) {
+    if (senderAccount == null || senderAccount.isBlank())
+      return Future.succeededFuture(Optional.empty());
+    String sql = "SELECT customer_id FROM transactions "
+        + "WHERE institution_id = $1 AND sender_account = $2 "
+        + "  AND customer_id IS NOT NULL AND customer_id <> '' AND customer_id <> $3 "
+        + "ORDER BY created_at DESC LIMIT 1";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, senderAccount, excludeCustomerId))
+        .map(rs -> rs.rowCount() == 0
+            ? Optional.empty()
+            : Optional.of(rs.iterator().next().getString("customer_id")));
+  }
+
   public Future<Optional<Transaction>> findById(String id, long institutionId) {
     String sql = "SELECT " + SELECT_COLS + ", FALSE AS seen FROM transactions WHERE id = $1 AND institution_id = $2";
     return pool.preparedQuery(sql).execute(Tuple.of(id, institutionId))
@@ -260,6 +281,18 @@ public final class TransactionRepository {
         .mapEmpty();
   }
 
+  public Future<Long> unseenCount(long institutionId, long userId) {
+    return pool.preparedQuery(
+            "SELECT COUNT(*) FROM transactions t"
+            + " WHERE t.institution_id = $1"
+            + "   AND NOT EXISTS ("
+            + "     SELECT 1 FROM transaction_views tv"
+            + "     WHERE tv.transaction_id = t.id AND tv.user_id = $2"
+            + "   )")
+        .execute(Tuple.of(institutionId, userId))
+        .map(rs -> rs.iterator().next().getLong(0));
+  }
+
   public Future<Void> markFlagged(String transactionId, long institutionId) {
     return pool.preparedQuery(
             "UPDATE transactions SET flagged_status = 'flagged', updated_at = now()"
@@ -273,6 +306,14 @@ public final class TransactionRepository {
             "UPDATE transactions SET flagged_status = 'flagged', risk_score = $3, updated_at = now()"
             + " WHERE id = $1 AND institution_id = $2")
         .execute(Tuple.of(transactionId, institutionId, riskScore))
+        .mapEmpty();
+  }
+
+  public Future<Void> markFlaggedWithReason(String transactionId, long institutionId, int riskScore, String reason) {
+    return pool.preparedQuery(
+            "UPDATE transactions SET flagged_status = 'flagged', risk_score = $3, flag_reason = $4, updated_at = now()"
+            + " WHERE id = $1 AND institution_id = $2")
+        .execute(Tuple.of(transactionId, institutionId, riskScore, reason))
         .mapEmpty();
   }
 
@@ -367,6 +408,16 @@ public final class TransactionRepository {
   }
 
   private static Transaction buildTransaction(Row r, boolean seen) {
+    // Deserialize flag_reasons JSONB array → List<String>
+    java.util.List<String> flagReasons = new java.util.ArrayList<>();
+    String flagReasonsJson = r.getString("flag_reasons");
+    if (flagReasonsJson != null && !flagReasonsJson.isBlank()) {
+      try {
+        io.vertx.core.json.JsonArray arr = new io.vertx.core.json.JsonArray(flagReasonsJson);
+        for (int i = 0; i < arr.size(); i++) flagReasons.add(arr.getString(i));
+      } catch (Exception ignored) {}
+    }
+    String dir = r.getString("direction");
     return new Transaction(
         r.getString("id"),
         r.getLong("institution_id"),
@@ -393,6 +444,10 @@ public final class TransactionRepository {
         r.getString("narration"),
         r.getString("device_id"),
         r.getString("ip_address"),
-        seen);
+        seen,
+        r.getString("flag_reason"),
+        r.getString("category"),
+        dir != null ? dir : "outward",
+        java.util.List.copyOf(flagReasons));
   }
 }

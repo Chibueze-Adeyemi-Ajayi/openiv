@@ -40,6 +40,11 @@ public final class TransactionService {
         repository.markSeen(transactionId, u.institutionId(), u.id()));
   }
 
+  public Future<Long> unseenCount(Session session) {
+    return resolveUser(session).compose(u ->
+        repository.unseenCount(u.institutionId(), u.id()));
+  }
+
   public Future<List<Transaction>> export(Session session, String status, String flaggedStatus,
       String q, String range, String channel, Integer minRisk, Integer maxRisk) {
     return resolveInstitution(session)
@@ -72,6 +77,10 @@ public final class TransactionService {
     return repository.markFlaggedWithRiskScore(transactionId, institutionId, riskScore);
   }
 
+  public Future<Void> markFlaggedWithReason(String transactionId, long institutionId, int riskScore, String reason) {
+    return repository.markFlaggedWithReason(transactionId, institutionId, riskScore, reason);
+  }
+
   public Future<Void> ingestFromBeam(long institutionId, TransactionImport row) {
     if (customerService != null) {
       customerService.upsert(institutionId, row.customerId(), row.customerName());
@@ -94,6 +103,11 @@ public final class TransactionService {
   public Future<Optional<Transaction>> getLastTransactionWithLocation(
       long institutionId, String customerId, String excludeId) {
     return repository.findLastWithLocation(institutionId, customerId, excludeId);
+  }
+
+  public Future<Optional<String>> findCustomerBySenderAccount(
+      long institutionId, String senderAccount, String excludeCustomerId) {
+    return repository.findCustomerBySenderAccount(institutionId, senderAccount, excludeCustomerId);
   }
 
   private Future<User> resolveUser(Session session) {

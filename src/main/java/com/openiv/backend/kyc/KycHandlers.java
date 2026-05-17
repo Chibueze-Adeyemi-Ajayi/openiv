@@ -93,6 +93,75 @@ public final class KycHandlers {
     };
   }
 
+  // GET /kyc/customers/:customerId
+  public Handler<RoutingContext> getCustomerKyc() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String customerId = ctx.pathParam("customerId");
+      service.getCustomerKyc(session, customerId)
+          .onSuccess(opt -> {
+            if (opt.isEmpty()) {
+              ctx.response().setStatusCode(404)
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end(new JsonObject().put("error", "No KYC record found").encode());
+              return;
+            }
+            var r = opt.get();
+            ok(ctx, new JsonObject()
+                .put("customerId",       r.customerId())
+                .put("overallRiskScore", r.overallRiskScore())
+                .put("kycTier",          r.kycTier())
+                .put("overallStatus",    r.overallStatus())
+                .put("actionTaken",      r.actionTaken())
+                .put("runAt",            r.runAt().toString())
+                .put("bvnNinStatus",     r.bvnNinStatus())
+                .put("bvnNinScore",      r.bvnNinScore())
+                .put("bvnNinDetail",     r.bvnNinDetail())
+                .put("phoneStatus",      r.phoneStatus())
+                .put("phoneScore",       r.phoneScore())
+                .put("phoneDetail",      r.phoneDetail())
+                .put("livenessStatus",   r.livenessStatus())
+                .put("livenessScore",    r.livenessScore())
+                .put("livenessDetail",   r.livenessDetail())
+                .put("pepStatus",        r.pepStatus())
+                .put("pepScore",         r.pepScore())
+                .put("pepDetail",        r.pepDetail())
+                .put("identityPhoto",    r.identityPhoto())
+                .put("firstName",        r.firstName())
+                .put("lastName",         r.lastName())
+                .put("phone",            r.phone())
+                .put("dateOfBirth",      r.dateOfBirth()));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /kyc/customers/stats
+  public Handler<RoutingContext> getStats() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.getKycStats(session)
+          .onSuccess(stats -> ok(ctx, stats))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /kyc/customers
+  public Handler<RoutingContext> listCustomers() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String filter = ctx.request().getParam("filter");
+      String search = ctx.request().getParam("search");
+      service.listCustomerSummaries(session, filter, search)
+          .onSuccess(results -> {
+            var arr = new JsonArray();
+            results.forEach(arr::add);
+            ok(ctx, new JsonObject().put("customers", arr));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
   // GET /kyc/logs
   public Handler<RoutingContext> listLogs() {
     return ctx -> {

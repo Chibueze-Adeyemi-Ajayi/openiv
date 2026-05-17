@@ -33,7 +33,9 @@ public final class ThresholdService {
   }
 
   public Future<Optional<ThresholdRecord>> update(
-      Session session, long id, Long newThreshold, Boolean newActive) {
+      Session session, long id, Long newThreshold, Boolean newActive,
+      boolean changeOutward, Long newOutward,
+      boolean changeInward,  Long newInward) {
     return resolveUser(session).compose(u ->
         repository.findById(id, u.institutionId()).compose(opt -> {
           if (opt.isEmpty()) return Future.succeededFuture(Optional.empty());
@@ -44,30 +46,54 @@ public final class ThresholdService {
             return Future.failedFuture(new IllegalArgumentException(
                 "Threshold must be between " + rule.minValue() + " and " + rule.maxValue()));
           }
+          if (newOutward != null && (newOutward < rule.minValue() || newOutward > rule.maxValue())) {
+            return Future.failedFuture(new IllegalArgumentException(
+                "Outward threshold must be between " + rule.minValue() + " and " + rule.maxValue()));
+          }
+          if (newInward != null && (newInward < rule.minValue() || newInward > rule.maxValue())) {
+            return Future.failedFuture(new IllegalArgumentException(
+                "Inward threshold must be between " + rule.minValue() + " and " + rule.maxValue()));
+          }
 
           Future<Void> thresholdFuture = Future.succeededFuture();
           Future<Void> activeFuture    = Future.succeededFuture();
+          Future<Void> outwardFuture   = Future.succeededFuture();
+          Future<Void> inwardFuture    = Future.succeededFuture();
 
           if (newThreshold != null && newThreshold != rule.thresholdValue()) {
             thresholdFuture = repository.updateValue(id, u.institutionId(), newThreshold)
                 .compose(ok -> repository.addChange(
-                    id, u.institutionId(), u.id(),
-                    "threshold",
-                    String.valueOf(rule.thresholdValue()),
-                    String.valueOf(newThreshold)));
+                    id, u.institutionId(), u.id(), "threshold",
+                    String.valueOf(rule.thresholdValue()), String.valueOf(newThreshold)));
           }
           if (newActive != null && newActive != rule.isActive()) {
             activeFuture = repository.updateActive(id, u.institutionId(), newActive)
                 .compose(ok -> repository.addChange(
-                    id, u.institutionId(), u.id(),
-                    "is_active",
-                    String.valueOf(rule.isActive()),
-                    String.valueOf(newActive)));
+                    id, u.institutionId(), u.id(), "is_active",
+                    String.valueOf(rule.isActive()), String.valueOf(newActive)));
+          }
+          if (changeOutward) {
+            outwardFuture = repository.updateOutwardThreshold(id, u.institutionId(), newOutward)
+                .compose(ok -> repository.addChange(
+                    id, u.institutionId(), u.id(), "threshold_outward",
+                    rule.thresholdOutward() != null ? String.valueOf(rule.thresholdOutward()) : "disabled",
+                    newOutward != null ? String.valueOf(newOutward) : "disabled"));
+          }
+          if (changeInward) {
+            inwardFuture = repository.updateInwardThreshold(id, u.institutionId(), newInward)
+                .compose(ok -> repository.addChange(
+                    id, u.institutionId(), u.id(), "threshold_inward",
+                    rule.thresholdInward() != null ? String.valueOf(rule.thresholdInward()) : "disabled",
+                    newInward != null ? String.valueOf(newInward) : "disabled"));
           }
 
-          return Future.all(thresholdFuture, activeFuture)
+          return Future.all(thresholdFuture, activeFuture, outwardFuture, inwardFuture)
               .compose(v -> repository.findById(id, u.institutionId()));
         }));
+  }
+
+  public Future<List<ThresholdChange>> allHistory(Session session) {
+    return resolveUser(session).compose(u -> repository.allHistory(u.institutionId()));
   }
 
   public Future<List<ThresholdChange>> history(Session session, long id) {

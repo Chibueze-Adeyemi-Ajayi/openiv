@@ -17,5 +17,7 @@ public record ThresholdRecord(
     boolean        isActive,
     int            firedCount,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    Long           thresholdOutward,
+    Long           thresholdInward
 ) {}

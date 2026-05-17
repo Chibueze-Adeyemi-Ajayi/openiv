@@ -11,5 +11,6 @@ public record ThresholdChange(
     String         field,
     String         oldValue,
     String         newValue,
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    String         ruleName
 ) {}

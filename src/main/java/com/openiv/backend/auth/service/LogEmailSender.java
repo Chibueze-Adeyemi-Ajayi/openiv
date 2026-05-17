@@ -46,4 +46,16 @@ public final class LogEmailSender implements EmailSender {
         toEmail, caseId, priority, caseTitle, brief);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendDailyRiskReport(String toEmail, String recipientName, String htmlBody) {
+    log.warn("[DEV EMAIL] daily-risk-report to {} ({}): {} chars", recipientName, toEmail, htmlBody.length());
+    return Future.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> sendWaitlistNotification(String adminEmail, String userName, String userEmail, String expectation) {
+    log.warn("[DEV EMAIL] waitlist-notification to admin {}: New user {} ({}) Expectation: {}", adminEmail, userName, userEmail, expectation);
+    return Future.succeededFuture();
+  }
 }

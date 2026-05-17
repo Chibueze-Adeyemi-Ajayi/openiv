@@ -52,14 +52,18 @@ public final class ThresholdHandlers {
       JsonObject body = body(ctx);
       if (body == null) return;
 
-      Long    newThreshold = body.containsKey("threshold") ? body.getLong("threshold") : null;
-      Boolean newActive    = body.containsKey("isActive")  ? body.getBoolean("isActive") : null;
+      Long    newThreshold   = body.containsKey("threshold")        ? body.getLong("threshold")       : null;
+      Boolean newActive      = body.containsKey("isActive")         ? body.getBoolean("isActive")     : null;
+      boolean changeOutward  = body.containsKey("outwardThreshold");
+      Long    newOutward     = changeOutward                        ? body.getLong("outwardThreshold") : null;
+      boolean changeInward   = body.containsKey("inwardThreshold");
+      Long    newInward      = changeInward                         ? body.getLong("inwardThreshold")  : null;
 
-      if (newThreshold == null && newActive == null) {
-        badRequest(ctx, "provide 'threshold' or 'isActive'"); return;
+      if (newThreshold == null && newActive == null && !changeOutward && !changeInward) {
+        badRequest(ctx, "provide 'threshold', 'isActive', 'outwardThreshold', or 'inwardThreshold'"); return;
       }
 
-      service.update(session, id, newThreshold, newActive)
+      service.update(session, id, newThreshold, newActive, changeOutward, newOutward, changeInward, newInward)
           .onSuccess(opt -> {
             if (opt.isEmpty()) { ctx.fail(404); return; }
             ok(ctx, new JsonObject().put("ok", true).put("rule", ruleJson(opt.get())));
@@ -68,6 +72,20 @@ public final class ThresholdHandlers {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());
             else ctx.fail(err);
           });
+    };
+  }
+
+  // GET /thresholds/history  (institution-wide audit log)
+  public Handler<RoutingContext> allHistory() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      service.allHistory(session)
+          .onSuccess(changes -> {
+            var arr = new JsonArray();
+            changes.forEach(c -> arr.add(changeJson(c)));
+            ok(ctx, new JsonObject().put("changes", arr));
+          })
+          .onFailure(ctx::fail);
     };
   }
 
@@ -153,25 +171,30 @@ public final class ThresholdHandlers {
   // ── JSON serialisers ──────────────────────────────────────────────────────
 
   private static JsonObject ruleJson(ThresholdRecord r) {
-    return new JsonObject()
-        .put("id",             r.id())
-        .put("ruleId",         r.ruleId())
-        .put("name",           r.name())
-        .put("description",    r.description())
-        .put("tag",            r.tag())
-        .put("thresholdValue", r.thresholdValue())
-        .put("unit",           r.unit())
-        .put("minValue",       r.minValue())
-        .put("maxValue",       r.maxValue())
-        .put("stepValue",      r.stepValue())
-        .put("isActive",       r.isActive())
-        .put("firedCount",     r.firedCount())
-        .put("createdAt",      r.createdAt().toString())
-        .put("updatedAt",      r.updatedAt().toString());
+    var obj = new JsonObject()
+        .put("id",                r.id())
+        .put("ruleId",            r.ruleId())
+        .put("name",              r.name())
+        .put("description",       r.description())
+        .put("tag",               r.tag())
+        .put("thresholdValue",    r.thresholdValue())
+        .put("unit",              r.unit())
+        .put("minValue",          r.minValue())
+        .put("maxValue",          r.maxValue())
+        .put("stepValue",         r.stepValue())
+        .put("isActive",          r.isActive())
+        .put("firedCount",        r.firedCount())
+        .put("createdAt",         r.createdAt().toString())
+        .put("updatedAt",         r.updatedAt().toString());
+    if (r.thresholdOutward() != null) obj.put("thresholdOutward", r.thresholdOutward());
+    else obj.putNull("thresholdOutward");
+    if (r.thresholdInward() != null)  obj.put("thresholdInward",  r.thresholdInward());
+    else obj.putNull("thresholdInward");
+    return obj;
   }
 
   private static JsonObject changeJson(ThresholdChange c) {
-    return new JsonObject()
+    var obj = new JsonObject()
         .put("id",            c.id())
         .put("thresholdId",   c.thresholdId())
         .put("changedBy",     c.changedBy())
@@ -180,6 +203,8 @@ public final class ThresholdHandlers {
         .put("oldValue",      c.oldValue())
         .put("newValue",      c.newValue())
         .put("createdAt",     c.createdAt().toString());
+    if (c.ruleName() != null) obj.put("ruleName", c.ruleName());
+    return obj;
   }
 
   private static JsonObject tierJson(KycTierRecord t) {

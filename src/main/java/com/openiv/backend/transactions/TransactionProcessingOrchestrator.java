@@ -124,6 +124,10 @@ public class TransactionProcessingOrchestrator {
           "this is an unusually large cross-border Bureau De Change (BDC) transaction that exceeds safety limits.";
       case "KYC_TIER_LIMIT_EXCEEDED" ->
           "the transaction amount exceeds the maximum limit allowed for the customer's current verification level (KYC tier).";
+      case "CUSTOMER_RULE_MAX_AMOUNT", "CUSTOMER_RULE_BLOCKED_BANK", "CUSTOMER_RULE_BANK_NOT_ALLOWED",
+           "CUSTOMER_RULE_BLOCKED_CHANNEL", "CUSTOMER_RULE_DAILY_LIMIT", "CUSTOMER_RULE_MONTHLY_LIMIT",
+           "CUSTOMER_RULE_VELOCITY", "CUSTOMER_RULE_VIOLATION" ->
+          "this transaction was restricted by a compliance rule configured specifically for this customer by your compliance team.";
       default ->
           "our automated security checks identified a suspicious pattern (identified as: " + rule + ").";
     };

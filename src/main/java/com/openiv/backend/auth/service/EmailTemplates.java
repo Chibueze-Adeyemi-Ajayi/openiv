@@ -90,6 +90,18 @@ public final class EmailTemplates {
     );
   }
 
+  public static String dailyRiskReport(String recipientName, String reportHtml) {
+    return wrap("Daily High-Risk Customer Report",
+        "<p style=\"font-size:15px;\">Hi <strong>" + recipientName + "</strong>,</p>"
+        + "<p style=\"font-size:15px;margin-bottom:20px;\">Your automated nightly fraud monitoring report is ready. "
+        + "The system has analysed all customers in your institution and identified those who need your attention today.</p>"
+        + reportHtml
+        + "<p style=\"font-size:14px;color:#64748b;margin-top:24px;\">Log in to the <strong>openIV dashboard</strong> "
+        + "to review each customer's full profile, open an investigation case, or file a regulatory report. "
+        + "Acting promptly on high-risk signals helps your institution stay ahead of fraud and remain compliant with CBN AML guidelines.</p>"
+    );
+  }
+
   private static String wrap(String title, String body) {
     return "<!DOCTYPE html><html><body style=\"margin:0;padding:0;background-color:" + BACKGROUND_COLOR + ";\">"
         + "<div style=\"padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; color: " + TEXT_COLOR + ";\">"

@@ -10,5 +10,6 @@ public record TransactionImport(
     Double lat, Double lng, OffsetDateTime occurredAt,
     String senderAccount, String senderBank,
     String recipientName, String recipientAccount, String recipientBank,
-    String currency, String narration, String deviceId, String ipAddress
+    String currency, String narration, String deviceId, String ipAddress,
+    String category, String direction
 ) {}
