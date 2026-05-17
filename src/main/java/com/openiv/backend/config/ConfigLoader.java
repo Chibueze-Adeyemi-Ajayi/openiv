@@ -70,6 +70,18 @@ public final class ConfigLoader {
         .setConfig(new JsonObject().put("path", "config/application.json"))
         .setOptional(true);
 
+    ConfigStoreOptions rootOverridesStore = new ConfigStoreOptions()
+        .setType("file")
+        .setFormat("json")
+        .setConfig(new JsonObject().put("path", "application.json"))
+        .setOptional(true);
+
+    ConfigStoreOptions secretsOverridesStore = new ConfigStoreOptions()
+        .setType("file")
+        .setFormat("json")
+        .setConfig(new JsonObject().put("path", "/etc/secrets/application.json"))
+        .setOptional(true);
+
     JsonArray envKeys = new JsonArray();
     for (String key : ENV_KEYS) {
       envKeys.add(key);
@@ -81,6 +93,8 @@ public final class ConfigLoader {
     ConfigRetrieverOptions opts = new ConfigRetrieverOptions()
         .addStore(defaultsStore)
         .addStore(overridesStore)
+        .addStore(rootOverridesStore)
+        .addStore(secretsOverridesStore)
         .addStore(envStore);
 
     return ConfigRetriever.create(vertx, opts)
