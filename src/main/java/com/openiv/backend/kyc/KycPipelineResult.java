@@ -20,5 +20,7 @@ public record KycPipelineResult(
     String         firstName,
     String         lastName,
     String         phone,
-    String         dateOfBirth
+    String         dateOfBirth,
+    Long           monthlyInflow,
+    Long           monthlyOutflow
 ) {}

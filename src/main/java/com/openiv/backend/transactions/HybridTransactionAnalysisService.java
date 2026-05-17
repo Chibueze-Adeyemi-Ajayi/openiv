@@ -249,14 +249,21 @@ public class HybridTransactionAnalysisService {
                       java.time.ZoneId zone         = java.time.ZoneId.of(aml.timezone());
                       int beamWindowSeconds         = aml.beamWindowSeconds();
 
-                      // ── MICRO TIMING ANOMALY (Critical) ────────────────────
+                      // ── TIMESTAMP CHECKS ───────────────────────────────────
+                      // 'now' is derived from the institution's own timezone so that
+                      // clock comparisons are always relative to the institution's wall time.
                       java.time.OffsetDateTime now     = java.time.OffsetDateTime.now(zone);
                       java.time.OffsetDateTime txnTime = transaction.occurredAt();
                       if (txnTime != null) {
                         long signedDiff  = java.time.temporal.ChronoUnit.SECONDS.between(txnTime, now);
                         long secondsDiff = Math.abs(signedDiff);
+
+                        // ── MICRO-TIMING ANOMALY (Critical) ──────────────────
+                        // occurred_at within ±5 s of institution-local now is a strong signal
+                        // that the timestamp was programmatically set to "right now" rather than
+                        // reflecting the actual transaction moment.
                         if (secondsDiff <= 5) {
-                          log.warn("[CRITICAL] Micro-Timing Anomaly on txn={} ({}s ago). Risk=96%", transaction.id(), secondsDiff);
+                          log.warn("[CRITICAL] Micro-Timing Anomaly on txn={} ({}s from institution now). Risk=96%", transaction.id(), secondsDiff);
                           java.util.List<String> anomalyFlags = java.util.List.of("MICRO_TIMING_ANOMALY");
                           java.util.List<String> reasons = buildFlagReasons(anomalyFlags, 96);
                           return caseService.createCaseFromTransaction(institutionId, transaction,
@@ -270,14 +277,20 @@ public class HybridTransactionAnalysisService {
                         }
 
                         // ── STALE / FUTURE TIMESTAMP (Critical) ──────────────
+                        // FUTURE_GRACE of 3 600 s (1 hour) tolerates institutions whose client
+                        // submits local time (UTC+1) with a bare Z suffix by mistake.
+                        // Transactions more than (beamWindowSeconds + 3600) s in the future
+                        // are still caught as FUTURE_TIMESTAMP_ANOMALY.
+                        final long FUTURE_GRACE = 3600L;
                         String anomalyKind   = null;
                         String friendlyReason = null;
-                        if (signedDiff < -beamWindowSeconds) {
+                        if (signedDiff < -(beamWindowSeconds + FUTURE_GRACE)) {
                           anomalyKind = "FUTURE_TIMESTAMP_ANOMALY";
                           long minutesAhead = Math.max(1, Math.abs(signedDiff) / 60);
                           friendlyReason = "The time recorded for this transaction is " + minutesAhead +
                               " minute" + (minutesAhead == 1 ? "" : "s") +
-                              " ahead of our system clock. A real transaction can never happen in the future — " +
+                              " ahead of our system clock. Ensure occurred_at is in UTC (e.g. 2026-05-17T13:00:00Z). " +
+                              "A real transaction can never happen far in the future — " +
                               "this is a strong sign of a tampered timestamp or a possible cyber attack.";
                         } else if (signedDiff > beamWindowSeconds) {
                           long hoursOld  = signedDiff >= 3600 ? signedDiff / 3600 : 0;

@@ -21,7 +21,8 @@ public final class KycPipelineResultRepository {
   }
 
   public Future<KycPipelineResult> save(long institutionId, String customerId,
-      PipelineVerificationResult result, String actionTaken) {
+      PipelineVerificationResult result, String actionTaken,
+      Long monthlyInflow, Long monthlyOutflow) {
 
     PipelineStepResult bvn  = findStep(result, "bvn_nin");
     PipelineStepResult ph   = findStep(result, "phone_match");
@@ -34,8 +35,9 @@ public final class KycPipelineResultRepository {
         + " phone_status, phone_score, phone_detail,"
         + " liveness_status, liveness_score, liveness_detail,"
         + " pep_status, pep_score, pep_detail, duration_ms, identity_photo_b64,"
-        + " first_name, last_name, phone, date_of_birth) "
-        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) "
+        + " first_name, last_name, phone, date_of_birth,"
+        + " monthly_inflow, monthly_outflow) "
+        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) "
         + "ON CONFLICT (institution_id, customer_id) DO UPDATE SET "
         + " run_at = NOW(),"
         + " overall_risk_score = EXCLUDED.overall_risk_score,"
@@ -59,7 +61,9 @@ public final class KycPipelineResultRepository {
         + " first_name         = EXCLUDED.first_name,"
         + " last_name          = EXCLUDED.last_name,"
         + " phone              = EXCLUDED.phone,"
-        + " date_of_birth      = EXCLUDED.date_of_birth "
+        + " date_of_birth      = EXCLUDED.date_of_birth,"
+        + " monthly_inflow     = EXCLUDED.monthly_inflow,"
+        + " monthly_outflow    = EXCLUDED.monthly_outflow "
         + "RETURNING id, run_at";
 
     return pool.preparedQuery(sql)
@@ -71,7 +75,8 @@ public final class KycPipelineResultRepository {
             status(liv),  score(liv),  detail(liv),
             status(pep),  score(pep),  detail(pep),
             result.totalDurationMs(), result.identityPhoto(),
-            result.firstName(), result.lastName(), result.phone(), result.dateOfBirth()))
+            result.firstName(), result.lastName(), result.phone(), result.dateOfBirth(),
+            monthlyInflow, monthlyOutflow))
         .map(rs -> {
           Row r = rs.iterator().next();
           return new KycPipelineResult(
@@ -82,7 +87,8 @@ public final class KycPipelineResultRepository {
               status(liv),  score(liv),  detail(liv),
               status(pep),  score(pep),  detail(pep),
               result.totalDurationMs(), result.identityPhoto(),
-              result.firstName(), result.lastName(), result.phone(), result.dateOfBirth());
+              result.firstName(), result.lastName(), result.phone(), result.dateOfBirth(),
+              monthlyInflow, monthlyOutflow);
         });
   }
 
@@ -292,7 +298,9 @@ public final class KycPipelineResultRepository {
         r.getString("first_name"),
         r.getString("last_name"),
         r.getString("phone"),
-        r.getString("date_of_birth"));
+        r.getString("date_of_birth"),
+        r.getLong("monthly_inflow"),
+        r.getLong("monthly_outflow"));
   }
 
   private static int safeInt(Row r, String col) {

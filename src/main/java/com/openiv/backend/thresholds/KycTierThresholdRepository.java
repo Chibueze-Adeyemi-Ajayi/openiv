@@ -27,6 +27,16 @@ public final class KycTierThresholdRepository {
       long dailyLimitUssd,
       long dailyLimitBdc,
       long dailyLimitOther,
+      Long dailyLimitWireInward,
+      Long dailyLimitWireOutward,
+      Long dailyLimitMobileInward,
+      Long dailyLimitMobileOutward,
+      Long dailyLimitUssdInward,
+      Long dailyLimitUssdOutward,
+      Long dailyLimitBdcInward,
+      Long dailyLimitBdcOutward,
+      Long dailyLimitOtherInward,
+      Long dailyLimitOtherOutward,
       long singleTxnLimitWire,
       long singleTxnLimitMobile,
       long singleTxnLimitUssd,
@@ -49,6 +59,19 @@ public final class KycTierThresholdRepository {
       };
     }
 
+    public long getDailyLimitDirectional(String channel, String direction) {
+      boolean out = "outward".equalsIgnoreCase(direction);
+      return switch (channel.toLowerCase()) {
+        case "wire"           -> out ? safeL(dailyLimitWireOutward,   dailyLimitWire)   : safeL(dailyLimitWireInward,   dailyLimitWire);
+        case "mobile", "momo" -> out ? safeL(dailyLimitMobileOutward, dailyLimitMobile) : safeL(dailyLimitMobileInward, dailyLimitMobile);
+        case "ussd"           -> out ? safeL(dailyLimitUssdOutward,   dailyLimitUssd)   : safeL(dailyLimitUssdInward,   dailyLimitUssd);
+        case "bdc"            -> out ? safeL(dailyLimitBdcOutward,    dailyLimitBdc)    : safeL(dailyLimitBdcInward,    dailyLimitBdc);
+        default               -> out ? safeL(dailyLimitOtherOutward,  dailyLimitOther)  : safeL(dailyLimitOtherInward,  dailyLimitOther);
+      };
+    }
+
+    private static long safeL(Long v, long fallback) { return v != null ? v : fallback; }
+
     public long getSingleTxnLimit(String channel) {
       return switch (channel.toLowerCase()) {
         case "wire" -> singleTxnLimitWire;
@@ -64,7 +87,11 @@ public final class KycTierThresholdRepository {
       long institutionId, int kycTier) {
     return pool.preparedQuery(
         "SELECT id, institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, " +
-        "daily_limit_ussd, daily_limit_bdc, daily_limit_other, single_txn_limit_wire, " +
+        "daily_limit_ussd, daily_limit_bdc, daily_limit_other, " +
+        "daily_limit_wire_inward, daily_limit_wire_outward, daily_limit_mobile_inward, daily_limit_mobile_outward, " +
+        "daily_limit_ussd_inward, daily_limit_ussd_outward, daily_limit_bdc_inward, daily_limit_bdc_outward, " +
+        "daily_limit_other_inward, daily_limit_other_outward, " +
+        "single_txn_limit_wire, " +
         "single_txn_limit_mobile, single_txn_limit_ussd, single_txn_limit_bdc, " +
         "single_txn_limit_other, max_txns_per_hour, max_txns_per_day, risk_score_boost, " +
         "requires_additional_verification, created_at, updated_at " +
@@ -80,7 +107,11 @@ public final class KycTierThresholdRepository {
   public Future<List<KycTierThreshold>> findAllByInstitution(long institutionId) {
     return pool.preparedQuery(
         "SELECT id, institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, " +
-        "daily_limit_ussd, daily_limit_bdc, daily_limit_other, single_txn_limit_wire, " +
+        "daily_limit_ussd, daily_limit_bdc, daily_limit_other, " +
+        "daily_limit_wire_inward, daily_limit_wire_outward, daily_limit_mobile_inward, daily_limit_mobile_outward, " +
+        "daily_limit_ussd_inward, daily_limit_ussd_outward, daily_limit_bdc_inward, daily_limit_bdc_outward, " +
+        "daily_limit_other_inward, daily_limit_other_outward, " +
+        "single_txn_limit_wire, " +
         "single_txn_limit_mobile, single_txn_limit_ussd, single_txn_limit_bdc, " +
         "single_txn_limit_other, max_txns_per_hour, max_txns_per_day, risk_score_boost, " +
         "requires_additional_verification, created_at, updated_at " +
@@ -117,6 +148,16 @@ public final class KycTierThresholdRepository {
         r.getLong("daily_limit_ussd"),
         r.getLong("daily_limit_bdc"),
         r.getLong("daily_limit_other"),
+        r.getLong("daily_limit_wire_inward"),
+        r.getLong("daily_limit_wire_outward"),
+        r.getLong("daily_limit_mobile_inward"),
+        r.getLong("daily_limit_mobile_outward"),
+        r.getLong("daily_limit_ussd_inward"),
+        r.getLong("daily_limit_ussd_outward"),
+        r.getLong("daily_limit_bdc_inward"),
+        r.getLong("daily_limit_bdc_outward"),
+        r.getLong("daily_limit_other_inward"),
+        r.getLong("daily_limit_other_outward"),
         r.getLong("single_txn_limit_wire"),
         r.getLong("single_txn_limit_mobile"),
         r.getLong("single_txn_limit_ussd"),

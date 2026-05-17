@@ -232,27 +232,42 @@ public final class ThresholdRepository {
 
           // CBN-aligned defaults per tier: Tier 0 (Unverified) → Tier 3 (Full KYC)
           record TierDefaults(int tier, long dWire, long dMobile, long dUssd, long dBdc, long dOther,
+              long dWireIn, long dWireOut, long dMobileIn, long dMobileOut,
+              long dUssdIn, long dUssdOut, long dBdcIn, long dBdcOut,
+              long dOtherIn, long dOtherOut,
               long sTxnWire, long sTxnMobile, long sTxnUssd, long sTxnBdc, long sTxnOther,
               int maxHr, int maxDay, int boost, boolean addlVerify) {}
 
           List<TierDefaults> defaults = List.of(
-              new TierDefaults(0,    500_000L,  100_000L,  50_000L,  1_000_000L,  100_000L,
-                                   250_000L,   50_000L,  25_000L,    500_000L,   50_000L, 5,  10, 20, true),
-              new TierDefaults(1,  2_000_000L,  500_000L, 200_000L,  3_000_000L,  500_000L,
-                                 1_000_000L,  250_000L, 100_000L,  1_500_000L,  250_000L, 8,  30, 10, false),
-              new TierDefaults(2,  5_000_000L, 2_000_000L, 500_000L, 10_000_000L, 1_000_000L,
-                                 2_500_000L, 1_000_000L, 250_000L,  5_000_000L,  500_000L, 10, 50,  5, false),
-              new TierDefaults(3, 50_000_000L, 10_000_000L, 2_000_000L, 100_000_000L, 5_000_000L,
-                                25_000_000L,  5_000_000L, 1_000_000L, 50_000_000L, 2_000_000L, 20, 100, 0, false)
+              new TierDefaults(0,
+                    500_000L,  100_000L,  50_000L,  1_000_000L,  100_000L,
+                    500_000L,  200_000L,  100_000L,   50_000L,   50_000L,  25_000L, 1_000_000L, 500_000L,  100_000L,  50_000L,
+                    250_000L,   50_000L,  25_000L,    500_000L,   50_000L, 5,  10, 20, true),
+              new TierDefaults(1,
+                  2_000_000L,  500_000L, 200_000L,  3_000_000L,  500_000L,
+                  2_000_000L, 1_000_000L, 500_000L, 250_000L, 200_000L, 100_000L, 3_000_000L, 1_500_000L, 500_000L, 250_000L,
+                  1_000_000L,  250_000L, 100_000L,  1_500_000L,  250_000L, 8,  30, 10, false),
+              new TierDefaults(2,
+                  5_000_000L, 2_000_000L, 500_000L, 10_000_000L, 1_000_000L,
+                  5_000_000L, 3_000_000L, 2_000_000L, 1_000_000L, 500_000L, 300_000L, 10_000_000L, 6_000_000L, 1_000_000L, 600_000L,
+                  2_500_000L, 1_000_000L, 250_000L,  5_000_000L,  500_000L, 10, 50,  5, false),
+              new TierDefaults(3,
+                  50_000_000L, 10_000_000L, 2_000_000L, 100_000_000L, 5_000_000L,
+                  50_000_000L, 30_000_000L, 10_000_000L, 6_000_000L, 2_000_000L, 1_000_000L, 100_000_000L, 50_000_000L, 5_000_000L, 3_000_000L,
+                  25_000_000L,  5_000_000L, 1_000_000L, 50_000_000L, 2_000_000L, 20, 100, 0, false)
           );
 
           String insertSql =
               "INSERT INTO threshold_by_kyc_tier "
               + "(institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, daily_limit_ussd, "
-              + " daily_limit_bdc, daily_limit_other, single_txn_limit_wire, single_txn_limit_mobile, "
+              + " daily_limit_bdc, daily_limit_other, "
+              + " daily_limit_wire_inward, daily_limit_wire_outward, daily_limit_mobile_inward, daily_limit_mobile_outward, "
+              + " daily_limit_ussd_inward, daily_limit_ussd_outward, daily_limit_bdc_inward, daily_limit_bdc_outward, "
+              + " daily_limit_other_inward, daily_limit_other_outward, "
+              + " single_txn_limit_wire, single_txn_limit_mobile, "
               + " single_txn_limit_ussd, single_txn_limit_bdc, single_txn_limit_other, "
               + " max_txns_per_hour, max_txns_per_day, risk_score_boost, requires_additional_verification) "
-              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT DO NOTHING";
+              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) ON CONFLICT DO NOTHING";
 
           Future<Void> chain = Future.succeededFuture();
           for (TierDefaults d : defaults) {
@@ -261,6 +276,9 @@ public final class ThresholdRepository {
                 pool.preparedQuery(insertSql).execute(Tuple.of(
                     institutionId, td.tier(),
                     td.dWire(), td.dMobile(), td.dUssd(), td.dBdc(), td.dOther(),
+                    td.dWireIn(), td.dWireOut(), td.dMobileIn(), td.dMobileOut(),
+                    td.dUssdIn(), td.dUssdOut(), td.dBdcIn(), td.dBdcOut(),
+                    td.dOtherIn(), td.dOtherOut(),
                     td.sTxnWire(), td.sTxnMobile(), td.sTxnUssd(), td.sTxnBdc(), td.sTxnOther(),
                     td.maxHr(), td.maxDay(), td.boost(), td.addlVerify()
                 )).mapEmpty()
@@ -272,7 +290,11 @@ public final class ThresholdRepository {
 
   public Future<List<KycTierRecord>> listKycTierThresholds(long institutionId) {
     String sql = "SELECT id, institution_id, kyc_tier, daily_limit_wire, daily_limit_mobile, daily_limit_ussd, "
-        + "daily_limit_bdc, daily_limit_other, single_txn_limit_wire, single_txn_limit_mobile, "
+        + "daily_limit_bdc, daily_limit_other, "
+        + "daily_limit_wire_inward, daily_limit_wire_outward, daily_limit_mobile_inward, daily_limit_mobile_outward, "
+        + "daily_limit_ussd_inward, daily_limit_ussd_outward, daily_limit_bdc_inward, daily_limit_bdc_outward, "
+        + "daily_limit_other_inward, daily_limit_other_outward, "
+        + "single_txn_limit_wire, single_txn_limit_mobile, "
         + "single_txn_limit_ussd, single_txn_limit_bdc, single_txn_limit_other, max_txns_per_hour, "
         + "max_txns_per_day, risk_score_boost, requires_additional_verification, created_at, updated_at "
         + "FROM threshold_by_kyc_tier WHERE institution_id = $1 ORDER BY kyc_tier ASC";
@@ -289,6 +311,11 @@ public final class ThresholdRepository {
     // Basic SQL injection protection by only allowing known fields
     List<String> allowedFields = List.of(
         "daily_limit_wire", "daily_limit_mobile", "daily_limit_ussd", "daily_limit_bdc", "daily_limit_other",
+        "daily_limit_wire_inward", "daily_limit_wire_outward",
+        "daily_limit_mobile_inward", "daily_limit_mobile_outward",
+        "daily_limit_ussd_inward", "daily_limit_ussd_outward",
+        "daily_limit_bdc_inward", "daily_limit_bdc_outward",
+        "daily_limit_other_inward", "daily_limit_other_outward",
         "single_txn_limit_wire", "single_txn_limit_mobile", "single_txn_limit_ussd", "single_txn_limit_bdc", "single_txn_limit_other",
         "max_txns_per_hour", "max_txns_per_day", "risk_score_boost"
     );
@@ -350,6 +377,16 @@ public final class ThresholdRepository {
         r.getLong("daily_limit_ussd"),
         r.getLong("daily_limit_bdc"),
         r.getLong("daily_limit_other"),
+        r.getLong("daily_limit_wire_inward"),
+        r.getLong("daily_limit_wire_outward"),
+        r.getLong("daily_limit_mobile_inward"),
+        r.getLong("daily_limit_mobile_outward"),
+        r.getLong("daily_limit_ussd_inward"),
+        r.getLong("daily_limit_ussd_outward"),
+        r.getLong("daily_limit_bdc_inward"),
+        r.getLong("daily_limit_bdc_outward"),
+        r.getLong("daily_limit_other_inward"),
+        r.getLong("daily_limit_other_outward"),
         r.getLong("single_txn_limit_wire"),
         r.getLong("single_txn_limit_mobile"),
         r.getLong("single_txn_limit_ussd"),

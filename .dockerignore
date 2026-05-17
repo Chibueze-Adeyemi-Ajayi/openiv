@@ -1,0 +1,31 @@
+# Maven and build outputs
+target/
+*.jar
+*.class
+*.war
+
+# IDE / Editor folders
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Configuration and secrets (Keep gitignored files secure)
+config/application.json
+.env
+
+# Logs and runtime folders
+logs/
+file-uploads/
+
+# Security reports and scans
+security-reports/
+dependency-check-suppressions.xml

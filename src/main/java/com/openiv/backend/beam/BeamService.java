@@ -196,12 +196,14 @@ public final class BeamService {
   private Future<JsonObject> processKycSynchronously(long institutionId, BeamRecord record, String payload) {
     try {
       JsonObject obj = new JsonObject(payload);
-      String customerId = obj.getString("customer_id", obj.getString("customerId"));
-      String name       = obj.getString("name");
-      String bvn        = obj.getString("bvn");
-      String nin        = obj.getString("nin");
-      String phone      = obj.getString("phone", obj.getString("phone_number"));
-      String photo      = obj.getString("photo");
+      String customerId    = obj.getString("customer_id", obj.getString("customerId"));
+      String name          = obj.getString("name");
+      String bvn           = obj.getString("bvn");
+      String nin           = obj.getString("nin");
+      String phone         = obj.getString("phone", obj.getString("phone_number"));
+      String photo         = obj.getString("photo");
+      Long   monthlyInflow  = obj.containsKey("monthly_inflow")  ? obj.getLong("monthly_inflow")  : null;
+      Long   monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
 
       if (customerId == null || customerId.isBlank()) {
         return Future.failedFuture(new IllegalArgumentException("Missing required field 'customer_id'"));
@@ -275,13 +277,15 @@ public final class BeamService {
       return Future.failedFuture(new IllegalStateException("KYC service not configured"));
 
     try {
-      JsonObject obj       = new JsonObject(payload);
-      String customerId    = obj.getString("customer_id", obj.getString("customerId"));
-      String name          = obj.getString("name");
-      String bvn           = obj.getString("bvn");
-      String nin           = obj.getString("nin");
-      String phone         = obj.getString("phone", obj.getString("phone_number"));
-      String photo         = obj.getString("photo");
+      JsonObject obj        = new JsonObject(payload);
+      String customerId     = obj.getString("customer_id", obj.getString("customerId"));
+      String name           = obj.getString("name");
+      String bvn            = obj.getString("bvn");
+      String nin            = obj.getString("nin");
+      String phone          = obj.getString("phone", obj.getString("phone_number"));
+      String photo          = obj.getString("photo");
+      Long   monthlyInflow  = obj.containsKey("monthly_inflow")  ? obj.getLong("monthly_inflow")  : null;
+      Long   monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
 
       if (customerId == null || customerId.isBlank())
         return Future.failedFuture(new IllegalArgumentException("Missing required field 'customer_id'"));
@@ -312,7 +316,8 @@ public final class BeamService {
 
                   return customerService.updateRiskScore(institutionId, customerId, score)
                       .compose(v -> kycService.savePipelineResult(
-                          institutionId, customerId, result, actionTaken))
+                          institutionId, customerId, result, actionTaken,
+                          monthlyInflow, monthlyOutflow))
                       .map(saved -> {
                         JsonArray stepsJson = new JsonArray();
                         result.steps().forEach(s -> stepsJson.add(new JsonObject()
@@ -362,6 +367,8 @@ public final class BeamService {
 
       String txnId     = "beam-" + record.id();
       String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
+      String dirRaw   = obj.getString("direction", "outward");
+      String txnDirection = "inward".equalsIgnoreCase(dirRaw) ? "inward" : "outward";
 
       TransactionImport imp = buildTransactionImport(txnId, obj, zone);
       Transaction       txn = mapToTransactionWithId(institutionId, txnId, obj, zone);
@@ -476,11 +483,13 @@ public final class BeamService {
               String rejection = null;
               if (res.triggeredRules() != null) {
                 if (res.triggeredRules().contains("MICRO_TIMING_ANOMALY"))
-                  rejection = "This transaction's time matches the server clock too precisely, indicating a possible automated injection. Flagged for review. Case: " + res.caseId();
+                  rejection = "MICRO_TIMING_ANOMALY: occurred_at is within ±5 s of institution time — possible automated injection or clock manipulation. Case opened: " + res.caseId();
                 else if (res.triggeredRules().contains("STALE_TIMESTAMP_ANOMALY"))
-                  rejection = "Transaction date is more than 24 hours old — possible replay. Flagged and case opened. Case: " + res.caseId();
+                  rejection = "Transaction date is too old — possible replay. Flagged and case opened. Case: " + res.caseId();
                 else if (res.triggeredRules().contains("FUTURE_TIMESTAMP_ANOMALY"))
-                  rejection = "Transaction is dated in the future — details may have been tampered with. Flagged and case opened. Case: " + res.caseId();
+                  rejection = "Transaction occurred_at is more than 63 minutes in the future. " +
+                      "Ensure the timestamp is UTC (e.g. 2026-05-17T13:00:00Z) and your system clock is correct. " +
+                      "Flagged and case opened. Case: " + res.caseId();
                 else if (res.triggeredRules().contains("TXN_IMPOSSIBLE_TRAVEL"))
                   rejection = "Geo-velocity check failed: location physically unreachable in elapsed time. Case: " + res.caseId();
               }
@@ -552,6 +561,7 @@ public final class BeamService {
                     .put("case_id",             finalCaseId)
                     .put("priority",            finalPriority)
                     .put("account_conflict",    hasAccountConflict)
+                    .put("direction",           txnDirection)
                     .put("processed_at",        OffsetDateTime.now(zone).toString());
                 if (hasAccountConflict) resp.put("conflicting_customer_id", conflictOpt.get());
                 return resp;

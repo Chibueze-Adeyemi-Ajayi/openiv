@@ -326,10 +326,11 @@ public final class KycService {
 
   public Future<KycPipelineResult> savePipelineResult(
       long institutionId, String customerId,
-      PipelineVerificationResult result, String actionTaken) {
+      PipelineVerificationResult result, String actionTaken,
+      Long monthlyInflow, Long monthlyOutflow) {
     if (pipelineResults == null)
       return Future.failedFuture("Pipeline results repository not configured");
-    return pipelineResults.save(institutionId, customerId, result, actionTaken);
+    return pipelineResults.save(institutionId, customerId, result, actionTaken, monthlyInflow, monthlyOutflow);
   }
 
   public Future<List<KycPipelineResult>> listCustomersWithKycScore(Session session) {
