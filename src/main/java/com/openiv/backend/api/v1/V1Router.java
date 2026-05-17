@@ -100,6 +100,16 @@ public final class V1Router {
     router.post("/access-requests")
         .handler(new AccessRequestHandlers(accessRequestService).submit());
 
+    // Waitlist — public join, authenticated list
+    com.openiv.backend.waitlist.WaitlistHandlers waitlistHandlers =
+        new com.openiv.backend.waitlist.WaitlistHandlers(
+            new com.openiv.backend.waitlist.WaitlistService(
+                new com.openiv.backend.waitlist.WaitlistRepository(dbPool)));
+    router.post("/waitlist").handler(waitlistHandlers.join());
+    router.get("/waitlist")
+        .handler(SessionAuthHandler.authenticated(authService))
+        .handler(waitlistHandlers.list());
+
     // Auth endpoints mount their own per-route session handlers.
     // Cookie flags: dev → not-Secure + SameSite=Lax (so :5173 can reach :8080 over
     // HTTP);
