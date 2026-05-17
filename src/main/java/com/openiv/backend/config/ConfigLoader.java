@@ -15,9 +15,10 @@ import java.nio.charset.StandardCharsets;
 /**
  * Loads configuration from (in precedence order, highest last):
  * <ol>
- *   <li>Classpath defaults: {@code application.json} bundled with the app.</li>
- *   <li>Filesystem override: {@code ./config/application.json} (optional, for operators).</li>
- *   <li>Selected environment variables (optional, highest precedence).</li>
+ * <li>Classpath defaults: {@code application.json} bundled with the app.</li>
+ * <li>Filesystem override: {@code ./config/application.json} (optional, for
+ * operators).</li>
+ * <li>Selected environment variables (optional, highest precedence).</li>
  * </ol>
  */
 public final class ConfigLoader {
@@ -55,7 +56,8 @@ public final class ConfigLoader {
       "OPENIV_EMAIL_USE_SSL",
   };
 
-  private ConfigLoader() {}
+  private ConfigLoader() {
+  }
 
   public static Future<AppConfig> load(Vertx vertx) {
     JsonObject config = readClasspathJson(CLASSPATH_DEFAULTS);
@@ -125,7 +127,8 @@ public final class ConfigLoader {
     moveBoolKey(merged, "OPENIV_DB_MIGRATE", db, "migrate");
     moveStringKey(merged, "OPENIV_DB_SSL_MODE", db, "sslMode");
 
-    // Auto-enable SSL in production environment (e.g. Render) if not explicitly overridden by system env
+    // Auto-enable SSL in production environment (e.g. Render) if not explicitly
+    // overridden by the system env
     String env = merged.getString("environment", "production");
     if ("production".equalsIgnoreCase(env) && System.getenv("OPENIV_DB_SSL_MODE") == null) {
       db.put("sslMode", "require");
