@@ -139,6 +139,8 @@ public final class ConfigLoader {
     }
     System.out.println("[Config] Final DB sslMode: " + db.getString("sslMode"));
 
+    // Check Render Supabase connection string
+
     merged.put("db", db);
 
     JsonObject security = merged.getJsonObject("security", new JsonObject());
