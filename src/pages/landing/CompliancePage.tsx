@@ -3,6 +3,7 @@ import Navbar from '@/components/landing/Navbar'
 import Footer from '@/components/landing/Footer'
 import { keyframes } from '@mui/system'
 import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+import { useSEO } from '@/hooks/useSEO'
 
 const bounceIn = keyframes`
   0% { opacity: 0; transform: scale(0.3) translateY(20px); }
@@ -17,6 +18,12 @@ const slideInLine = keyframes`
 `
 
 export default function CompliancePage() {
+  useSEO({
+    title: 'Regulatory Compliance – CBN, NFIU & NDPR Reporting',
+    description: 'Automate CBN, NFIU, and NDPR compliance reporting with OpenIV. Generate STR/SAR filings, audit trails, and regulatory returns in minutes — not days.',
+    canonical: '/compliance',
+    ogImage: 'https://openiv.ng/assets/landing/compliance.png',
+  })
   const { ref: heroRef, isVisible: heroVisible } = useIntersectionAnimation()
 
   return (

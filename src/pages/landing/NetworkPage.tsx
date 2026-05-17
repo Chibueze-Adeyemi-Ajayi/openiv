@@ -3,6 +3,7 @@ import Navbar from '@/components/landing/Navbar'
 import Footer from '@/components/landing/Footer'
 import { keyframes } from '@mui/system'
 import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+import { useSEO } from '@/hooks/useSEO'
 
 const bounceIn = keyframes`
   0% { opacity: 0; transform: scale(0.3) translateY(20px); }
@@ -17,6 +18,12 @@ const slideInLine = keyframes`
 `
 
 export default function LandingNetworkPage() {
+  useSEO({
+    title: 'Intelligence Network – Cross-Border Fraud & AML Intelligence',
+    description: "Tap into OpenIV's shared intelligence network. Correlate fraud signals across institutions, flag shared bad actors, and stay ahead of cross-border financial crime.",
+    canonical: '/network',
+    ogImage: 'https://openiv.ng/assets/landing/high_speed_data_abstract.png',
+  })
   const { ref: heroRef, isVisible: heroVisible } = useIntersectionAnimation()
 
   return (

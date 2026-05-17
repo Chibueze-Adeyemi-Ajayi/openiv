@@ -3,6 +3,7 @@ import Navbar from '@/components/landing/Navbar'
 import Footer from '@/components/landing/Footer'
 import { keyframes } from '@mui/system'
 import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+import { useSEO } from '@/hooks/useSEO'
 
 const bounceIn = keyframes`
   0% { opacity: 0; transform: scale(0.3) translateY(20px); }
@@ -17,6 +18,12 @@ const slideInLine = keyframes`
 `
 
 export default function SecurityPage() {
+  useSEO({
+    title: 'Enterprise Security – Device Fingerprinting & Fraud Prevention',
+    description: "OpenIV's multi-layered security engine detects account takeover, device spoofing, and geo-anomalies in real time. Bank-grade protection for every transaction.",
+    canonical: '/security',
+    ogImage: 'https://openiv.ng/assets/landing/security.png',
+  })
   const { ref: heroRef, isVisible: heroVisible } = useIntersectionAnimation()
 
   return (

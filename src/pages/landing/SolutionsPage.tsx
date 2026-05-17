@@ -3,6 +3,7 @@ import Navbar from '@/components/landing/Navbar'
 import Footer from '@/components/landing/Footer'
 import { keyframes } from '@mui/system'
 import { useIntersectionAnimation } from '@/hooks/useIntersectionAnimation'
+import { useSEO } from '@/hooks/useSEO'
 
 const bounceIn = keyframes`
   0% { opacity: 0; transform: scale(0.3) translateY(20px); }
@@ -17,6 +18,12 @@ const slideInLine = keyframes`
 `
 
 export default function SolutionsPage() {
+  useSEO({
+    title: 'Solutions – AML, KYC & Fraud Detection for Banks & Fintechs',
+    description: "Explore OpenIV's full suite: real-time transaction monitoring, 360° KYC profiling, behavioural analytics, and automated regulatory reporting — all in one platform.",
+    canonical: '/solutions',
+    ogImage: 'https://openiv.ng/assets/landing/aml_dashboard_mockup.png',
+  })
   const { ref: heroRef, isVisible: heroVisible } = useIntersectionAnimation()
 
   return (
