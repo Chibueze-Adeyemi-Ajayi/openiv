@@ -58,7 +58,7 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
     <Box
       data-ai-analyzable="true"
       data-ai-description="Live activity stream monitoring real-time transaction flags, compliance alerts, and automated investigator actions."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: 708, display: 'flex', flexDirection: 'column' }}
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', minHeight: 400, display: 'flex', flexDirection: 'column' }}
     >
       {/* Header */}
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

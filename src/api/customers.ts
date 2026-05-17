@@ -8,6 +8,9 @@ export interface Customer {
   email: string | null
   phone: string | null
   riskScore: number
+  riskProfileScore: number
+  transactionRiskScore: number
+  overallRiskScore: number
   bvn: string | null
   nin: string | null
   photo: string | null
@@ -32,6 +35,13 @@ export interface UpdateCustomerProfileRequest {
   address?: string
 }
 
+export interface HighRiskPage {
+  customers: Customer[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export const customerApi = {
   list: (q?: string, pageSize = 30) => {
     const params = new URLSearchParams()
@@ -51,4 +61,7 @@ export const customerApi = {
 
   unwatchlist: (externalId: string) =>
     apiRequest<Customer>(`/api/v1/customers/${externalId}/unwatchlist`, { method: 'PATCH' }),
+
+  highRisk: (page = 1, pageSize = 20) =>
+    apiRequest<HighRiskPage>(`/api/v1/customers/high-risk?page=${page}&pageSize=${pageSize}`),
 }

@@ -41,7 +41,7 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
 
   if (loading) {
     return (
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%' }}>
         <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
           <Skeleton width={200} height={24} />
           <Skeleton width={280} height={16} sx={{ mt: 0.5 }} />
@@ -72,7 +72,7 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
     <Box
       data-ai-analyzable="true"
       data-ai-description="Hourly transaction volume chart over the last 24 hours, visualizing total system throughput alongside flagged and blocked suspicious activity."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}
+      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%' }}
     >
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
@@ -156,23 +156,47 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
           )}
         </Box>
 
-        {hover !== null && (
-          <Box sx={{ mt: 1, px: 1.5, py: 1.25, bgcolor: '#f8fafc', display: 'flex', gap: 3, alignItems: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e' }}>
-              {data[hover].h}:00
+        <Box sx={{ mt: 1, position: 'relative', height: 52, bgcolor: '#f8fafc', overflow: 'hidden' }}>
+          {/* Idle placeholder — fades out when hovering */}
+          <Box sx={{
+            position: 'absolute', inset: 0, px: 1.5,
+            display: 'flex', alignItems: 'center',
+            opacity: hover === null ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            pointerEvents: 'none',
+          }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 500, fontStyle: 'italic' }}>
+              Hover over the chart to inspect an hour
             </Typography>
-            {[
-              { label: 'Total',   value: data[hover].total.toLocaleString(),   color: '#00288e' },
-              { label: 'Flagged', value: data[hover].flagged.toLocaleString(), color: '#f59e0b' },
-              { label: 'Blocked', value: data[hover].blocked.toLocaleString(), color: '#dc2626' },
-            ].map(col => (
-              <Box key={col.label}>
-                <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{col.label}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: col.color }}>{col.value}</Typography>
-              </Box>
-            ))}
           </Box>
-        )}
+
+          {/* Hover data — fades in when hovering */}
+          <Box sx={{
+            position: 'absolute', inset: 0, px: 1.5,
+            display: 'flex', gap: 3, alignItems: 'center',
+            opacity: hover !== null ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            pointerEvents: 'none',
+          }}>
+            {hover !== null && (
+              <>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', width: 44, flexShrink: 0 }}>
+                  {data[hover].h}:00
+                </Typography>
+                {[
+                  { label: 'Total',   value: data[hover].total.toLocaleString(),   color: '#00288e' },
+                  { label: 'Flagged', value: data[hover].flagged.toLocaleString(), color: '#f59e0b' },
+                  { label: 'Blocked', value: data[hover].blocked.toLocaleString(), color: '#dc2626' },
+                ].map(col => (
+                  <Box key={col.label}>
+                    <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{col.label}</Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: col.color }}>{col.value}</Typography>
+                  </Box>
+                ))}
+              </>
+            )}
+          </Box>
+        </Box>
       </Box>
     </Box>
   )

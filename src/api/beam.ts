@@ -55,10 +55,16 @@ export const beamApi = {
         // transaction stream
         transaction_id?: string;
         risk_score?: number;
+        kyc_risk_score?: number;
         risk_level?: string;
         recommended_action?: string;
         case_id?: string | null;
         priority?: string | null;
+        kyc_required?: boolean;
+        account_conflict?: boolean;
+        conflicting_customer_id?: string | null;
+        notification_id?: number | null;
+        message?: string | null;
         // kyc stream
         customer_id?: string;
         kyc_status?: string;

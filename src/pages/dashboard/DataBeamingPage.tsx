@@ -6,6 +6,7 @@ import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { beamApi, type BeamApiKey, type BeamRecord } from '@/api/beam'
+import { streamKycBeam, type KycStepEvent, type KycStreamResult } from '@/api/kyc'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded'
 import TouchAppOutlinedIcon from '@mui/icons-material/TouchAppOutlined'
@@ -185,6 +186,8 @@ const streams: Stream[] = [
       { field: 'narration', type: 'string', required: true, example: 'FX Settlement — USD Purchase' },
       { field: 'device_id', type: 'string', required: true, example: 'dev_a1b2c3' },
       { field: 'ip_address', type: 'string', required: true, example: '102.89.45.67' },
+      { field: 'direction', type: 'string', required: false, example: 'outward | inward' },
+      { field: 'category', type: 'string', required: false, example: 'salary | rent | gambling | airtime | transfer' },
     ],
   },
   {
@@ -307,7 +310,7 @@ const streams: Stream[] = [
       { field: 'name', type: 'string', required: false, example: 'Adamu Ibrahim' },
       { field: 'bvn', type: 'string', required: false, example: '22123456789' },
       { field: 'nin', type: 'string', required: false, example: '12345678901' },
-      { field: 'photo', type: 'string (base64)', required: false, example: 'data:image/jpeg;base64,/9j/4AAQ...' },
+      { field: 'photo', type: 'string (base64)', required: false, example: '/9j/4AAQSkZJRgAB...' },
       { field: 'occurred_at', type: 'ISO 8601', required: true, example: '2026-05-14T10:00:00Z' },
     ],
   },
@@ -769,6 +772,18 @@ export default function DataBeamingPage() {
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [expectedStatus, setExpectedStatus] = useState<200 | 400 | 401>(200)
 
+  // KYC SSE streaming state
+  const [kycStreaming, setKycStreaming] = useState(false)
+  const [kycSteps, setKycSteps] = useState<KycStepEvent[]>([])
+  const [kycResult, setKycResult] = useState<KycStreamResult | null>(null)
+  const [kycStreamError, setKycStreamError] = useState<string | null>(null)
+
+  // KYC structured form state
+  const [kycForm, setKycForm] = useState({ customer_id: 'CUST-001', name: 'Adamu Ibrahim', bvn: '22123456789', nin: '12345678901', occurred_at: new Date().toISOString() })
+  const [kycPhotoFile, setKycPhotoFile] = useState<File | null>(null)
+  const [kycPhotoPreview, setKycPhotoPreview] = useState<string | null>(null)
+  const kycPhotoInputRef = useRef<HTMLInputElement>(null)
+
   // Initialize payload when stream changes
   useEffect(() => {
     const streamObj = streamsWithTimestamps.find(s => s.id === activeStream)!
@@ -794,6 +809,37 @@ export default function DataBeamingPage() {
     try {
       const parsed = JSON.parse(editablePayload)
       setJsonError(null)
+
+      // KYC stream uses SSE streaming with structured form payload
+      if (activeStream === 'kyc') {
+        const kycPayload: Record<string, unknown> = {
+          customer_id: kycForm.customer_id,
+          occurred_at: kycForm.occurred_at || new Date().toISOString(),
+        }
+        if (kycForm.name.trim())  kycPayload.name = kycForm.name
+        if (kycForm.bvn.trim())   kycPayload.bvn  = kycForm.bvn
+        if (kycForm.nin.trim())   kycPayload.nin  = kycForm.nin
+        if (kycPhotoFile) {
+          const b64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload  = () => resolve(reader.result as string)
+            reader.onerror = () => reject(new Error('Failed to read photo'))
+            reader.readAsDataURL(kycPhotoFile)
+          })
+          kycPayload.photo = b64
+        }
+        setKycStreaming(true)
+        setKycSteps([])
+        setKycResult(null)
+        setKycStreamError(null)
+        await streamKycBeam(
+          kycPayload,
+          step   => setKycSteps(prev => [...prev, step]),
+          result => { setKycResult(result); setKycStreaming(false); loadRecords() },
+          err    => { setKycStreamError(err); setKycStreaming(false) },
+        )
+        return
+      }
 
       setSendingTest(true)
       const res = await beamApi.sendTestPayload(activeStream, parsed)
@@ -901,7 +947,7 @@ export default function DataBeamingPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>Configure</Typography>
             <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>Beam to OpenIV</Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', maxWidth: 720 }}>
-              Stream the six signals that power real-time fraud defense.
+              Stream the signals that power real-time fraud defense.
             </Typography>
           </Box>
           <Stack direction="row" gap={1.25} sx={{ mt: 0.75, flexShrink: 0 }}>
@@ -917,7 +963,7 @@ export default function DataBeamingPage() {
         {/* Health KPIs */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
           {[
-            { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streamsWithTimestamps.length}`, sub: recordsLoading ? 'Loading…' : connected === streamsWithTimestamps.length ? 'Full coverage' : `${streamsWithTimestamps.length - connected} pending` },
+            { label: 'Streams connected', value: recordsLoading ? '…' : `${connected}/${streamsWithTimestamps.length - 5}`, sub: recordsLoading ? 'Loading…' : connected === streamsWithTimestamps.length ? 'Full coverage' : `${streamsWithTimestamps.length - 5 - connected} pending` },
             { label: 'Records received', value: recordsLoading ? '…' : totalRecords.toLocaleString(), sub: 'last 100 across all streams' },
             { label: 'Median latency', value: recordsLoading ? '…' : healthMetrics.medianLatency, sub: 'from your core to OpenIV' },
             { label: 'Schema validity', value: recordsLoading ? '…' : healthMetrics.validity, sub: healthMetrics.rejected > 0 ? `${healthMetrics.rejected} rejected total` : 'No rejections' },
@@ -947,64 +993,64 @@ export default function DataBeamingPage() {
               const dotColor = recordsLoading ? '#94a3b8' : hasData ? '#10b981' : '#dc2626'
               const countLabel = recordsLoading ? '…' : hasData ? `${liveCount.toLocaleString()} recv'd` : 'No data'
               return (
-              <Box
-                key={s.id}
-                onClick={isSoon ? undefined : () => setActiveStream(s.id)}
-                data-ai-analyzable="true"
-                data-ai-description={`Data Stream: ${s.title}. status: ${isSoon ? 'COMING SOON' : statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
-                sx={{
-                  bgcolor: isSoon ? '#f8fafc' : '#ffffff',
-                  border: '1px solid',
-                  borderColor: isActive ? colorPalette.primary : '#eef0f4',
-                  p: 2, position: 'relative', transition: 'all 0.18s',
-                  cursor: isSoon ? 'default' : 'pointer',
-                  overflow: 'hidden',
-                  '&:hover': isSoon ? {} : { borderColor: isActive ? colorPalette.primary : '#cbd5e1' },
-                  '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {},
-                }}>
-
-                {/* Card content — dimmed for coming-soon */}
-                <Box sx={{ opacity: isSoon ? 0.38 : 1, transition: 'opacity 0.18s' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.icon}</Box>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor }} />
-                  </Box>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                    {countLabel}
-                  </Typography>
-                </Box>
-
-                {/* Diagonal watermark for coming-soon streams */}
-                {isSoon && (
-                  <Box sx={{
-                    position: 'absolute', inset: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    pointerEvents: 'none',
+                <Box
+                  key={s.id}
+                  onClick={isSoon ? undefined : () => setActiveStream(s.id)}
+                  data-ai-analyzable="true"
+                  data-ai-description={`Data Stream: ${s.title}. status: ${isSoon ? 'COMING SOON' : statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
+                  sx={{
+                    bgcolor: isSoon ? '#f8fafc' : '#ffffff',
+                    border: '1px solid',
+                    borderColor: isActive ? colorPalette.primary : '#eef0f4',
+                    p: 2, position: 'relative', transition: 'all 0.18s',
+                    cursor: isSoon ? 'default' : 'pointer',
+                    overflow: 'hidden',
+                    '&:hover': isSoon ? {} : { borderColor: isActive ? colorPalette.primary : '#cbd5e1' },
+                    '&::before': isActive ? { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '2px', bgcolor: colorPalette.primary } : {},
                   }}>
-                    <Typography sx={{
-                      fontSize: '0.4375rem', fontWeight: 900,
-                      color: '#94a3b8', letterSpacing: '0.2em',
-                      textTransform: 'uppercase',
-                      transform: 'rotate(-28deg)',
-                      userSelect: 'none',
-                      border: '1px solid #cbd5e1',
-                      px: 0.75, py: 0.375,
-                      bgcolor: 'rgba(255,255,255,0.85)',
-                      backdropFilter: 'blur(2px)',
-                    }}>
-                      Coming Soon
+
+                  {/* Card content — dimmed for coming-soon */}
+                  <Box sx={{ opacity: isSoon ? 0.38 : 1, transition: 'opacity 0.18s' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.icon}</Box>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor }} />
+                    </Box>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                      {countLabel}
                     </Typography>
                   </Box>
-                )}
-              </Box>
-            )
-          })}
+
+                  {/* Diagonal watermark for coming-soon streams */}
+                  {isSoon && (
+                    <Box sx={{
+                      position: 'absolute', inset: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      pointerEvents: 'none',
+                    }}>
+                      <Typography sx={{
+                        fontSize: '0.4375rem', fontWeight: 900,
+                        color: '#94a3b8', letterSpacing: '0.2em',
+                        textTransform: 'uppercase',
+                        transform: 'rotate(-28deg)',
+                        userSelect: 'none',
+                        border: '1px solid #cbd5e1',
+                        px: 0.75, py: 0.375,
+                        bgcolor: 'rgba(255,255,255,0.85)',
+                        backdropFilter: 'blur(2px)',
+                      }}>
+                        Coming Soon
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )
+            })}
         </Box>
 
         {/* Detail panel */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-          <Stack gap={3}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, minWidth: 0 }}>
+          <Stack gap={3} sx={{ minWidth: 0, overflow: 'hidden' }}>
             {/* Why box */}
             <Box
               data-ai-analyzable="true"
@@ -1037,10 +1083,10 @@ export default function DataBeamingPage() {
                 ))}
               </Box>
               {stream.schema.map((f, i) => (
-                <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' } }}>
-                  <Box>
+                <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' }, minWidth: 0 }}>
+                  <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{f.field}</Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>e.g. {f.example}</Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>e.g. {f.example}</Typography>
                   </Box>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600 }}>{f.type}</Typography>
                   {f.required ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} /> : <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>}
@@ -1123,15 +1169,20 @@ export default function DataBeamingPage() {
                 json: string
               }> = {
                 transactions: {
-                  intro: 'OpenIV returns a synchronous risk analysis for every transaction beam. Your backend can act immediately — hold, decline, or allow — without waiting for a webhook.',
+                  intro: 'OpenIV runs a multi-factor analysis pipeline on every transaction and returns a synchronous risk decision. Time anomalies are checked first; then the customer\'s KYC risk score (40% weight) is blended with the transaction risk score. Sender account conflicts are flagged automatically.',
                   fields: [
-                    { label: 'risk_score', desc: 'A value from 0–100 indicating the probability of fraud. Higher means riskier.' },
-                    { label: 'risk_level', desc: 'Categorical threat level: LOW, MEDIUM, HIGH, or CRITICAL.' },
-                    { label: 'recommended_action', desc: 'Automated guidance based on your configured thresholds: ALLOW, REVIEW, HOLD, or DECLINE.' },
+                    { label: 'risk_score', desc: 'Blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Higher means riskier.' },
+                    { label: 'kyc_risk_score', desc: 'The customer\'s KYC risk score at the time of the transaction. High values significantly boost the blended risk score.' },
+                    { label: 'risk_level', desc: 'Categorical threat level derived from the blended score: LOW (<30), MEDIUM (30–59), HIGH (60–74), or CRITICAL (≥75).' },
+                    { label: 'recommended_action', desc: 'Automated decision based on your configured thresholds: ALLOW, REVIEW, HOLD, DECLINE, or KYC_REQUIRED.' },
                     { label: 'case_id', desc: 'ID of the compliance case auto-created for your team to review, if applicable.' },
+                    { label: 'kyc_required', desc: 'True when the customer has no KYC record on file. Transaction is flagged at 75 risk score (90 if account conflict also detected). Complete KYC before retrying.' },
+                    { label: 'account_conflict', desc: 'True when the sender account number is already linked to a different customer ID — a strong indicator of account sharing or fraudulent reuse.' },
+                    { label: 'conflicting_customer_id', desc: 'The other customer ID that the sender account is registered under, when account_conflict is true.' },
+                    { label: 'notification_id', desc: 'ID of the internal notification registered for this flagged transaction (present when kyc_required or account_conflict is true).' },
                   ],
                   label: 'Transaction response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "analysis": {\n    "risk_score": 74,\n    "risk_level": "HIGH",\n    "recommended_action": "HOLD",\n    "case_id": "CASE-9201"\n  }\n}`,
+                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
                 },
                 logins: {
                   intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
@@ -1221,13 +1272,13 @@ export default function DataBeamingPage() {
 
               const riskColor = riskScore == null ? '#94a3b8'
                 : riskScore >= 75 ? '#dc2626'
-                : riskScore >= 50 ? '#f59e0b'
-                : '#10b981'
+                  : riskScore >= 50 ? '#f59e0b'
+                    : '#10b981'
 
               const riskLabel = riskScore == null ? '—'
                 : riskScore >= 75 ? 'HIGH RISK'
-                : riskScore >= 50 ? 'MODERATE'
-                : 'LOW RISK'
+                  : riskScore >= 50 ? 'MODERATE'
+                    : 'LOW RISK'
 
               // Error response configs (apply to all streams)
               const errorConfig = {
@@ -1373,8 +1424,8 @@ export default function DataBeamingPage() {
                                 background: riskScore >= 75
                                   ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
                                   : riskScore >= 50
-                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
-                                  : '#10b981',
+                                    ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
+                                    : '#10b981',
                                 borderRadius: '4px',
                                 transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
                               }} />
@@ -1487,28 +1538,125 @@ export default function DataBeamingPage() {
               </Box>
 
               <Box sx={{ mb: 2 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
-                  Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
-                </Typography>
-                <TextField
-                  multiline
-                  rows={8}
-                  fullWidth
-                  value={editablePayload}
-                  onChange={(e) => setEditablePayload(e.target.value)}
-                  error={!!jsonError}
-                  helperText={jsonError}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      fontSize: '0.75rem',
-                      fontFamily: 'SF Mono, Monaco, monospace',
-                      bgcolor: '#f8fafc',
-                      borderRadius: 0,
-                      '& fieldset': { borderColor: '#e2e8f0' },
-                      '&:hover fieldset': { borderColor: '#cbd5e1' },
-                    }
-                  }}
-                />
+                {activeStream === 'kyc' ? (
+                  /* ── Compact KYC form ──────────────────────────────── */
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.875 }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 0.25 }}>
+                      Fill in the identity fields — only <strong>customer_id</strong> is required:
+                    </Typography>
+
+                    {/* Row 1: customer_id · name · occurred_at */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.875 }}>
+                      {([
+                        { key: 'customer_id', label: 'customer_id *', placeholder: 'CUST-001' },
+                        { key: 'name',        label: 'name',           placeholder: 'Adamu Ibrahim' },
+                        { key: 'occurred_at', label: 'occurred_at *',  placeholder: '2026-05-14T10:00:00Z' },
+                      ] as const).map(({ key, label, placeholder }) => (
+                        <Box key={key}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.375, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</Typography>
+                          <Box
+                            component="input"
+                            placeholder={placeholder}
+                            value={kycForm[key]}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
+                            sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
+                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              '&:focus': { borderColor: colorPalette.primary } }}
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+
+                    {/* Row 2: bvn · nin · photo picker */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.875 }}>
+                      {([
+                        { key: 'bvn', label: 'bvn', placeholder: '22123456789' },
+                        { key: 'nin', label: 'nin', placeholder: '12345678901' },
+                      ] as const).map(({ key, label, placeholder }) => (
+                        <Box key={key}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.375, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</Typography>
+                          <Box
+                            component="input"
+                            placeholder={placeholder}
+                            value={kycForm[key]}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
+                            sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
+                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              '&:focus': { borderColor: colorPalette.primary } }}
+                          />
+                        </Box>
+                      ))}
+
+                      {/* Photo picker — lives in the third column of row 2 */}
+                      <Box>
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.375, textTransform: 'uppercase', letterSpacing: '0.06em' }}>photo</Typography>
+                        <Box
+                          onClick={() => kycPhotoInputRef.current?.click()}
+                          sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.625,
+                            border: '1px dashed #cbd5e1', cursor: 'pointer', bgcolor: '#f8fafc',
+                            '&:hover': { borderColor: colorPalette.primary, bgcolor: '#f0f4ff' } }}>
+                          {kycPhotoPreview ? (
+                            <Box component="img" src={kycPhotoPreview}
+                              sx={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          ) : null}
+                          <Typography sx={{ fontSize: '0.75rem', color: kycPhotoFile ? '#1e293b' : '#94a3b8',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                            {kycPhotoFile ? kycPhotoFile.name : 'Select…'}
+                          </Typography>
+                          {kycPhotoFile && (
+                            <Box component="span"
+                              onClick={(e: React.MouseEvent) => { e.stopPropagation(); setKycPhotoFile(null); setKycPhotoPreview(null) }}
+                              sx={{ fontSize: '0.625rem', color: '#94a3b8', cursor: 'pointer', flexShrink: 0, '&:hover': { color: '#dc2626' } }}>
+                              ✕
+                            </Box>
+                          )}
+                        </Box>
+                        <input
+                          ref={kycPhotoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null
+                            setKycPhotoFile(file)
+                            setKycPhotoPreview(file ? URL.createObjectURL(file) : null)
+                            e.target.value = ''
+                          }}
+                        />
+                      </Box>
+                    </Box>
+
+                    {jsonError && (
+                      <Typography sx={{ fontSize: '0.75rem', color: '#dc2626', mt: 0.25 }}>{jsonError}</Typography>
+                    )}
+                  </Box>
+                ) : (
+                  /* ── JSON textarea for all other streams ────────────── */
+                  <>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
+                      Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
+                    </Typography>
+                    <TextField
+                      multiline
+                      rows={8}
+                      fullWidth
+                      value={editablePayload}
+                      onChange={(e) => setEditablePayload(e.target.value)}
+                      error={!!jsonError}
+                      helperText={jsonError}
+                      sx={{
+                        '& .MuiInputBase-root': {
+                          fontSize: '0.75rem',
+                          fontFamily: 'SF Mono, Monaco, monospace',
+                          bgcolor: '#f8fafc',
+                          borderRadius: 0,
+                          '& fieldset': { borderColor: '#e2e8f0' },
+                          '&:hover fieldset': { borderColor: '#cbd5e1' },
+                        }
+                      }}
+                    />
+                  </>
+                )}
               </Box>
 
               <Button
@@ -1550,7 +1698,115 @@ export default function DataBeamingPage() {
                         : `Beam Test ${stream.title} Record`}
               </Button>
 
-              {testResponse && (
+              {/* KYC SSE pipeline live viewer */}
+              {activeStream === 'kyc' && (kycStreaming || kycSteps.length > 0 || kycResult !== null || kycStreamError !== null) && (
+                <Box sx={{ mt: 3, border: '1px solid #eef0f4', bgcolor: '#fafbff' }}>
+                  <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      KYC Pipeline
+                    </Typography>
+                    {kycStreaming && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#10b981', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } }, animation: 'pulse 1s infinite' }} />
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Live</Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Stack gap={0}>
+                    {(['bvn_nin', 'phone_match', 'liveness', 'pep_check'] as const).map((stepId, idx) => {
+                      const step = kycSteps.find(s => s.step === stepId)
+                      const isRunning = kycStreaming && !step && kycSteps.length === idx
+                      const isPending = !step && !isRunning
+                      const label = ({ bvn_nin: 'Identity (BVN/NIN)', phone_match: 'Phone Match', liveness: 'Liveness Check', pep_check: 'PEP Screening' } as Record<string, string>)[stepId]
+
+                      const dotBg = isPending ? '#f1f5f9'
+                        : isRunning ? '#dbeafe'
+                        : step!.status === 'pass' ? '#dcfce7'
+                        : step!.status === 'fail' ? '#fee2e2'
+                        : '#fef9c3'
+                      const dotColor = isPending ? '' : isRunning ? '#3b82f6'
+                        : step!.status === 'pass' ? '#16a34a'
+                        : step!.status === 'fail' ? '#dc2626' : '#d97706'
+
+                      return (
+                        <Box key={stepId} sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #f4f5f7' }}>
+                          <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: dotBg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {isRunning
+                              ? <Box sx={{ width: 8, height: 8, borderRadius: '50%', border: `2px solid ${dotColor}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } }} />
+                              : !isPending && (
+                                <Typography sx={{ fontSize: '0.625rem', fontWeight: 900, color: dotColor, lineHeight: 1 }}>
+                                  {step!.status === 'pass' ? '✓' : step!.status === 'fail' ? '✗' : '~'}
+                                </Typography>
+                              )}
+                          </Box>
+
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: isPending ? '#94a3b8' : '#334155' }}>
+                              {label}
+                            </Typography>
+                            {step && (
+                              <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.125, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {step.detail}
+                              </Typography>
+                            )}
+                          </Box>
+
+                          {step && (
+                            <Box sx={{ flexShrink: 0, px: 1, py: 0.25, border: '1px solid',
+                              bgcolor: step.stepRiskScore < 30 ? '#dcfce7' : step.stepRiskScore < 65 ? '#fffbeb' : '#fee2e2',
+                              borderColor: step.stepRiskScore < 30 ? '#bbf7d0' : step.stepRiskScore < 65 ? '#fde68a' : '#fecdd3' }}>
+                              <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, fontFamily: 'monospace',
+                                color: step.stepRiskScore < 30 ? '#15803d' : step.stepRiskScore < 65 ? '#d97706' : '#dc2626' }}>
+                                {step.stepRiskScore}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )
+                    })}
+                  </Stack>
+
+                  {kycResult && (
+                    <Box sx={{ px: 2, py: 1.75, borderTop: '2px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                          Risk Score
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: '1.625rem', fontWeight: 800, fontFamily: 'Jost', lineHeight: 1,
+                            color: kycResult.overallRiskScore < 35 ? '#16a34a' : kycResult.overallRiskScore < 75 ? '#d97706' : '#dc2626' }}>
+                            {kycResult.overallRiskScore}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/100</Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                          Action
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{kycResult.actionDetail}</Typography>
+                      </Box>
+                      <Box sx={{ flexShrink: 0, px: 1.5, py: 0.625, border: '1px solid',
+                        bgcolor: kycResult.action === 'clear' ? '#dcfce7' : kycResult.action === 'flagged' ? '#fffbeb' : '#fee2e2',
+                        borderColor: kycResult.action === 'clear' ? '#bbf7d0' : kycResult.action === 'flagged' ? '#fde68a' : '#fecdd3' }}>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Jost',
+                          color: kycResult.action === 'clear' ? '#15803d' : kycResult.action === 'flagged' ? '#d97706' : '#dc2626' }}>
+                          {kycResult.action === 'clear' ? 'Cleared' : kycResult.action === 'flagged' ? 'Flagged' : 'Case Opened'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {kycStreamError && (
+                    <Box sx={{ px: 2, py: 1.25, bgcolor: '#fee2e2' }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#dc2626' }}>{kycStreamError}</Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {testResponse && activeStream !== 'kyc' && (
                 <Box sx={{ mt: 3, p: 2, bgcolor: '#00288e', border: '1px solid #1e293b' }}>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 1.5, textTransform: 'uppercase' }}>
                     Standard Response (developer insight)
@@ -1576,10 +1832,31 @@ export default function DataBeamingPage() {
                         </Typography>
                       </Box>
                       <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                        Score: <Box component="span" sx={{ color: testResponse.analysis.risk_score >= 60 ? '#ef4444' : '#10b981', fontWeight: 700 }}>{testResponse.analysis.risk_score}</Box> ·
-                        Level: <Box component="span" sx={{ color: '#ffffff', fontWeight: 600 }}>{testResponse.analysis.risk_level}</Box> ·
-                        Action: <Box component="span" sx={{ color: colorPalette.primary, fontWeight: 700 }}>{testResponse.analysis.recommended_action}</Box>
+                        Score: <Box component="span" sx={{ color: (testResponse.analysis.risk_score ?? 0) >= 60 ? '#ef4444' : '#10b981', fontWeight: 700 }}>{testResponse.analysis.risk_score}</Box>
+                        {testResponse.analysis.kyc_risk_score != null && (
+                          <> · KYC Risk: <Box component="span" sx={{ color: (testResponse.analysis.kyc_risk_score ?? 0) >= 60 ? '#f59e0b' : '#94a3b8', fontWeight: 700 }}>{testResponse.analysis.kyc_risk_score}</Box></>
+                        )}
+                        {testResponse.analysis.risk_level && (
+                          <> · Level: <Box component="span" sx={{ color: '#ffffff', fontWeight: 600 }}>{testResponse.analysis.risk_level}</Box></>
+                        )}
+                        {testResponse.analysis.recommended_action && (
+                          <> · Action: <Box component="span" sx={{ color: colorPalette.primary, fontWeight: 700 }}>{testResponse.analysis.recommended_action}</Box></>
+                        )}
                       </Typography>
+                      {(testResponse.analysis.kyc_required || testResponse.analysis.account_conflict) && (
+                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          {testResponse.analysis.kyc_required && (
+                            <Box sx={{ px: 1, py: 0.25, borderRadius: '4px', bgcolor: '#7c3aed22', border: '1px solid #7c3aed66', fontSize: '0.65rem', color: '#a78bfa', fontWeight: 700 }}>
+                              KYC REQUIRED
+                            </Box>
+                          )}
+                          {testResponse.analysis.account_conflict && (
+                            <Box sx={{ px: 1, py: 0.25, borderRadius: '4px', bgcolor: '#dc262622', border: '1px solid #dc262666', fontSize: '0.65rem', color: '#f87171', fontWeight: 700 }}>
+                              ACCOUNT CONFLICT
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                     </Box>
                   )}
                 </Box>

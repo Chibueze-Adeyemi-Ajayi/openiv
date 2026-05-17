@@ -9,7 +9,7 @@ import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined'
 import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined'
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined'
 import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
@@ -18,10 +18,12 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
-import CallMadeIcon        from '@mui/icons-material/CallMade'
+import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
+import { transactionApi } from '@/api/transactions'
 import { clearOnboardingState } from '@/onboarding/state'
 import { useNavigate } from 'react-router-dom'
 import { useEureka } from '@/contexts/EurekaContext'
@@ -44,37 +46,42 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Monitor',
     items: [
-      { to: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Overview' },
-      { to: '/dashboard/otp-alerts', icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'OTP Defense' },
+      { to: '/dashboard',              icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Overview' },
       { to: '/dashboard/transactions', icon: <ReceiptLongOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transactions' },
-      { to: '/dashboard/patterns', icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Behavioral Patterns' },
-      { to: '/dashboard/aml', icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'AML & Cases' },
-      { to: '/dashboard/kyc', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'KYC' },
-      { to: '/dashboard/heatmaps', icon: <GridOnOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Heatmaps' },
+      { to: '/dashboard/otp-alerts',   icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,         label: 'OTP Defense' },
+      { to: '/dashboard/patterns',     icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Behavioral Patterns' },
+      { to: '/dashboard/heatmaps',     icon: <GridOnOutlinedIcon sx={{ fontSize: '1.25rem' }} />,      label: 'Heatmaps' },
+    ],
+  },
+  {
+    label: 'Investigate',
+    items: [
+      { to: '/dashboard/aml',       icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />,          label: 'AML & Cases' },
+      { to: '/dashboard/customers', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,          label: 'Customers' },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { to: '/dashboard/cbn', icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance', badge: '52d' },
-      { to: '/dashboard/reports', icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Reports & Filings' },
+      { to: '/dashboard/cbn',     icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance', badge: '52d' },
+      { to: '/dashboard/reports', icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Reports & Filings' },
     ],
   },
   {
-    label: 'Configuration',
+    label: 'Integrate',
     items: [
-      { to: '/dashboard/thresholds', icon: <TuneOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Thresholds' },
-      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network' },
-      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />, label: 'Beam to OpenIV' },
-      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks' },
+      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />,         label: 'Beam to OpenIV' },
+      { to: '/dashboard/thresholds', icon: <PolicyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Rules' },
+      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Webhooks' },
+      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Network' },
     ],
   },
   {
-    label: 'Manage',
+    label: 'Workspace',
     items: [
-      { to: '/dashboard/team', icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Team & Roles' },
-      { to: '/dashboard/billing', icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', badge: 'ADMIN' },
-      { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Settings' },
+      { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles' },
+      { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', badge: 'ADMIN' },
+      { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings' },
     ],
   },
 ]
@@ -84,8 +91,8 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
-  const [unreadFlagCount,    setUnreadFlagCount]    = useState(0)
-  const [unseenCasesCount,   setUnseenCasesCount]   = useState(0)
+  const [unseenTransactionCount, setUnseenTransactionCount] = useState(0)
+  const [unassignedCasesCount,   setUnassignedCasesCount]   = useState(0)
 
   // AI bubble hover tracking
   const [activeNavItem,   setActiveNavItem]   = useState<ActiveNavItem | null>(null)
@@ -96,54 +103,47 @@ export default function Sidebar() {
 
   const { notifications } = useDashboardEvents()
 
-  // Fetch transaction flag unread count (notification-based)
-  const fetchFlagCount = useCallback(async () => {
+  const fetchUnseenTransactions = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/notifications/unread-counts')
-      if (res.ok) {
-        const data = await res.json()
-        setUnreadFlagCount(data.flags ?? 0)
-      }
+      const data = await transactionApi.unseenCount()
+      setUnseenTransactionCount(data.count)
     } catch { /* ignore */ }
   }, [])
 
-  // Fetch per-user unseen case count (case_views-based)
   const fetchUnseenCases = useCallback(async () => {
     try {
-      const data = await caseApi.unseenCount()
-      setUnseenCasesCount(data.count)
+      const data = await caseApi.unassignedCount()
+      setUnassignedCasesCount(data.count)
     } catch { /* ignore */ }
   }, [])
 
   // Initial fetch
   useEffect(() => {
-    fetchFlagCount()
+    fetchUnseenTransactions()
     fetchUnseenCases()
-  }, [fetchFlagCount, fetchUnseenCases])
+  }, [fetchUnseenTransactions, fetchUnseenCases])
 
-  // Real-time: refresh when SSE pushes new notifications (new flag or new case)
+  // Real-time: refresh counts when SSE pushes new notifications
   useEffect(() => {
     if (notifications.length > 0) {
-      fetchFlagCount()
+      fetchUnseenTransactions()
       fetchUnseenCases()
     }
-  }, [notifications, fetchFlagCount, fetchUnseenCases])
+  }, [notifications, fetchUnseenTransactions, fetchUnseenCases])
 
-  // Real-time: decrement badge immediately when user opens a case
+  // Decrement transaction badge immediately when user opens a transaction
   useEffect(() => {
-    const handler = () => setUnseenCasesCount(n => Math.max(0, n - 1))
+    const handler = () => setUnseenTransactionCount((n: number) => Math.max(0, n - 1))
+    window.addEventListener('transaction:seen', handler)
+    return () => window.removeEventListener('transaction:seen', handler)
+  }, [])
+
+  // Decrement case badge immediately when a case gets assigned
+  useEffect(() => {
+    const handler = () => setUnassignedCasesCount((n: number) => Math.max(0, n - 1))
     window.addEventListener('case:seen', handler)
     return () => window.removeEventListener('case:seen', handler)
   }, [])
-
-  // When visiting transactions, mark flag notifications as read
-  useEffect(() => {
-    if (location.pathname === '/dashboard/transactions' && unreadFlagCount > 0) {
-      fetch('/api/v1/notifications/read-category/flags', { method: 'PATCH' })
-        .then(() => fetchFlagCount())
-        .catch(() => { /* ignore */ })
-    }
-  }, [location.pathname, unreadFlagCount, fetchFlagCount])
 
   const handleNavMouseEnter = (item: NavItem, e: React.MouseEvent<HTMLElement>) => {
     if (!eurekaEnabled) return
@@ -248,7 +248,8 @@ export default function Sidebar() {
       </Box>
 
       {/* Nav */}
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5 }}>
+      <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      <Box sx={{ height: '100%', overflowY: 'auto', px: 1.5 }}>
         {navGroups
           .map((group) => ({
             ...group,
@@ -351,10 +352,10 @@ export default function Sidebar() {
                     </Typography>
                     {(() => {
                       let badgeValue = item.badge;
-                      if (item.to === '/dashboard/transactions' && unreadFlagCount > 0) {
-                        badgeValue = unreadFlagCount.toString();
-                      } else if (item.to === '/dashboard/aml' && unseenCasesCount > 0) {
-                        badgeValue = unseenCasesCount.toString();
+                      if (item.to === '/dashboard/transactions' && unseenTransactionCount > 0) {
+                        badgeValue = unseenTransactionCount.toString();
+                      } else if (item.to === '/dashboard/aml' && unassignedCasesCount > 0) {
+                        badgeValue = unassignedCasesCount.toString();
                       }
                       
                       if (!badgeValue) return null;
@@ -383,6 +384,16 @@ export default function Sidebar() {
             })}
           </Box>
         ))}
+      </Box>
+      {/* Lemon scroll indicator */}
+      <Box sx={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: 52,
+        background: 'linear-gradient(to bottom, transparent, rgba(0,40,142,0.95))',
+        pointerEvents: 'none',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pb: 1,
+      }}>
+        <Box sx={{ width: 28, height: 3, borderRadius: 1.5, bgcolor: '#d9f99d', opacity: 0.65 }} />
+      </Box>
       </Box>
 
       {/* User Block */}

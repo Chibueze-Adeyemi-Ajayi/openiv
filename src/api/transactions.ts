@@ -30,6 +30,10 @@ export interface Transaction {
   deviceId?: string
   ipAddress?: string
   seen: boolean
+  flagReason?: string | null
+  flagReasons?: string[]
+  category?: string
+  direction?: 'inward' | 'outward'
 }
 
 export interface TransactionPage {
@@ -105,6 +109,9 @@ export const transactionApi = {
 
   get: (id: string) =>
     apiRequest<Transaction>(`/api/v1/transactions/${id}`),
+
+  unseenCount: () =>
+    apiRequest<{ count: number }>('/api/v1/transactions/unseen-count'),
 
   markSeen: (id: string) =>
     apiRequest<{ ok: boolean }>(`/api/v1/transactions/${id}/seen`, { method: 'PATCH' }),

@@ -5,15 +5,19 @@ import NigeriaRiskMap from '@/components/dashboard/NigeriaRiskMap'
 import TransactionFlowChart from '@/components/dashboard/TransactionFlowChart'
 import ActivityFeed from '@/components/dashboard/ActivityFeed'
 import FileReportDialog from '@/components/dashboard/FileReportDialog'
-import OtpAlertsPanel from '@/components/dashboard/OtpAlertsPanel'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { customerApi, type Customer } from '@/api/customers'
+import { notificationsApi, type NotificationItem } from '@/api/notifications'
+import { useNavigate } from 'react-router-dom'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined'
 
 function pct(a: number, b: number) {
   if (b === 0) return 0
@@ -24,12 +28,70 @@ function fmt(n: number) {
   return n.toLocaleString('en-US')
 }
 
+function overallScore(c: Customer) {
+  return Math.round(c.riskScore * 0.20 + c.riskProfileScore * 0.55 + c.transactionRiskScore * 0.25)
+}
+
+function scoreColor(score: number) {
+  if (score > 85) return '#dc2626'
+  return '#f59e0b'
+}
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
+}
+
+function MiniRiskDonut({ score, color }: { score: number; color: string }) {
+  const size = 48, sw = 5, r = (size - sw) / 2
+  const cx = size / 2, cy = size / 2
+  const circ = 2 * Math.PI * r
+  const filled = (Math.min(100, Math.max(0, score)) / 100) * circ
+  return (
+    <svg width={size} height={size} style={{ display: 'block', flexShrink: 0 }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={sw} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+        strokeLinecap="round"
+        strokeDasharray={`${filled} ${circ - filled}`}
+        transform={`rotate(-90 ${cx} ${cy})`} />
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
+        fill={color} fontWeight="700" fontSize="12" fontFamily="Jost, sans-serif">
+        {score}
+      </text>
+    </svg>
+  )
+}
+
+function CustomerPhoto({ photo, color, name }: { photo: string | null; color: string; name: string }) {
+  return (
+    <Box sx={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', bgcolor: color + '18', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {photo
+        ? <Box component="img"
+            src={photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`}
+            sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color, fontFamily: 'Jost' }}>{initials(name)}</Typography>
+      }
+    </Box>
+  )
+}
+
 export default function OverviewPage() {
+  const navigate = useNavigate()
   const [fileNFIUOpen, setFileNFIUOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
   const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
+  const [riskNotif, setRiskNotif] = useState<NotificationItem | null>(null)
+  const [topHighRisk, setTopHighRisk] = useState<Customer[]>([])
   const { stats, activity, beamEvents, caseEvents, connected } = useDashboardData()
   const currentUser = useCurrentUser()
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    notificationsApi.list(100).then(items => {
+      const report = items.find(n => n.type === 'risk_report_daily' && n.createdAt.slice(0, 10) === today)
+      if (report) setRiskNotif(report)
+    }).catch(() => {})
+    customerApi.highRisk(1, 15).then(data => setTopHighRisk(data.customers)).catch(() => {})
+  }, [])
 
   // Combine all events into unified activity feed (most recent first)
   const allActivity = [
@@ -198,23 +260,82 @@ export default function OverviewPage() {
           </Grid>
         </Grid>
 
-        {/* Map + Activity */}
+        {/* Map + High-Risk Customers */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid size={{ xs: 12, lg: 8 }}>
             <NigeriaRiskMap />
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}>
-            <ActivityFeed events={allActivity} connected={connected} />
+            {/* High-Risk Customers panel */}
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid #e5e7eb', bgcolor: '#ffffff' }}>
+              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Risk Map · Watchlist
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                    High-Risk Customers
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={() => navigate('/dashboard/customers?filter=high-risk')}
+                  endIcon={<ArrowForwardOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />}
+                  sx={{ fontFamily: 'Jost', fontWeight: 600, fontSize: '0.75rem', textTransform: 'none', color: colorPalette.primary, p: 0 }}
+                >
+                  View All
+                </Button>
+              </Box>
+              {topHighRisk.length === 0 ? (
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>No high-risk customers</Typography>
+                </Box>
+              ) : (
+                <Box sx={{ flex: 1, overflowY: 'auto' }}>
+                  {topHighRisk.map((c, i) => {
+                    const score = overallScore(c)
+                    const color = scoreColor(score)
+                    return (
+                      <Box
+                        key={c.id}
+                        onClick={() => navigate(`/dashboard/users/${c.externalId}`)}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          px: 2,
+                          py: 1.25,
+                          bgcolor: i % 2 === 0 ? '#ffffff' : '#fafbfc',
+                          borderBottom: '1px solid #f8fafc',
+                          cursor: 'pointer',
+                          '&:hover': { bgcolor: '#f1f5f9' },
+                        }}
+                      >
+                        <CustomerPhoto photo={c.photo} color={color} name={c.name} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.name}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.externalId}{c.accountNumber ? ` · ${c.accountNumber}` : ''}
+                          </Typography>
+                        </Box>
+                        <MiniRiskDonut score={score} color={color} />
+                      </Box>
+                    )
+                  })}
+                </Box>
+              )}
+            </Box>
           </Grid>
         </Grid>
 
-        {/* Transaction Flow + OTP Alerts */}
+        {/* 24h Transaction Flow + Live Activity */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid size={{ xs: 12, lg: 8 }}>
+          <Grid size={{ xs: 12, lg: 8 }} sx={{ height: { xs: 'auto', lg: 420 } }}>
             <TransactionFlowChart />
           </Grid>
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <OtpAlertsPanel />
+          <Grid size={{ xs: 12, lg: 4 }} sx={{ height: { xs: 'auto', lg: 420 } }}>
+            <ActivityFeed events={allActivity} connected={connected} />
           </Grid>
         </Grid>
 
@@ -290,6 +411,50 @@ export default function OverviewPage() {
             </Button>
           </Stack>
         </Box>
+
+        {/* Daily Risk Report Banner — only when nightly report ran today */}
+        {riskNotif && (
+          <Box
+            sx={{
+              mt: 3,
+              bgcolor: '#fef2f2',
+              border: '1px solid #fecaca',
+              p: 3,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+            }}
+          >
+            <WarningAmberOutlinedIcon sx={{ color: '#dc2626', mt: 0.25, flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#991b1b', mb: 0.5 }}>
+                {riskNotif.title}
+              </Typography>
+              <Typography sx={{ fontSize: '0.875rem', color: '#7f1d1d', lineHeight: 1.6 }}>
+                {riskNotif.body}
+              </Typography>
+            </Box>
+            <Button
+              onClick={() => navigate('/dashboard/customers?filter=high-risk')}
+              endIcon={<ArrowForwardOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+              sx={{
+                bgcolor: '#dc2626',
+                color: '#ffffff',
+                fontFamily: 'Jost',
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                textTransform: 'none',
+                borderRadius: 0,
+                px: 2.25,
+                py: 1.125,
+                flexShrink: 0,
+                '&:hover': { bgcolor: '#b91c1c' },
+              }}
+            >
+              Review Now
+            </Button>
+          </Box>
+        )}
 
         <FileReportDialog
           open={fileNFIUOpen}

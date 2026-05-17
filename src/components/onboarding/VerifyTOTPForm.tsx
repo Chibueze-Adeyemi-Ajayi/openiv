@@ -133,15 +133,15 @@ export default function VerifyTOTPForm({
                   sx={{
                     flex: 1,
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: '#ffffff',
+                      bgcolor: 'transparent',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
-                      '& fieldset': {
-                        borderColor: digit ? '#00288e' : '#e2e8f0',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        border: digit ? '1px solid #00288e' : '1px solid #cbd5e1',
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover fieldset': { borderColor: '#00288e' },
-                      '&.Mui-focused fieldset': { borderColor: '#00288e', borderWidth: '1px' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid #00288e' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid #00288e' },
                       '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(0, 40, 142, 0.08)' },
                     },
                   }}

@@ -15,6 +15,8 @@ export interface ThresholdRule {
   firedCount: number
   createdAt: string
   updatedAt: string
+  thresholdOutward: number | null
+  thresholdInward: number | null
 }
 
 export interface KycTierRecord {
@@ -45,6 +47,7 @@ export interface ThresholdChange {
   oldValue: string | null
   newValue: string
   createdAt: string
+  ruleName?: string
 }
 
 export interface ThresholdMetrics {
@@ -60,7 +63,7 @@ export const thresholdApi = {
   metrics: () =>
     apiRequest<ThresholdMetrics>('/api/v1/thresholds/metrics'),
 
-  update: (id: number, data: { threshold?: number; isActive?: boolean }) =>
+  update: (id: number, data: { threshold?: number; isActive?: boolean; outwardThreshold?: number | null; inwardThreshold?: number | null }) =>
     apiRequest<{ ok: boolean; rule: ThresholdRule }>(`/api/v1/thresholds/${id}`, {
       method: 'PATCH',
       body: data,
@@ -68,6 +71,9 @@ export const thresholdApi = {
 
   history: (id: number) =>
     apiRequest<{ changes: ThresholdChange[] }>(`/api/v1/thresholds/${id}/history`),
+
+  allHistory: () =>
+    apiRequest<{ changes: ThresholdChange[] }>('/api/v1/thresholds/history'),
 
   getKycStatus: () =>
     apiRequest<{ suppressed: boolean }>('/api/v1/thresholds/kyc-status'),

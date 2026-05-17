@@ -194,6 +194,7 @@ export default function TransactionsPage() {
     if (!t.seen) {
       transactionApi.markSeen(t.id).catch(() => {/* best-effort */})
       setRows(prev => prev.map(r => r.id === t.id ? { ...r, seen: true } : r))
+      window.dispatchEvent(new Event('transaction:seen'))
     }
   }
 
@@ -356,7 +357,8 @@ export default function TransactionsPage() {
                   key={t.id}
                   data-ai-analyzable="true"
                   data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. ${fCfg ? `Status: ${fCfg.label}.` : ''} ${t.location ? `Location: ${t.location}` : ''}`}
-                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', borderBottom: '1px solid #f4f5f7', borderLeft: !t.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent', bgcolor: isSelected ? `${colorPalette.primary}06` : !t.seen ? `${colorPalette.primary}03` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
+                  onClick={() => openDetail(t)}
+                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #f4f5f7', borderLeft: !t.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent', bgcolor: isSelected ? `${colorPalette.primary}06` : !t.seen ? `${colorPalette.primary}03` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
                 >
                   {/* Checkbox + unseen dot */}
                   <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>

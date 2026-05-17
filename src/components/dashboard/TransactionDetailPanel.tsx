@@ -331,6 +331,27 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                 </Box>
               </Box>
 
+              {/* ── Flag reasons ─────────────────────────────────────────── */}
+              {(txn.flagReasons?.length || txn.flagReason) && (
+                <Box sx={{ mb: 2.5, p: 1.75, border: '1px solid #fde68a', bgcolor: '#fffbeb' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                    <FlagRoundedIcon sx={{ fontSize: '0.875rem', color: '#d97706' }} />
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                      Why this transaction was flagged
+                    </Typography>
+                  </Box>
+                  {txn.flagReasons?.length ? (
+                    <Box component="ul" sx={{ m: 0, pl: 2.25, '& li': { fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.65, mb: 0.5, '&:last-child': { mb: 0 } } }}>
+                      {txn.flagReasons.map((r, i) => <li key={i}>{r}</li>)}
+                    </Box>
+                  ) : (
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.65 }}>
+                      {txn.flagReason}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
               <Section title="Sender">
                 <Field label="Name"        value={txn.customer} />
                 <Field label="Customer ID" value={txn.customerId}    mono />

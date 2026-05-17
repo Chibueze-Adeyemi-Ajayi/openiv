@@ -133,16 +133,16 @@ export default function VerifyEmailForm({
                   sx={{
                     flex: 1,
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: digit ? '#ffffff' : '#f5f3fb',
+                      bgcolor: 'transparent',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
-                      '& fieldset': {
-                        border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        border: digit ? `1px solid ${colorPalette.primary}` : '1px solid #cbd5e1',
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover fieldset': { borderColor: digit ? colorPalette.primary : '#e4dff2' },
-                      '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                      '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { border: `1px solid ${colorPalette.primary}` },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: `1px solid ${colorPalette.primary}` },
+                      '&.Mui-focused': { boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                     },
                   }}
                 />

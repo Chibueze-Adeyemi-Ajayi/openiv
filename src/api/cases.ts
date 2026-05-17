@@ -171,6 +171,9 @@ export const caseApi = {
   markSeen: (id: string) =>
     apiRequest<{ ok: boolean }>(`/api/v1/cases/${id}/seen`, { method: 'PATCH' }),
 
+  unassignedCount: () =>
+    apiRequest<{ count: number }>('/api/v1/cases/unassigned-count'),
+
   unseenCount: () =>
     apiRequest<{ count: number }>('/api/v1/cases/unseen-count'),
 

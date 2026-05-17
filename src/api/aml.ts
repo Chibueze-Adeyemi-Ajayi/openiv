@@ -13,6 +13,8 @@ export interface AmlSettings {
   behRiskScoreNormalThreshold: number
   beamWindowSeconds: number
   timezone: string
+  kycRiskNormalThreshold: number
+  kycRiskCaseThreshold: number
 }
 
 export const amlApi = {
@@ -23,7 +25,9 @@ export const amlApi = {
   behRiskScoreFlagThreshold?: number;
   behRiskScoreCaseThreshold?: number;
   riskScoreNormalThreshold?: number;
-  behRiskScoreNormalThreshold?: number; }) =>
+  behRiskScoreNormalThreshold?: number;
+  kycRiskNormalThreshold?: number;
+  kycRiskCaseThreshold?: number; }) =>
     apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings', {
       method: 'PUT',
       body: data,

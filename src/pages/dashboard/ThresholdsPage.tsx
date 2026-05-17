@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { isBuildOne } from '@/utils/build'
-import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogActions, Grid, Tabs, Tab } from '@mui/material'
+import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogActions, DialogTitle, Grid, Tabs, Tab } from '@mui/material'
 import { colorPalette } from '@/theme'
 import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
-import { thresholdApi, type ThresholdRule, type ThresholdMetrics, type KycTierRecord } from '@/api/thresholds'
+import { thresholdApi, type ThresholdRule, type ThresholdMetrics, type KycTierRecord, type ThresholdChange } from '@/api/thresholds'
 import { behavioralRuleApi, type BehavioralRule } from '@/api/behavioralRules'
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
-import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined'
 import SmartphoneOutlinedIcon from '@mui/icons-material/SmartphoneOutlined'
@@ -17,14 +15,6 @@ import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import { amlApi, type AmlSettings } from '@/api/aml'
 import RiskSeekbar from '@/components/dashboard/RiskSeekbar'
-
-const useCases = [
-  'Retail banking — high volume, low ticket',
-  'Wholesale / corporate banking',
-  'Microfinance bank operations',
-  'Fintech wallet (consumer)',
-  'BDC / FX bureau',
-]
 
 const tagColors: Record<string, string> = {
   AML: colorPalette.primary,
@@ -148,9 +138,9 @@ const ruleLanguage: Record<string, {
 }
 
 // Learn More Dialog — detailed, educational
-function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRule; value: number } | null; open: boolean; onClose: () => void }) {
+function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRule } | null; open: boolean; onClose: () => void }) {
   if (!state) return null
-  const { rule, value } = state
+  const { rule } = state
   const lang = ruleLanguage[rule.ruleId]
   const desc = plainEnglishDescriptions[rule.ruleId]
 
@@ -158,6 +148,9 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
   const fmt = (v: number) => isMonetary
     ? (v >= 1_000_000 ? `₦${(v / 1_000_000).toFixed(1)}M` : `₦${(v / 1_000).toFixed(0)}k`)
     : `${v} ${rule.unit || ''}`
+
+  // Use outward threshold for examples, fall back to inward, then base value
+  const exampleValue = rule.thresholdOutward ?? rule.thresholdInward ?? rule.thresholdValue
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
@@ -172,9 +165,19 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
         <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6 }}>
           {lang?.tagline ?? desc?.simple ?? rule.description}
         </Typography>
-        <Box sx={{ mt: 1.5, display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, bgcolor: `${colorPalette.primary}0d`, border: `1px solid ${colorPalette.primary}30` }}>
-          <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>Your current limit:</Typography>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{fmt(value)}</Typography>
+        {/* Per-direction limits */}
+        <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Outward (money sent)', value: rule.thresholdOutward },
+            { label: 'Inward (money received)', value: rule.thresholdInward },
+          ].map(({ label, value: v }) => (
+            <Box key={label} sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, bgcolor: v !== null ? `${colorPalette.primary}0d` : '#f8fafc', border: `1px solid ${v !== null ? colorPalette.primary + '30' : '#e2e8f0'}` }}>
+              <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{label}:</Typography>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: v !== null ? colorPalette.primary : '#cbd5e1', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                {v !== null ? fmt(v) : 'Not monitored'}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </Box>
 
@@ -184,14 +187,14 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
           {lang && (
             <Box>
               <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.8 }}>
-                When your customer transfers any amount above <strong>{fmt(value)}</strong>, our system receives it based on the rule you set — then we flag it. Your rule is the source of truth for the decision our AML engine makes.
+                When your customer transfers any amount above <strong>{fmt(exampleValue)}</strong>, our system receives it based on the rule you set — then we flag it. Your rule is the source of truth for the decision our AML engine makes.
               </Typography>
               <Box sx={{ mt: 1.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>
                   Example
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.75 }}>
-                  A customer <strong>Adaeze</strong> transfers <strong>{fmt(Math.floor(value * 1.55))}</strong> which is above your system's limit of <strong>{fmt(value)}</strong>. Our AML engine would flag the transaction on your behalf.
+                  A customer <strong>Adaeze</strong> transfers <strong>{fmt(Math.floor(exampleValue * 1.55))}</strong> which is above your system's limit of <strong>{fmt(exampleValue)}</strong>. Our AML engine would flag the transaction on your behalf.
                 </Typography>
               </Box>
             </Box>
@@ -213,7 +216,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
           {lang && (
             <Box>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
-                Real-world scenarios at your limit of {fmt(value)}
+                Real-world scenarios at your limit of {fmt(exampleValue)}
               </Typography>
 
               {/* Scenario 1: Transaction that PASSES */}
@@ -227,12 +230,12 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
                 <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#334155', lineHeight: 1.8, bgcolor: '#ffffff', p: 1.5, border: '1px solid #dbeafe', borderRadius: '4px', mb: 1.5 }}>
                   <div><strong>Customer:</strong> Aminu Bakara</div>
                   <div><strong>Transaction Type:</strong> Wire Transfer</div>
-                  <div><strong>Amount:</strong> {fmt(Math.floor(value * 0.65))}</div>
+                  <div><strong>Amount:</strong> {fmt(Math.floor(exampleValue * 0.65))}</div>
                   <div><strong>Destination:</strong> Kano Agricultural Suppliers Ltd</div>
                   <div><strong>Time:</strong> Tuesday, 9:15 AM</div>
                 </Box>
                 <Typography sx={{ fontSize: '0.75rem', color: '#166534', lineHeight: 1.7, mb: 1 }}>
-                  <strong>What OpenIV checks:</strong> Amount {fmt(Math.floor(value * 0.65))} is below your limit of {fmt(value)}. Time is during business hours. Destination is a known vendor.
+                  <strong>What OpenIV checks:</strong> Amount {fmt(Math.floor(exampleValue * 0.65))} is below your limit of {fmt(exampleValue)}. Time is during business hours. Destination is a known vendor.
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#166534', lineHeight: 1.7 }}>
                   <strong>Decision:</strong> ✓ APPROVED • Payment processed immediately • No compliance team intervention needed.
@@ -250,12 +253,12 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
                 <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#334155', lineHeight: 1.8, bgcolor: '#ffffff', p: 1.5, border: '1px solid #fecaca', borderRadius: '4px', mb: 1.5 }}>
                   <div><strong>Customer:</strong> Chioma Okonkwo</div>
                   <div><strong>Transaction Type:</strong> Wire Transfer</div>
-                  <div><strong>Amount:</strong> {fmt(Math.floor(value * 1.55))}</div>
+                  <div><strong>Amount:</strong> {fmt(Math.floor(exampleValue * 1.55))}</div>
                   <div><strong>Destination:</strong> Unknown International Account</div>
                   <div><strong>Time:</strong> Tuesday, 11:47 PM</div>
                 </Box>
                 <Typography sx={{ fontSize: '0.75rem', color: '#991b1b', lineHeight: 1.7, mb: 1 }}>
-                  <strong>What OpenIV checks:</strong> Amount {fmt(Math.floor(value * 1.55))} EXCEEDS your limit of {fmt(value)}. This triggers an automatic flag.
+                  <strong>What OpenIV checks:</strong> Amount {fmt(Math.floor(exampleValue * 1.55))} EXCEEDS your limit of {fmt(exampleValue)}. This triggers an automatic flag.
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#991b1b', lineHeight: 1.7, mb: 1 }}>
                   <strong>Decision:</strong> ⚠ FLAGGED • Transaction put on hold • Your compliance team receives an alert.
@@ -363,19 +366,41 @@ export default function ThresholdsPage() {
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<ThresholdMetrics | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(true)
-  const [drafts, setDrafts] = useState<Record<number, number>>({})
+  const [outwardDrafts, setOutwardDrafts] = useState<Record<number, number>>({})
+  const [inwardDrafts, setInwardDrafts] = useState<Record<number, number>>({})
   const [saving, setSaving] = useState(false)
-  const [selectedUseCase, setSelectedUseCase] = useState(0)
-  const [eurekaPrompt, setEurekaPrompt] = useState('')
-  const [learnMoreState, setLearnMoreState] = useState<{ rule: ThresholdRule; value: number } | null>(null)
+  const [learnMoreState, setLearnMoreState] = useState<{ rule: ThresholdRule } | null>(null)
 
-  const [pendingSave, setPendingSave] = useState<{ rule: ThresholdRule; newValue: number } | null>(null)
+  const [pendingSave, setPendingSave] = useState<{ rule: ThresholdRule; direction: 'outward' | 'inward'; newValue: number | null } | null>(null)
   const [pendingToggle, setPendingToggle] = useState<{ rule: ThresholdRule; newActive: boolean } | null>(null)
+
+  const [auditOpen, setAuditOpen] = useState(false)
+  const [auditChanges, setAuditChanges] = useState<ThresholdChange[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditFilter, setAuditFilter] = useState('')
+  const [auditDateFrom, setAuditDateFrom] = useState('')
+  const [auditDateTo, setAuditDateTo] = useState('')
+  const [auditPage, setAuditPage] = useState(0)
+
+  const openAuditLog = async () => {
+    setAuditOpen(true)
+    setAuditLoading(true)
+    setAuditFilter('')
+    setAuditDateFrom('')
+    setAuditDateTo('')
+    setAuditPage(0)
+    try {
+      const res = await thresholdApi.allHistory()
+      setAuditChanges(res.changes)
+    } finally {
+      setAuditLoading(false)
+    }
+  }
 
   const [activeTab, setActiveTab] = useState(0)
   const [amlSettings, setAmlSettings] = useState<AmlSettings | null>(null)
-  const [amlDrafts, setAmlDrafts] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number }>({})
-  const [amlPendingSave, setAmlPendingSave] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number } | null>(null)
+  const [amlDrafts, setAmlDrafts] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number, kycRiskNormalThreshold?: number, kycRiskCaseThreshold?: number }>({})
+  const [amlPendingSave, setAmlPendingSave] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number, kycRiskNormalThreshold?: number, kycRiskCaseThreshold?: number } | null>(null)
 
   // Behavioral Rules state
   const [behRules, setBehRules] = useState<BehavioralRule[]>([])
@@ -414,16 +439,22 @@ export default function ThresholdsPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleSlider = (id: number, value: number) => {
-    setDrafts(prev => ({ ...prev, [id]: value }))
-  }
+  const handleOutwardSlider = (id: number, value: number) => setOutwardDrafts(prev => ({ ...prev, [id]: value }))
+  const handleInwardSlider  = (id: number, value: number) => setInwardDrafts(prev => ({ ...prev, [id]: value }))
 
   const handleSaveConfirm = useCallback(async () => {
     if (!pendingSave || saving) return
     setSaving(true)
     try {
-      await thresholdApi.update(pendingSave.rule.id, { threshold: pendingSave.newValue })
-      setDrafts(prev => { const n = { ...prev }; delete n[pendingSave.rule.id]; return n })
+      const payload = pendingSave.direction === 'outward'
+        ? { outwardThreshold: pendingSave.newValue }
+        : { inwardThreshold: pendingSave.newValue }
+      await thresholdApi.update(pendingSave.rule.id, payload)
+      if (pendingSave.direction === 'outward') {
+        setOutwardDrafts(prev => { const n = { ...prev }; delete n[pendingSave.rule.id]; return n })
+      } else {
+        setInwardDrafts(prev => { const n = { ...prev }; delete n[pendingSave.rule.id]; return n })
+      }
       await loadData()
     } finally { setSaving(false); setPendingSave(null) }
   }, [pendingSave, saving, loadData])
@@ -468,6 +499,8 @@ export default function ThresholdsPage() {
         behRiskScoreNormalThreshold: amlPendingSave.behRiskScoreNormalThreshold ?? amlSettings.behRiskScoreNormalThreshold ?? 45,
         behRiskScoreFlagThreshold: amlPendingSave.behRiskScoreFlagThreshold ?? amlSettings.behRiskScoreFlagThreshold ?? 45,
         behRiskScoreCaseThreshold: amlPendingSave.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85,
+        kycRiskNormalThreshold: amlPendingSave.kycRiskNormalThreshold ?? amlSettings.kycRiskNormalThreshold ?? 40,
+        kycRiskCaseThreshold: amlPendingSave.kycRiskCaseThreshold ?? amlSettings.kycRiskCaseThreshold ?? 75,
       }
       console.log('[AML Save] Payload:', payload)
       const res = await amlApi.updateSettings(payload)
@@ -551,11 +584,22 @@ export default function ThresholdsPage() {
     { label: 'Rules paused', value: metrics?.pausedCount ?? null, sub: 'not scoring transactions' },
   ]
 
+  const AUDIT_PAGE_SIZE = 20
+  const filteredAuditChanges = auditChanges.filter(c => {
+    const matchesFilter = !auditFilter ||
+      (c.ruleName ?? '').toLowerCase().includes(auditFilter.toLowerCase()) ||
+      c.field.toLowerCase().includes(auditFilter.toLowerCase())
+    const matchesFrom = !auditDateFrom || new Date(c.createdAt) >= new Date(auditDateFrom)
+    const matchesTo = !auditDateTo || new Date(c.createdAt) <= new Date(auditDateTo + 'T23:59:59')
+    return matchesFilter && matchesFrom && matchesTo
+  })
+  const pagedAuditChanges = filteredAuditChanges.slice(auditPage * AUDIT_PAGE_SIZE, (auditPage + 1) * AUDIT_PAGE_SIZE)
+
   return (
     <Box sx={{ p: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
         {/* Page header */}
-        <Box sx={{ mb: 4 }}>
+        <Box>
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Configure
           </Typography>
@@ -563,7 +607,7 @@ export default function ThresholdsPage() {
             Detection Thresholds
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Tune the rules that flag suspicious activity — manually, or let Eureka recommend optimal values for your business
+            Tune the rules that flag suspicious activity across transaction detection, behavioral patterns, and risk scoring
           </Typography>
         </Box>
       </Box>
@@ -588,10 +632,7 @@ export default function ThresholdsPage() {
         <Tab label="Risk Score Configuration" />
       </Tabs>
 
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-
-        {/* Left: rules */}
-        <Stack gap={3} sx={{ flex: 1, minWidth: 0 }}>
+      <Stack gap={3}>
 
           {activeTab === 0 && (
           <>
@@ -629,7 +670,7 @@ export default function ThresholdsPage() {
                   Drag the slider to adjust a threshold, then save to apply
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid #e5e7eb', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}>
+              <Box onClick={openAuditLog} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid #e5e7eb', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}>
                 <HistoryRoundedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>Audit Log</Typography>
               </Box>
@@ -646,8 +687,6 @@ export default function ThresholdsPage() {
 
             {/* Rule rows */}
             {!loading && rules.map((rule) => {
-              const displayValue = drafts[rule.id] ?? rule.thresholdValue
-              const hasDraft = drafts[rule.id] !== undefined && drafts[rule.id] !== rule.thresholdValue
               const tagColor = tagColors[rule.tag] ?? '#64748b'
               const desc = plainEnglishDescriptions[rule.ruleId]
               const lang = ruleLanguage[rule.ruleId]
@@ -680,7 +719,7 @@ export default function ThresholdsPage() {
                       </Typography>
                       <Button
                         startIcon={<HelpOutlineRoundedIcon sx={{ fontSize: '0.875rem' }} />}
-                        onClick={() => setLearnMoreState({ rule, value: displayValue })}
+                        onClick={() => setLearnMoreState({ rule })}
                         sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, textTransform: 'none', fontFamily: 'Jost', p: 0, '&:hover': { bgcolor: 'transparent', opacity: 0.75 } }}
                       >
                         Learn more
@@ -699,57 +738,86 @@ export default function ThresholdsPage() {
                     </Box>
                   </Box>
 
-                  {/* Threshold control */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                    <Box sx={{ minWidth: 100 }}>
-                      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
-                        Threshold
-                      </Typography>
-                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                        {fmtThreshold(rule, displayValue)}
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ flex: 1, px: 1 }}>
-                      <Slider
-                        value={displayValue}
-                        onChange={(_, v) => handleSlider(rule.id, v as number)}
-                        min={rule.minValue}
-                        max={rule.maxValue}
-                        step={rule.stepValue}
-                        disabled={!rule.isActive}
-                        sx={{
-                          color: colorPalette.primary,
-                          '& .MuiSlider-track': { height: 4, border: 'none' },
-                          '& .MuiSlider-rail': { height: 4, color: '#e5e7eb', opacity: 1 },
-                          '& .MuiSlider-thumb': {
-                            width: 14, height: 14,
-                            bgcolor: '#ffffff', border: `2px solid ${colorPalette.primary}`,
-                            '&:hover, &.Mui-focusVisible': { boxShadow: `0 0 0 6px ${colorPalette.primary}20` },
-                          },
-                        }}
-                      />
-                    </Box>
-
-                    {/* Save button — visible only when slider differs from saved value */}
-                    <Box sx={{ minWidth: 72, display: 'flex', justifyContent: 'flex-end' }}>
-                      {hasDraft && (
-                        <Box
-                          onClick={() => setPendingSave({ rule, newValue: drafts[rule.id] })}
-                          sx={{
-                            px: 1.5, py: 0.625,
-                            bgcolor: colorPalette.primary, color: '#ffffff',
-                            fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
-                            cursor: 'pointer', transition: 'opacity 0.15s',
-                            borderRadius: 0,
-                            '&:hover': { opacity: 0.88 },
-                          }}
-                        >
-                          Save
+                  {/* Per-direction threshold controls */}
+                  {(
+                    [
+                      { dir: 'outward', label: 'Outward', sub: 'money sent', threshold: rule.thresholdOutward, draft: outwardDrafts[rule.id], setDraft: handleOutwardSlider },
+                      { dir: 'inward',  label: 'Inward',  sub: 'money received', threshold: rule.thresholdInward, draft: inwardDrafts[rule.id], setDraft: handleInwardSlider },
+                    ] as const
+                  ).map(({ dir, label, sub, threshold, draft, setDraft }) => {
+                    const displayVal = draft ?? (threshold ?? rule.minValue)
+                    const hasDraft = draft !== undefined && draft !== threshold
+                    const disabled = threshold === null
+                    return (
+                      <Box key={dir} sx={{ mt: dir === 'outward' ? 2 : 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {/* Direction label */}
+                        <Box sx={{ minWidth: 120 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                            <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: disabled ? '#cbd5e1' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                              {label}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>· {sub}</Typography>
+                          </Box>
+                          {disabled ? (
+                            <Typography sx={{ fontSize: '0.75rem', color: '#cbd5e1', fontStyle: 'italic' }}>Not monitored</Typography>
+                          ) : (
+                            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                              {fmtThreshold(rule, displayVal)}
+                            </Typography>
+                          )}
                         </Box>
-                      )}
-                    </Box>
-                  </Box>
+
+                        {/* Slider */}
+                        <Box sx={{ flex: 1, px: 1, opacity: disabled ? 0.3 : 1 }}>
+                          <Slider
+                            value={displayVal}
+                            onChange={(_, v) => { if (!disabled) setDraft(rule.id, v as number) }}
+                            min={rule.minValue}
+                            max={rule.maxValue}
+                            step={rule.stepValue}
+                            disabled={!rule.isActive || disabled}
+                            sx={{
+                              color: colorPalette.primary,
+                              '& .MuiSlider-track': { height: 4, border: 'none' },
+                              '& .MuiSlider-rail': { height: 4, color: '#e5e7eb', opacity: 1 },
+                              '& .MuiSlider-thumb': {
+                                width: 14, height: 14,
+                                bgcolor: '#ffffff', border: `2px solid ${colorPalette.primary}`,
+                                '&:hover, &.Mui-focusVisible': { boxShadow: `0 0 0 6px ${colorPalette.primary}20` },
+                              },
+                            }}
+                          />
+                        </Box>
+
+                        {/* Action buttons */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120, justifyContent: 'flex-end' }}>
+                          {hasDraft && !disabled && (
+                            <Box
+                              onClick={() => setPendingSave({ rule, direction: dir, newValue: displayVal })}
+                              sx={{ px: 1.5, py: 0.5, bgcolor: colorPalette.primary, color: '#ffffff', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { opacity: 0.88 } }}
+                            >
+                              Save
+                            </Box>
+                          )}
+                          {disabled ? (
+                            <Box
+                              onClick={() => setPendingSave({ rule, direction: dir, newValue: rule.thresholdValue })}
+                              sx={{ px: 1.5, py: 0.5, border: `1px solid ${colorPalette.primary}`, color: colorPalette.primary, fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { bgcolor: `${colorPalette.primary}08` } }}
+                            >
+                              Enable
+                            </Box>
+                          ) : (
+                            <Box
+                              onClick={() => setPendingSave({ rule, direction: dir, newValue: null })}
+                              sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { borderColor: '#fca5a5', color: '#dc2626' } }}
+                            >
+                              Disable
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                    )
+                  })}
 
                   {/* Recommendation */}
                   {desc && (
@@ -945,15 +1013,6 @@ export default function ThresholdsPage() {
 
           {((activeTab === 1 && isBuildOne) || (activeTab === 2 && !isBuildOne)) && (
             <Box sx={{ maxWidth: 800, mx: 'auto', mt: 3 }}>
-              <Box sx={{ mb: 5 }}>
-                <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
-                  Global Risk Score Thresholds
-                </Typography>
-                <Typography sx={{ fontSize: '0.9375rem', color: '#475569', lineHeight: 1.6 }}>
-                  Configure the foundational risk boundaries for the AML pipeline. Transactions and behavioral events are scored from 0 to 100 based on the rules defined in the adjacent tabs. The thresholds below dictate the automated enforcement actions executed by the system.
-                </Typography>
-              </Box>
-
               {!amlSettings ? (
                 <Box sx={{ height: 200, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', borderRadius: '8px' }} />
               ) : (
@@ -961,7 +1020,7 @@ export default function ThresholdsPage() {
                   
                   {/* Transaction Scoring Thresholds */}
                   <Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
                       Transaction Scoring
                     </Typography>
                     <Stack gap={3}>
@@ -1022,7 +1081,7 @@ export default function ThresholdsPage() {
                   {/* Behavioral Scoring Thresholds */}
                   {!isBuildOne && (
                     <Box sx={{ mt: 2 }}>
-                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
                         Behavioral Analysis Scoring
                       </Typography>
                       <Stack gap={3}>
@@ -1082,6 +1141,66 @@ export default function ThresholdsPage() {
                     </Box>
                   )}
 
+                  {/* KYC Risk Profile Score */}
+                  <Box>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                      Risk Profile Score
+                    </Typography>
+                    <Stack gap={3}>
+                      <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
+                        KYC pipeline results are scored 0–100 and mapped to a customer risk profile. Configure the boundaries that determine whether a customer is cleared, flagged for review, or escalated to an open case.
+                      </Typography>
+                      <RiskSeekbar
+                        values={[
+                          amlDrafts.kycRiskNormalThreshold ?? amlSettings!.kycRiskNormalThreshold ?? 40,
+                          amlDrafts.kycRiskCaseThreshold ?? amlSettings!.kycRiskCaseThreshold ?? 75,
+                        ]}
+                        zoneLabels={['Normal', 'Flagged', 'Open Case']}
+                        onChange={([v0, v1]) =>
+                          setAmlDrafts(prev => ({
+                            ...prev,
+                            kycRiskNormalThreshold: v0,
+                            kycRiskCaseThreshold: v1,
+                          }))
+                        }
+                      />
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
+                        {[
+                          {
+                            label: 'Normal',
+                            range: `0 – ${(amlDrafts.kycRiskNormalThreshold ?? amlSettings!.kycRiskNormalThreshold ?? 40) - 1}`,
+                            note: 'Customer KYC cleared — no action required.',
+                            bg: '#f0fdf4', border: '#bbf7d0', title: '#15803d', sub: '#166534',
+                          },
+                          {
+                            label: 'Flagged',
+                            range: `${amlDrafts.kycRiskNormalThreshold ?? amlSettings!.kycRiskNormalThreshold ?? 40} – ${(amlDrafts.kycRiskCaseThreshold ?? amlSettings!.kycRiskCaseThreshold ?? 75) - 1}`,
+                            note: 'KYC incomplete or mismatched — queued for review.',
+                            bg: '#fffbeb', border: '#fde68a', title: '#d97706', sub: '#92400e',
+                          },
+                          {
+                            label: 'Open Case',
+                            range: `${amlDrafts.kycRiskCaseThreshold ?? amlSettings!.kycRiskCaseThreshold ?? 75} – 100`,
+                            note: 'High-risk profile — investigation case opened.',
+                            bg: '#fff1f2', border: '#fecdd3', title: '#b91c1c', sub: '#7f1d1d',
+                          },
+                        ].map(({ label, range, note, bg, border, title, sub }) => (
+                          <Box key={label} sx={{ p: 2, bgcolor: bg, borderRadius: 0, border: `1px solid ${border}` }}>
+                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: title, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+                              {label}
+                            </Typography>
+                            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: title, fontFamily: 'SF Mono, Monaco, monospace', mb: 0.25 }}>
+                              {range}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: sub, lineHeight: 1.45 }}>
+                              {note}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Stack>
+                  </Box>
+
                   {(Object.keys(amlDrafts).length > 0) && (
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 4, mt: 2, borderTop: '1px solid #eef0f4' }}>
                       <Button onClick={() => setAmlDrafts({})} sx={{ textTransform: 'none', color: '#475569', fontSize: '0.9375rem', fontWeight: 600 }}>
@@ -1100,86 +1219,7 @@ export default function ThresholdsPage() {
               )}
             </Box>
           )}
-        </Stack>
-
-        {/* Right: Eureka sidebar */}
-        <Stack gap={3} sx={{ width: 360, flexShrink: 0 }}>
-          <Box
-            data-ai-analyzable="true"
-            data-ai-description="Eureka Assist: AI-powered threshold tuning. Describe your business scenario or pick a preset use-case to generate optimal detection parameters."
-            sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
-            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
-              <Box sx={{ width: 32, height: 32, bgcolor: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 0 }}>
-                <AutoAwesomeOutlinedIcon sx={{ color: '#ffffff', fontSize: '1rem' }} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  Eureka Assist
-                </Typography>
-                <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
-                  Tune thresholds for your business
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{ p: 2.5 }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 1.25, fontFamily: 'Jost' }}>
-                Pick your use case
-              </Typography>
-              <Stack gap={0.5} sx={{ mb: 2.5 }}>
-                {useCases.map((u, i) => (
-                  <Box
-                    key={u}
-                    onClick={() => setSelectedUseCase(i)}
-                    data-ai-analyzable="true"
-                    data-ai-description={`Tuning Preset: ${u}. selected: ${selectedUseCase === i}.`}
-                    sx={{
-                      px: 1.5, py: 1.125, fontSize: '0.8125rem', cursor: 'pointer', fontFamily: 'Jost',
-                      color: selectedUseCase === i ? colorPalette.primary : '#475569',
-                      bgcolor: selectedUseCase === i ? `${colorPalette.primary}0a` : 'transparent',
-                      border: '1px solid', borderColor: selectedUseCase === i ? `${colorPalette.primary}30` : '#eef0f4',
-                      fontWeight: selectedUseCase === i ? 600 : 500,
-                      transition: 'all 0.15s',
-                      borderRadius: 0,
-                      '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary },
-                    }}>
-                    {u}
-                  </Box>
-                ))}
-              </Stack>
-
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 1.25, fontFamily: 'Jost' }}>
-                Or describe your scenario
-              </Typography>
-              <Box sx={{ bgcolor: '#f5f3fb', border: '1px solid transparent', p: 1.25, transition: 'all 0.18s', borderRadius: 0, '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary } }}>
-                <TextField
-                  multiline rows={3} fullWidth
-                  value={eurekaPrompt}
-                  onChange={e => setEurekaPrompt(e.target.value)}
-                  placeholder="e.g. We process B2B salary disbursements at month-end with average ticket size of ₦25M..."
-                  variant="standard"
-                  InputProps={{ disableUnderline: true }}
-                  sx={{ '& textarea': { fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', lineHeight: 1.5 } }}
-                />
-              </Box>
-
-              <Box sx={{
-                mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                bgcolor: colorPalette.primary, color: '#ffffff',
-                px: 2.25, py: 1.25, cursor: 'pointer', transition: 'opacity 0.15s',
-                borderRadius: 0,
-                '&:hover': { opacity: 0.88 },
-              }}>
-                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost' }}>
-                  Generate Recommended Thresholds
-                </Typography>
-                <SendRoundedIcon sx={{ fontSize: '1rem' }} />
-              </Box>
-            </Box>
-          </Box>
-        </Stack>
-      </Box>
-      {/* </Box> */}
+      </Stack>
 
       {activeTab === 0 && (
       <Box>
@@ -1312,14 +1352,21 @@ export default function ThresholdsPage() {
         onClose={() => setPendingSave(null)}
         onConfirm={handleSaveConfirm}
         operation="update"
-        title="Update detection threshold"
-        description="You're updating an active rule that affects how transactions are flagged for review. Confirm with your authenticator code to proceed."
+        title={pendingSave?.newValue === null ? `Disable ${pendingSave?.direction} threshold` : 'Update detection threshold'}
+        description={
+          pendingSave?.newValue === null
+            ? `This rule will no longer fire for ${pendingSave?.direction} transactions.`
+            : "You're updating an active rule that affects how transactions are flagged for review. Confirm with your authenticator code to proceed."
+        }
         resourceType="Rule"
         resourceName={pendingSave?.rule.name ?? ''}
         changes={pendingSave ? [{
-          field: 'Threshold',
-          from: fmtThreshold(pendingSave.rule, pendingSave.rule.thresholdValue),
-          to: fmtThreshold(pendingSave.rule, pendingSave.newValue),
+          field: pendingSave.direction === 'outward' ? 'Outward threshold' : 'Inward threshold',
+          from: (() => {
+            const cur = pendingSave.direction === 'outward' ? pendingSave.rule.thresholdOutward : pendingSave.rule.thresholdInward
+            return cur !== null ? fmtThreshold(pendingSave.rule, cur!) : 'Disabled'
+          })(),
+          to: pendingSave.newValue !== null ? fmtThreshold(pendingSave.rule, pendingSave.newValue) : 'Disabled',
         }] : []}
       />
 
@@ -1403,6 +1450,110 @@ export default function ThresholdsPage() {
           }] : [])
         ] : []}
       />
+
+      {/* Audit Log Dialog */}
+      <Dialog open={auditOpen} onClose={() => setAuditOpen(false)} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 0, height: '80vh', display: 'flex', flexDirection: 'column' } }}>
+        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 800, fontSize: '1.125rem', color: '#00288e', borderBottom: '1px solid #eef0f4', pb: 2, flexShrink: 0 }}>
+          Threshold Change Log
+        </DialogTitle>
+
+        {/* Filter toolbar */}
+        <Box sx={{ px: 3, py: 1.75, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', bgcolor: '#fafbfc', flexShrink: 0 }}>
+          <TextField
+            size="small"
+            placeholder="Filter by rule or field…"
+            value={auditFilter}
+            onChange={e => { setAuditFilter(e.target.value); setAuditPage(0) }}
+            sx={{ flex: 1, minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.8125rem' } }}
+          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0 }}>From</Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={auditDateFrom}
+              onChange={e => { setAuditDateFrom(e.target.value); setAuditPage(0) }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.8125rem' } }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0 }}>To</Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={auditDateTo}
+              onChange={e => { setAuditDateTo(e.target.value); setAuditPage(0) }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.8125rem' } }}
+            />
+          </Box>
+          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0 }}>
+            {filteredAuditChanges.length} result{filteredAuditChanges.length !== 1 ? 's' : ''}
+          </Typography>
+        </Box>
+
+        <DialogContent sx={{ p: 0, overflow: 'auto', flex: 1 }}>
+          {auditLoading ? (
+            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {[...Array(5)].map((_, i) => (
+                <Box key={i} sx={{ height: 48, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+              ))}
+            </Box>
+          ) : filteredAuditChanges.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                {auditChanges.length === 0 ? 'No changes recorded yet.' : 'No changes match your filters.'}
+              </Typography>
+            </Box>
+          ) : (
+            <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+              <Box component="thead" sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                <Box component="tr" sx={{ bgcolor: '#f8fafc' }}>
+                  {['Rule', 'Field', 'From', 'To', 'Changed by', 'When'].map(h => (
+                    <Box component="th" key={h} sx={{ px: 2, py: 1.25, textAlign: 'left', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid #eef0f4' }}>
+                      {h}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <Box component="tbody">
+                {pagedAuditChanges.map(c => (
+                  <Box component="tr" key={c.id} sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' }, '&:hover': { bgcolor: '#fafbfc' } }}>
+                    <Box component="td" sx={{ px: 2, py: 1.25, fontWeight: 600, color: '#00288e' }}>{c.ruleName ?? '—'}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem' }}>{c.field}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#64748b' }}>{c.oldValue ?? '—'}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#10b981', fontWeight: 600 }}>{c.newValue}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#475569' }}>{c.changedByName}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(c.createdAt).toLocaleString()}</Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+
+        {/* Pagination */}
+        {!auditLoading && filteredAuditChanges.length > AUDIT_PAGE_SIZE && (
+          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Showing {auditPage * AUDIT_PAGE_SIZE + 1}–{Math.min((auditPage + 1) * AUDIT_PAGE_SIZE, filteredAuditChanges.length)} of {filteredAuditChanges.length}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box
+                onClick={() => { if (auditPage > 0) setAuditPage(p => p - 1) }}
+                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 600, color: auditPage === 0 ? '#cbd5e1' : '#475569', cursor: auditPage === 0 ? 'default' : 'pointer', borderRadius: 0, '&:hover': auditPage === 0 ? {} : { bgcolor: '#f8fafc' } }}
+              >
+                Previous
+              </Box>
+              <Box
+                onClick={() => { if ((auditPage + 1) * AUDIT_PAGE_SIZE < filteredAuditChanges.length) setAuditPage(p => p + 1) }}
+                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 600, color: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? '#cbd5e1' : '#475569', cursor: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? 'default' : 'pointer', borderRadius: 0, '&:hover': (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? {} : { bgcolor: '#f8fafc' } }}
+              >
+                Next
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </Dialog>
 
     </Box>)
 }

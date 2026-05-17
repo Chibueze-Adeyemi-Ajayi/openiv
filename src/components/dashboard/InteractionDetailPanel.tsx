@@ -12,6 +12,17 @@ interface Props {
   onClose: () => void
 }
 
+const KNOWN_KEYS = ['activity_name', 'note', 'user_name', 'action', 'event', 'user_id', 'customer_id', 'ip_address', 'location', 'device_name', 'os']
+
+function detectImageSrc(val: string): string | null {
+  if (val.startsWith('data:image/')) return val
+  if (val.startsWith('/9j/') || val.startsWith('iVBOR') || val.startsWith('R0lGO') || val.startsWith('UklGR')) {
+    const mime = val.startsWith('/9j/') ? 'jpeg' : val.startsWith('iVBOR') ? 'png' : val.startsWith('R0lGO') ? 'gif' : 'webp'
+    return `data:image/${mime};base64,${val}`
+  }
+  return null
+}
+
 function riskColor(score: number) {
   return score >= 70 ? '#dc2626' : score >= 40 ? '#f59e0b' : '#10b981'
 }
@@ -112,11 +123,13 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
                 {beam.id}
               </Typography>
             </Box>
-            <Box sx={{ px: 1, py: 0.375, bgcolor: statusCfg.bg, flexShrink: 0, borderRadius: 0 }}>
-              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: statusCfg.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {statusCfg.label}
-              </Typography>
-            </Box>
+            {beam.stream !== 'kyc' && (
+              <Box sx={{ px: 1, py: 0.375, bgcolor: statusCfg.bg, flexShrink: 0, borderRadius: 0 }}>
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: statusCfg.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  {statusCfg.label}
+                </Typography>
+              </Box>
+            )}
             <Button
               size="small"
               startIcon={<AccountCircleOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
@@ -144,21 +157,23 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
 
         {/* Scrollable body */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
-          {/* Risk score */}
-          <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid #eef0f4', bgcolor: `${rc}04` }}>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
-              <Typography sx={{ fontSize: '2.25rem', fontWeight: 800, color: rc, fontFamily: 'Jost', lineHeight: 1 }}>
-                {risk}
-              </Typography>
-              <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: rc, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
-                {riskLabel(risk)} RISK
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
+          {/* Risk score — hidden for KYC beams (score is always 0/unscored there) */}
+          {beam.stream !== 'kyc' && (
+            <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid #eef0f4', bgcolor: `${rc}04` }}>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
+                <Typography sx={{ fontSize: '2.25rem', fontWeight: 800, color: rc, fontFamily: 'Jost', lineHeight: 1 }}>
+                  {risk}
+                </Typography>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: rc, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                  {riskLabel(risk)} RISK
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
+              </Box>
+              <Box sx={{ height: 6, bgcolor: '#f1f5f9', position: 'relative' }}>
+                <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${risk}%`, bgcolor: rc, transition: 'width 0.6s ease' }} />
+              </Box>
             </Box>
-            <Box sx={{ height: 6, bgcolor: '#f1f5f9', position: 'relative' }}>
-              <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${risk}%`, bgcolor: rc, transition: 'width 0.6s ease' }} />
-            </Box>
-          </Box>
+          )}
 
           <Section title="Overview">
             <Field label="Action" value={String(parsed.activity_name || parsed.action || parsed.event || 'Interaction')} />
@@ -177,11 +192,24 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
             <Field label="User Agent" value={beam.userAgent} />
           </Section>
 
-          {Object.keys(parsed).filter(k => !['activity_name', 'note', 'user_name', 'action', 'event', 'user_id', 'customer_id', 'ip_address', 'location', 'device_name', 'os'].includes(k)).length > 0 && (
+          {Object.keys(parsed).filter(k => !KNOWN_KEYS.includes(k)).length > 0 && (
             <Section title="Additional Payload Data">
-              {Object.entries(parsed).filter(([k]) => !['activity_name', 'note', 'user_name', 'action', 'event', 'user_id', 'customer_id', 'ip_address', 'location', 'device_name', 'os'].includes(k)).map(([k, v]) => (
-                <Field key={k} label={k} value={typeof v === 'object' ? JSON.stringify(v) : String(v)} />
-              ))}
+              {Object.entries(parsed).filter(([k]) => !KNOWN_KEYS.includes(k)).map(([k, v]) => {
+                const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v)
+                const imgSrc = detectImageSrc(strVal)
+                if (imgSrc) {
+                  return (
+                    <Box key={k} sx={{ mb: 0.875, '&:last-child': { mb: 0 } }}>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, mb: 0.5, textTransform: 'capitalize' }}>
+                        {k.replace(/_/g, ' ')}
+                      </Typography>
+                      <Box component="img" src={imgSrc} alt={k}
+                        sx={{ width: '100%', maxHeight: 200, objectFit: 'contain', bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'block' }} />
+                    </Box>
+                  )
+                }
+                return <Field key={k} label={k.replace(/_/g, ' ')} value={strVal} />
+              })}
             </Section>
           )}
 

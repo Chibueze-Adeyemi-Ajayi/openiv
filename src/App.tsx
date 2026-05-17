@@ -30,6 +30,8 @@ import CBNCompliancePage from '@/pages/dashboard/CBNCompliancePage'
 import BehavioralPatternsPage from '@/pages/dashboard/BehavioralPatternsPage'
 import NotificationsPage from '@/pages/dashboard/NotificationsPage'
 import UserProfilePage from '@/pages/dashboard/UserProfilePage'
+import HighRiskCustomersPage from '@/pages/dashboard/HighRiskCustomersPage'
+import CustomersPage from '@/pages/dashboard/CustomersPage'
 import AuthVerifyTOTPPage from '@/pages/auth/VerifyTOTPPage'
 import GeoBlockedPage from '@/pages/auth/GeoBlockedPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -73,7 +75,9 @@ function App() {
         <Route path="patterns" element={<ComingSoonRoute title="Behavioral Pattern Matching"><BehavioralPatternsPage /></ComingSoonRoute>} />
         <Route path="aml" element={<AMLPage />} />
         <Route path="kyc" element={<KYCPage />} />
+        <Route path="customers" element={<CustomersPage />} />
         <Route path="users/:id" element={<UserProfilePage />} />
+        <Route path="high-risk" element={<HighRiskCustomersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="heatmaps" element={<ComingSoonRoute title="Geospatial Heatmaps"><HeatmapsPage /></ComingSoonRoute>} />
         <Route path="cbn" element={<CBNCompliancePage />} />
