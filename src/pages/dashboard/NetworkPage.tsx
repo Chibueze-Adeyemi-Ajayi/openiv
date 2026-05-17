@@ -383,7 +383,7 @@ function matchesTime(iso: string, f: TimeF) {
 
 function makeCurl(e: Entry) {
   const base = e.source === 'beam'
-    ? 'https://api.openiv.io'
+    ? 'https://api.openiv.ng'
     : e.endpoint
   const url = e.source === 'beam' ? base + e.endpoint : e.endpoint
   const headers = Object.entries(e.reqHeaders)

@@ -343,7 +343,7 @@ function buildCurl(s: Stream) {
       return `    "${f.field}": ${val}${comment}`
     })
     .join(',\n')
-  return `curl -X POST https://api.openiv.io/api/v1/beam/${s.id} \\
+  return `curl -X POST https://api.openiv.ng/api/v1/beam/${s.id} \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "X-Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
@@ -365,7 +365,7 @@ function buildNode(s: Stream) {
 const { v4: uuid } = require('uuid')
 
 const client = axios.create({
-  baseURL: 'https://api.openiv.io/api/v1/beam',
+  baseURL: 'https://api.openiv.ng/api/v1/beam',
   headers: { 'Authorization': \`Bearer \${process.env.OPENIV_BEAM_KEY}\` },
 })
 
@@ -388,7 +388,7 @@ function buildPython(s: Stream) {
   return `import httpx, uuid, os
 
 client = httpx.Client(
-    base_url='https://api.openiv.io/api/v1/beam',
+    base_url='https://api.openiv.ng/api/v1/beam',
     headers={'Authorization': f'Bearer {os.environ["OPENIV_BEAM_KEY"]}'},
 )
 
@@ -425,7 +425,7 @@ func Beam${fn}(data map[string]any) error {
 ${fields}
     })
     req, _ := http.NewRequest("POST",
-        "https://api.openiv.io/api/v1/beam/${s.id}",
+        "https://api.openiv.ng/api/v1/beam/${s.id}",
         bytes.NewReader(payload))
     req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENIV_BEAM_KEY"))
     req.Header.Set("Content-Type", "application/json")
@@ -438,6 +438,7 @@ ${fields}
     }
     return nil
 }`
+}
 }
 
 // ── Beam log helpers ──────────────────────────────────────────────────────────

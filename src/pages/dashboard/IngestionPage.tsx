@@ -198,7 +198,7 @@ export default function IngestionPage() {
 
           {source === 'api' && (
             <Box sx={{ bgcolor: '#00288e', color: '#e2e8f0', p: 2.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto' }}>
-              {`POST https://api.openiv.io/api/v1/ingest
+              {`POST https://api.openiv.ng/api/v1/ingest
 Authorization: Bearer ${'<YOUR_API_KEY>'}
 Content-Type: application/json
 
