@@ -124,6 +124,13 @@ public final class ConfigLoader {
     moveIntKey(merged, "OPENIV_DB_PIPELINING_LIMIT", db, "pipeliningLimit");
     moveBoolKey(merged, "OPENIV_DB_MIGRATE", db, "migrate");
     moveStringKey(merged, "OPENIV_DB_SSL_MODE", db, "sslMode");
+
+    // Auto-enable SSL in production environment (e.g. Render) if not explicitly overridden by system env
+    String env = merged.getString("environment", "production");
+    if ("production".equalsIgnoreCase(env) && System.getenv("OPENIV_DB_SSL_MODE") == null) {
+      db.put("sslMode", "require");
+    }
+
     merged.put("db", db);
 
     JsonObject security = merged.getJsonObject("security", new JsonObject());
