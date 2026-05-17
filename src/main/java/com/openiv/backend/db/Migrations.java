@@ -11,14 +11,17 @@ import org.slf4j.LoggerFactory;
 import javax.sql.DataSource;
 
 /**
- * Runs Flyway migrations once at startup on a worker thread. Flyway is JDBC-based and blocking;
+ * Runs Flyway migrations once at startup on a worker thread. Flyway is
+ * JDBC-based and blocking;
  * it must never execute on a Vert.x event loop.
  */
 public final class Migrations {
 
   private static final Logger log = LoggerFactory.getLogger(Migrations.class);
 
-  private Migrations() {}
+  // Migartions
+  private Migrations() {
+  }
 
   public static Future<Void> run(Vertx vertx, DbConfig db) {
     return vertx.executeBlocking(() -> {
