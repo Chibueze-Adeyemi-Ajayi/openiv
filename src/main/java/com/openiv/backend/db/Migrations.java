@@ -31,6 +31,7 @@ public final class Migrations {
             .validateOnMigrate(true)
             .load();
 
+        flyway.repair();
         MigrateResult result = flyway.migrate();
         log.info("Flyway applied {} migration(s), schema now at version {}",
             result.migrationsExecuted, result.targetSchemaVersion);

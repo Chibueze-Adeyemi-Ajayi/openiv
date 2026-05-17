@@ -58,49 +58,51 @@ public final class ConfigLoader {
   private ConfigLoader() {}
 
   public static Future<AppConfig> load(Vertx vertx) {
-    JsonObject defaults = readClasspathJson(CLASSPATH_DEFAULTS);
+    JsonObject config = readClasspathJson(CLASSPATH_DEFAULTS);
 
-    ConfigStoreOptions defaultsStore = new ConfigStoreOptions()
-        .setType("json")
-        .setConfig(defaults);
+    // Paths to check for filesystem overrides (in priority order)
+    String[] overridePaths = {
+        "config/application.json",
+        "application.json",
+        "/etc/secrets/application.json"
+    };
 
-    ConfigStoreOptions overridesStore = new ConfigStoreOptions()
-        .setType("file")
-        .setFormat("json")
-        .setConfig(new JsonObject().put("path", "config/application.json"))
-        .setOptional(true);
-
-    ConfigStoreOptions rootOverridesStore = new ConfigStoreOptions()
-        .setType("file")
-        .setFormat("json")
-        .setConfig(new JsonObject().put("path", "application.json"))
-        .setOptional(true);
-
-    ConfigStoreOptions secretsOverridesStore = new ConfigStoreOptions()
-        .setType("file")
-        .setFormat("json")
-        .setConfig(new JsonObject().put("path", "/etc/secrets/application.json"))
-        .setOptional(true);
-
-    JsonArray envKeys = new JsonArray();
-    for (String key : ENV_KEYS) {
-      envKeys.add(key);
+    for (String path : overridePaths) {
+      java.io.File file = new java.io.File(path);
+      if (file.exists() && file.canRead()) {
+        try {
+          String content = java.nio.file.Files.readString(file.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+          JsonObject overrideJson = new JsonObject(content);
+          deepMerge(config, overrideJson);
+          System.out.println("[Config] Loaded and merged override file: " + path);
+        } catch (Exception e) {
+          System.err.println("[Config] Failed to read override file " + path + ": " + e.getMessage());
+        }
+      }
     }
-    ConfigStoreOptions envStore = new ConfigStoreOptions()
-        .setType("env")
-        .setConfig(new JsonObject().put("keys", envKeys));
 
-    ConfigRetrieverOptions opts = new ConfigRetrieverOptions()
-        .addStore(defaultsStore)
-        .addStore(overridesStore)
-        .addStore(rootOverridesStore)
-        .addStore(secretsOverridesStore)
-        .addStore(envStore);
+    // Merge system environment variables
+    for (String key : ENV_KEYS) {
+      String val = System.getenv(key);
+      if (val != null) {
+        config.put(key, val);
+      }
+    }
 
-    return ConfigRetriever.create(vertx, opts)
-        .getConfig()
-        .map(ConfigLoader::applyEnvOverrides)
-        .map(AppConfig::from);
+    JsonObject merged = applyEnvOverrides(config);
+    return Future.succeededFuture(AppConfig.from(merged));
+  }
+
+  private static void deepMerge(JsonObject target, JsonObject source) {
+    for (String key : source.fieldNames()) {
+      Object sourceVal = source.getValue(key);
+      Object targetVal = target.getValue(key);
+      if (sourceVal instanceof JsonObject && targetVal instanceof JsonObject) {
+        deepMerge((JsonObject) targetVal, (JsonObject) sourceVal);
+      } else {
+        target.put(key, sourceVal);
+      }
+    }
   }
 
   private static JsonObject applyEnvOverrides(JsonObject merged) {
