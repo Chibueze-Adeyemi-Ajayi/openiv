@@ -91,7 +91,7 @@ export interface CreateCaseInput {
   notes?: string
   transactionId?: string
   reason: string
-  documentId: number
+  documentId: number | null
   customerId?: string
   customerName?: string
 }

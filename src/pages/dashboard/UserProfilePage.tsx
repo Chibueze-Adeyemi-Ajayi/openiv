@@ -9,7 +9,7 @@ import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard
 import FileReportDialog from '@/components/dashboard/FileReportDialog'
 import CustomerRulesPanel from '@/components/dashboard/CustomerRulesPanel'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, type ReactElement } from 'react'
 import { transactionApi, type Transaction } from '@/api/transactions'
 import { beamApi, type BeamRecord } from '@/api/beam'
 import { customerApi, type Customer } from '@/api/customers'
@@ -116,7 +116,7 @@ function StepRow({ label, status, score, detail, state = 'done' }: {
     )
   }
   const s = status ?? 'unverified'
-  const cfg: Record<string, { color: string; bg: string; icon: JSX.Element }> = {
+  const cfg: Record<string, { color: string; bg: string; icon: ReactElement }> = {
     pass:       { color: '#16a34a', bg: '#f0fdf4', icon: <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem' }} /> },
     fail:       { color: '#dc2626', bg: '#fef2f2', icon: <CancelOutlinedIcon sx={{ fontSize: '1rem' }} /> },
     error:      { color: '#f59e0b', bg: '#fffbeb', icon: <WarningAmberRoundedIcon sx={{ fontSize: '1rem' }} /> },
@@ -295,7 +295,7 @@ export default function UserProfilePage() {
       let p: any = {}
       try { p = JSON.parse(b.payload) } catch { }
       const st = determineStatus(b)
-      const streamLabel: Record<string, { icon: JSX.Element; label: string }> = {
+      const streamLabel: Record<string, { icon: ReactElement; label: string }> = {
         logins:      { icon: <LoginRoundedIcon />,       label: 'Login' },
         location:    { icon: <LocationOnOutlinedIcon />, label: 'Location update' },
         devices:     { icon: <SmartphoneOutlinedIcon />, label: 'Device activity' },

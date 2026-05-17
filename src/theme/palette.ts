@@ -39,6 +39,9 @@ export const colorPalette = {
   inverse_surface: '#313037',
   inverse_on_surface: '#f4eff4',
   inverse_primary: '#b3d9ff',
+
+  // Tertiary - Complementary purple accent
+  tertiary: '#7c3aed',
 };
 
 export type ColorKey = keyof typeof colorPalette;

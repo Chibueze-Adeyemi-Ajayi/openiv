@@ -33,8 +33,8 @@ function FlipTile({ value, label }: { value: number; label: string }) {
   const [settled, setSettled] = useState(curr)
   const [phase, setPhase]     = useState<FlipPhase>('idle')
   const incoming = useRef(curr)
-  const t1 = useRef<ReturnType<typeof setTimeout>>()
-  const t2 = useRef<ReturnType<typeof setTimeout>>()
+  const t1 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const t2 = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (curr === settled && phase === 'idle') return

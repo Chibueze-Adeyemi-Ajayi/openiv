@@ -155,6 +155,38 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
     if (open && caseId) { setData(null); setNote(''); setClosePickerOpen(false); setLocalStatus(null); setTabIndex(0); loadDetail() }
   }, [open, caseId, loadDetail])
 
+  const openNfiuDialog = useCallback(() => {
+    if (!cas) return
+    const tx = data?.transactions?.[0] ?? null
+    const today = new Date().toISOString().split('T')[0]
+    const prefill: ReportPrefill = {
+      reportType: 'STR',
+      title: `STR — ${cas.title}`,
+      subjectName: tx?.customer,
+      subjectAccount: tx?.senderAccount,
+      subjectType: 'individual',
+      amountNgn: tx ? String(tx.amount) : undefined,
+      transactionType: tx?.channel,
+      transactionDate: tx?.occurredAt ? tx.occurredAt.split('T')[0] : undefined,
+      transactionLocation: tx?.location || undefined,
+      transactionLat: tx?.lat,
+      transactionLng: tx?.lng,
+      linkedTransactionId: tx?.id,
+      transactionSenderAccount: tx?.senderAccount,
+      transactionSenderBank: tx?.senderBank,
+      transactionRecipientName: tx?.recipientName,
+      transactionRecipientAccount: tx?.recipientAccount,
+      transactionRecipientBank: tx?.recipientBank,
+      transactionCurrency: tx?.currency,
+      transactionNarration: tx?.narration,
+      narrative: cas.notes
+        ? `Case: ${cas.title}\nTypology: ${cas.typology}\n\n${cas.notes}`
+        : `Case: ${cas.title}\nTypology: ${cas.typology}\n\nSuspicious transaction detected on ${today}. Risk score: ${cas.riskScore}.`,
+    }
+    setNfiuPrefill(prefill)
+    setNfiuOpen(true)
+  }, [cas, data])
+
   // File SAR/STR: transition to investigating (if needed) then open NFIU dialog immediately
   const fileSarStr = useCallback(async () => {
     if (!cas || actioning) return
@@ -238,38 +270,6 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
       const next = new Set(prev); next.add(id); saveDismissed(next); return next
     })
   }, [])
-
-  const openNfiuDialog = useCallback(() => {
-    if (!cas) return
-    const tx = data?.transactions?.[0] ?? null
-    const today = new Date().toISOString().split('T')[0]
-    const prefill: ReportPrefill = {
-      reportType: 'STR',
-      title: `STR — ${cas.title}`,
-      subjectName: tx?.customer,
-      subjectAccount: tx?.senderAccount,
-      subjectType: 'individual',
-      amountNgn: tx ? String(tx.amount) : undefined,
-      transactionType: tx?.channel,
-      transactionDate: tx?.occurredAt ? tx.occurredAt.split('T')[0] : undefined,
-      transactionLocation: tx?.location || undefined,
-      transactionLat: tx?.lat,
-      transactionLng: tx?.lng,
-      linkedTransactionId: tx?.id,
-      transactionSenderAccount: tx?.senderAccount,
-      transactionSenderBank: tx?.senderBank,
-      transactionRecipientName: tx?.recipientName,
-      transactionRecipientAccount: tx?.recipientAccount,
-      transactionRecipientBank: tx?.recipientBank,
-      transactionCurrency: tx?.currency,
-      transactionNarration: tx?.narration,
-      narrative: cas.notes
-        ? `Case: ${cas.title}\nTypology: ${cas.typology}\n\n${cas.notes}`
-        : `Case: ${cas.title}\nTypology: ${cas.typology}\n\nSuspicious transaction detected on ${today}. Risk score: ${cas.riskScore}.`,
-    }
-    setNfiuPrefill(prefill)
-    setNfiuOpen(true)
-  }, [cas, data])
 
   if (!open) return null
 
@@ -411,7 +411,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                     <ActionBtn label="File SAR / STR" color="#d97706" disabled={actioning}
                       onClick={fileSarStr} />
                   )}
-                  {(currentStatus === 'escalated' || (isL2 && currentStatus !== 'pending_review')) && (
+                  {(currentStatus === 'escalated' || isL2) && (
                     <Box sx={{ position: 'relative' }}>
                       <ActionBtn label="Close Case" color="#64748b" disabled={actioning}
                         onClick={() => setClosePickerOpen(v => !v)} />

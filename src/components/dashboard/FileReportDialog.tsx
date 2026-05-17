@@ -469,7 +469,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
   // ── Draft auto-save ──
   const [draftId, setDraftId]       = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const saveTimer                   = useRef<ReturnType<typeof setTimeout>>()
+  const saveTimer                   = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const isSaving                    = useRef(false)
 
   // ── Institution auto-save (fires when leaving institution tab) ──
@@ -720,7 +720,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
   }, [reportType])
 
   // Customer search debounce
-  const custDebounce = useRef<ReturnType<typeof setTimeout>>()
+  const custDebounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => {
     clearTimeout(custDebounce.current)
     custDebounce.current = setTimeout(() => {

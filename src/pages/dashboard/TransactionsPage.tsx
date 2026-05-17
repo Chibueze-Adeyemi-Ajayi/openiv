@@ -155,7 +155,7 @@ export default function TransactionsPage() {
     if (!bulkEvidenceTarget) return
     const target = bulkEvidenceTarget
     setBulkEvidenceTarget(null)
-    await transactionApi.bulkFlaggedStatus(selected, target, ev.reason, ev.documentId)
+    await transactionApi.bulkFlaggedStatus(selected, target, ev.reason, ev.documentId ?? undefined)
     setSelected([]); load()
   }
 
