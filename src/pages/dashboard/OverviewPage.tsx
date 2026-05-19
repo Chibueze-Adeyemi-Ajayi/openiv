@@ -9,14 +9,12 @@ import { useState, useCallback, useEffect } from 'react'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { customerApi, type Customer } from '@/api/customers'
-import { notificationsApi, type NotificationItem } from '@/api/notifications'
 import { useNavigate } from 'react-router-dom'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined'
 
 function pct(a: number, b: number) {
@@ -79,17 +77,11 @@ export default function OverviewPage() {
   const [fileNFIUOpen, setFileNFIUOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
   const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null)
-  const [riskNotif, setRiskNotif] = useState<NotificationItem | null>(null)
   const [topHighRisk, setTopHighRisk] = useState<Customer[]>([])
   const { stats, activity, beamEvents, caseEvents, connected } = useDashboardData()
   const currentUser = useCurrentUser()
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    notificationsApi.list(100).then(items => {
-      const report = items.find(n => n.type === 'risk_report_daily' && n.createdAt.slice(0, 10) === today)
-      if (report) setRiskNotif(report)
-    }).catch(() => {})
     customerApi.highRisk(1, 15).then(data => setTopHighRisk(data.customers)).catch(() => {})
   }, [])
 
@@ -411,50 +403,6 @@ export default function OverviewPage() {
             </Button>
           </Stack>
         </Box>
-
-        {/* Daily Risk Report Banner — only when nightly report ran today */}
-        {riskNotif && (
-          <Box
-            sx={{
-              mt: 3,
-              bgcolor: '#fef2f2',
-              border: '1px solid #fecaca',
-              p: 3,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 2,
-            }}
-          >
-            <WarningAmberOutlinedIcon sx={{ color: '#dc2626', mt: 0.25, flexShrink: 0 }} />
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#991b1b', mb: 0.5 }}>
-                {riskNotif.title}
-              </Typography>
-              <Typography sx={{ fontSize: '0.875rem', color: '#7f1d1d', lineHeight: 1.6 }}>
-                {riskNotif.body}
-              </Typography>
-            </Box>
-            <Button
-              onClick={() => navigate('/dashboard/customers?filter=high-risk')}
-              endIcon={<ArrowForwardOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
-              sx={{
-                bgcolor: '#dc2626',
-                color: '#ffffff',
-                fontFamily: 'Jost',
-                fontWeight: 600,
-                fontSize: '0.8125rem',
-                textTransform: 'none',
-                borderRadius: 0,
-                px: 2.25,
-                py: 1.125,
-                flexShrink: 0,
-                '&:hover': { bgcolor: '#b91c1c' },
-              }}
-            >
-              Review Now
-            </Button>
-          </Box>
-        )}
 
         <FileReportDialog
           open={fileNFIUOpen}

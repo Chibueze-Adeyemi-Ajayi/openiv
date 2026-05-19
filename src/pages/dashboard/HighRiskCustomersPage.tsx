@@ -80,17 +80,6 @@ export default function HighRiskCustomersPage() {
         </Typography>
       </Box>
 
-      {/* Summary bar */}
-      {!loading && !error && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, p: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
-          <WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />
-          <Typography sx={{ fontSize: '0.9375rem', color: '#991b1b', fontWeight: 600 }}>
-            {total === 0
-              ? 'No high-risk customers detected — your institution is within safe limits.'
-              : `${total} customer${total === 1 ? '' : 's'} flagged as high risk. Each one may require investigation or regulatory reporting.`}
-          </Typography>
-        </Box>
-      )}
 
       {/* Loading */}
       {loading && (

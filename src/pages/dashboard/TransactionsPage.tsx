@@ -1,5 +1,6 @@
 import { Box, Typography, Stack, Button, InputBase, Chip, IconButton, Alert, Popover } from '@mui/material'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import NavigationBreadcrumb from '@/components/dashboard/NavigationBreadcrumb'
 import { colorPalette } from '@/theme'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -204,6 +205,7 @@ export default function TransactionsPage() {
   return (
     <>
       <Box sx={{ p: 4 }}>
+        <NavigationBreadcrumb currentLabel="Transactions" />
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>

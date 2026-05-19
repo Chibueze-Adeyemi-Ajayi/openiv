@@ -22,6 +22,7 @@ export default function RequestAccessPage() {
         contactName: values.contactName.trim(),
         contactEmail: values.contactEmail.trim(),
         contactPhone: values.contactPhone.trim() || undefined,
+        jobTitle: values.jobTitle.trim() || undefined,
         description: values.description.trim() || undefined,
       })
       setSucceeded(true)

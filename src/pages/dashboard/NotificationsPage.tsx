@@ -4,8 +4,14 @@ import {
 import { colorPalette } from '@/theme'
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import { useDashboardEvents, useDashboardEventsMut } from '@/contexts/DashboardEventsContext'
 import { notificationsApi, notifSeverity, type NotificationItem } from '@/api/notifications'
+import { institutionAlertsApi, type InstitutionAlert } from '@/api/institutionAlerts'
+import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
@@ -129,6 +135,19 @@ function NotifRow({
   const cfg = sevConfig[sev]
   const unread = n.status === 'unread'
   const ref = useAutoMarkRead(n.id, unread, onRead)
+  const navigate = useNavigate()
+
+  const handleEntityBadgeClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!n.entityId || !n.entityType) return
+    if (unread) onRead(n.id)
+    const dest = n.entityType === 'transaction'
+      ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
+    navigate(dest, {
+      state: { breadcrumbs: [{ label: 'Notifications', path: '/dashboard/notifications' }] },
+    })
+  }
 
   return (
     <Box
@@ -226,6 +245,20 @@ function NotifRow({
         >
           {n.body}
         </Typography>
+        {n.entityId && n.entityType && (
+          <Box
+            onClick={handleEntityBadgeClick}
+            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1, py: 0.375, bgcolor: `${colorPalette.primary}0c`, border: `1px solid ${colorPalette.primary}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${colorPalette.primary}18` } }}>
+            {n.entityType === 'transaction'
+              ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.75rem', color: colorPalette.primary }} />
+              : <GavelOutlinedIcon sx={{ fontSize: '0.75rem', color: colorPalette.primary }} />
+            }
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+            </Typography>
+            <OpenInNewRoundedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary, opacity: 0.7 }} />
+          </Box>
+        )}
       </Box>
     </Box>
   )
@@ -245,9 +278,21 @@ function NotifDetailDrawer({
   const open = !!n
   const sev = n ? notifSeverity(n.type) : 'info'
   const cfg = sevConfig[sev]
+  const navigate = useNavigate()
 
   const handleMarkRead = () => {
     if (n && n.status === 'unread') onRead(n.id)
+  }
+
+  const handleViewEntity = () => {
+    if (!n?.entityId || !n.entityType) return
+    const dest = n.entityType === 'transaction'
+      ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
+    onClose()
+    navigate(dest, {
+      state: { breadcrumbs: [{ label: 'Notifications', path: '/dashboard/notifications' }] },
+    })
   }
 
   return (
@@ -369,20 +414,43 @@ function NotifDetailDrawer({
             sx={{
               px: 3, py: 2.25,
               borderTop: '1px solid #eef0f4',
-              display: 'flex', gap: 1.5, alignItems: 'center',
+              display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap',
             }}
           >
-            {n.status === 'unread' ? (
+            {n.entityId && n.entityType && (
               <Button
                 size="small"
-                startIcon={<MarkEmailReadOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />}
-                onClick={handleMarkRead}
+                startIcon={
+                  n.entityType === 'transaction'
+                    ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />
+                    : <GavelOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />
+                }
+                endIcon={<OpenInNewRoundedIcon sx={{ fontSize: '0.75rem !important' }} />}
+                onClick={handleViewEntity}
                 sx={{
                   bgcolor: colorPalette.primary, color: '#fff',
                   borderRadius: 0, textTransform: 'none',
                   fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
                   px: 2, boxShadow: 'none',
                   '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
+                }}
+              >
+                View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+              </Button>
+            )}
+            {n.status === 'unread' ? (
+              <Button
+                size="small"
+                startIcon={<MarkEmailReadOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />}
+                onClick={handleMarkRead}
+                sx={{
+                  bgcolor: n.entityId ? '#f8fafc' : colorPalette.primary,
+                  color: n.entityId ? '#475569' : '#fff',
+                  border: n.entityId ? '1px solid #e5e7eb' : 'none',
+                  borderRadius: 0, textTransform: 'none',
+                  fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
+                  px: 2, boxShadow: 'none',
+                  '&:hover': { bgcolor: n.entityId ? '#f1f5f9' : '#1e293b', boxShadow: 'none' },
                 }}
               >
                 Mark as read
@@ -448,11 +516,12 @@ export default function NotificationsPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [loading, setLoading]       = useState(true)
-  const [restNotifs, setRestNotifs] = useState<NotificationItem[]>([])
-  const [filter, setFilter]         = useState<FilterType>('all')
-  const [selected, setSelected]     = useState<NotificationItem | null>(null)
-  const didOpenRef                  = useRef(false)
+  const [loading, setLoading]           = useState(true)
+  const [restNotifs, setRestNotifs]     = useState<NotificationItem[]>([])
+  const [filter, setFilter]             = useState<FilterType>('all')
+  const [selected, setSelected]         = useState<NotificationItem | null>(null)
+  const didOpenRef                      = useRef(false)
+  const [surgeAlerts, setSurgeAlerts]   = useState<InstitutionAlert[]>([])
 
   // Location state passed by Topbar when navigating here
   const navState     = location.state as { from?: string; openNotifId?: number } | null
@@ -468,8 +537,14 @@ export default function NotificationsPage() {
   // Bootstrap from REST on mount — SSE notifInit may not have fired yet
   useEffect(() => {
     setLoading(true)
-    notificationsApi.list(100)
-      .then((items) => setRestNotifs(items))
+    Promise.all([
+      notificationsApi.list(100),
+      institutionAlertsApi.list(),
+    ])
+      .then(([items, alertRes]) => {
+        setRestNotifs(items)
+        setSurgeAlerts(alertRes.alerts.filter(a => a.status !== 'resolved'))
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -614,6 +689,64 @@ export default function NotificationsPage() {
             />
           ))}
         </Stack>
+
+        {/* Surge alerts — platform-wide fraud signals requiring investigation */}
+        {surgeAlerts.length > 0 && (
+          <Stack gap={1.5} sx={{ mb: 3 }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Platform Alerts — Action Required
+            </Typography>
+            {surgeAlerts.map(alert => (
+              <Box
+                key={alert.id}
+                sx={{
+                  p: 2.5, bgcolor: '#fffbeb', border: '2px solid #fcd34d',
+                  display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                  <Box sx={{ p: 1, bgcolor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <TrendingUpRoundedIcon sx={{ fontSize: '1.25rem', color: '#d97706' }} />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
+                      <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '0.9375rem', color: '#92400e' }}>
+                        {alert.title}
+                      </Typography>
+                      <Chip
+                        label={alert.status === 'investigating' ? 'Investigating' : 'Open'}
+                        size="small"
+                        sx={{
+                          borderRadius: 0.5, height: 20, fontFamily: 'Jost', fontSize: '0.625rem', fontWeight: 700,
+                          bgcolor: alert.status === 'investigating' ? '#fef9ee' : '#fef2f2',
+                          color: alert.status === 'investigating' ? '#d97706' : '#dc2626',
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.5 }}>
+                      {alert.metadata.surgePct !== undefined
+                        ? `Today's transaction volume is +${alert.metadata.surgePct}% above your expected baseline (${(alert.metadata.todayCount ?? 0).toLocaleString()} vs ${(alert.metadata.expectedCount ?? 0).toLocaleString()} expected).`
+                        : alert.message}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  size="small"
+                  startIcon={<SearchRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                  onClick={() => navigate(`/dashboard/investigate/${alert.id}`)}
+                  sx={{
+                    textTransform: 'none', fontFamily: 'Jost', fontWeight: 700, fontSize: '0.8125rem',
+                    borderRadius: 0, px: 2, py: 0.875, bgcolor: '#d97706', color: '#ffffff', boxShadow: 'none',
+                    flexShrink: 0,
+                    '&:hover': { bgcolor: '#b45309', boxShadow: 'none' },
+                  }}
+                >
+                  Investigate
+                </Button>
+              </Box>
+            ))}
+          </Stack>
+        )}
 
         {/* Content */}
         {loading ? (

@@ -28,6 +28,7 @@ function fmtThreshold(rule: ThresholdRule, value: number): string {
       ? `₦${(value / 1_000_000).toFixed(1)}M`
       : `₦${(value / 1_000).toFixed(0)}k`
   }
+  if (rule.ruleId === 'velocity-spike') return `+${value - 100}% vs yesterday`
   return String(value)
 }
 
@@ -82,6 +83,10 @@ const ruleLanguage: Record<string, {
   whyItMatters: string
   getScenario: (v: number) => { normalAmt: number; flaggedAmt: number; normalLabel: string; flaggedLabel: string }
   recommendation: string
+  // Optional overrides for rules that don't follow the standard amount-based pattern
+  howItWorksOverride?: string
+  skipScenarios?: boolean
+  scenarioText?: string
 }> = {
   'high-value-wire': {
     friendlyName: 'Large Transfer Alert',
@@ -135,6 +140,17 @@ const ruleLanguage: Record<string, {
     }),
     recommendation: 'Start at your typical BDC deal size or the most common international transfer size for your institution. Always require documentation (invoice, shipping contract, import licence) for any transfer above this threshold. The CBN expects financial institutions to be able to explain the purpose of every large international transaction.',
   },
+  'velocity-spike': {
+    friendlyName: 'Sudden Transaction Surge Alert',
+    tagline: 'Raises an alert when your bank\'s total number of transactions today is significantly higher than yesterday — a key warning sign of a coordinated fraud attack happening across multiple accounts at once.',
+    whatItChecks: 'the total number of transactions being processed across your entire institution today, compared to the same figure from yesterday.',
+    whyItMatters: 'When criminals coordinate an attack — a network of money mules all moving funds at the same time, a mass account takeover campaign, or a smurfing ring breaking large amounts into many small transfers — their collective activity causes your institution\'s overall transaction count to spike suddenly. This rule watches the big picture rather than individual customers. A normal Monday might bring 500 transactions. If a Monday suddenly brings 700, that 40% jump is a warning sign that something coordinated may be happening — even if no single account looks obviously suspicious on its own.',
+    getScenario: (_v) => ({ normalAmt: 0, flaggedAmt: 0, normalLabel: '', flaggedLabel: '' }),
+    howItWorksOverride: 'Instead of watching individual customers, this rule watches your entire institution at once. Every transaction that arrives adds to a running total for today. If that total climbs well above what you processed yesterday, the system raises an alert. The number you set is the percentage increase that should concern you — shown as "+30% vs yesterday" or "+50% vs yesterday". For example, "+30% vs yesterday" means: "alert me when today\'s volume is at least 30% higher than yesterday\'s." A larger number means a bigger surge is needed before an alert fires.',
+    skipScenarios: true,
+    scenarioText: 'Your institution processed 400 transactions yesterday (Monday). By midday on the following Monday it has already reached 520 transactions — and the day is only half over. At that pace, today will end at around 1,040 transactions, which is 160% of yesterday\'s total. Your Sudden Transaction Surge Alert fires and notifies your compliance team. They investigate and discover that 280 of those transactions belong to a cluster of recently opened accounts all receiving deposits and immediately sending them to other accounts — a textbook money mule network in operation.',
+    recommendation: '"+30% vs yesterday" is a sensible starting point. If your institution regularly sees large swings near salary payment dates, month-ends, or public holidays, raise it to "+50%" or "+60%" to avoid false alarms during those known busy periods. Avoid going below "+15%": anything lower will fire so often during normal busy days that your team will start ignoring the alerts, which defeats the purpose entirely.',
+  },
 }
 
 // Learn More Dialog — detailed, educational
@@ -153,7 +169,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
   const exampleValue = rule.thresholdOutward ?? rule.thresholdInward ?? rule.thresholdValue
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 0 } } }}>
       {/* Header */}
       <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: '1px solid #eef0f4' }}>
         <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
@@ -183,20 +199,25 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
 
       <DialogContent sx={{ pt: 3 }}>
         <Stack gap={3}>
-          {/* How the rule works - plain explanation */}
+          {/* How the rule works */}
           {lang && (
             <Box>
               <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.8 }}>
-                When your customer transfers any amount above <strong>{fmt(exampleValue)}</strong>, our system receives it based on the rule you set — then we flag it. Your rule is the source of truth for the decision our AML engine makes.
+                {lang.howItWorksOverride
+                  ? lang.howItWorksOverride
+                  : <>When your customer transfers any amount above <strong>{fmt(exampleValue)}</strong>, our system receives it based on the rule you set — then we flag it. Your rule is the source of truth for the decision our AML engine makes.</>
+                }
               </Typography>
-              <Box sx={{ mt: 1.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>
-                  Example
-                </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.75 }}>
-                  A customer <strong>Adaeze</strong> transfers <strong>{fmt(Math.floor(exampleValue * 1.55))}</strong> which is above your system's limit of <strong>{fmt(exampleValue)}</strong>. Our AML engine would flag the transaction on your behalf.
-                </Typography>
-              </Box>
+              {!lang.howItWorksOverride && (
+                <Box sx={{ mt: 1.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>
+                    Example
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.75 }}>
+                    A customer <strong>Adaeze</strong> transfers <strong>{fmt(Math.floor(exampleValue * 1.55))}</strong> which is above your system's limit of <strong>{fmt(exampleValue)}</strong>. Our AML engine would flag the transaction on your behalf.
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 
@@ -213,7 +234,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
           )}
 
           {/* Detailed Real-world scenarios */}
-          {lang && (
+          {lang && !lang.skipScenarios && (
             <Box>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
                 Real-world scenarios at your limit of {fmt(exampleValue)}
@@ -270,6 +291,20 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
             </Box>
           )}
 
+          {/* Scenario text for non-amount-based rules */}
+          {lang?.skipScenarios && lang.scenarioText && (
+            <Box>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
+                Real-world example
+              </Typography>
+              <Box sx={{ p: 2.5, bgcolor: '#fef9ee', border: '2px solid #fcd34d', borderRadius: '6px' }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.8 }}>
+                  {lang.scenarioText}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
           {/* How to set it */}
           {lang?.recommendation && (
             <Box sx={{ p: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
@@ -301,7 +336,7 @@ function MadLibInput({ value, onChange, width = 60, type = 'number' }: { value: 
         onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
         type={type}
         variant="standard"
-        InputProps={{ disableUnderline: true }}
+        slotProps={{ input: { disableUnderline: true } }}
         sx={{
           bgcolor: `${colorPalette.primary}15`,
           border: `1px solid ${colorPalette.primary}30`,
@@ -358,6 +393,13 @@ const plainEnglishDescriptions: Record<string, {
     example: 'Scenario: You set the threshold to ₦15M. A small business customer usually does BDC transactions under ₦5M. They submit a request for ₦20M USD conversion. Our system flags it. Your team calls the customer, confirms it\'s for machinery import, verifies the documentation, and approves it. Later, another request comes in from a new customer for ₦50M to an offshore account with no supporting documents. You block it.',
     recommendation: 'Set this based on your typical BDC transaction sizes. Most institutions can start at ₦10M–₦20M. As your cross-border business grows, you may adjust upward. Always require supporting documentation (invoices, contracts) for amounts above this threshold.',
   },
+  'velocity-spike': {
+    simple: 'Watches your entire bank\'s transaction activity and raises an alert when today\'s total volume is suddenly much higher than yesterday\'s — a sign that a coordinated fraud attack may be underway.',
+    whyItMatters: 'Individual fraud rules watch one customer at a time. This rule watches everybody at once. A sudden surge across the whole institution often means criminals are operating in a coordinated group — and no single-customer rule would catch that pattern on its own.',
+    howItWorks: 'OpenIV counts every transaction your institution processes each day. At the end of the day (or in real time as transactions arrive), it compares today\'s count to yesterday\'s. If today\'s count exceeds yesterday\'s by more than your configured percentage, an alert is raised for your compliance team to investigate.',
+    example: 'Your institution normally processes around 400 transactions on a Monday. One Monday it processes 600 — a 50% jump. The surge alert fires. Your team investigates and finds that 150 of those extra transactions came from newly opened accounts all forwarding funds to the same beneficiary group. That is a coordinated mule network, and this rule is what caught it.',
+    recommendation: 'Set the threshold to "+30% vs yesterday" as a starting point. If your institution regularly experiences high-volume days around salary cycles or month-ends, raise it to "+50%" or "+60%" to avoid unnecessary alerts on those known busy days.',
+  },
 }
 
 export default function ThresholdsPage() {
@@ -399,6 +441,10 @@ export default function ThresholdsPage() {
 
   const [activeTab, setActiveTab] = useState(0)
   const [amlSettings, setAmlSettings] = useState<AmlSettings | null>(null)
+  const [dailyTxnDraft, setDailyTxnDraft] = useState<number>(10)
+  const [dailyTxnSaving, setDailyTxnSaving] = useState(false)
+  const [expectedTxnDraft, setExpectedTxnDraft] = useState<number>(1000)
+  const [expectedTxnSaving, setExpectedTxnSaving] = useState(false)
   const [amlDrafts, setAmlDrafts] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number, kycRiskNormalThreshold?: number, kycRiskCaseThreshold?: number }>({})
   const [amlPendingSave, setAmlPendingSave] = useState<{ riskScoreFlagThreshold?: number, riskScoreCaseThreshold?: number, behRiskScoreFlagThreshold?: number, behRiskScoreCaseThreshold?: number, riskScoreNormalThreshold?: number, behRiskScoreNormalThreshold?: number, kycRiskNormalThreshold?: number, kycRiskCaseThreshold?: number } | null>(null)
 
@@ -428,6 +474,8 @@ export default function ThresholdsPage() {
       setBehRules(p.rules)
       setKycTiers(t.tiers)
       setAmlSettings(a.settings)
+      setDailyTxnDraft(a.settings?.dailyTxnLimit ?? 10)
+      setExpectedTxnDraft(a.settings?.expectedDailyTxnCount ?? 1000)
     } catch (err) {
       console.error(err)
     } finally {
@@ -660,97 +708,99 @@ export default function ThresholdsPage() {
             ))}
           </Box>
 
-          {/* Rules table */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  Transaction Detection Rules
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                  Drag the slider to adjust a threshold, then save to apply
-                </Typography>
-              </Box>
-              <Box onClick={openAuditLog} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid #e5e7eb', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}>
-                <HistoryRoundedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>Audit Log</Typography>
-              </Box>
+          {/* Transaction Detection Rules — section header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                Transaction Detection Rules
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                Drag the slider to adjust a threshold, then save to apply
+              </Typography>
             </Box>
+            <Box onClick={openAuditLog} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid #e5e7eb', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}>
+              <HistoryRoundedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>Audit Log</Typography>
+            </Box>
+          </Box>
 
-            {/* Skeleton */}
-            {loading && (
-              <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {[...Array(5)].map((_, i) => (
-                  <Box key={i} sx={{ height: 80, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
-                ))}
-              </Box>
-            )}
+          {/* Skeleton */}
+          {loading && (
+            <Stack gap={2}>
+              {[...Array(5)].map((_, i) => (
+                <Box key={i} sx={{ height: 160, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
+              ))}
+            </Stack>
+          )}
 
-            {/* Rule rows */}
-            {!loading && rules.map((rule) => {
-              const tagColor = tagColors[rule.tag] ?? '#64748b'
-              const desc = plainEnglishDescriptions[rule.ruleId]
-              const lang = ruleLanguage[rule.ruleId]
-              return (
-                <Box
-                  key={rule.id}
-                  data-ai-analyzable="true"
-                  data-ai-description={`Detection Rule: ${rule.name}. category: ${rule.tag}. current threshold: ${fmtThreshold(rule, rule.thresholdValue)}. fired: ${rule.firedCount} times. status: ${rule.isActive ? 'Active' : 'Paused'}.`}
-                  sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f4f5f7', opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s', '&:last-child': { borderBottom: 'none' } }}>
+          {/* Individual rule cards */}
+          {!loading && rules.map((rule) => {
+            const tagColor = tagColors[rule.tag] ?? '#64748b'
+            const desc = plainEnglishDescriptions[rule.ruleId]
+            const lang = ruleLanguage[rule.ruleId]
+            return (
+              <Box
+                key={rule.id}
+                data-ai-analyzable="true"
+                data-ai-description={`Detection Rule: ${rule.name}. category: ${rule.tag}. current threshold: ${fmtThreshold(rule, rule.thresholdValue)}. fired: ${rule.firedCount} times. status: ${rule.isActive ? 'Active' : 'Paused'}.`}
+                sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0, opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s' }}>
 
-                  {/* Row header */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.25 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.625 }}>
-                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                          {lang?.friendlyName ?? rule.name}
-                        </Typography>
-                        <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${tagColor}10`, borderRadius: 0 }}>
-                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: tagColor, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                            {rule.tag}
-                          </Typography>
-                        </Box>
-                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
-                          · {rule.firedCount} alerts fired
+                {/* Card header */}
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.625 }}>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                        {lang?.friendlyName ?? rule.name}
+                      </Typography>
+                      <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${tagColor}10`, borderRadius: 0 }}>
+                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: tagColor, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                          {rule.tag}
                         </Typography>
                       </Box>
-                      {/* Plain-English description — visible immediately, no click required */}
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 1.125, lineHeight: 1.65 }}>
-                        {lang?.tagline ?? desc?.simple ?? rule.description}
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                        · {rule.firedCount} alerts fired
                       </Typography>
-                      <Button
-                        startIcon={<HelpOutlineRoundedIcon sx={{ fontSize: '0.875rem' }} />}
-                        onClick={() => setLearnMoreState({ rule })}
-                        sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, textTransform: 'none', fontFamily: 'Jost', p: 0, '&:hover': { bgcolor: 'transparent', opacity: 0.75 } }}
-                      >
-                        Learn more
-                      </Button>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Switch
-                        checked={rule.isActive}
-                        onChange={() => setPendingToggle({ rule, newActive: !rule.isActive })}
-                        size="small"
-                        sx={{
-                          '& .MuiSwitch-track': { borderRadius: 8 },
-                          '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
-                        }}
-                      />
-                    </Box>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 1.125, lineHeight: 1.65 }}>
+                      {lang?.tagline ?? desc?.simple ?? rule.description}
+                    </Typography>
+                    <Button
+                      startIcon={<HelpOutlineRoundedIcon sx={{ fontSize: '0.875rem' }} />}
+                      onClick={() => setLearnMoreState({ rule })}
+                      sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, textTransform: 'none', fontFamily: 'Jost', p: 0, '&:hover': { bgcolor: 'transparent', opacity: 0.75 } }}
+                    >
+                      Learn more
+                    </Button>
                   </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Switch
+                      checked={rule.isActive}
+                      onChange={() => setPendingToggle({ rule, newActive: !rule.isActive })}
+                      size="small"
+                      sx={{
+                        '& .MuiSwitch-track': { borderRadius: 8 },
+                        '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
+                      }}
+                    />
+                  </Box>
+                </Box>
 
+                {/* Card body — sliders + recommendation */}
+                <Box sx={{ px: 3, py: 2.5 }}>
                   {/* Per-direction threshold controls */}
                   {(
-                    [
-                      { dir: 'outward', label: 'Outward', sub: 'money sent', threshold: rule.thresholdOutward, draft: outwardDrafts[rule.id], setDraft: handleOutwardSlider },
-                      { dir: 'inward',  label: 'Inward',  sub: 'money received', threshold: rule.thresholdInward, draft: inwardDrafts[rule.id], setDraft: handleInwardSlider },
-                    ] as const
+                    rule.ruleId === 'velocity-spike'
+                      ? [{ dir: 'outward' as const, label: 'Surge threshold', sub: 'today vs yesterday', threshold: rule.thresholdOutward, draft: outwardDrafts[rule.id], setDraft: handleOutwardSlider }]
+                      : [
+                          { dir: 'outward' as const, label: 'Outward', sub: 'money sent', threshold: rule.thresholdOutward, draft: outwardDrafts[rule.id], setDraft: handleOutwardSlider },
+                          { dir: 'inward'  as const, label: 'Inward',  sub: 'money received', threshold: rule.thresholdInward, draft: inwardDrafts[rule.id], setDraft: handleInwardSlider },
+                        ]
                   ).map(({ dir, label, sub, threshold, draft, setDraft }) => {
                     const displayVal = draft ?? (threshold ?? rule.minValue)
                     const hasDraft = draft !== undefined && draft !== threshold
                     const disabled = threshold === null
                     return (
-                      <Box key={dir} sx={{ mt: dir === 'outward' ? 2 : 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box key={dir} sx={{ mt: dir === 'outward' ? 0 : 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
                         {/* Direction label */}
                         <Box sx={{ minWidth: 120 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
@@ -832,11 +882,167 @@ export default function ThresholdsPage() {
                     </Box>
                   )}
                 </Box>
-              )
-            })}
+              </Box>
+            )
+          })}
 
-            {/* Learn More Dialog */}
-            <LearnMoreDialog state={learnMoreState} open={!!learnMoreState} onClose={() => setLearnMoreState(null)} />
+          {/* Learn More Dialog */}
+          <LearnMoreDialog state={learnMoreState} open={!!learnMoreState} onClose={() => setLearnMoreState(null)} />
+
+          {/* Daily Transaction Limit */}
+          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  Daily Transaction Limit
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                  Maximum number of transactions a customer may perform in 24 hours before a frequency alert fires
+                </Typography>
+              </Box>
+              {amlSettings && dailyTxnDraft !== amlSettings.dailyTxnLimit && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setDailyTxnDraft(amlSettings.dailyTxnLimit)}
+                  sx={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'none', fontWeight: 600 }}
+                >
+                  Reset
+                </Button>
+              )}
+            </Box>
+            <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Transactions per day
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={dailyTxnDraft}
+                    onChange={e => setDailyTxnDraft(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                    slotProps={{ htmlInput: { min: 1, max: 10000 } }}
+                    sx={{
+                      width: 110,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: '#f8fafc',
+                        borderRadius: 0,
+                        '& fieldset': { borderColor: '#e2e8f0' },
+                        '&:hover fieldset': { borderColor: colorPalette.primary },
+                        '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+                      },
+                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: '#00288e' },
+                    }}
+                  />
+                  <Chip
+                    label={dailyTxnDraft === 10 ? 'Default' : dailyTxnDraft < 10 ? 'Stricter' : 'Permissive'}
+                    size="small"
+                    sx={{
+                      borderRadius: 0,
+                      fontSize: '0.625rem',
+                      fontWeight: 700,
+                      bgcolor: dailyTxnDraft === 10 ? '#f0fdf4' : dailyTxnDraft < 10 ? '#fef2f2' : '#fffbeb',
+                      color:  dailyTxnDraft === 10 ? '#10b981' : dailyTxnDraft < 10 ? '#dc2626' : '#d97706',
+                    }}
+                  />
+                </Box>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 220, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', px: 2.5, py: 2 }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+                  How this rule works
+                </Typography>
+                <Typography sx={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6 }}>
+                  When a customer exceeds <strong>{dailyTxnDraft}</strong> transaction{dailyTxnDraft !== 1 ? 's' : ''} within 24 hours, the engine raises a <strong>pat-5</strong> frequency alert and adds it to the transaction risk score. Raise this for high-frequency customers (merchants, agents); lower it for stricter monitoring.
+                </Typography>
+              </Box>
+              {amlSettings && dailyTxnDraft !== amlSettings.dailyTxnLimit && (
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', pb: 0.25 }}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={dailyTxnSaving}
+                    onClick={async () => {
+                      setDailyTxnSaving(true)
+                      try {
+                        const res = await amlApi.updateDailyTxnLimit(dailyTxnDraft)
+                        setAmlSettings(res.settings)
+                        setDailyTxnDraft(res.settings.dailyTxnLimit)
+                      } catch { /* keep draft */ }
+                      finally { setDailyTxnSaving(false) }
+                    }}
+                    sx={{ bgcolor: colorPalette.primary, color: '#fff', fontWeight: 700, fontSize: '0.8rem', px: 3, borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#1539a8' } }}
+                  >
+                    {dailyTxnSaving ? 'Saving…' : 'Save'}
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          {/* Expected Daily Transaction Volume — baseline for the Surge Alert */}
+          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                Expected Daily Transaction Volume
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                Your institution's normal number of transactions per day — used as the baseline for the Sudden Transaction Surge Alert
+              </Typography>
+            </Box>
+            <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Transactions per day
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={expectedTxnDraft}
+                    onChange={e => setExpectedTxnDraft(Math.max(1, Math.min(10_000_000, Number(e.target.value) || 1)))}
+                    slotProps={{ htmlInput: { min: 1, max: 10000000 } }}
+                    sx={{
+                      width: 130,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: '#f8fafc', borderRadius: 0,
+                        '& fieldset': { borderColor: '#e2e8f0' },
+                        '&:hover fieldset': { borderColor: colorPalette.primary },
+                        '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+                      },
+                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: '#00288e' },
+                    }}
+                  />
+                  {amlSettings && expectedTxnDraft !== amlSettings.expectedDailyTxnCount && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={expectedTxnSaving}
+                      onClick={async () => {
+                        setExpectedTxnSaving(true)
+                        try {
+                          const res = await amlApi.updateExpectedDailyTxnCount(expectedTxnDraft)
+                          setAmlSettings(res.settings)
+                          setExpectedTxnDraft(res.settings.expectedDailyTxnCount)
+                        } catch { /* keep draft */ }
+                        finally { setExpectedTxnSaving(false) }
+                      }}
+                      sx={{ bgcolor: colorPalette.primary, color: '#fff', fontWeight: 700, fontSize: '0.8rem', px: 3, borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#1539a8' } }}
+                    >
+                      {expectedTxnSaving ? 'Saving…' : 'Save'}
+                    </Button>
+                  )}
+                </Box>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 220, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', px: 2.5, py: 2 }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+                  How this is used
+                </Typography>
+                <Typography sx={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6 }}>
+                  When today's transaction count exceeds <strong>{expectedTxnDraft.toLocaleString()}</strong> by your configured surge threshold (e.g. +30%), the system creates a platform-wide alert and notifies your compliance team to investigate. Set this to your typical busiest-day volume so the alert only fires on genuine anomalies.
+                </Typography>
+              </Box>
+            </Box>
           </Box>
 
           </>
@@ -1436,7 +1642,7 @@ export default function ThresholdsPage() {
       />
 
       {/* Audit Log Dialog */}
-      <Dialog open={auditOpen} onClose={() => setAuditOpen(false)} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 0, height: '80vh', display: 'flex', flexDirection: 'column' } }}>
+      <Dialog open={auditOpen} onClose={() => setAuditOpen(false)} maxWidth="lg" fullWidth slotProps={{ paper: { sx: { borderRadius: 0, height: '80vh', display: 'flex', flexDirection: 'column' } } }}>
         <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 800, fontSize: '1.125rem', color: '#00288e', borderBottom: '1px solid #eef0f4', pb: 2, flexShrink: 0 }}>
           Threshold Change Log
         </DialogTitle>

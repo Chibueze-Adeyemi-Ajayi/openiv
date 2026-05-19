@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import NavigationBreadcrumb from '@/components/dashboard/NavigationBreadcrumb'
 import { Box, Typography, Stack, InputBase, Button, Chip, IconButton, Popover } from '@mui/material'
 import { colorPalette } from '@/theme'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
@@ -266,6 +267,7 @@ export default function AMLPage() {
   return (
     <>
       <Box sx={{ p: 4 }}>
+        <NavigationBreadcrumb currentLabel="AML Cases" />
 
         {/* Page header */}
         <Box sx={{ mb: 4 }}>

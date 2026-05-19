@@ -19,6 +19,7 @@ export interface RequestAccessFormValues {
   contactName: string
   contactEmail: string
   contactPhone: string
+  jobTitle: string
   description: string
 }
 
@@ -100,6 +101,7 @@ export default function RequestAccessForm({
     contactName: '',
     contactEmail: '',
     contactPhone: '',
+    jobTitle: '',
     description: '',
   })
 
@@ -173,84 +175,113 @@ export default function RequestAccessForm({
 
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
-          <Box>
-            <Typography sx={labelSx}>Institution Name</Typography>
-            <TextField
-              fullWidth
-              placeholder="Acme Bank Plc."
-              value={values.institutionName}
-              onChange={(e) => update('institutionName', e.target.value)}
-              autoFocus
-              autoComplete="off"
-              spellCheck={false}
-              sx={inputSx}
-            />
+          {/* Row 1: Institution Name + Type */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            <Box>
+              <Typography sx={labelSx}>Institution Name</Typography>
+              <TextField
+                fullWidth
+                placeholder="Acme Bank Plc."
+                value={values.institutionName}
+                onChange={(e) => update('institutionName', e.target.value)}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                sx={inputSx}
+              />
+            </Box>
+            <Box>
+              <Typography sx={labelSx}>Institution Type</Typography>
+              <Select
+                fullWidth
+                value={values.institutionType}
+                onChange={(e) => update('institutionType', e.target.value as AccountType)}
+                sx={{
+                  bgcolor: '#f5f3fb',
+                  borderRadius: 0,
+                  fontFamily: 'Jost',
+                  '& fieldset': { border: '1px solid transparent' },
+                  '&:hover fieldset': { borderColor: '#e4dff2' },
+                  '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+                  '& .MuiSelect-select': { py: '18px', px: '20px' },
+                }}
+              >
+                <MenuItem value="COMPANY">Company / Financial Institution</MenuItem>
+                <MenuItem value="INDIVIDUAL">Individual</MenuItem>
+                <MenuItem value="REGULATOR">Regulator</MenuItem>
+              </Select>
+            </Box>
           </Box>
 
-          <Box>
-            <Typography sx={labelSx}>Institution Type</Typography>
-            <Select
-              fullWidth
-              value={values.institutionType}
-              onChange={(e) => update('institutionType', e.target.value as AccountType)}
-              sx={{
-                bgcolor: '#f5f3fb',
-                borderRadius: 0,
-                fontFamily: 'Jost',
-                '& fieldset': { border: '1px solid transparent' },
-                '&:hover fieldset': { borderColor: '#e4dff2' },
-                '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                '& .MuiSelect-select': { py: '18px', px: '20px' },
-              }}
-            >
-              <MenuItem value="COMPANY">Company / Financial Institution</MenuItem>
-              <MenuItem value="INDIVIDUAL">Individual</MenuItem>
-              <MenuItem value="REGULATOR">Regulator</MenuItem>
-            </Select>
+          {/* Row 2: Contact Name + Job Title */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            <Box>
+              <Typography sx={labelSx}>Contact Name</Typography>
+              <TextField
+                fullWidth
+                placeholder="Full name of primary contact"
+                value={values.contactName}
+                onChange={(e) => update('contactName', e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                sx={inputSx}
+              />
+            </Box>
+            <Box>
+              <Typography sx={labelSx}>
+                Job Title / Role{' '}
+                <Box component="span" sx={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</Box>
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="e.g. CTO, Head of Compliance"
+                value={values.jobTitle}
+                onChange={(e) => update('jobTitle', e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                sx={inputSx}
+              />
+            </Box>
           </Box>
 
-          <Box>
-            <Typography sx={labelSx}>Contact Name</Typography>
-            <TextField
-              fullWidth
-              placeholder="Full name of primary contact"
-              value={values.contactName}
-              onChange={(e) => update('contactName', e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              sx={inputSx}
-            />
+          {/* Row 3: Contact Email + Phone */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            <Box>
+              <Typography sx={labelSx}>Contact Email</Typography>
+              <TextField
+                fullWidth
+                type="email"
+                placeholder="name@institution.com"
+                value={values.contactEmail}
+                onChange={(e) => update('contactEmail', e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                sx={inputSx}
+              />
+            </Box>
+            <Box>
+              <Typography sx={labelSx}>
+                Phone{' '}
+                <Box component="span" sx={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</Box>
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="+234 ..."
+                value={values.contactPhone}
+                onChange={(e) => update('contactPhone', e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                sx={inputSx}
+              />
+            </Box>
           </Box>
 
+          {/* Row 4: Description — full width */}
           <Box>
-            <Typography sx={labelSx}>Contact Email</Typography>
-            <TextField
-              fullWidth
-              type="email"
-              placeholder="name@institution.com"
-              value={values.contactEmail}
-              onChange={(e) => update('contactEmail', e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              sx={inputSx}
-            />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>Contact Phone (optional)</Typography>
-            <TextField
-              fullWidth
-              placeholder="+234 ..."
-              value={values.contactPhone}
-              onChange={(e) => update('contactPhone', e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              sx={inputSx}
-            />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>What do you need access for? (optional)</Typography>
+            <Typography sx={labelSx}>
+              What do you need access for?{' '}
+              <Box component="span" sx={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</Box>
+            </Typography>
             <TextField
               fullWidth
               multiline

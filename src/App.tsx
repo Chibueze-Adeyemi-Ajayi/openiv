@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import NotFoundPage, { DashboardNotFoundPage } from '@/pages/NotFoundPage'
 import LandingPage from '@/pages/LandingPage'
 import SolutionsPage from '@/pages/landing/SolutionsPage'
 import LandingNetworkPage from '@/pages/landing/NetworkPage'
@@ -29,14 +30,18 @@ import NetworkPage from '@/pages/dashboard/NetworkPage'
 import CBNCompliancePage from '@/pages/dashboard/CBNCompliancePage'
 import BehavioralPatternsPage from '@/pages/dashboard/BehavioralPatternsPage'
 import NotificationsPage from '@/pages/dashboard/NotificationsPage'
+import SurgeInvestigationPage from '@/pages/dashboard/SurgeInvestigationPage'
 import UserProfilePage from '@/pages/dashboard/UserProfilePage'
 import HighRiskCustomersPage from '@/pages/dashboard/HighRiskCustomersPage'
 import CustomersPage from '@/pages/dashboard/CustomersPage'
-import WaitlistPage from '@/pages/dashboard/WaitlistPage'
 import AuthVerifyTOTPPage from '@/pages/auth/VerifyTOTPPage'
 import GeoBlockedPage from '@/pages/auth/GeoBlockedPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import PublicRoute from '@/components/auth/PublicRoute'
+import SuperAdminRoute from '@/components/auth/SuperAdminRoute'
+import SuperAdminLayout from '@/pages/superadmin/SuperAdminLayout'
+import AccessRequestsPage from '@/pages/superadmin/AccessRequestsPage'
+import InstitutionsPage from '@/pages/superadmin/InstitutionsPage'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
 import { isBuildOne } from '@/utils/build'
@@ -80,6 +85,7 @@ function App() {
         <Route path="users/:id" element={<UserProfilePage />} />
         <Route path="high-risk" element={<HighRiskCustomersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="investigate/:alertId" element={<SurgeInvestigationPage />} />
         <Route path="heatmaps" element={<ComingSoonRoute title="Geospatial Heatmaps"><HeatmapsPage /></ComingSoonRoute>} />
         <Route path="cbn" element={<CBNCompliancePage />} />
         <Route path="reports" element={<ReportsPage />} />
@@ -91,8 +97,17 @@ function App() {
         <Route path="team" element={<TeamPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="waitlist" element={<WaitlistPage />} />
+        <Route path="*" element={<DashboardNotFoundPage />} />
       </Route>
+
+      {/* Super Admin */}
+      <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminLayout /></SuperAdminRoute>}>
+        <Route index element={<AccessRequestsPage />} />
+        <Route path="requests" element={<AccessRequestsPage />} />
+        <Route path="institutions" element={<InstitutionsPage />} />
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

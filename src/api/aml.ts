@@ -15,6 +15,8 @@ export interface AmlSettings {
   timezone: string
   kycRiskNormalThreshold: number
   kycRiskCaseThreshold: number
+  dailyTxnLimit: number
+  expectedDailyTxnCount: number
 }
 
 export const amlApi = {
@@ -54,5 +56,17 @@ export const amlApi = {
     apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings/timezone', {
       method: 'PATCH',
       body: { timezone },
+    }),
+
+  updateDailyTxnLimit: (dailyTxnLimit: number) =>
+    apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings/daily-txn-limit', {
+      method: 'PATCH',
+      body: { dailyTxnLimit },
+    }),
+
+  updateExpectedDailyTxnCount: (expectedDailyTxnCount: number) =>
+    apiRequest<{ settings: AmlSettings }>('/api/v1/aml-settings/expected-daily-txn-count', {
+      method: 'PATCH',
+      body: { expectedDailyTxnCount },
     }),
 }

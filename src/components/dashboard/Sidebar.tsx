@@ -21,7 +21,6 @@ import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
-import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
 import { transactionApi } from '@/api/transactions'
@@ -80,7 +79,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Workspace',
     items: [
-      { to: '/dashboard/waitlist',  icon: <HowToRegOutlinedIcon sx={{ fontSize: '1.25rem' }} />,            label: 'Waitlist' },
       { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles' },
       { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', badge: 'ADMIN' },
       { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings' },
@@ -250,8 +248,16 @@ export default function Sidebar() {
       </Box>
 
       {/* Nav */}
-      <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
-      <Box sx={{ height: '100%', overflowY: 'auto', px: 1.5 }}>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+      <Box sx={{
+        height: '100%', overflowY: 'scroll', px: 1.5,
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(255,255,255,0.18) transparent',
+        '&::-webkit-scrollbar': { width: 4 },
+        '&::-webkit-scrollbar-track': { background: 'transparent' },
+        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.18)', borderRadius: 2 },
+        '&::-webkit-scrollbar-thumb:hover': { background: 'rgba(255,255,255,0.32)' },
+      }}>
         {navGroups
           .map((group) => ({
             ...group,
@@ -386,15 +392,6 @@ export default function Sidebar() {
             })}
           </Box>
         ))}
-      </Box>
-      {/* Lemon scroll indicator */}
-      <Box sx={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: 52,
-        background: 'linear-gradient(to bottom, transparent, rgba(0,40,142,0.95))',
-        pointerEvents: 'none',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pb: 1,
-      }}>
-        <Box sx={{ width: 28, height: 3, borderRadius: 1.5, bgcolor: '#d9f99d', opacity: 0.65 }} />
       </Box>
       </Box>
 

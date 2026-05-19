@@ -9,6 +9,7 @@ export type RuleType =
   | 'allowed_banks_only'
   | 'blocked_channels'
   | 'rapid_post_deposit_withdrawal'
+  | 'sudden_withdrawal_after_deposit'
   | 'behavioral_pattern_deviation'
 
 export type RuleAction = 'block' | 'flag' | 'alert'

@@ -23,7 +23,7 @@ interface RuleTypeConfig {
   label: string
   emoji: string
   description: string
-  fields: ('amount' | 'banks' | 'channels' | 'velocity' | 'rapidWithdrawal')[]
+  fields: ('amount' | 'banks' | 'channels' | 'velocity' | 'rapidWithdrawal' | 'suddenWithdrawal')[]
 }
 
 const RULE_TYPES: Record<RuleType, RuleTypeConfig> = {
@@ -34,8 +34,9 @@ const RULE_TYPES: Record<RuleType, RuleTypeConfig> = {
   blocked_banks:                  { label: 'Blocked Banks',                   emoji: '🚫', description: 'Prevent transactions to or from specific banks.',                                    fields: ['banks'] },
   allowed_banks_only:             { label: 'Allowed Banks Only',              emoji: '✅', description: 'Whitelist — only allow transactions to approved banks.',                              fields: ['banks'] },
   blocked_channels:               { label: 'Blocked Channels',                emoji: '📵', description: 'Prevent use of specific transaction channels.',                                      fields: ['channels'] },
-  rapid_post_deposit_withdrawal:  { label: 'Rapid Post-Deposit Withdrawal',   emoji: '🔄', description: 'Flag outward transfers that withdraw a large share of a recent deposit (money laundering signal).', fields: ['rapidWithdrawal'] },
-  behavioral_pattern_deviation:   { label: 'Behavioural Pattern Deviation',   emoji: '🧠', description: 'Flag transactions that deviate significantly from this customer\'s historical patterns.',           fields: [] },
+  rapid_post_deposit_withdrawal:    { label: 'Rapid Post-Deposit Withdrawal',      emoji: '🔄', description: 'Flag outward transfers that withdraw a large share of a recent deposit (money laundering signal).', fields: ['rapidWithdrawal'] },
+  sudden_withdrawal_after_deposit:  { label: 'Sudden Withdrawal After Deposit',    emoji: '⚡', description: 'Flag or block outward transfers sent within minutes of a deposit — a strong pass-through fraud signal.',  fields: ['suddenWithdrawal'] },
+  behavioral_pattern_deviation:     { label: 'Behavioural Pattern Deviation',      emoji: '🧠', description: 'Flag transactions that deviate significantly from this customer\'s historical patterns.',                   fields: [] },
 }
 
 const DIRECTION_OPTIONS: { value: RuleDirection; label: string; hint: string }[] = [
@@ -80,6 +81,12 @@ function paramSummary(rule: CustomerTransactionRule): string {
       const wh = p.window_hours as number | undefined
       return ratio != null ? `${Math.round((ratio as number) * 100)}% in ${wh ?? 6}h` : '—'
     }
+    case 'sudden_withdrawal_after_deposit': {
+      const wm = p.window_minutes as number | undefined
+      const minAmt = p.min_amount as number | undefined
+      if (wm == null) return '—'
+      return `within ${wm}min` + (minAmt ? ` ≥ ₦${Number(minAmt).toLocaleString()}` : '')
+    }
     case 'behavioral_pattern_deviation': return 'Auto-detect'
     default: return '—'
   }
@@ -97,6 +104,8 @@ interface RuleFormState {
   channels: string[]
   withdrawalRatio: string
   withdrawalWindowHours: string
+  suddenWdMinutes: string
+  suddenWdMinAmount: string
 }
 
 const DEFAULT_FORM: RuleFormState = {
@@ -111,6 +120,8 @@ const DEFAULT_FORM: RuleFormState = {
   channels: [],
   withdrawalRatio: '50',
   withdrawalWindowHours: '6',
+  suddenWdMinutes: '30',
+  suddenWdMinAmount: '',
 }
 
 function formToPayload(form: RuleFormState): CreateRulePayload {
@@ -121,6 +132,10 @@ function formToPayload(form: RuleFormState): CreateRulePayload {
   if (cfg.fields.includes('banks'))            params = { banks: form.banks.split(',').map(b => b.trim()).filter(Boolean) }
   if (cfg.fields.includes('channels'))         params = { channels: form.channels }
   if (cfg.fields.includes('rapidWithdrawal'))  params = { min_withdrawal_ratio: Number(form.withdrawalRatio) / 100, window_hours: Number(form.withdrawalWindowHours) }
+  if (cfg.fields.includes('suddenWithdrawal')) {
+    params = { window_minutes: Number(form.suddenWdMinutes) }
+    if (form.suddenWdMinAmount) params.min_amount = Number(form.suddenWdMinAmount)
+  }
   return { ruleType: form.ruleType, params, action: form.action, direction: form.direction, description: form.description || undefined }
 }
 
@@ -138,6 +153,8 @@ function ruleToForm(rule: CustomerTransactionRule): RuleFormState {
     channels: (p.channels as string[] | undefined) ?? [],
     withdrawalRatio: p.min_withdrawal_ratio != null ? String(Math.round((p.min_withdrawal_ratio as number) * 100)) : '50',
     withdrawalWindowHours: (p.window_hours as number | undefined)?.toString() ?? '6',
+    suddenWdMinutes: (p.window_minutes as number | undefined)?.toString() ?? '30',
+    suddenWdMinAmount: (p.min_amount as number | undefined)?.toString() ?? '',
   }
 }
 
@@ -463,6 +480,29 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
                     onChange={e => setForm(f => ({ ...f, withdrawalWindowHours: e.target.value }))}
                     placeholder="e.g. 6"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }} />
+                </Box>
+              </Stack>
+            )}
+
+            {cfg.fields.includes('suddenWithdrawal') && (
+              <Stack direction="row" gap={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Time Window (minutes)</Typography>
+                  <TextField fullWidth size="small" type="number" value={form.suddenWdMinutes}
+                    onChange={e => setForm(f => ({ ...f, suddenWdMinutes: e.target.value }))}
+                    placeholder="e.g. 30"
+                    InputProps={{ endAdornment: <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', pl: 0.5 }}>min</Typography> }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }} />
+                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>Flag if a withdrawal occurs within this many minutes of a deposit.</Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Min Withdrawal Amount (optional)</Typography>
+                  <TextField fullWidth size="small" type="number" value={form.suddenWdMinAmount}
+                    onChange={e => setForm(f => ({ ...f, suddenWdMinAmount: e.target.value }))}
+                    placeholder="e.g. 50000 — leave blank for any amount"
+                    InputProps={{ startAdornment: <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', pr: 0.5 }}>₦</Typography> }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }} />
+                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>Only trigger if the withdrawal is at least this amount.</Typography>
                 </Box>
               </Stack>
             )}

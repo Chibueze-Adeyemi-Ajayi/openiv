@@ -7,6 +7,7 @@ export interface AccessRequestPayload {
   contactName: string
   contactEmail: string
   contactPhone?: string
+  jobTitle?: string
   description?: string
 }
 

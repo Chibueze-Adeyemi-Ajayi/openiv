@@ -375,7 +375,14 @@ export default function UserProfilePage() {
               <Box sx={{ flex: 1, minWidth: 280 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1, flexWrap: 'wrap' }}>
                   <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>{displayName}</Typography>
-                  {tierLabel && <Chip icon={<VerifiedOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />} label={tierLabel} size="small" sx={{ bgcolor: tierBg, color: tierColor, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22, '& .MuiChip-icon': { color: tierColor, ml: 0.875 } }} />}
+                  {kyc?.overallStatus && (
+                    <Chip
+                      icon={<VerifiedOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                      label={kyc.overallStatus.toUpperCase()}
+                      size="small"
+                      sx={{ bgcolor: tierBg, color: tierColor, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22, '& .MuiChip-icon': { color: tierColor, ml: 0.875 } }}
+                    />
+                  )}
                 </Box>
                 <Stack direction="row" gap={3} flexWrap="wrap" sx={{ mb: 2 }}>
                   {[
@@ -391,6 +398,29 @@ export default function UserProfilePage() {
                       <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
                     </Box>
                   ))}
+                  {/* KYC Tier — always visible, shows tier bars + status */}
+                  <Box>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>KYC Tier</Typography>
+                    {kyc?.kycTier != null ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {[1, 2, 3].map(t => (
+                            <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= kyc.kycTier ? colorPalette.primary : '#e5e7eb', borderRadius: '2px' }} />
+                          ))}
+                        </Box>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost' }}>
+                          Tier {kyc.kycTier}
+                        </Typography>
+                        <Box sx={{ px: 0.875, py: 0.25, bgcolor: tierBg, borderRadius: '3px' }}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            {kyc.overallStatus}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace' }}>—</Typography>
+                    )}
+                  </Box>
                 </Stack>
                 <Stack direction="row" gap={1}>
                   <Button

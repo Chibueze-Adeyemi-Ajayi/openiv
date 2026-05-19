@@ -7,6 +7,8 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
@@ -61,13 +63,29 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
 
   const handleNotifClick = async (n: NotificationItem) => {
     setNotifAnchor(null)
+    if (n.status === 'unread') {
+      markNotifRead(n.id)
+      notificationsApi.markRead(n.id).catch(() => {})
+    }
     navigate('/dashboard/notifications', {
       state: { from: location.pathname, openNotifId: n.id },
     })
+  }
+
+  const handleEntityClick = (e: React.MouseEvent, n: NotificationItem) => {
+    e.stopPropagation()
+    if (!n.entityId || !n.entityType) return
+    setNotifAnchor(null)
     if (n.status === 'unread') {
       markNotifRead(n.id)
-      await notificationsApi.markRead(n.id).catch(() => {})
+      notificationsApi.markRead(n.id).catch(() => {})
     }
+    const dest = n.entityType === 'transaction'
+      ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
+    navigate(dest, {
+      state: { breadcrumbs: [{ label: 'Notifications', path: '/dashboard/notifications' }] },
+    })
   }
 
   const handleViewAll = () => {
@@ -411,6 +429,19 @@ export default function Topbar({ onOpenEureka }: TopbarProps) {
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {n.body}
                   </Typography>
+                  {n.entityId && n.entityType && (
+                    <Box
+                      onClick={(e) => handleEntityClick(e, n)}
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, px: 1, py: 0.25, bgcolor: `${colorPalette.primary}0c`, border: `1px solid ${colorPalette.primary}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${colorPalette.primary}18` } }}>
+                      {n.entityType === 'transaction'
+                        ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary }} />
+                        : <GavelOutlinedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary }} />
+                      }
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               </Box>
             )

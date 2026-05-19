@@ -1,4 +1,4 @@
-import { Box, Tooltip } from '@mui/material'
+import { Box, Tooltip, Typography, Button } from '@mui/material'
 import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
@@ -10,9 +10,12 @@ import { EurekaProvider, useEureka } from '@/contexts/EurekaContext'
 import { SessionSocketProvider } from '@/contexts/SessionSocketContext'
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LoginAttemptAlert from './LoginAttemptAlert'
 import GeoAccessNotification from './GeoAccessNotification'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
@@ -24,9 +27,13 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   setEurekaOpen: (v: boolean) => void
 }) {
   const { eurekaEnabled } = useEureka()
-  const { securityEvents, geoAccessRequests } = useDashboardEvents()
-  const [dismissed,    setDismissed]    = useState<Set<string>>(new Set())
-  const [dismissedGeo, setDismissedGeo] = useState<Set<number>>(new Set())
+  const { securityEvents, geoAccessRequests, notifications } = useDashboardEvents()
+  const navigate = useNavigate()
+  const [dismissed,       setDismissed]       = useState<Set<string>>(new Set())
+  const [dismissedGeo,    setDismissedGeo]    = useState<Set<number>>(new Set())
+  const [dismissedRiskId, setDismissedRiskId] = useState<string>(
+    () => localStorage.getItem('openiv.riskNotifDismissed') ?? ''
+  )
 
   const visible    = securityEvents.filter(e => !dismissed.has(e.at))
   const latest     = visible[0] ?? null
@@ -36,13 +43,85 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   )
   const latestGeo  = pendingGeo[0] ?? null
 
+  const today = new Date().toISOString().slice(0, 10)
+  const riskNotif = notifications.find(n => n.type === 'risk_report_daily' && n.createdAt.slice(0, 10) === today) ?? null
+  const showRiskBanner = riskNotif !== null && String(riskNotif.id) !== dismissedRiskId
+
+  const dismissRisk = () => {
+    if (!riskNotif) return
+    const id = String(riskNotif.id)
+    localStorage.setItem('openiv.riskNotifDismissed', id)
+    setDismissedRiskId(id)
+  }
+
   return (
     <>
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'var(--app-bg)' }}>
         <Sidebar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <Topbar onOpenEureka={() => setEurekaOpen(true)} />
-          <Box sx={{ flex: 1, overflowY: 'auto' }}>{children}</Box>
+
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {/* Daily Risk Alert — sticky inside scroll container, pins just below the Topbar */}
+            {showRiskBanner && (
+              <Box
+                sx={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 9,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  px: 3,
+                  py: 1.25,
+                  bgcolor: '#fef2f2',
+                  borderBottom: '1px solid #fecaca',
+                }}
+              >
+                <WarningAmberRoundedIcon sx={{ fontSize: '1.125rem', color: '#dc2626', flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                  <Typography
+                    component="span"
+                    sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#991b1b', fontFamily: 'Jost', mr: 1 }}
+                  >
+                    {riskNotif.title}
+                  </Typography>
+                  <Typography
+                    component="span"
+                    sx={{ fontSize: '0.8125rem', color: '#7f1d1d' }}
+                  >
+                    {riskNotif.body}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.75rem !important' }} />}
+                  onClick={() => { dismissRisk(); navigate('/dashboard/high-risk') }}
+                  sx={{
+                    bgcolor: '#dc2626', color: '#fff', borderRadius: 0,
+                    textTransform: 'none', fontFamily: 'Jost',
+                    fontSize: '0.75rem', fontWeight: 700,
+                    px: 1.75, py: 0.625, flexShrink: 0, boxShadow: 'none',
+                    '&:hover': { bgcolor: '#b91c1c', boxShadow: 'none' },
+                  }}
+                >
+                  Review Now
+                </Button>
+                <Box
+                  onClick={dismissRisk}
+                  sx={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 26, height: 26, cursor: 'pointer', color: '#dc2626',
+                    borderRadius: '4px', flexShrink: 0,
+                    '&:hover': { bgcolor: '#fecaca' },
+                  }}
+                >
+                  <CloseRoundedIcon sx={{ fontSize: '0.9rem' }} />
+                </Box>
+              </Box>
+            )}
+            {children}
+          </Box>
         </Box>
         <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
         <InactivityGuard />

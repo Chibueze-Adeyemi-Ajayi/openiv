@@ -8,6 +8,8 @@ export interface NotificationItem {
   body:          string
   status:        'unread' | 'read'
   createdAt:     string
+  entityId?:     string | null
+  entityType?:   string | null  // 'transaction' | 'case' | ...
 }
 
 export type NotifSeverity = 'critical' | 'warning' | 'info' | 'success'

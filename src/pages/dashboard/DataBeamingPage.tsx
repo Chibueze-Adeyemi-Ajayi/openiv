@@ -1541,7 +1541,8 @@ export default function DataBeamingPage() {
                   fields: [
                     { label: 'stream', desc: 'Always "transactions" — echoes the stream back for client-side routing.' },
                     { label: 'status', desc: 'Always "received" for accepted payloads.' },
-                    { label: 'risk_score', desc: 'Blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Sender account conflicts add +20. Higher means riskier.' },
+                    { label: 'risk_score', desc: 'Final blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Sender account conflicts add +20. Use this as the primary decision signal.' },
+                    { label: 'transaction_risk_score', desc: 'The raw transaction-only risk score before KYC blending. Useful for diagnosing which component is driving the risk — compare with kyc_risk_score to see the split.' },
                     { label: 'kyc_risk_score', desc: 'The customer\'s KYC risk score at the time of the transaction. High values significantly boost the blended risk score.' },
                     { label: 'risk_level', desc: 'Categorical threat level: LOW (<30), MEDIUM (30–59), HIGH (60–74), or CRITICAL (≥75).' },
                     { label: 'recommended_action', desc: 'Automated decision based on your configured thresholds: ALLOW, HOLD, DECLINE, or KYC_REQUIRED (when no KYC is on file).' },
@@ -1556,7 +1557,7 @@ export default function DataBeamingPage() {
                     { label: 'processed_at', desc: 'ISO 8601 timestamp at which the analysis completed, in your institution\'s local time zone.' },
                   ],
                   label: 'Transaction response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "stream": "transactions",\n  "status": "received",\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "direction": "outward",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
+                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "stream": "transactions",\n  "status": "received",\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "transaction_risk_score": 68,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "direction": "outward",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
                 },
                 logins: {
                   intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
