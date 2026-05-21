@@ -85,10 +85,13 @@ public final class CustomerBehavioralProfileRepository {
   }
 
   private CustomerBehavioralProfile fromRow(Row r) {
-    String channelsJson    = r.getString("typical_channels");
-    String daysJson        = r.getString("typical_days");
-    String banksJson       = r.getString("typical_banks");
-    String categoriesJson  = r.getString("typical_categories");
+    // JSONB columns come back as JsonArray/JsonObject, not String — use getValue() then toString().
+    Object cv = r.getValue("typical_channels"),  dv = r.getValue("typical_days"),
+           bv = r.getValue("typical_banks"),      catv = r.getValue("typical_categories");
+    String channelsJson   = cv   != null ? cv.toString()   : null;
+    String daysJson       = dv   != null ? dv.toString()   : null;
+    String banksJson      = bv   != null ? bv.toString()   : null;
+    String categoriesJson = catv != null ? catv.toString() : null;
 
     List<String> channels   = jsonArrayToStrings(channelsJson);
     List<Integer> days      = jsonArrayToInts(daysJson);

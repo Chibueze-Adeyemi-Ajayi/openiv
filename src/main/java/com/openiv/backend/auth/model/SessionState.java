@@ -4,7 +4,7 @@ package com.openiv.backend.auth.model;
  * Session state machine.
  *
  * <pre>
- *   (new login)
+ *   (new login — organic)
  *       |
  *       v
  *   PENDING_EMAIL_VERIFICATION  ---[verify email code]-->  PENDING_TOTP_SETUP
@@ -15,6 +15,11 @@ package com.openiv.backend.auth.model;
  *                                                               v
  *                                                          AUTHENTICATED
  *
+ *   (team-invited user — first login)
+ *       |
+ *       v
+ *   MUST_CHANGE_PASSWORD  ---[set new password]-->  PENDING_TOTP_SETUP  -->  AUTHENTICATED
+ *
  *   (subsequent login, TOTP already enabled)
  *       |
  *       v
@@ -23,6 +28,7 @@ package com.openiv.backend.auth.model;
  */
 public enum SessionState {
   PENDING_EMAIL_VERIFICATION("pending_email_verification"),
+  MUST_CHANGE_PASSWORD("must_change_password"),
   PENDING_TOTP_SETUP("pending_totp_setup"),
   PENDING_TOTP_CHALLENGE("pending_totp_challenge"),
   AUTHENTICATED("authenticated"),

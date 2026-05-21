@@ -36,7 +36,7 @@ public final class BehavioralRuleRepository {
           "Customer logged in from distant locations physically impossible without supersonic travel. One session is using stolen credentials.",
           "Folake Adesanya · ACC-2840",
           "Account takeover · CBN Risk Code R-09", true,
-          new JsonObject().put("distance_km", 500).put("timeframe_hours", 2),
+          new JsonObject().put("distance_km", 500).put("timeframe_hours", 2).put("min_amount", 2_000_000),
           new JsonArray().add(new JsonObject().put("label", "Force re-authentication").put("primary", true))
                          .add(new JsonObject().put("label", "Lock newer session"))
                          .add(new JsonObject().put("label", "Notify customer via SMS"))),
@@ -52,7 +52,7 @@ public final class BehavioralRuleRepository {
           "Customers transacting outside their personal baseline of activity. Pattern often precedes coordinated cash-out.",
           "Avg ticket: ₦1.8M · to first-time beneficiaries",
           "Coordinated cash-out · CBN Watch List W-22", true,
-          new JsonObject().put("time_start", "02:00").put("time_end", "04:00").put("min_customers", 20),
+          new JsonObject().put("time_start", "02:00").put("time_end", "04:00").put("min_customers", 20).put("spike_ratio", 1.5),
           new JsonArray().add(new JsonObject().put("label", "Tighten night-window threshold").put("primary", true))
                          .add(new JsonObject().put("label", "Add to enhanced monitoring"))),
       new DefaultRule("pat-5", "Velocity ring — same beneficiary", "Velocity", "high",

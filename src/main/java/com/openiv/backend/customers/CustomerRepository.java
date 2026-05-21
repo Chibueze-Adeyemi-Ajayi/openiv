@@ -16,7 +16,7 @@ public final class CustomerRepository {
       "id, institution_id, external_id, name, email, phone, risk_score,"
       + " 0 AS risk_profile_score, 0 AS transaction_risk_score,"
       + " bvn, nin, photo, account_number, subject_type, dob, address, created_at, updated_at,"
-      + " watchlisted, watchlisted_at, watchlisted_reason";
+      + " watchlisted, watchlisted_at, watchlisted_reason, last_evaluated_at";
 
   // Average risk score of all cases for this customer, excluding closed+cleared (innocent) ones.
   private static final String RISK_PROFILE_SUBQ =
@@ -46,7 +46,8 @@ public final class CustomerRepository {
       + RISK_PROFILE_SUBQ + ","
       + TXN_RISK_SUBQ + ","
       + " c.bvn, c.nin, c.photo, c.account_number, c.subject_type, c.dob, c.address,"
-      + " c.created_at, c.updated_at, c.watchlisted, c.watchlisted_at, c.watchlisted_reason";
+      + " c.created_at, c.updated_at, c.watchlisted, c.watchlisted_at, c.watchlisted_reason,"
+      + " c.last_evaluated_at";
 
   private final Pool pool;
 
@@ -104,20 +105,22 @@ public final class CustomerRepository {
 
   public Future<Customer> updateProfile(long institutionId, String externalId,
       String bvn, String nin, String photo, String accountNumber, String subjectType,
-      java.time.LocalDate dob, String address) {
+      java.time.LocalDate dob, String address, Long photoDocumentId) {
     String sql = "UPDATE customers SET"
-        + " bvn            = COALESCE($3, bvn),"
-        + " nin            = COALESCE($4, nin),"
-        + " photo          = COALESCE($5, photo),"
-        + " account_number = COALESCE($6, account_number),"
-        + " subject_type   = COALESCE($7, subject_type),"
-        + " dob            = COALESCE($8, dob),"
-        + " address        = COALESCE($9, address),"
-        + " updated_at     = now()"
+        + " bvn              = COALESCE($3,  bvn),"
+        + " nin              = COALESCE($4,  nin),"
+        + " photo            = COALESCE($5,  photo),"
+        + " account_number   = COALESCE($6,  account_number),"
+        + " subject_type     = COALESCE($7,  subject_type),"
+        + " dob              = COALESCE($8,  dob),"
+        + " address          = COALESCE($9,  address),"
+        + " photo_document_id = COALESCE($10, photo_document_id),"
+        + " updated_at       = now()"
         + " WHERE institution_id = $1 AND external_id = $2"
         + " RETURNING " + SELECT_COLS;
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, externalId, bvn, nin, photo, accountNumber, subjectType, dob, address))
+        .execute(Tuple.of(institutionId, externalId, bvn, nin, photo,
+            accountNumber, subjectType, dob, address, photoDocumentId))
         .map(rs -> mapRow(rs.iterator().next()));
   }
 
@@ -143,8 +146,17 @@ public final class CustomerRepository {
         r.getOffsetDateTime("updated_at"),
         Boolean.TRUE.equals(r.getBoolean("watchlisted")),
         r.getOffsetDateTime("watchlisted_at"),
-        r.getString("watchlisted_reason")
+        r.getString("watchlisted_reason"),
+        r.getOffsetDateTime("last_evaluated_at")
     );
+  }
+
+  public Future<Void> updateLastEvaluated(long institutionId, String externalId) {
+    return pool.preparedQuery(
+            "UPDATE customers SET last_evaluated_at = now(), updated_at = now()"
+            + " WHERE institution_id = $1 AND external_id = $2")
+        .execute(Tuple.of(institutionId, externalId))
+        .mapEmpty();
   }
 
   public Future<Customer> watchlist(long institutionId, String externalId, String reason) {
@@ -178,6 +190,34 @@ public final class CustomerRepository {
             "UPDATE customers SET overall_risk_score = $3, updated_at = now()"
             + " WHERE institution_id = $1 AND external_id = $2")
         .execute(Tuple.of(institutionId, externalId, score))
+        .mapEmpty();
+  }
+
+  public Future<Void> refreshScore(long institutionId, String externalId) {
+    String sql = "UPDATE customers SET"
+        + " overall_risk_score = LEAST(100, ROUND("
+        + "   risk_score * 0.20"
+        + "   + COALESCE(("
+        + "       SELECT ROUND(AVG(cs.risk_score))::INT FROM cases cs"
+        + "       WHERE cs.customer_id = customers.external_id"
+        + "         AND cs.institution_id = customers.institution_id"
+        + "         AND NOT (cs.status = 'closed' AND cs.resolution = 'cleared')"
+        + "     ), 0) * 0.55"
+        + "   + COALESCE(("
+        + "       SELECT LEAST(100, ROUND("
+        + "         (COUNT(*) FILTER (WHERE t2.flagged_status IS NOT NULL)::float"
+        + "          / GREATEST(COUNT(*), 1)) * 100.0"
+        + "         * (COALESCE(AVG(t2.risk_score) FILTER (WHERE t2.flagged_status IS NOT NULL), 50.0) / 50.0)"
+        + "       ))::INT"
+        + "       FROM transactions t2"
+        + "       WHERE t2.customer_id = customers.external_id"
+        + "         AND t2.institution_id = customers.institution_id"
+        + "     ), 0) * 0.25"
+        + " ))::INT,"
+        + " updated_at = now()"
+        + " WHERE institution_id = $1 AND external_id = $2";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, externalId))
         .mapEmpty();
   }
 

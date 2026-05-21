@@ -19,7 +19,8 @@ public class NotificationService {
   private final Vertx vertx;
 
   public record Notification(long id, long institutionId, String type, String title,
-      String body, String status, OffsetDateTime createdAt) {}
+      String body, String status, OffsetDateTime createdAt,
+      String entityType, String entityId) {}
 
   public static String busAddress(long institutionId) {
     return "institution." + institutionId + ".notifications";
@@ -36,9 +37,8 @@ public class NotificationService {
       String reason, int riskScore) {
     String type  = riskScore >= 75 ? "critical_flag" : riskScore >= 60 ? "high_flag" : "medium_flag";
     String title = "Transaction Flagged — Risk Score " + riskScore;
-    // reason is already a full plain-English sentence (e.g. "Transaction made by X to Y on date was flagged due to...")
     String body  = reason;
-    return registerNotification(instId, type, title, body);
+    return registerNotification(instId, type, title, body, "transaction", txnId);
   }
 
   public Future<Notification> notifyCaseCreated(long instId, String caseId,
@@ -54,7 +54,7 @@ public class NotificationService {
         + "Please open the AML & Cases section, review the details, and take action — "
         + "either begin an investigation, contact the customer, or close the case if no concern is found.";
     return registerNotification(instId, "case_" + priority,
-        "New case opened — " + riskLabel + " risk", body);
+        "New case opened — " + riskLabel + " risk", body, "case", caseId);
   }
 
   public Future<Notification> notifyCaseCreated(long instId, String caseId,
@@ -72,7 +72,7 @@ public class NotificationService {
         + "Please review the case in the AML & Cases section and take action — "
         + "investigate further, reach out to the customer, or close it if no issue is found.";
     return registerNotification(instId, "case_" + priority,
-        "New " + riskLabel + " risk case — " + customerName, body);
+        "New " + riskLabel + " risk case — " + customerName, body, "case", caseId);
   }
 
   private static String formatAmount(String amount, String currency) {
@@ -90,13 +90,15 @@ public class NotificationService {
     return registerNotification(instId, "case_investigation_started",
         "Investigation Started — " + caseId,
         actorName + " has begun investigating case " + caseId +
-        ". The case has been auto-assigned to them and SLA tracking is active.");
+        ". The case has been auto-assigned to them and SLA tracking is active.",
+        "case", caseId);
   }
 
   public Future<Notification> notifyCaseAssigned(long instId, String caseId, long toUserId, String actorName) {
     return registerNotification(instId, "case_assigned",
         "Case Assigned — " + caseId,
-        actorName + " assigned case " + caseId + " to user #" + toUserId + ".");
+        actorName + " assigned case " + caseId + " to user #" + toUserId + ".",
+        "case", caseId);
   }
 
   public Future<Notification> notifyCaseClosed(long instId, String caseId, String resolution, String actorName) {
@@ -104,28 +106,32 @@ public class NotificationService {
     return registerNotification(instId, "case_closed",
         "Case Closed — " + caseId,
         actorName + " closed case " + caseId + " with resolution: " + res +
-        ". An immutable audit entry has been created.");
+        ". An immutable audit entry has been created.",
+        "case", caseId);
   }
 
   public Future<Notification> notifyCaseEscalated(long instId, String caseId, String actorName) {
     return registerNotification(instId, "case_escalated",
         "Case Escalated — " + caseId,
         actorName + " escalated case " + caseId +
-        ". This case requires senior AML or compliance review.");
+        ". This case requires senior AML or compliance review.",
+        "case", caseId);
   }
 
   public Future<Notification> notifySarFiled(long instId, String caseId, long reportId, String actorName) {
     return registerNotification(instId, "case_sar_filed",
         "SAR/STR Filed — " + caseId,
         actorName + " filed a Suspicious Activity Report (report #" + reportId +
-        ") linked to case " + caseId + ". This is a statutory filing under CBN AML guidelines.");
+        ") linked to case " + caseId + ". This is a statutory filing under CBN AML guidelines.",
+        "case", caseId);
   }
 
   public Future<Notification> notifyFreezeRequested(long instId, String caseId, String actorName) {
     return registerNotification(instId, "case_freeze_requested",
         "Account Freeze Requested — " + caseId,
         actorName + " has requested an account freeze for case " + caseId +
-        ". Route immediately to the Compliance desk for action.");
+        ". Route immediately to the Compliance desk for action.",
+        "case", caseId);
   }
 
   public Future<Notification> notifyBehavioralAlert(
@@ -222,14 +228,15 @@ public class NotificationService {
         "A transaction (ref: " + transactionId + ") arrived with a date and time that is " +
         timeDesc + " away from the expected time. This can happen when someone tries to " +
         "re-submit an old transaction or tamper with the transaction clock — both are common " +
-        "signs of fraud. The transaction has been flagged and a case has been opened for your review.");
+        "signs of fraud. The transaction has been flagged and a case has been opened for your review.",
+        "transaction", transactionId);
   }
 
   // ── Read methods (REST handlers + SSE init) ────────────────────────────────
 
   public Future<List<Notification>> listRecent(long institutionId, int limit) {
     return pool.preparedQuery(
-        "SELECT id, institution_id, type, title, body, status, created_at " +
+        "SELECT id, institution_id, type, title, body, status, created_at, entity_type, entity_id " +
         "FROM notifications WHERE institution_id=$1 ORDER BY created_at DESC LIMIT $2")
         .execute(Tuple.of(institutionId, limit))
         .map(rs -> {
@@ -258,7 +265,7 @@ public class NotificationService {
             String type = r.getString("type");
             Long count = r.getLong("count");
             if (count == null) continue;
-            
+
             if (type.contains("flag") || type.contains("cyber")) {
               flags += count.intValue();
             } else if (type.contains("case") || type.contains("kyc")) {
@@ -285,7 +292,7 @@ public class NotificationService {
     } else if ("cases".equals(category)) {
       sql += " AND (type LIKE '%case%' OR type LIKE '%kyc%')";
     }
-    
+
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId))
         .mapEmpty();
@@ -295,11 +302,16 @@ public class NotificationService {
 
   private Future<Notification> registerNotification(long instId, String type,
       String title, String body) {
+    return registerNotification(instId, type, title, body, null, null);
+  }
+
+  private Future<Notification> registerNotification(long instId, String type,
+      String title, String body, String entityType, String entityId) {
     return pool.preparedQuery(
-        "INSERT INTO notifications (institution_id, type, title, body, status) " +
-        "VALUES ($1, $2, $3, $4, 'unread') " +
-        "RETURNING id, institution_id, type, title, body, status, created_at")
-        .execute(Tuple.of(instId, type, title, body))
+        "INSERT INTO notifications (institution_id, type, title, body, status, entity_type, entity_id) " +
+        "VALUES ($1, $2, $3, $4, 'unread', $5, $6) " +
+        "RETURNING id, institution_id, type, title, body, status, created_at, entity_type, entity_id")
+        .execute(Tuple.of(instId, type, title, body, entityType, entityId))
         .map(rs -> rowTo(rs.iterator().next()))
         .onSuccess(n -> {
           log.info("[Notification] {} for institution {}", type, instId);
@@ -311,13 +323,15 @@ public class NotificationService {
   }
 
   private static Notification rowTo(Row r) {
-    return new Notification(r.getLong("id"), r.getLong("institution_id"),
+    return new Notification(
+        r.getLong("id"), r.getLong("institution_id"),
         r.getString("type"), r.getString("title"), r.getString("body"),
-        r.getString("status"), r.getOffsetDateTime("created_at"));
+        r.getString("status"), r.getOffsetDateTime("created_at"),
+        r.getString("entity_type"), r.getString("entity_id"));
   }
 
   public static JsonObject toJson(Notification n) {
-    return new JsonObject()
+    var obj = new JsonObject()
         .put("id",            n.id())
         .put("institutionId", n.institutionId())
         .put("type",          n.type())
@@ -325,5 +339,8 @@ public class NotificationService {
         .put("body",          n.body())
         .put("status",        n.status())
         .put("createdAt",     n.createdAt().toString());
+    if (n.entityType() != null) obj.put("entityType", n.entityType());
+    if (n.entityId()   != null) obj.put("entityId",   n.entityId());
+    return obj;
   }
 }

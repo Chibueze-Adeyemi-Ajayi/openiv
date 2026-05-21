@@ -5,5 +5,6 @@ public record DashboardStats(
     int flaggedToday,
     int totalYesterday,
     int flaggedYesterday,
-    int openCases
+    int openCases,
+    int openCasesToday
 ) {}

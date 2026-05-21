@@ -442,7 +442,8 @@ public final class DashboardHandlers {
         .put("flaggedToday",     s.flaggedToday())
         .put("totalYesterday",   s.totalYesterday())
         .put("flaggedYesterday", s.flaggedYesterday())
-        .put("openCases",        s.openCases());
+        .put("openCases",        s.openCases())
+        .put("openCasesToday",   s.openCasesToday());
   }
 
   // ── REST: update OTP alert status (release / decline) ────────────────────

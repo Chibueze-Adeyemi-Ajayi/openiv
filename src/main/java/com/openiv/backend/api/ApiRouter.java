@@ -14,6 +14,7 @@ import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.heatmap.HeatmapService;
 import com.openiv.backend.kyc.KycService;
 import com.openiv.backend.webhooks.WebhookService;
+import com.openiv.backend.config.AppConfig;
 import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.security.ContentTypeGuard;
 import com.openiv.backend.security.Cors;
@@ -84,7 +85,7 @@ public final class ApiRouter {
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService) {
+      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig) {
     router.route().handler(RequestId.create());
     if (devMode) {
       router.route().handler(com.openiv.backend.security.RequestDebugLogger.create());
@@ -97,12 +98,17 @@ public final class ApiRouter {
     // BodyHandler is idempotent — the global handler below is a no-op for this path.
     router.post("/api/v1/documents/upload")
         .handler(BodyHandler.create().setBodyLimit(10L * 1024 * 1024).setHandleFileUploads(true));
-    // Signing credentials carry base64-encoded PNG images — allow up to 5 MB.
+    // Signing credentials: accept either multipart file upload or base64 JSON — 5 MB limit.
     router.patch("/api/v1/institution/signing-credentials")
-        .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024));
+        .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024)
+            .setHandleFileUploads(true).setUploadsDirectory("uploads/tmp"));
     // KYC beam stream may include a selfie file upload — allow up to 5 MB.
     router.post("/api/v1/beam/kyc/stream")
         .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024).setHandleFileUploads(true));
+    // Avatar upload needs multipart handling — register before the global body handler.
+    router.post("/api/v1/auth/profile/avatar")
+        .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024).setHandleFileUploads(true)
+            .setUploadsDirectory("uploads/tmp"));
     router.route().handler(BodyHandler.create().setBodyLimit(security.maxBodyBytes()));
     router.route().handler(ContentTypeGuard.create());
     // SSE stream must not be subject to the per-request timeout — bypass it for that path.
@@ -121,11 +127,17 @@ public final class ApiRouter {
     router.route().handler(ResponseTimeHandler.create());
 
     HealthHandler.mount(router);
+    // Serve uploaded files (avatars, etc.) as static assets.
+    router.route("/uploads/*").handler(
+        io.vertx.ext.web.handler.StaticHandler.create(io.vertx.ext.web.handler.FileSystemAccess.RELATIVE, "uploads")
+            .setCachingEnabled(true)
+            .setMaxAgeSeconds(86400)
+            .setDirectoryListing(false));
     router.route("/api/v1/*").subRouter(V1Router.create(
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
         beamService, kycService, heatmapService, dashboardService, geoFenceService,
-        customerService));
+        customerService, cloudinaryConfig));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

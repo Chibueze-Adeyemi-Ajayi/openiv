@@ -19,7 +19,9 @@ public record User(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     boolean eurekaCompanionEnabled,
-    String timezone
+    String timezone,
+    String jobTitle,
+    String avatarUrl
 ) {
   public boolean isLocked() {
     return lockedUntil != null && lockedUntil.isAfter(OffsetDateTime.now());

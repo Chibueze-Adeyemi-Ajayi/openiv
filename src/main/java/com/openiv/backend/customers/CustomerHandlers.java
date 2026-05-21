@@ -5,6 +5,9 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.cloudinary.CloudinaryService;
+import com.openiv.backend.documents.DocumentRepository;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -13,16 +16,55 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.Map;
+import java.util.UUID;
 
 public final class CustomerHandlers {
   private static final Logger log = LoggerFactory.getLogger(CustomerHandlers.class);
-  private final CustomerService service;
-  private final UserRepository users;
+  private final CustomerService    service;
+  private final UserRepository     users;
+  private final CloudinaryService  cloudinary;
+  private final DocumentRepository documents;
 
-  public CustomerHandlers(CustomerService service, UserRepository users) {
-    this.service = service;
-    this.users = users;
+  public CustomerHandlers(CustomerService service, UserRepository users,
+      CloudinaryService cloudinary, DocumentRepository documents) {
+    this.service   = service;
+    this.users     = users;
+    this.cloudinary = cloudinary;
+    this.documents  = documents;
+  }
+
+  /** Returns true if the value looks like base64 (data URI or raw) rather than a URL. */
+  private static boolean isBase64(String v) {
+    return v != null && !v.startsWith("http") && v.length() > 200;
+  }
+
+  /**
+   * Decode a base64 data-URI or raw base64 string, upload to Cloudinary,
+   * save a documents row, and return the secure URL.
+   */
+  private Future<String[]> uploadPhotoToCloudinary(
+      RoutingContext ctx, long institutionId, long userId, String externalId, String b64) {
+    try {
+      String data  = b64.contains(",") ? b64.substring(b64.indexOf(',') + 1) : b64;
+      byte[] bytes = Base64.getDecoder().decode(data.replaceAll("\\s", ""));
+      String ct    = b64.startsWith("data:image/png") ? "image/png"
+                   : b64.startsWith("data:image/gif") ? "image/gif"
+                   : "image/jpeg";
+      String publicId = "customer_photo_" + externalId + "_" + UUID.randomUUID();
+      return cloudinary.upload(bytes, "openiv", publicId, "image")
+          .compose(result -> documents.saveDocument(
+              institutionId, userId,
+              result.publicId(), result.secureUrl(),
+              "photo." + result.format(), ct, result.bytes(),
+              result.resourceType(), result.format(),
+              result.width(), result.height(),
+              "customer_photo", externalId)
+          .map(doc -> new String[]{ result.secureUrl(), String.valueOf(doc.id()) }));
+    } catch (Exception e) {
+      return Future.failedFuture("invalid photo data: " + e.getMessage());
+    }
   }
 
   // GET /customers?q=&pageSize=
@@ -162,8 +204,16 @@ public final class CustomerHandlers {
       users.findById(session.userId())
           .compose(uOpt -> {
             User u = uOpt.orElseThrow(() -> AuthException.invalid("session"));
+            // If the photo field is base64, upload to Cloudinary first
+            if (isBase64(photo)) {
+              return uploadPhotoToCloudinary(ctx, u.institutionId(), u.id(), externalId, photo)
+                  .<Customer>compose(photoInfo -> service.updateProfile(
+                      u.institutionId(), externalId,
+                      bvn, nin, photoInfo[0], accountNumber, subjectType, finalDob, address,
+                      Long.parseLong(photoInfo[1])));
+            }
             return service.updateProfile(u.institutionId(), externalId,
-                bvn, nin, photo, accountNumber, subjectType, finalDob, address);
+                bvn, nin, photo, accountNumber, subjectType, finalDob, address, null);
           })
           .onSuccess(c -> ctx.response().setStatusCode(200)
               .putHeader("Content-Type", "application/json")

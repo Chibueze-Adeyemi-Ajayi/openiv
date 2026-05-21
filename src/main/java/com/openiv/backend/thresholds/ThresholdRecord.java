@@ -19,5 +19,6 @@ public record ThresholdRecord(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     Long           thresholdOutward,
-    Long           thresholdInward
+    Long           thresholdInward,
+    Integer        riskScore        // null = use platform default; set per-institution via Thresholds UI
 ) {}

@@ -234,6 +234,16 @@ public final class CaseService {
         amlSettingsRepository.upsert(u.institutionId(), autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold, kycNormalThreshold, kycCaseThreshold));
   }
 
+  public Future<AmlSettings> updateDailyTxnLimit(Session session, int dailyTxnLimit) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.updateDailyTxnLimit(u.institutionId(), dailyTxnLimit));
+  }
+
+  public Future<AmlSettings> updateExpectedDailyTxnCount(Session session, int expectedDailyTxnCount) {
+    return resolveUser(session).compose(u ->
+        amlSettingsRepository.updateExpectedDailyTxnCount(u.institutionId(), expectedDailyTxnCount));
+  }
+
   public Future<AmlSettings> updateBeamWindow(Session session, int beamWindowSeconds) {
     return resolveUser(session).compose(u ->
         amlSettingsRepository.updateBeamWindow(u.institutionId(), beamWindowSeconds));

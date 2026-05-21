@@ -1,0 +1,2 @@
+ALTER TABLE aml_settings
+    ADD COLUMN IF NOT EXISTS daily_txn_limit INT NOT NULL DEFAULT 10;

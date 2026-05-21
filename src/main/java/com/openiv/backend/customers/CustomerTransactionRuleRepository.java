@@ -111,6 +111,23 @@ public final class CustomerTransactionRuleRepository {
     .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmount failed: {}", e.getMessage()));
   }
 
+  /** Cumulative amount for a specific channel+direction today — used for KYC-tier daily limit enforcement. */
+  public Future<BigDecimal> sumTodayAmountByChannelAndDirection(
+      long institutionId, String externalCustomerId, String channel, String direction) {
+    return pool.preparedQuery(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND LOWER(channel) LIKE '%' || LOWER($3) || '%' " +
+        "AND direction = $4 " +
+        "AND occurred_at::date = CURRENT_DATE"
+    ).execute(Tuple.of(institutionId, externalCustomerId, channel, direction))
+    .map(rows -> {
+      var n = rows.iterator().next().getNumeric(0);
+      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+    })
+    .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmountByChannelAndDirection failed: {}", e.getMessage()));
+  }
+
   public Future<BigDecimal> sumMonthAmount(long institutionId, String externalCustomerId) {
     return pool.preparedQuery(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
@@ -132,6 +149,18 @@ public final class CustomerTransactionRuleRepository {
     ).execute(Tuple.of(institutionId, externalCustomerId, hours))
     .map(rows -> rows.iterator().next().getLong(0))
     .onFailure(e -> log.error("[CustomerRuleRepo] countInVelocityWindow failed: {}", e.getMessage()));
+  }
+
+  /** True if the customer received any inward transaction within the past N minutes. */
+  public Future<Boolean> hasDepositInLastMinutes(long institutionId, String externalCustomerId, int minutes) {
+    return pool.preparedQuery(
+        "SELECT COUNT(*) FROM transactions " +
+        "WHERE institution_id = $1 AND customer_id = $2 " +
+        "AND direction = 'inward' " +
+        "AND occurred_at > NOW() - (CAST($3 AS INTEGER) * INTERVAL '1 minute')"
+    ).execute(Tuple.of(institutionId, externalCustomerId, minutes))
+    .map(rows -> rows.iterator().next().getLong(0) > 0)
+    .onFailure(e -> log.error("[CustomerRuleRepo] hasDepositInLastMinutes failed: {}", e.getMessage()));
   }
 
   /** Sum of inward (deposit) transactions for the customer within the past N hours. */

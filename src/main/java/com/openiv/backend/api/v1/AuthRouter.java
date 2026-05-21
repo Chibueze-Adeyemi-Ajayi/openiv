@@ -3,7 +3,9 @@ package com.openiv.backend.api.v1;
 import com.openiv.backend.auth.handler.AuthHandlers;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.cloudinary.CloudinaryService;
 import com.openiv.backend.customers.CustomerService;
+import com.openiv.backend.documents.DocumentRepository;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
 
@@ -22,8 +24,9 @@ public final class AuthRouter {
   private AuthRouter() {}
 
   public static Router create(Vertx vertx, AuthService authService, boolean productionCookies,
-      CustomerService customerService) {
-    AuthHandlers handlers = new AuthHandlers(authService, productionCookies, customerService);
+      CustomerService customerService, CloudinaryService cloudinary, DocumentRepository documents) {
+    AuthHandlers handlers = new AuthHandlers(authService, productionCookies, customerService,
+        cloudinary, documents);
     Router router = Router.router(vertx);
 
     // Public
@@ -49,13 +52,20 @@ public final class AuthRouter {
         .handler(handlers.logout());
 
     // Authenticated session required
+    router.get("/profile").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.getProfile());
+    router.put("/profile").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.updateProfile());
+    router.post("/profile/avatar")
+        .handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.uploadAvatar());
     router.post("/devices/block").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.blockDevice());
     router.post("/totp/step-up").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.verifyTotpStepUp());
     router.post("/totp/step-up-lockout").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.stepUpLockoutAlert());
-    router.post("/password/change").handler(SessionAuthHandler.authenticated(authService))
+    router.post("/password/change").handler(SessionAuthHandler.any(authService))
         .handler(handlers.changePassword());
 
     return router;

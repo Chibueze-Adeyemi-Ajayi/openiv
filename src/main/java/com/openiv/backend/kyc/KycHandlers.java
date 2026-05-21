@@ -9,12 +9,19 @@ import io.vertx.ext.web.RoutingContext;
 
 public final class KycHandlers {
 
-  private final KycService     service;
-  private final BillingService billing;
+  private final KycService                    service;
+  private final BillingService                billing;
+  private final KycEvaluationConfigRepository evalConfigRepo;
 
   public KycHandlers(KycService service, BillingService billing) {
+    this(service, billing, null);
+  }
+
+  public KycHandlers(KycService service, BillingService billing,
+      KycEvaluationConfigRepository evalConfigRepo) {
     this.service = service;
     this.billing = billing;
+    this.evalConfigRepo = evalConfigRepo;
   }
 
   // GET /kyc/config
@@ -110,7 +117,8 @@ public final class KycHandlers {
             ok(ctx, new JsonObject()
                 .put("customerId",       r.customerId())
                 .put("overallRiskScore", r.overallRiskScore())
-                .put("kycTier",          r.kycTier())
+                .put("knowledgeLevel",    r.knowledgeLevel())
+                .put("institutionKycTier", r.institutionKycTier())
                 .put("overallStatus",    r.overallStatus())
                 .put("actionTaken",      r.actionTaken())
                 .put("runAt",            r.runAt().toString())
@@ -176,7 +184,98 @@ public final class KycHandlers {
     };
   }
 
+  // GET /kyc/evaluation-config
+  public Handler<RoutingContext> getEvaluationConfig() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      if (evalConfigRepo == null) { ok(ctx, new JsonObject().put("config", (Object) null)); return; }
+      service.resolveInstitutionId(session)
+          .compose(instId -> evalConfigRepo.findByInstitution(instId))
+          .onSuccess(opt -> ok(ctx, new JsonObject().put("config",
+              opt.map(KycHandlers::evalConfigJson).orElse(null))))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // PUT /kyc/evaluation-config
+  public Handler<RoutingContext> saveEvaluationConfig() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+      Integer intervalDays = body.getInteger("intervalDays");
+      Boolean enabled = body.getBoolean("enabled");
+      if (intervalDays == null || !java.util.Set.of(7, 14, 21, 31).contains(intervalDays)) {
+        badRequest(ctx, "intervalDays must be one of: 7, 14, 21, 31"); return;
+      }
+      if (evalConfigRepo == null) { badRequest(ctx, "Evaluation config not available"); return; }
+      service.resolveInstitutionId(session)
+          .compose(instId -> evalConfigRepo.upsert(instId, intervalDays,
+              Boolean.TRUE.equals(enabled)))
+          .onSuccess(cfg -> ok(ctx, new JsonObject().put("config", evalConfigJson(cfg))))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  /**
+   * GET /kyc/customer-fetch/:customerId
+   * Beam-API-key-protected endpoint: institution passes a customer ID and receives
+   * the latest KYC pipeline result in the same shape as a beam KYC response.
+   */
+  public Handler<RoutingContext> customerKycFetch() {
+    return ctx -> {
+      // institutionId is set on the context by BeamApiKeyHandler upstream.
+      Long instId = ctx.get("institutionId");
+      if (instId == null) { ctx.fail(401); return; }
+      String customerId = ctx.pathParam("customerId");
+      if (customerId == null || customerId.isBlank()) {
+        badRequest(ctx, "customerId path parameter is required"); return;
+      }
+      service.getCustomerKycByInstitution(instId, customerId)
+          .onSuccess(opt -> {
+            if (opt.isEmpty()) {
+              ctx.response().setStatusCode(404)
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end(new JsonObject().put("error", "No KYC record found for customer").encode());
+              return;
+            }
+            var r = opt.get();
+            ok(ctx, new JsonObject()
+                .put("customerId",        r.customerId())
+                .put("overallRiskScore",  r.overallRiskScore())
+                .put("knowledgeLevel",    r.knowledgeLevel())
+                .put("institutionKycTier", r.institutionKycTier())
+                .put("overallStatus",     r.overallStatus())
+                .put("actionTaken",       r.actionTaken())
+                .put("runAt",             r.runAt().toString())
+                .put("bvnNinStatus",      r.bvnNinStatus())
+                .put("bvnNinScore",       r.bvnNinScore())
+                .put("phoneStatus",       r.phoneStatus())
+                .put("phoneScore",        r.phoneScore())
+                .put("livenessStatus",    r.livenessStatus())
+                .put("livenessScore",     r.livenessScore())
+                .put("pepStatus",         r.pepStatus())
+                .put("pepScore",          r.pepScore())
+                .put("identityPhoto",     r.identityPhoto())
+                .put("firstName",         r.firstName())
+                .put("lastName",          r.lastName())
+                .put("phone",             r.phone())
+                .put("dateOfBirth",       r.dateOfBirth())
+                .put("monthlyInflow",     r.monthlyInflow())
+                .put("monthlyOutflow",    r.monthlyOutflow()));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
   // ── JSON serialisers ──────────────────────────────────────────────────────
+
+  private static JsonObject evalConfigJson(KycEvaluationConfig c) {
+    return new JsonObject()
+        .put("intervalDays", c.intervalDays())
+        .put("enabled",      c.enabled())
+        .put("updatedAt",    c.updatedAt().toString());
+  }
 
   private static JsonObject configJson(KycConfig c) {
     return new JsonObject()

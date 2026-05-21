@@ -58,4 +58,26 @@ public final class LogEmailSender implements EmailSender {
     log.warn("[DEV EMAIL] waitlist-notification to admin {}: New user {} ({}) Expectation: {}", adminEmail, userName, userEmail, expectation);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendInstitutionInvite(String toEmail, String contactName,
+      String institutionName, String inviteCode, String invitePageUrl) {
+    log.warn("[DEV EMAIL] institution-invite to {} ({}): institution={} code={} url={}",
+        contactName, toEmail, institutionName, inviteCode, invitePageUrl);
+    return Future.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> sendTeamInvite(String toEmail, String recipientName,
+      String institutionName, String tempPassword, String loginUrl) {
+    log.warn("[DEV EMAIL] team-invite to {} ({}): institution={} tempPassword={} url={}",
+        recipientName, toEmail, institutionName, tempPassword, loginUrl);
+    return Future.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> sendWelcome(String toEmail, String recipientName, String institutionName) {
+    log.warn("[DEV EMAIL] welcome to {} ({}): institution={}", recipientName, toEmail, institutionName);
+    return Future.succeededFuture();
+  }
 }

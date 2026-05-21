@@ -47,11 +47,8 @@
     "privateKey": ""
   },
   "email": {
-    "host": "sandbox.smtp.mailtrap.io",
-    "port": 587,
-    "user": "8b3d672371f666",
-    "password": "3336b3909e120c",
-    "from": "8b3d672371f666",
-    "useSsl": false
+    "apiToken": "3336b3909e120c",
+    "from": "hello@openiv.ng",
+    "enabled": true
   }
 }

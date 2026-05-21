@@ -46,6 +46,7 @@ public final class AccessRequestHandlers {
           body.getString("contactName"),
           body.getString("contactEmail"),
           body.getString("contactPhone"),
+          body.getString("jobTitle"),
           body.getString("description"));
 
       service.submit(input)

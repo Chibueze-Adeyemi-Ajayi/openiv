@@ -43,6 +43,23 @@ public final class Codes {
     return sb.toString();
   }
 
+  /**
+   * Generates a human-friendly temporary password: 4 uppercase letters + dash + 4 digits + dash +
+   * 4 uppercase letters. Always satisfies the minimum strength requirements (letters + digits,
+   * 13 chars). Example: {@code JWBK-4892-MNQR}.
+   */
+  public static String generateTempPassword() {
+    String letters = "ABCDEFGHJKMNPQRSTUVWXYZ"; // no I/O/L (ambiguous)
+    String digits  = "23456789";                 // no 0/1
+    StringBuilder sb = new StringBuilder(14);
+    for (int i = 0; i < 4; i++) sb.append(letters.charAt(RNG.nextInt(letters.length())));
+    sb.append('-');
+    for (int i = 0; i < 4; i++) sb.append(digits.charAt(RNG.nextInt(digits.length())));
+    sb.append('-');
+    for (int i = 0; i < 4; i++) sb.append(letters.charAt(RNG.nextInt(letters.length())));
+    return sb.toString();
+  }
+
   public static String sha256(String plaintext) {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-256");

@@ -58,7 +58,7 @@ public class TransactionProcessingOrchestrator {
                 reasonBuilder.toString(),
                 analysisResult.riskScore());
           } else {
-            notifFuture = Future.succeededFuture(new com.openiv.backend.notifications.NotificationService.Notification(0L, institutionId, "system", "info", "Flag skipped", "read", OffsetDateTime.now()));
+            notifFuture = Future.succeededFuture(new com.openiv.backend.notifications.NotificationService.Notification(0L, institutionId, "system", "info", "Flag skipped", "read", OffsetDateTime.now(), null, null));
           }
 
           if (analysisResult.caseCreated() && analysisResult.caseid() != null) {
@@ -114,8 +114,10 @@ public class TransactionProcessingOrchestrator {
           "the transfer amount is significantly higher than your institution's typical transaction range.";
       case "HIGH_FREQUENCY", "velocity-cluster" ->
           "there have been multiple transactions from this account in a very short window, which is a common pattern for unauthorized activity.";
-      case "VELOCITY_SPIKE", "pat-4" ->
-          "there is a sudden, sharp increase in transaction volume for this account compared to its normal history.";
+      case "VELOCITY_SPIKE" ->
+          "there is a sudden, institution-wide surge in transaction volume — the total number of transactions processed today is significantly higher than yesterday, which may indicate a coordinated fraud event or system anomaly.";
+      case "pat-4" ->
+          "an unusual burst of activity has been detected across the institution, where total transaction volume has spiked well above the established daily baseline.";
       case "OTP_ALERT" ->
           "a security alert was triggered for the one-time password (OTP), which might mean someone else is trying to access the account.";
       case "late-night-large" ->
@@ -123,7 +125,13 @@ public class TransactionProcessingOrchestrator {
       case "cross-border-bdc" ->
           "this is an unusually large cross-border Bureau De Change (BDC) transaction that exceeds safety limits.";
       case "KYC_TIER_LIMIT_EXCEEDED" ->
-          "the transaction amount exceeds the maximum limit allowed for the customer's current verification level (KYC tier).";
+          "the transaction amount exceeds the single-transaction limit allowed for the customer's current identity verification level (KYC tier). The customer must complete a higher tier of verification to send larger individual transfers.";
+      case "KYC_TIER_DAILY_LIMIT_EXCEEDED" ->
+          "this transaction would push the customer's total spending today above the daily limit for their current identity verification level (KYC tier). To increase this limit, the customer must complete a higher tier of identity verification.";
+      case "RAPID_POST_DEPOSIT_WITHDRAWAL" ->
+          "this outward transfer withdraws a large share of a deposit received very recently — a common pattern in money laundering and pass-through fraud.";
+      case "SUDDEN_WITHDRAWAL_AFTER_DEPOSIT" ->
+          "a withdrawal was sent within minutes of a deposit arriving on this account — a strong signal of pass-through fraud or mule account activity, where funds are moved in and immediately forwarded to a third party.";
       case "CUSTOMER_RULE_MAX_AMOUNT", "CUSTOMER_RULE_BLOCKED_BANK", "CUSTOMER_RULE_BANK_NOT_ALLOWED",
            "CUSTOMER_RULE_BLOCKED_CHANNEL", "CUSTOMER_RULE_DAILY_LIMIT", "CUSTOMER_RULE_MONTHLY_LIMIT",
            "CUSTOMER_RULE_VELOCITY", "CUSTOMER_RULE_VIOLATION" ->

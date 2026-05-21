@@ -18,35 +18,39 @@ public final class ThresholdRepository {
   }
 
   private record DefaultRule(String ruleId, String name, String description, String tag,
-      long threshold, String unit, long min, long max, long step, boolean active) {}
+      long threshold, String unit, long min, long max, long step, boolean active, int riskScore) {}
 
   private static final List<DefaultRule> DEFAULTS = List.of(
       new DefaultRule("high-value-wire",
           "High-value wire transfer",
           "Single wire transfer exceeding threshold triggers review",
-          "AML", 5_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true),
+          "AML", 5_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true, 35),
       new DefaultRule("velocity-cluster",
           "Velocity — same beneficiary",
           "More than N transactions to same beneficiary in 1 hour",
-          "Fraud", 5L, "count", 1L, 50L, 1L, true),
+          "Fraud", 5L, "count", 1L, 50L, 1L, true, 25),
       new DefaultRule("cross-border-bdc",
           "Cross-border BDC threshold",
           "Cumulative BDC outflow per customer per day",
-          "AML", 10_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true),
+          "AML", 10_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true, 30),
       new DefaultRule("late-night-large",
           "Late-night large transfer",
           "Transactions over threshold between 23:00–05:00",
-          "Fraud", 1_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true),
+          "Fraud", 1_000_000L, "₦", 100_000L, 50_000_000L, 100_000L, true, 30),
       new DefaultRule("dormant-reactivation",
           "Dormant account reactivation",
           "Account inactive >90 days transacting above threshold",
-          "KYC", 500_000L, "₦", 100_000L, 50_000_000L, 100_000L, false)
+          "KYC", 500_000L, "₦", 100_000L, 50_000_000L, 100_000L, false, 20),
+      new DefaultRule("velocity-spike",
+          "Institution Volume Spike",
+          "Flags when today's institution-wide transaction count exceeds yesterday's by the configured percentage. Set threshold_value to 130 for a 30% spike.",
+          "AML", 130L, "%", 105L, 400L, 5L, true, 20)
   );
 
   private static final String SELECT_COLS =
       "id, institution_id, rule_id, name, description, tag, "
       + "threshold_value, unit, min_value, max_value, step_value, "
-      + "is_active, fired_count, created_at, updated_at, threshold_outward, threshold_inward";
+      + "is_active, fired_count, created_at, updated_at, threshold_outward, threshold_inward, risk_score";
 
   // ── List ──────────────────────────────────────────────────────────────────
 
@@ -84,8 +88,8 @@ public final class ThresholdRepository {
           String insertSql =
               "INSERT INTO detection_thresholds "
               + "(institution_id, rule_id, name, description, tag, threshold_value, "
-              + " unit, min_value, max_value, step_value, is_active, threshold_outward, threshold_inward) "
-              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) ON CONFLICT DO NOTHING";
+              + " unit, min_value, max_value, step_value, is_active, threshold_outward, threshold_inward, risk_score) "
+              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13) ON CONFLICT DO NOTHING";
 
           Future<Void> chain = Future.succeededFuture();
           for (DefaultRule d : DEFAULTS) {
@@ -94,7 +98,7 @@ public final class ThresholdRepository {
                 pool.preparedQuery(insertSql).execute(Tuple.of(
                     institutionId, dr.ruleId(), dr.name(), dr.description(),
                     dr.tag(), dr.threshold(), dr.unit(),
-                    dr.min(), dr.max(), dr.step(), dr.active(), dr.threshold()
+                    dr.min(), dr.max(), dr.step(), dr.active(), dr.threshold(), dr.riskScore()
                 )).mapEmpty()
             );
           }
@@ -348,7 +352,8 @@ public final class ThresholdRepository {
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"),
         r.getLong("threshold_outward"),
-        r.getLong("threshold_inward")
+        r.getLong("threshold_inward"),
+        r.getInteger("risk_score")
     );
   }
 

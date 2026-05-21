@@ -207,6 +207,13 @@ public final class BeamRepository {
     );
   }
 
+  /** Fire-and-forget: persists the HTTP response code and body back to the beam record for audit. */
+  public void updateResponseAudit(long recordId, int responseCode, String responseBody) {
+    pool.preparedQuery(
+            "UPDATE beam_records SET response_code = $2, response_body = $3 WHERE id = $1")
+        .execute(Tuple.of(recordId, responseCode, responseBody));
+  }
+
   private static BeamApiKey mapApiKey(Row r) {
     return new BeamApiKey(
         r.getLong("id"), r.getLong("institution_id"),

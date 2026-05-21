@@ -330,7 +330,17 @@ public final class KycService {
       Long monthlyInflow, Long monthlyOutflow) {
     if (pipelineResults == null)
       return Future.failedFuture("Pipeline results repository not configured");
-    return pipelineResults.save(institutionId, customerId, result, actionTaken, monthlyInflow, monthlyOutflow);
+    return pipelineResults.save(institutionId, customerId, result, actionTaken, monthlyInflow, monthlyOutflow, null);
+  }
+
+  public Future<KycPipelineResult> savePipelineResultWithTier(
+      long institutionId, String customerId,
+      PipelineVerificationResult result, String actionTaken,
+      Long monthlyInflow, Long monthlyOutflow, Integer institutionKycTier) {
+    if (pipelineResults == null)
+      return Future.failedFuture("Pipeline results repository not configured");
+    return pipelineResults.save(institutionId, customerId, result, actionTaken,
+        monthlyInflow, monthlyOutflow, institutionKycTier);
   }
 
   public Future<List<KycPipelineResult>> listCustomersWithKycScore(Session session) {
@@ -399,6 +409,102 @@ public final class KycService {
     return sb.toString();
   }
 
+  /**
+   * Called automatically when a BEAM transaction arrives with no KYC on file.
+   * Checks whether the institution has a webhook lookup URL configured; if so,
+   * fetches the customer record, registers it, runs the KYC pipeline, and returns
+   * the saved {@link KycPipelineResult}.  Returns {@link Optional#empty()} if no
+   * URL is configured or if the remote call / pipeline fails.
+   */
+  public Future<Optional<KycPipelineResult>> lookupAndRegisterFromBeam(
+      long institutionId, String customerId) {
+
+    return repository.findConfig(institutionId).compose(cfgOpt -> {
+      if (cfgOpt.isEmpty()
+          || cfgOpt.get().lookupUrl() == null
+          || cfgOpt.get().lookupUrl().isBlank()) {
+        return Future.succeededFuture(Optional.empty());
+      }
+
+      KycConfig cfg = cfgOpt.get();
+      String url = cfg.lookupUrl().endsWith("/")
+          ? cfg.lookupUrl() + customerId
+          : cfg.lookupUrl() + "/" + customerId;
+      int timeoutMs = cfg.lookupTimeout() > 0 ? cfg.lookupTimeout() * 1_000 : 10_000;
+
+      long start = System.currentTimeMillis();
+      var req = client.getAbs(url).timeout(timeoutMs);
+      if (cfg.lookupApiKey() != null && !cfg.lookupApiKey().isBlank())
+        req = req.putHeader("Authorization", "Bearer " + cfg.lookupApiKey());
+
+      return req.send().compose(resp -> {
+        int durationMs = (int) (System.currentTimeMillis() - start);
+        int code = resp.statusCode();
+
+        if (code < 200 || code >= 300) {
+          String errMsg = "HTTP " + code;
+          log.warn("[Beam/Lookup] Webhook {} for customer={} inst={}", errMsg, customerId, institutionId);
+          return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+              "failed", code, durationMs, null, null, errMsg)
+              .map(ignored -> Optional.<KycPipelineResult>empty());
+        }
+
+        JsonObject body;
+        try {
+          body = resp.bodyAsJsonObject();
+        } catch (Exception e) {
+          log.warn("[Beam/Lookup] Non-JSON response for customer={}: {}", customerId, e.getMessage());
+          return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+              "failed", code, durationMs, null, null, "Non-JSON response")
+              .map(ignored -> Optional.<KycPipelineResult>empty());
+        }
+
+        if (body == null)
+          return Future.succeededFuture(Optional.empty());
+
+        String name  = body.getString("name");
+        String bvn   = body.getString("bvn");
+        String nin   = body.getString("nin");
+        String phone = body.getString("phone", body.getString("phone_number"));
+        String photo = body.getString("photo");
+        Long monthlyInflow  = body.containsKey("monthly_inflow")  ? body.getLong("monthly_inflow")  : null;
+        Long monthlyOutflow = body.containsKey("monthly_outflow") ? body.getLong("monthly_outflow") : null;
+
+        log.info("[Beam/Lookup] Webhook returned data for customer={} inst={} — registering and running pipeline",
+            customerId, institutionId);
+
+        long pipelineStart = System.currentTimeMillis();
+        return customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
+            .compose(customer -> runPipeline(institutionId, customerId, bvn, nin, phone, photo, name))
+            .compose(result -> {
+              int score = result.overallRiskScore();
+              String actionTaken = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
+              return customerService.updateRiskScore(institutionId, customerId, score)
+                  .compose(v -> savePipelineResult(institutionId, customerId, result,
+                      actionTaken, monthlyInflow, monthlyOutflow))
+                  .compose(saved -> {
+                    int totalMs = (int) (System.currentTimeMillis() - pipelineStart);
+                    return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+                        "success", code, totalMs, result.kycTier(), result.overallStatus(), null)
+                        .map(ignored -> Optional.of(saved));
+                  });
+            })
+            .recover(e -> {
+              log.error("[Beam/Lookup] Pipeline failed for customer={} after webhook success: {}",
+                  customerId, e.getMessage());
+              return Future.succeededFuture(Optional.empty());
+            });
+      }).recover(e -> {
+        int elapsed = (int) (System.currentTimeMillis() - start);
+        log.warn("[Beam/Lookup] Webhook call failed for customer={} inst={}: {}",
+            customerId, institutionId, e.getMessage());
+        return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+            "failed", null, elapsed, null, null, e.getMessage())
+            .map(ignored -> Optional.<KycPipelineResult>empty());
+      });
+    });
+  }
+
   // ── Logs ─────────────────────────────────────────────────────────────────
 
   public Future<List<KycLookupLog>> listLogs(Session session) {
@@ -406,6 +512,10 @@ public final class KycService {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  public Future<Long> resolveInstitutionId(com.openiv.backend.auth.model.Session session) {
+    return resolveUser(session).map(com.openiv.backend.auth.model.User::institutionId);
+  }
 
   private Future<User> resolveUser(Session session) {
     return users.findById(session.userId())

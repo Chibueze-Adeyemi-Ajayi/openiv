@@ -46,10 +46,11 @@ public final class DashboardRepository {
         """;
 
     String casesSql = """
-        SELECT COUNT(*)::int AS open_cases
+        SELECT
+          COUNT(*) FILTER (WHERE status NOT IN ('closed'))::int AS open_cases,
+          COUNT(*) FILTER (WHERE status NOT IN ('closed') AND created_at >= CURRENT_DATE)::int AS open_cases_today
         FROM cases
         WHERE institution_id = $1
-          AND status NOT IN ('closed')
         """;
 
     return pool.preparedQuery(txnSql).execute(Tuple.of(institutionId))
@@ -60,10 +61,14 @@ public final class DashboardRepository {
           int totalYesterday  = r.getInteger("total_yesterday");
           int flaggedYesterday= r.getInteger("flagged_yesterday");
           return pool.preparedQuery(casesSql).execute(Tuple.of(institutionId))
-              .map(casesRows -> new DashboardStats(
-                  totalToday, flaggedToday, totalYesterday, flaggedYesterday,
-                  casesRows.iterator().next().getInteger("open_cases")
-              ));
+              .map(casesRows -> {
+                  var cr = casesRows.iterator().next();
+                  return new DashboardStats(
+                      totalToday, flaggedToday, totalYesterday, flaggedYesterday,
+                      cr.getInteger("open_cases"),
+                      cr.getInteger("open_cases_today")
+                  );
+              });
         });
   }
 

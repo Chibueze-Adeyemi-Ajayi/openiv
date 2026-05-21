@@ -16,25 +16,33 @@ public record AppConfig(
     SecurityConfig security,
     TotpCipherConfig totp,
     EmailConfig email,
-    DojaConfig doja
+    DojaConfig doja,
+    CloudinaryConfig cloudinary
 ) {
 
-  public record EmailConfig(String host, int port, String user, String password, String from, boolean useSsl, boolean enabled) {}
+  public record EmailConfig(String apiToken, String from, boolean enabled) {}
+
+  public record CloudinaryConfig(String cloudName, String apiKey, String apiSecret) {}
 
   public static AppConfig from(JsonObject json) {
     JsonObject httpJson = json.getJsonObject("http", new JsonObject());
     JsonObject dbJson = json.getJsonObject("db", new JsonObject());
     JsonObject securityJson = json.getJsonObject("security", new JsonObject());
     JsonObject totpJson = json.getJsonObject("totp", new JsonObject());
-    boolean emailPresent = json.containsKey("email");
     JsonObject emailJson = json.getJsonObject("email", new JsonObject());
-    JsonObject dojaJson  = json.getJsonObject("doja",  new JsonObject());
+    boolean emailPresent = json.containsKey("email") && emailJson.getString("apiToken") != null;
+    JsonObject dojaJson       = json.getJsonObject("doja",       new JsonObject());
+    JsonObject cloudinaryJson = json.getJsonObject("cloudinary", new JsonObject());
     String env = json.getString("environment", "production");
 
     // Env-var overrides take precedence over application.json values
     String dojaAppId  = envOr("DOJA_APP_ID",  dojaJson.getString("appId",  ""));
     String dojaApiKey = envOr("DOJA_API_KEY", dojaJson.getString("apiKey", ""));
     String dojaUrl    = envOr("DOJA_BASE_URL", dojaJson.getString("baseUrl", DojaConfig.SANDBOX_BASE_URL));
+
+    String cloudName   = envOr("CLOUDINARY_CLOUD_NAME",  cloudinaryJson.getString("cloudName",  ""));
+    String cloudApiKey = envOr("CLOUDINARY_API_KEY",      cloudinaryJson.getString("apiKey",     ""));
+    String cloudSecret = envOr("CLOUDINARY_API_SECRET",   cloudinaryJson.getString("apiSecret",  ""));
 
     return new AppConfig(
         env,
@@ -46,15 +54,12 @@ public record AppConfig(
         SecurityConfig.from(securityJson),
         TotpCipherConfig.from(totpJson),
         new EmailConfig(
-            emailJson.getString("host", "localhost"),
-            emailJson.getInteger("port", 25),
-            emailJson.getString("user"),
-            emailJson.getString("password"),
-            emailJson.getString("from", "noreply@openiv.com"),
-            emailJson.getBoolean("useSsl", false),
+            envOr("MAILTRAP_API_TOKEN", emailJson.getString("apiToken", "")),
+            emailJson.getString("from", "noreply@openiv.ng"),
             emailJson.getBoolean("enabled", emailPresent)
         ),
-        new DojaConfig(dojaUrl, dojaAppId, dojaApiKey, dojaJson.getBoolean("enabled", true))
+        new DojaConfig(dojaUrl, dojaAppId, dojaApiKey, dojaJson.getBoolean("enabled", true)),
+        new CloudinaryConfig(cloudName, cloudApiKey, cloudSecret)
     );
   }
 

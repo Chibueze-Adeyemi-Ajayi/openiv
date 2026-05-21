@@ -47,6 +47,7 @@ public final class AccessRequestService {
           input.contactName().trim(),
           normalizedEmail,
           blankToNull(input.contactPhone()),
+          blankToNull(input.jobTitle()),
           blankToNull(input.description()))
         .onSuccess(request -> {
           emailSender.sendWaitlistNotification(
@@ -74,6 +75,9 @@ public final class AccessRequestService {
     if (in.contactPhone() != null && in.contactPhone().length() > 40) {
       return new InvalidField("contactPhone");
     }
+    if (in.jobTitle() != null && in.jobTitle().length() > 200) {
+      return new InvalidField("jobTitle");
+    }
     if (in.description() != null && in.description().length() > 2000) {
       return new InvalidField("description");
     }
@@ -92,6 +96,7 @@ public final class AccessRequestService {
       String contactName,
       String contactEmail,
       String contactPhone,
+      String jobTitle,
       String description
   ) {}
 

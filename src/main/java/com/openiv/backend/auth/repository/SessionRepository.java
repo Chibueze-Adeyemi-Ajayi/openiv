@@ -94,6 +94,13 @@ public final class SessionRepository {
         .mapEmpty();
   }
 
+  /** Called once at server startup — clears any socket_active flags left over from the previous process. */
+  public Future<Void> clearStaleSocketActive() {
+    return pool.preparedQuery("UPDATE sessions SET socket_active = FALSE WHERE socket_active = TRUE")
+        .execute(Tuple.tuple())
+        .mapEmpty();
+  }
+
   public Future<Optional<Session>> findBySocketId(String socketId) {
     return pool.preparedQuery(
             "SELECT " + SELECT_COLS + " FROM sessions WHERE socket_id = $1 AND revoked_at IS NULL")

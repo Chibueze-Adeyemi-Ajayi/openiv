@@ -1,8 +1,11 @@
 package com.openiv.backend.auth.handler;
 
+import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.cloudinary.CloudinaryService;
 import com.openiv.backend.customers.CustomerService;
+import com.openiv.backend.documents.DocumentRepository;
 import com.openiv.backend.security.AuditLog;
 import com.openiv.backend.security.RequestId;
 import io.vertx.core.Future;
@@ -13,6 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
+import java.util.List;
+import java.util.UUID;
+import io.vertx.ext.web.FileUpload;
 
 /**
  * Thin HTTP handlers. Each: parses/validates the JSON body, delegates to
@@ -28,14 +34,20 @@ public final class AuthHandlers {
    */
   private static final int SESSION_COOKIE_SECONDS = 24 * 60 * 60;
 
-  private final AuthService auth;
-  private final boolean productionCookies;
-  private final CustomerService customerService;
+  private final AuthService        auth;
+  private final boolean            productionCookies;
+  private final CustomerService    customerService;
+  private final CloudinaryService  cloudinary;
+  private final DocumentRepository documents;
 
-  public AuthHandlers(AuthService auth, boolean productionCookies, CustomerService customerService) {
-    this.auth = auth;
+  public AuthHandlers(AuthService auth, boolean productionCookies,
+      CustomerService customerService, CloudinaryService cloudinary,
+      DocumentRepository documents) {
+    this.auth              = auth;
     this.productionCookies = productionCookies;
-    this.customerService = customerService;
+    this.customerService   = customerService;
+    this.cloudinary        = cloudinary;
+    this.documents         = documents;
   }
 
   public Handler<RoutingContext> verifyInvite() {
@@ -178,8 +190,53 @@ public final class AuthHandlers {
       var session = SessionAuthHandler.require(ctx);
       String current = required(body, "currentPassword");
       String next = required(body, "newPassword");
-      return auth.changePassword(session, current, next).map(v -> new JsonObject().put("ok", true));
+      return auth.changePassword(session, current, next).map(r -> {
+        JsonObject json = new JsonObject().put("ok", true);
+        if (r.nextState() != null) json.put("nextState", r.nextState().dbValue());
+        return json;
+      });
     });
+  }
+
+  public Handler<RoutingContext> getProfile() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      auth.getProfile(session)
+          .map(u -> new JsonObject()
+              .put("id", u.id())
+              .put("email", u.email())
+              .put("fullName", u.fullName())
+              .put("jobTitle", u.jobTitle())
+              .put("role", u.role())
+              .put("accountType", u.accountType().dbValue())
+              .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
+              .put("createdAt", u.createdAt().toString())
+              .put("avatarUrl", u.avatarUrl()))
+          .onSuccess(json -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json")
+              .end(json.encode()))
+          .onFailure(err -> ctx.fail(401));
+    };
+  }
+
+  public Handler<RoutingContext> updateProfile() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      JsonObject body = ctx.body().asJsonObject();
+      if (body == null) { ctx.fail(400); return; }
+      String fullName = body.getString("fullName");
+      String jobTitle = body.getString("jobTitle");
+      auth.updateProfile(session, fullName, jobTitle)
+          .map(u -> new JsonObject()
+              .put("ok", true)
+              .put("fullName", u.fullName())
+              .put("jobTitle", u.jobTitle())
+              .put("avatarUrl", u.avatarUrl()))
+          .onSuccess(json -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json")
+              .end(json.encode()))
+          .onFailure(ctx::fail);
+    };
   }
 
   public Handler<RoutingContext> requestPasswordReset() {
@@ -236,6 +293,62 @@ public final class AuthHandlers {
             noContent(ctx);
           })
           .onFailure(err -> handleFailure(ctx, err));
+    };
+  }
+
+  public Handler<RoutingContext> uploadAvatar() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      List<FileUpload> uploads = ctx.fileUploads();
+      if (uploads == null || uploads.isEmpty()) {
+        ctx.response().setStatusCode(400)
+            .putHeader("Content-Type", "application/json")
+            .end("{\"error\":\"no_file\",\"detail\":\"No file uploaded\"}");
+        return;
+      }
+      FileUpload fu = uploads.iterator().next();
+      String ct = fu.contentType() != null ? fu.contentType() : "";
+      if (!ct.startsWith("image/jpeg") && !ct.startsWith("image/png")
+          && !ct.startsWith("image/webp") && !ct.startsWith("image/gif")) {
+        ctx.response().setStatusCode(400)
+            .putHeader("Content-Type", "application/json")
+            .end("{\"error\":\"invalid_type\",\"detail\":\"Only JPEG, PNG, WebP and GIF are accepted\"}");
+        return;
+      }
+      if (fu.size() > 5 * 1024 * 1024) {
+        ctx.response().setStatusCode(400)
+            .putHeader("Content-Type", "application/json")
+            .end("{\"error\":\"file_too_large\",\"detail\":\"Maximum avatar size is 5 MB\"}");
+        return;
+      }
+      String publicId = "user_" + session.userId() + "_" + UUID.randomUUID();
+      auth.getProfile(session)
+          .compose(user -> documents.findAvatarDocument(session.userId())
+              .compose(oldDocOpt -> ctx.vertx().fileSystem().readFile(fu.uploadedFileName())
+                  .compose(buf -> cloudinary.upload(buf.getBytes(), "openiv", publicId, "image"))
+                  .compose(result -> documents.saveDocument(
+                      user.institutionId(), session.userId(),
+                      result.publicId(), result.secureUrl(),
+                      fu.fileName() != null ? fu.fileName() : "avatar", ct, result.bytes(),
+                      result.resourceType(), result.format(),
+                      result.width(), result.height(),
+                      "avatar", String.valueOf(session.userId()))
+                      .compose(doc -> auth.updateAvatarUrl(session, result.secureUrl(), doc.id()))
+                      .andThen(ar -> {
+                        if (ar.succeeded()) {
+                          oldDocOpt.ifPresent(oldDoc -> {
+                            if (oldDoc.cloudinaryPublicId() != null) {
+                              cloudinary.delete(oldDoc.cloudinaryPublicId(), "image")
+                                  .onFailure(e -> log.warn("[Avatar] Old image delete failed: {}", e.getMessage()));
+                            }
+                          });
+                        }
+                      })
+                      .map(u -> new JsonObject().put("ok", true).put("avatarUrl", u.avatarUrl())))))
+          .onSuccess(json -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json")
+              .end(json.encode()))
+          .onFailure(err -> ctx.fail(500, err));
     };
   }
 

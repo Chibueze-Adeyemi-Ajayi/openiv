@@ -148,7 +148,7 @@ public final class Main {
           emailSender = new VertxEmailSender(vertx, config.email());
         } else {
           emailSender = new LogEmailSender();
-          log.warn("No email config; using LogEmailSender. Add an \"email\" block to application.json to enable SMTP.");
+          log.warn("No email config; using LogEmailSender. Add an \"email\" block with \"apiToken\" to application.json to enable Mailtrap.");
         }
 
         TotpCipher totpCipher = TotpCipher.fromPem(
@@ -156,13 +156,15 @@ public final class Main {
         log.info("TOTP cipher initialized (RSA-OAEP-SHA256)");
 
         AuthService authService = new AuthService(
-            users, invitations, codes, totp, sessions, emailSender, totpCipher,
+            users, invitations, institutions, codes, totp, sessions, emailSender, totpCipher,
             blockedDevices, transfers, vertx);
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests, emailSender);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
-        TeamService teamService = new TeamService(users, invitations, institutions, customRoles, emailSender);
+        TeamService teamService = new TeamService(users, institutions, customRoles, emailSender);
         CustomerRepository customerRepository = new CustomerRepository(pool);
-        CustomerService customerService = new CustomerService(customerRepository);
+        com.openiv.backend.kyc.KycPipelineResultRepository kycPipelineResultRepository =
+            new com.openiv.backend.kyc.KycPipelineResultRepository(pool);
+        CustomerService customerService = new CustomerService(customerRepository, kycPipelineResultRepository);
         TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users, customerService);
         var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
         AmlSettingsRepository amlSettingsRepository = new AmlSettingsRepository(pool);
@@ -207,7 +209,8 @@ public final class Main {
             new com.openiv.backend.behavioral.BehavioralRuleRepository(pool),
             new com.openiv.backend.customers.CustomerTransactionRuleRepository(pool),
             new com.openiv.backend.customers.CustomerBehavioralProfileRepository(pool),
-            customerRepository);
+            customerRepository,
+            new com.openiv.backend.alerts.InstitutionAlertRepository(pool));
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
             hybridAnalysis, fraudDetectionBillingService, notificationService);
 
@@ -216,9 +219,11 @@ public final class Main {
         BehavioralBeamAnalyzer behavioralBeamAnalyzer = new BehavioralBeamAnalyzer(
             behavioralAlertRepository, notificationService, caseRepository);
 
+        com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo =
+            new com.openiv.backend.kyc.KycEvaluationConfigRepository(pool);
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
             webhookService, orchestrator, notificationService, customerService,
-            amlSettingsRepository, behavioralBeamAnalyzer, kycService, autoCaseService);
+            amlSettingsRepository, behavioralBeamAnalyzer, kycService, autoCaseService, evalConfigRepo);
         HeatmapService heatmapService = new HeatmapService(new HeatmapRepository(pool), users);
         DashboardService dashboardService = new DashboardService(new DashboardRepository(pool), users);
         GeoFenceService geoFenceService = new GeoFenceService(
@@ -228,7 +233,8 @@ public final class Main {
         RiskReportService riskReportService = new RiskReportService(
             customerRepository, users, emailSender, notificationService);
 
-        return DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions)
+        return sessions.clearStaleSocketActive()
+            .compose(ignored -> DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions))
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, sessions, authService, accessRequestService,

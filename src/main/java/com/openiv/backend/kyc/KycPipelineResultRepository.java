@@ -23,53 +23,64 @@ public final class KycPipelineResultRepository {
   public Future<KycPipelineResult> save(long institutionId, String customerId,
       PipelineVerificationResult result, String actionTaken,
       Long monthlyInflow, Long monthlyOutflow) {
+    return save(institutionId, customerId, result, actionTaken, monthlyInflow, monthlyOutflow, null);
+  }
+
+  public Future<KycPipelineResult> save(long institutionId, String customerId,
+      PipelineVerificationResult result, String actionTaken,
+      Long monthlyInflow, Long monthlyOutflow, Integer institutionKycTier) {
 
     PipelineStepResult bvn  = findStep(result, "bvn_nin");
     PipelineStepResult ph   = findStep(result, "phone_match");
     PipelineStepResult liv  = findStep(result, "liveness");
     PipelineStepResult pep  = findStep(result, "pep_check");
 
+    String knowledgeLevel = toKnowledgeLevel(result.kycTier());
+
     String sql = "INSERT INTO kyc_pipeline_results "
-        + "(institution_id, customer_id, overall_risk_score, kyc_tier, overall_status, action_taken,"
+        + "(institution_id, customer_id, overall_risk_score, knowledge_level, institution_kyc_tier,"
+        + " overall_status, action_taken,"
         + " bvn_nin_status, bvn_nin_score, bvn_nin_detail,"
         + " phone_status, phone_score, phone_detail,"
         + " liveness_status, liveness_score, liveness_detail,"
         + " pep_status, pep_score, pep_detail, duration_ms, identity_photo_b64,"
         + " first_name, last_name, phone, date_of_birth,"
         + " monthly_inflow, monthly_outflow) "
-        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) "
+        + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) "
         + "ON CONFLICT (institution_id, customer_id) DO UPDATE SET "
         + " run_at = NOW(),"
-        + " overall_risk_score = EXCLUDED.overall_risk_score,"
-        + " kyc_tier           = EXCLUDED.kyc_tier,"
-        + " overall_status     = EXCLUDED.overall_status,"
-        + " action_taken       = EXCLUDED.action_taken,"
-        + " bvn_nin_status     = EXCLUDED.bvn_nin_status,"
-        + " bvn_nin_score      = EXCLUDED.bvn_nin_score,"
-        + " bvn_nin_detail     = EXCLUDED.bvn_nin_detail,"
-        + " phone_status       = EXCLUDED.phone_status,"
-        + " phone_score        = EXCLUDED.phone_score,"
-        + " phone_detail       = EXCLUDED.phone_detail,"
-        + " liveness_status    = EXCLUDED.liveness_status,"
-        + " liveness_score     = EXCLUDED.liveness_score,"
-        + " liveness_detail    = EXCLUDED.liveness_detail,"
-        + " pep_status         = EXCLUDED.pep_status,"
-        + " pep_score          = EXCLUDED.pep_score,"
-        + " pep_detail         = EXCLUDED.pep_detail,"
-        + " duration_ms        = EXCLUDED.duration_ms,"
-        + " identity_photo_b64 = EXCLUDED.identity_photo_b64,"
-        + " first_name         = EXCLUDED.first_name,"
-        + " last_name          = EXCLUDED.last_name,"
-        + " phone              = EXCLUDED.phone,"
-        + " date_of_birth      = EXCLUDED.date_of_birth,"
-        + " monthly_inflow     = EXCLUDED.monthly_inflow,"
-        + " monthly_outflow    = EXCLUDED.monthly_outflow "
+        + " overall_risk_score    = EXCLUDED.overall_risk_score,"
+        + " knowledge_level       = EXCLUDED.knowledge_level,"
+        + " institution_kyc_tier  = EXCLUDED.institution_kyc_tier,"
+        + " overall_status        = EXCLUDED.overall_status,"
+        + " action_taken          = EXCLUDED.action_taken,"
+        + " bvn_nin_status        = EXCLUDED.bvn_nin_status,"
+        + " bvn_nin_score         = EXCLUDED.bvn_nin_score,"
+        + " bvn_nin_detail        = EXCLUDED.bvn_nin_detail,"
+        + " phone_status          = EXCLUDED.phone_status,"
+        + " phone_score           = EXCLUDED.phone_score,"
+        + " phone_detail          = EXCLUDED.phone_detail,"
+        + " liveness_status       = EXCLUDED.liveness_status,"
+        + " liveness_score        = EXCLUDED.liveness_score,"
+        + " liveness_detail       = EXCLUDED.liveness_detail,"
+        + " pep_status            = EXCLUDED.pep_status,"
+        + " pep_score             = EXCLUDED.pep_score,"
+        + " pep_detail            = EXCLUDED.pep_detail,"
+        + " duration_ms           = EXCLUDED.duration_ms,"
+        + " identity_photo_b64    = EXCLUDED.identity_photo_b64,"
+        + " first_name            = EXCLUDED.first_name,"
+        + " last_name             = EXCLUDED.last_name,"
+        + " phone                 = EXCLUDED.phone,"
+        + " date_of_birth         = EXCLUDED.date_of_birth,"
+        + " monthly_inflow        = EXCLUDED.monthly_inflow,"
+        + " monthly_outflow       = EXCLUDED.monthly_outflow "
         + "RETURNING id, run_at";
 
     return pool.preparedQuery(sql)
         .execute(Tuple.of(
             institutionId, customerId,
-            result.overallRiskScore(), result.kycTier(), result.overallStatus(), actionTaken,
+            result.overallRiskScore(), knowledgeLevel, institutionKycTier,
+            result.overallStatus(), actionTaken,
             status(bvn),  score(bvn),  detail(bvn),
             status(ph),   score(ph),   detail(ph),
             status(liv),  score(liv),  detail(liv),
@@ -81,7 +92,8 @@ public final class KycPipelineResultRepository {
           Row r = rs.iterator().next();
           return new KycPipelineResult(
               r.getLong("id"), institutionId, customerId, r.getOffsetDateTime("run_at"),
-              result.overallRiskScore(), result.kycTier(), result.overallStatus(), actionTaken,
+              result.overallRiskScore(), knowledgeLevel, institutionKycTier,
+              result.overallStatus(), actionTaken,
               status(bvn),  score(bvn),  detail(bvn),
               status(ph),   score(ph),   detail(ph),
               status(liv),  score(liv),  detail(liv),
@@ -168,8 +180,8 @@ public final class KycPipelineResultRepository {
       long institutionId, String filter, String search) {
 
     String base =
-        "SELECT kpr.customer_id, kpr.overall_risk_score, kpr.kyc_tier,"
-        + " kpr.overall_status, kpr.action_taken, kpr.run_at,"
+        "SELECT kpr.customer_id, kpr.overall_risk_score, kpr.knowledge_level,"
+        + " kpr.institution_kyc_tier, kpr.overall_status, kpr.action_taken, kpr.run_at,"
         + " kpr.bvn_nin_status, kpr.bvn_nin_score,"
         + " kpr.phone_status,   kpr.phone_score,"
         + " kpr.liveness_status, kpr.liveness_score,"
@@ -216,9 +228,10 @@ public final class KycPipelineResultRepository {
           List<JsonObject> list = new ArrayList<>();
           rs.forEach(r -> list.add(new JsonObject()
               .put("customerId",       r.getString("customer_id"))
-              .put("overallRiskScore", r.getInteger("overall_risk_score"))
-              .put("totalRiskScore",   r.getInteger("total_risk_score"))
-              .put("kycTier",          r.getInteger("kyc_tier"))
+              .put("overallRiskScore",    r.getInteger("overall_risk_score"))
+              .put("totalRiskScore",     r.getInteger("total_risk_score"))
+              .put("knowledgeLevel",     r.getString("knowledge_level"))
+              .put("institutionKycTier", r.getInteger("institution_kyc_tier"))
               .put("overallStatus",    r.getString("overall_status"))
               .put("actionTaken",      r.getString("action_taken"))
               .put("runAt",            r.getOffsetDateTime("run_at").toString())
@@ -286,7 +299,8 @@ public final class KycPipelineResultRepository {
         r.getString("customer_id"),
         r.getOffsetDateTime("run_at"),
         r.getInteger("overall_risk_score"),
-        r.getInteger("kyc_tier"),
+        r.getString("knowledge_level"),
+        r.getInteger("institution_kyc_tier"),
         r.getString("overall_status"),
         r.getString("action_taken"),
         r.getString("bvn_nin_status"),  safeInt(r, "bvn_nin_score"),  r.getString("bvn_nin_detail"),
@@ -301,6 +315,25 @@ public final class KycPipelineResultRepository {
         r.getString("date_of_birth"),
         r.getLong("monthly_inflow"),
         r.getLong("monthly_outflow"));
+  }
+
+  /** Convert pipeline integer tier (1/2/3) to knowledge_level string. */
+  public static String toKnowledgeLevel(int tier) {
+    return switch (tier) {
+      case 2 -> "t2";
+      case 3 -> "t3";
+      default -> "t1";
+    };
+  }
+
+  /** Convert knowledge_level string back to integer for limit lookups. */
+  public static int fromKnowledgeLevel(String level) {
+    if (level == null) return 1;
+    return switch (level) {
+      case "t2" -> 2;
+      case "t3" -> 3;
+      default -> 1;
+    };
   }
 
   private static int safeInt(Row r, String col) {

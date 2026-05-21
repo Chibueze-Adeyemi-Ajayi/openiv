@@ -1,7 +1,6 @@
 package com.openiv.backend.team;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
-import com.openiv.backend.auth.model.Invitation;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.security.RequestId;
@@ -10,9 +9,13 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.sqlclient.Pool;
+import io.vertx.sqlclient.Tuple;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * HTTP layer for team management. Each handler resolves the caller's team context
@@ -21,25 +24,51 @@ import java.time.temporal.ChronoUnit;
 public final class TeamHandlers {
 
   private final TeamService service;
+  private final Pool pool;
 
-  public TeamHandlers(TeamService service) {
+  public TeamHandlers(TeamService service, Pool pool) {
     this.service = service;
+    this.pool = pool;
   }
 
   public Handler<RoutingContext> listMembers() {
-    return ctx -> withContext(ctx, tctx ->
-        service.listMembers(tctx).map(list -> {
-          JsonArray arr = new JsonArray();
-          list.forEach(u -> arr.add(memberJson(u)));
-          return new JsonObject().put("members", arr);
-        }));
+    return ctx -> withContext(ctx, tctx -> {
+      Future<java.util.List<User>> fMembers  = service.listMembers(tctx);
+      Future<Map<Long, OffsetDateTime>> fActivity = lastActiveByInstitution(tctx.institution().id());
+      return Future.all(fMembers, fActivity).map(results -> {
+        java.util.List<User> list         = results.resultAt(0);
+        Map<Long, OffsetDateTime> activity = results.resultAt(1);
+        JsonArray arr = new JsonArray();
+        list.forEach(u -> arr.add(memberJson(u, activity.get(u.id()))));
+        return new JsonObject().put("members", arr);
+      });
+    });
+  }
+
+  /** Returns the most recent session last_used_at per user for the given institution. */
+  private Future<Map<Long, OffsetDateTime>> lastActiveByInstitution(long institutionId) {
+    return pool.preparedQuery(
+            "SELECT s.user_id, MAX(s.last_used_at) AS last_used "
+            + "FROM sessions s JOIN users u ON s.user_id = u.id "
+            + "WHERE u.institution_id = $1 AND s.revoked_at IS NULL "
+            + "GROUP BY s.user_id")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> {
+          Map<Long, OffsetDateTime> m = new HashMap<>();
+          rs.forEach(row -> {
+            OffsetDateTime t = row.getOffsetDateTime("last_used");
+            if (t != null) m.put(row.getLong("user_id"), t);
+          });
+          return m;
+        })
+        .recover(err -> Future.succeededFuture(new HashMap<>()));
   }
 
   public Handler<RoutingContext> listPending() {
     return ctx -> withContext(ctx, tctx ->
         service.listPending(tctx).map(list -> {
           JsonArray arr = new JsonArray();
-          list.forEach(inv -> arr.add(pendingJson(inv, tctx.caller().displayName())));
+          list.forEach(u -> arr.add(pendingJson(u)));
           return new JsonObject().put("pending", arr);
         }));
   }
@@ -51,11 +80,11 @@ public final class TeamHandlers {
       String email = body.getString("email");
       String role = body.getString("role", "analyst");
       return service.invite(tctx, email, role)
-          .map(inv -> new JsonObject()
-              .put("id", inv.id())
-              .put("email", inv.email())
-              .put("role", inv.role())
-              .put("status", inv.status()));
+          .map(user -> new JsonObject()
+              .put("id", user.id())
+              .put("email", user.email())
+              .put("role", user.role())
+              .put("status", "pending"));
     });
   }
 
@@ -79,12 +108,11 @@ public final class TeamHandlers {
     return ctx -> withContext(ctx, tctx -> {
       long id = longParam(ctx, "id");
       return service.resendInvitation(tctx, id)
-          .map(inv -> new JsonObject()
-              .put("id", inv.id())
-              .put("email", inv.email())
-              .put("role", inv.role())
-              .put("status", inv.status())
-              .put("expiresAt", inv.expiresAt() != null ? inv.expiresAt().toString() : null));
+          .map(user -> new JsonObject()
+              .put("id", user.id())
+              .put("email", user.email())
+              .put("role", user.role())
+              .put("status", "pending"));
     });
   }
 
@@ -129,11 +157,17 @@ public final class TeamHandlers {
       java.util.function.Function<TeamService.TeamContext, Future<JsonObject>> op) {
     service.context(SessionAuthHandler.require(ctx))
         .compose(op::apply)
-        .onSuccess(json -> ctx.response()
-            .setStatusCode(200)
-            .putHeader("content-type", "application/json; charset=utf-8")
-            .end(json.encode()))
-        .onFailure(err -> handleFailure(ctx, err));
+        .onSuccess(json -> {
+          if (ctx.response().ended()) return;
+          ctx.response()
+              .setStatusCode(200)
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .end(json.encode());
+        })
+        .onFailure(err -> {
+          if (ctx.response().ended()) return;
+          handleFailure(ctx, err);
+        });
   }
 
   private static JsonObject safeBody(RoutingContext ctx) {
@@ -177,9 +211,10 @@ public final class TeamHandlers {
     ctx.fail(err);
   }
 
-  // --- JSON shapes (match what TeamPage expects) --------------------------
+  // --- JSON shapes -------------------------------------------------------
 
-  private static JsonObject memberJson(User u) {
+  private static JsonObject memberJson(User u, OffsetDateTime lastActiveAt) {
+    OffsetDateTime effective = lastActiveAt != null ? lastActiveAt : u.updatedAt();
     return new JsonObject()
         .put("id", u.id())
         .put("email", u.email())
@@ -189,18 +224,17 @@ public final class TeamHandlers {
         .put("status", u.status())
         .put("accountType", u.accountType().dbValue())
         .put("emailVerified", u.emailVerified())
-        .put("lastActive", humanize(u.updatedAt()))
+        .put("avatarUrl", u.avatarUrl())
+        .put("lastActive", humanize(effective))
         .put("createdAt", u.createdAt().toString());
   }
 
-  private static JsonObject pendingJson(Invitation inv, String invitedByName) {
+  private static JsonObject pendingJson(User u) {
     return new JsonObject()
-        .put("id", inv.id())
-        .put("email", inv.email())
-        .put("role", inv.role())
-        .put("invitedBy", invitedByName)
-        .put("invitedOn", humanize(inv.createdAt()))
-        .put("expiresAt", inv.expiresAt().toString());
+        .put("id", u.id())
+        .put("email", u.email())
+        .put("role", u.role())
+        .put("invitedOn", humanize(u.createdAt()));
   }
 
   private static String initialsOf(String name) {

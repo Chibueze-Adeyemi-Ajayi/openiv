@@ -7,12 +7,17 @@ import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.Tuple;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public final class InstitutionRepository {
 
   private static final String SELECT_COLS =
-      "id, name, type, status, cbn_code, address, contact_phone, official_stamp, official_signature, created_at, updated_at";
+      "id, name, type, status, cbn_code, address, contact_phone,"
+      + " official_stamp, official_signature,"
+      + " stamp_document_id, signature_document_id,"
+      + " created_at, updated_at";
 
   private final Pool pool;
 
@@ -40,33 +45,56 @@ public final class InstitutionRepository {
             : Optional.of(map(rs.iterator().next())));
   }
 
+  public Future<List<Institution>> listAll() {
+    return pool.preparedQuery("SELECT " + SELECT_COLS + " FROM institutions ORDER BY created_at DESC")
+        .execute()
+        .map(rs -> {
+          List<Institution> list = new ArrayList<>();
+          rs.forEach(row -> list.add(map(row)));
+          return list;
+        });
+  }
+
+  public Future<Institution> updateStatus(long id, String status) {
+    return pool.preparedQuery(
+            "UPDATE institutions SET status = $2, updated_at = now() WHERE id = $1 RETURNING " + SELECT_COLS)
+        .execute(Tuple.of(id, status))
+        .map(rs -> map(rs.iterator().next()));
+  }
+
   public Future<Institution> create(String name, AccountType type) {
-    String sql = "INSERT INTO institutions (name, type) VALUES ($1, $2) RETURNING " + SELECT_COLS;
-    return pool.preparedQuery(sql)
+    return pool.preparedQuery(
+            "INSERT INTO institutions (name, type) VALUES ($1, $2) RETURNING " + SELECT_COLS)
         .execute(Tuple.of(name, type.dbValue()))
         .map(rs -> map(rs.iterator().next()));
   }
 
   public Future<Institution> updateProfile(long id, String cbnCode, String address, String contactPhone) {
     String sql = "UPDATE institutions SET"
-        + " cbn_code = COALESCE($2, cbn_code),"
-        + " address = COALESCE($3, address),"
+        + " cbn_code      = COALESCE($2, cbn_code),"
+        + " address       = COALESCE($3, address),"
         + " contact_phone = COALESCE($4, contact_phone),"
-        + " updated_at = now()"
+        + " updated_at    = now()"
         + " WHERE id = $1 RETURNING " + SELECT_COLS;
     return pool.preparedQuery(sql)
         .execute(Tuple.of(id, cbnCode, address, contactPhone))
         .map(rs -> map(rs.iterator().next()));
   }
 
-  public Future<Institution> updateSigningCredentials(long id, String officialStamp, String officialSignature) {
+  /** Update stamp/signature URLs and their document table references. */
+  public Future<Institution> updateSigningCredentials(
+      long id,
+      String officialStamp,     Long stampDocumentId,
+      String officialSignature, Long signatureDocumentId) {
     String sql = "UPDATE institutions SET"
-        + " official_stamp = COALESCE($2, official_stamp),"
-        + " official_signature = COALESCE($3, official_signature),"
-        + " updated_at = now()"
+        + " official_stamp       = COALESCE($2, official_stamp),"
+        + " official_signature   = COALESCE($3, official_signature),"
+        + " stamp_document_id    = COALESCE($4, stamp_document_id),"
+        + " signature_document_id = COALESCE($5, signature_document_id),"
+        + " updated_at           = now()"
         + " WHERE id = $1 RETURNING " + SELECT_COLS;
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(id, officialStamp, officialSignature))
+        .execute(Tuple.of(id, officialStamp, officialSignature, stampDocumentId, signatureDocumentId))
         .map(rs -> map(rs.iterator().next()));
   }
 
@@ -81,6 +109,8 @@ public final class InstitutionRepository {
         r.getString("contact_phone"),
         r.getString("official_stamp"),
         r.getString("official_signature"),
+        r.getLong("stamp_document_id"),
+        r.getLong("signature_document_id"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"));
   }

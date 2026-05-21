@@ -6,9 +6,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 public final class BeamHandlers {
 
@@ -97,9 +94,9 @@ public final class BeamHandlers {
 
       service.processKycStream(institutionId, body.encode(), ip, userAgent, bytes,
               stepEvent -> writeSse(resp, "step", stepEvent))
-          .onSuccess(result -> {
-            billing.chargeBeamIngestAsync(institutionId, "beam_kyc_" + System.currentTimeMillis());
-            writeSse(resp, "result", result);
+          .onSuccess(res -> {
+            billing.chargeBeamIngestAsync(institutionId, "beam_kyc_" + res.record().id());
+            writeSse(resp, "result", res.analysis() != null ? res.analysis() : new JsonObject());
             writeSse(resp, "done",   new JsonObject());
             resp.end();
           })

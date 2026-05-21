@@ -9,6 +9,7 @@ public record AccessRequest(
     String contactName,
     String contactEmail,
     String contactPhone,
+    String jobTitle,
     String description,
     String status,
     String reviewNotes,

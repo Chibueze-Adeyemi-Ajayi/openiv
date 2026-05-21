@@ -12,6 +12,8 @@ public record Institution(
     String contactPhone,
     String officialStamp,
     String officialSignature,
+    Long stampDocumentId,
+    Long signatureDocumentId,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {

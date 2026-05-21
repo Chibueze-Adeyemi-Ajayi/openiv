@@ -1,6 +1,7 @@
 package com.openiv.backend.transactions;
 
 import com.openiv.backend.aml.AmlSettingsRepository;
+import com.openiv.backend.alerts.InstitutionAlertRepository;
 import com.openiv.backend.behavioral.BehavioralRuleRepository;
 import com.openiv.backend.behavioral.BehavioralRuleRecord;
 import com.openiv.backend.cases.AutoCaseCreationService;
@@ -50,6 +51,7 @@ public class HybridTransactionAnalysisService {
   private final CustomerTransactionRuleRepository customerRuleRepo;
   private final CustomerBehavioralProfileRepository profileRepo;
   private final CustomerRepository customerRepo;
+  private final InstitutionAlertRepository alertRepo;
 
   public record AnalysisResult(
       int riskScore,
@@ -83,7 +85,8 @@ public class HybridTransactionAnalysisService {
       BehavioralRuleRepository behavioralRuleRepository,
       CustomerTransactionRuleRepository customerRuleRepo,
       CustomerBehavioralProfileRepository profileRepo,
-      CustomerRepository customerRepo) {
+      CustomerRepository customerRepo,
+      InstitutionAlertRepository alertRepo) {
     this.scorer = scorer;
     this.caseService = caseService;
     this.thresholdRepository = thresholdRepository;
@@ -95,6 +98,7 @@ public class HybridTransactionAnalysisService {
     this.customerRuleRepo = customerRuleRepo;
     this.profileRepo = profileRepo;
     this.customerRepo = customerRepo;
+    this.alertRepo = alertRepo;
   }
 
   public Future<AnalysisResult> analyzeTransaction(
@@ -129,12 +133,16 @@ public class HybridTransactionAnalysisService {
           boolean needsMonthly  = customerRules.stream().anyMatch(r -> r.isActive() && "monthly_amount_limit".equals(r.ruleType()));
           boolean needsVelocity = customerRules.stream().anyMatch(r -> r.isActive() && "transaction_velocity".equals(r.ruleType()));
           boolean needsRapidWd  = customerRules.stream().anyMatch(r -> r.isActive() && "rapid_post_deposit_withdrawal".equals(r.ruleType()));
+          boolean needsSuddenWd = customerRules.stream().anyMatch(r -> r.isActive() && "sudden_withdrawal_after_deposit".equals(r.ruleType()));
           int vHours = customerRules.stream()
               .filter(r -> r.isActive() && "transaction_velocity".equals(r.ruleType()))
               .mapToInt(r -> r.params().getInteger("window_hours", 24)).max().orElse(24);
           int wdHours = customerRules.stream()
               .filter(r -> r.isActive() && "rapid_post_deposit_withdrawal".equals(r.ruleType()))
               .mapToInt(r -> r.params().getInteger("window_hours", 6)).max().orElse(6);
+          int swdMinutes = customerRules.stream()
+              .filter(r -> r.isActive() && "sudden_withdrawal_after_deposit".equals(r.ruleType()))
+              .mapToInt(r -> r.params().getInteger("window_minutes", 30)).max().orElse(30);
 
           Future<java.math.BigDecimal> fTodaySum   = needsDaily
               ? customerRuleRepo.sumTodayAmount(institutionId, transaction.customerId())
@@ -148,13 +156,24 @@ public class HybridTransactionAnalysisService {
           Future<java.math.BigDecimal> fRecentDeposit = needsRapidWd
               ? customerRuleRepo.sumInwardAmountInWindow(institutionId, transaction.customerId(), wdHours)
               : Future.succeededFuture(java.math.BigDecimal.ZERO);
+          Future<Boolean> fSuddenWdDeposit = needsSuddenWd
+              ? customerRuleRepo.hasDepositInLastMinutes(institutionId, transaction.customerId(), swdMinutes)
+              : Future.succeededFuture(Boolean.FALSE);
 
-          return Future.all(fTodaySum, fMonthSum, fVelocityCount, fRecentDeposit)
+          // Always fetch the channel+direction daily sum for KYC-tier cumulative limit enforcement.
+          String kycChannel   = transaction.channel()   != null ? transaction.channel().toLowerCase()   : "other";
+          String kycDirection = transaction.direction() != null ? transaction.direction()               : "outward";
+          Future<java.math.BigDecimal> fKycDailySum =
+              customerRuleRepo.sumTodayAmountByChannelAndDirection(institutionId, transaction.customerId(), kycChannel, kycDirection);
+
+          return Future.all(fTodaySum, fMonthSum, fVelocityCount, fRecentDeposit, fKycDailySum, fSuddenWdDeposit)
               .<AnalysisResult>compose(aggRes -> {
-                java.math.BigDecimal todaySum     = aggRes.resultAt(0);
-                java.math.BigDecimal monthSum     = aggRes.resultAt(1);
-                long velocityCount                = ((Long) aggRes.resultAt(2));
-                java.math.BigDecimal recentDeposit = aggRes.resultAt(3);
+                java.math.BigDecimal todaySum        = aggRes.resultAt(0);
+                java.math.BigDecimal monthSum        = aggRes.resultAt(1);
+                long velocityCount                   = ((Long) aggRes.resultAt(2));
+                java.math.BigDecimal recentDeposit   = aggRes.resultAt(3);
+                java.math.BigDecimal kycDailySum     = aggRes.resultAt(4);
+                boolean hadRecentDeposit             = Boolean.TRUE.equals((Boolean) aggRes.resultAt(5));
 
                 // ── Aggregate customer rule checks ────────────────────────────
                 for (CustomerTransactionRule rule : customerRules) {
@@ -210,6 +229,21 @@ public class HybridTransactionAnalysisService {
                         }
                       }
                     }
+                    case "sudden_withdrawal_after_deposit" -> {
+                      // Fires on outward transactions that arrive within N minutes of any deposit
+                      if ("outward".equals(transaction.direction()) && hadRecentDeposit) {
+                        long minAmt = rule.params().getLong("min_amount", 0L);
+                        if (transaction.amount().longValue() >= minAmt) {
+                          if ("block".equals(rule.action()))
+                            return handleCustomerBlock(institutionId, transaction,
+                                "Outward transfer of ₦" + String.format("%,.0f", transaction.amount()) +
+                                " detected within " + swdMinutes + " minutes of a deposit — matches a pass-through / cash-out pattern",
+                                "sudden_withdrawal_after_deposit");
+                          custFlags.add("SUDDEN_WITHDRAWAL_AFTER_DEPOSIT");
+                          custScores.add("flag".equals(rule.action()) ? 75 : 55);
+                        }
+                      }
+                    }
                     default -> { }
                   }
                 }
@@ -225,10 +259,12 @@ public class HybridTransactionAnalysisService {
                     kycService.getCustomerKycByInstitution(institutionId, transaction.customerId());
                 Future<java.util.Optional<CustomerBehavioralProfile>> fProfile =
                     profileRepo.getProfile(institutionId, transaction.customerId());
+                Future<java.util.Optional<java.time.OffsetDateTime>> fLastTxnDate =
+                    findPreviousTransactionDate(institutionId, transaction.customerId(), transaction.id());
 
                 java.util.List<Future<?>> allFutures = java.util.List.of(
                     fThresholds, fTierThresholds, fAmlSettings,
-                    fBehavioralRules, fKycSuppressed, fOverallRisk, fKyc, fProfile);
+                    fBehavioralRules, fKycSuppressed, fOverallRisk, fKyc, fProfile, fLastTxnDate);
 
                 return Future.all(new java.util.ArrayList<>(allFutures))
                     .<AnalysisResult>compose(results -> {
@@ -240,83 +276,63 @@ public class HybridTransactionAnalysisService {
                       int customerOverallRisk                                            = (Integer) results.resultAt(5);
                       java.util.Optional<com.openiv.backend.kyc.KycPipelineResult> optKyc = results.resultAt(6);
                       java.util.Optional<CustomerBehavioralProfile> optProfile          = results.resultAt(7);
+                      java.util.Optional<java.time.OffsetDateTime> lastTxnDate          = results.resultAt(8);
 
                       boolean kycTierCheckEnabled = !kycSuppressed && !skipKyc;
-                      int customerKycTier = optKyc.map(k -> k.kycTier()).orElse(0);
+                      int customerKycTier = optKyc.map(k ->
+                          com.openiv.backend.kyc.KycPipelineResultRepository.fromKnowledgeLevel(k.knowledgeLevel()))
+                          .orElse(0);
 
                       com.openiv.backend.aml.AmlSettings aml = optAml.orElse(
-                          new com.openiv.backend.aml.AmlSettings(0, institutionId, false, null, 51, 81, 60, 85, 30, 30, 180, "Africa/Lagos", 40, 75));
+                          new com.openiv.backend.aml.AmlSettings(0, institutionId, false, null, 51, 81, 60, 85, 30, 30, 180, "Africa/Lagos", 40, 75, 10, 1000));
                       java.time.ZoneId zone         = java.time.ZoneId.of(aml.timezone());
                       int beamWindowSeconds         = aml.beamWindowSeconds();
 
+                      // Build once; passed to every updateTransactionRisk call for audit compliance
+                      final String rulesSnapshot = buildRulesSnapshot(
+                          institutionId, transaction.id(), aml, thresholds, behavioralRules, tierThresholds);
+
                       // ── TIMESTAMP CHECKS ───────────────────────────────────
-                      // 'now' is derived from the institution's own timezone so that
-                      // clock comparisons are always relative to the institution's wall time.
-                      java.time.OffsetDateTime now     = java.time.OffsetDateTime.now(zone);
-                      java.time.OffsetDateTime txnTime = transaction.occurredAt();
-                      if (txnTime != null) {
-                        long signedDiff  = java.time.temporal.ChronoUnit.SECONDS.between(txnTime, now);
+                      // Timestamp anomalies are collected as scored flags and fed into the normal
+                      // blended-scoring pipeline rather than hard early returns.  This prevents
+                      // institutions that send occurred_at ≈ now() (real-time beaming) from having
+                      // every transaction declined, and prevents the 3-minute SSE beam window from
+                      // being misused as a fraud staleness threshold.
+                      java.util.List<String>  timestampFlags  = new java.util.ArrayList<>();
+                      java.util.List<Integer> timestampScores = new java.util.ArrayList<>();
+                      if (transaction.occurredAt() != null) {
+                        java.time.OffsetDateTime now = java.time.OffsetDateTime.now(zone);
+                        long signedDiff  = java.time.temporal.ChronoUnit.SECONDS.between(transaction.occurredAt(), now);
                         long secondsDiff = Math.abs(signedDiff);
 
-                        // ── MICRO-TIMING ANOMALY (Critical) ──────────────────
-                        // occurred_at within ±5 s of institution-local now is a strong signal
-                        // that the timestamp was programmatically set to "right now" rather than
-                        // reflecting the actual transaction moment.
+                        // MICRO_TIMING: occurred_at within ±5 s of now.
+                        // Low score (25) — real-time institutions routinely set occurred_at = now();
+                        // this alone should never block a transaction.
                         if (secondsDiff <= 5) {
-                          log.warn("[CRITICAL] Micro-Timing Anomaly on txn={} ({}s from institution now). Risk=96%", transaction.id(), secondsDiff);
-                          java.util.List<String> anomalyFlags = java.util.List.of("MICRO_TIMING_ANOMALY");
-                          java.util.List<String> reasons = buildFlagReasons(anomalyFlags, 96);
-                          return caseService.createCaseFromTransaction(institutionId, transaction,
-                              new TransactionScorer.ScoringResult(96, anomalyFlags, reasons.isEmpty() ? "" : reasons.get(0)))
-                              .compose(caseRecord -> {
-                                sendCaseNotificationEmails(institutionId, caseRecord)
-                                    .onFailure(e -> log.warn("[Case Notifications] micro-timing case {}: {}", caseRecord.id(), e.getMessage()));
-                                return Future.succeededFuture(new AnalysisResult(96, TransactionScorer.getPriority(96),
-                                    anomalyFlags, caseRecord.id(), null, true, false, true, "DECLINE", reasons));
-                              });
-                        }
-
-                        // ── STALE / FUTURE TIMESTAMP (Critical) ──────────────
-                        // FUTURE_GRACE of 3 600 s (1 hour) tolerates institutions whose client
-                        // submits local time (UTC+1) with a bare Z suffix by mistake.
-                        // Transactions more than (beamWindowSeconds + 3600) s in the future
-                        // are still caught as FUTURE_TIMESTAMP_ANOMALY.
-                        final long FUTURE_GRACE = 3600L;
-                        String anomalyKind   = null;
-                        String friendlyReason = null;
-                        if (signedDiff < -(beamWindowSeconds + FUTURE_GRACE)) {
-                          anomalyKind = "FUTURE_TIMESTAMP_ANOMALY";
-                          long minutesAhead = Math.max(1, Math.abs(signedDiff) / 60);
-                          friendlyReason = "The time recorded for this transaction is " + minutesAhead +
-                              " minute" + (minutesAhead == 1 ? "" : "s") +
-                              " ahead of our system clock. Ensure occurred_at is in UTC (e.g. 2026-05-17T13:00:00Z). " +
-                              "A real transaction can never happen far in the future — " +
-                              "this is a strong sign of a tampered timestamp or a possible cyber attack.";
-                        } else if (signedDiff > beamWindowSeconds) {
-                          long hoursOld  = signedDiff >= 3600 ? signedDiff / 3600 : 0;
-                          long minutesOld = (signedDiff % 3600) / 60;
-                          String ageDesc  = hoursOld > 0 ? hoursOld + " hour" + (hoursOld == 1 ? "" : "s")
-                                                          : minutesOld + " minute" + (minutesOld == 1 ? "" : "s");
-                          anomalyKind = "STALE_TIMESTAMP_ANOMALY";
-                          friendlyReason = "The time recorded on this transaction is " + ageDesc +
-                              " older than when it arrived at our system. This may indicate a replay attack, " +
-                              "backdated entry, or a faulty source system clock.";
-                        }
-                        if (anomalyKind != null) {
-                          log.warn("[CRITICAL] {} on txn={}. Risk=95%", anomalyKind, transaction.id());
-                          final String ruleName = anomalyKind;
-                          final String reason   = friendlyReason;
-                          java.util.List<String> anomalyFlags = java.util.List.of(ruleName);
-                          java.util.List<String> reasons = java.util.List.of(reason);
-                          return updateTransactionRisk(institutionId, transaction.id(), 95, reason, reasons)
-                              .compose(v -> caseService.createCaseFromTransaction(institutionId, transaction,
-                                  new TransactionScorer.ScoringResult(95, anomalyFlags, reason)))
-                              .compose(caseRecord -> {
-                                sendCaseNotificationEmails(institutionId, caseRecord)
-                                    .onFailure(e -> log.warn("[Case Notifications] {} case {}: {}", ruleName, caseRecord.id(), e.getMessage()));
-                                return Future.succeededFuture(new AnalysisResult(95, TransactionScorer.getPriority(95),
-                                    anomalyFlags, caseRecord.id(), null, true, false, true, "DECLINE", reasons));
-                              });
+                          log.debug("[TIMESTAMP] Micro-timing on txn={} ({}s from institution now) — scored flag only", transaction.id(), secondsDiff);
+                          timestampFlags.add("MICRO_TIMING_ANOMALY");
+                          timestampScores.add(25);
+                        } else {
+                          final long FUTURE_GRACE = 3600L;
+                          // Use 24 hours as the minimum staleness window — beamWindowSeconds governs
+                          // SSE stream freshness, not fraud detection.  Batch uploads, processing
+                          // queues, and network retries can all produce timestamps that are minutes old.
+                          final long STALE_WINDOW = Math.max(beamWindowSeconds, 86400L);
+                          if (signedDiff < -(beamWindowSeconds + FUTURE_GRACE)) {
+                            long minutesAhead = Math.max(1, Math.abs(signedDiff) / 60);
+                            log.warn("[TIMESTAMP] FUTURE_TIMESTAMP_ANOMALY on txn={} ({}m ahead of institution now)", transaction.id(), minutesAhead);
+                            timestampFlags.add("FUTURE_TIMESTAMP_ANOMALY");
+                            timestampScores.add(70);
+                          } else if (signedDiff > STALE_WINDOW) {
+                            long hoursOld   = signedDiff / 3600;
+                            long minutesOld = (signedDiff % 3600) / 60;
+                            String ageDesc  = hoursOld > 0
+                                ? hoursOld + " hour" + (hoursOld == 1 ? "" : "s")
+                                : minutesOld + " minute" + (minutesOld == 1 ? "" : "s");
+                            log.warn("[TIMESTAMP] STALE_TIMESTAMP_ANOMALY on txn={} ({} old)", transaction.id(), ageDesc);
+                            timestampFlags.add("STALE_TIMESTAMP_ANOMALY");
+                            timestampScores.add(55);
+                          }
                         }
                       }
 
@@ -329,7 +345,7 @@ public class HybridTransactionAnalysisService {
                             geoResult.impliedSpeedKmh() == Double.MAX_VALUE ? "∞" : String.format("%.0f", geoResult.impliedSpeedKmh()));
                         java.util.List<String> geoFlags = java.util.List.of("TXN_IMPOSSIBLE_TRAVEL");
                         java.util.List<String> geoReasons = java.util.List.of(geoResult.reason());
-                        return updateTransactionRisk(institutionId, transaction.id(), 93, geoResult.reason(), geoReasons)
+                        return updateTransactionRisk(institutionId, transaction.id(), 93, geoResult.reason(), geoReasons, rulesSnapshot)
                             .compose(v -> caseService.createCaseFromTransaction(institutionId, transaction,
                                 new TransactionScorer.ScoringResult(93, geoFlags, geoResult.reason())))
                             .compose(caseRecord -> {
@@ -344,32 +360,35 @@ public class HybridTransactionAnalysisService {
                       TransactionScorer.ScoringResult txnResult = scoreWithThresholds(
                           transaction, thresholds, tierThresholds,
                           todayCount, yesterdayCount, customerTxnCount24h,
-                          hasOtpAlert, kycTierCheckEnabled, customerKycTier, zone);
+                          hasOtpAlert, kycTierCheckEnabled, customerKycTier, zone, kycDailySum,
+                          aml.expectedDailyTxnCount(), lastTxnDate);
 
                       TransactionScorer.ScoringResult behResult = scoreBehavioralPatterns(
                           transaction, behavioralRules, optProfile.orElse(null),
-                          todayCount, yesterdayCount, customerTxnCount24h);
+                          todayCount, yesterdayCount, customerTxnCount24h, aml, txnResult.flags);
 
                       java.util.List<Integer> allRuleScores = new java.util.ArrayList<>();
                       allRuleScores.addAll(txnResult.ruleScores);
                       allRuleScores.addAll(behResult.ruleScores);
                       if (geoResult.triggered()) allRuleScores.add(geoResult.scoreContribution());
                       allRuleScores.addAll(custScores);
+                      allRuleScores.addAll(timestampScores);
 
                       java.util.List<String> combinedFlags = new java.util.ArrayList<>();
                       combinedFlags.addAll(txnResult.flags);
                       combinedFlags.addAll(behResult.flags);
                       if (geoResult.triggered()) combinedFlags.add(geoResult.ruleId());
                       combinedFlags.addAll(custFlags);
+                      combinedFlags.addAll(timestampFlags);
 
-                      // ── NEW SCORING FORMULA ──────────────────────────────────
-                      // score = min(100, maxRuleScore + (violations−1)×7 + 20 + customerPremium)
+                      // ── SCORING FORMULA ──────────────────────────────────────
+                      // score = min(100, maxRuleScore + (violations−1)×7 + customerPremium)
                       int customerPremium = customerOverallRisk >= 70 ? 15 : customerOverallRisk >= 40 ? 8 : 0;
                       int computedScore = 0;
                       if (!allRuleScores.isEmpty() && !combinedFlags.isEmpty()) {
                         int maxScore = allRuleScores.stream().mapToInt(Integer::intValue).max().orElse(0);
                         int violations = allRuleScores.size();
-                        computedScore = Math.min(100, maxScore + (violations - 1) * 7 + 20 + customerPremium);
+                        computedScore = Math.min(100, maxScore + (violations - 1) * 7 + customerPremium);
                       }
                       final int finalScore = computedScore;
 
@@ -396,7 +415,32 @@ public class HybridTransactionAnalysisService {
                       final String finalRecommendedAction = recommendedAction;
                       final boolean finalShouldFlag = shouldFlag;
 
-                      return updateTransactionRisk(institutionId, transaction.id(), finalScore, legacyReason, flagReasons)
+                      // ── PLATFORM-WIDE SURGE ALERT ────────────────────────────
+                      // When VELOCITY_SPIKE fires, create a deduped institution alert (once per 2 hours max).
+                      // Fire-and-forget — never blocks the transaction pipeline.
+                      if (combinedFlags.contains("VELOCITY_SPIKE")) {
+                        final long finalExpected = aml.expectedDailyTxnCount();
+                        final long finalToday    = todayCount;
+                        java.time.OffsetDateTime dedupSince = java.time.OffsetDateTime.now().minusHours(2);
+                        alertRepo.findOpenSurge(institutionId, dedupSince)
+                            .onSuccess(existing -> {
+                              if (existing.isPresent()) return; // already alerted within 2 hours
+                              int pct = (int) Math.round(((double) finalToday / finalExpected - 1.0) * 100);
+                              String title   = "Transaction Surge Detected";
+                              String message = "Today's transaction volume (" + finalToday + ") has exceeded your expected daily baseline of " +
+                                  finalExpected + " by " + pct + "%. This may indicate coordinated fraud activity. Investigate immediately.";
+                              io.vertx.core.json.JsonObject meta = new io.vertx.core.json.JsonObject()
+                                  .put("surgePct", pct)
+                                  .put("todayCount", finalToday)
+                                  .put("expectedCount", finalExpected);
+                              alertRepo.create(institutionId, "TRANSACTION_SURGE", title, message, "high", meta)
+                                  .onSuccess(a -> log.warn("[SurgeAlert] Created institution alert id={} for institution={} surge={}%", a.id(), institutionId, pct))
+                                  .onFailure(e -> log.warn("[SurgeAlert] Failed to create alert for institution={}: {}", institutionId, e.getMessage()));
+                            })
+                            .onFailure(e -> log.warn("[SurgeAlert] Dedup check failed for institution={}: {}", institutionId, e.getMessage()));
+                      }
+
+                      return updateTransactionRisk(institutionId, transaction.id(), finalScore, legacyReason, flagReasons, rulesSnapshot)
                           .<AnalysisResult>compose(v -> {
                             // Fire-and-forget: refresh customer overall_risk_score and behavioral profile
                             customerRepo.refreshCustomerScore(institutionId, transaction.customerId())
@@ -496,8 +540,9 @@ public class HybridTransactionAnalysisService {
       case "daily_amount_limit"              -> "CUSTOMER_RULE_DAILY_LIMIT";
       case "monthly_amount_limit"            -> "CUSTOMER_RULE_MONTHLY_LIMIT";
       case "transaction_velocity"            -> "CUSTOMER_RULE_VELOCITY";
-      case "rapid_post_deposit_withdrawal"   -> "RAPID_POST_DEPOSIT_WITHDRAWAL";
-      case "behavioral_pattern_deviation"    -> "BEHAVIORAL_PATTERN_DEVIATION";
+      case "rapid_post_deposit_withdrawal"       -> "RAPID_POST_DEPOSIT_WITHDRAWAL";
+      case "sudden_withdrawal_after_deposit"    -> "SUDDEN_WITHDRAWAL_AFTER_DEPOSIT";
+      case "behavioral_pattern_deviation"       -> "BEHAVIORAL_PATTERN_DEVIATION";
       default                                -> "CUSTOMER_RULE_VIOLATION";
     };
   }
@@ -523,7 +568,10 @@ public class HybridTransactionAnalysisService {
       boolean hasOtpAlert,
       boolean kycTierCheckEnabled,
       int customerKycTier,
-      java.time.ZoneId zone) {
+      java.time.ZoneId zone,
+      java.math.BigDecimal kycDailyChannelSum,
+      int expectedDailyTxnCount,
+      java.util.Optional<java.time.OffsetDateTime> lastTxnDate) {
 
     java.util.ArrayList<String> flags      = new java.util.ArrayList<>();
     java.util.ArrayList<Integer> ruleScores = new java.util.ArrayList<>();
@@ -535,7 +583,9 @@ public class HybridTransactionAnalysisService {
     String txnDir = transaction.direction() != null ? transaction.direction() : "outward";
     boolean isOutward = "outward".equals(txnDir);
 
-    // Rule 0: KYC Tier limits (uses actual customer tier from KYC pipeline result)
+    // Rule 0: KYC-tier limits — enforced in two dimensions:
+    //   a) single-transaction limit: flags if this txn alone exceeds the per-txn cap for the tier+channel
+    //   b) daily cumulative limit: flags if today's spend + this txn would exceed the direction-aware daily cap
     if (kycTierCheckEnabled && !tierThresholds.isEmpty()) {
       KycTierRecord tierRule = tierThresholds.stream()
           .filter(t -> t.kycTier() == customerKycTier)
@@ -544,16 +594,42 @@ public class HybridTransactionAnalysisService {
       if (tierRule != null) {
         long amount = transaction.amount().longValue();
         String channel = transaction.channel() != null ? transaction.channel().toLowerCase() : "";
-        long channelLimit;
-        if      (channel.contains("wire"))   channelLimit = tierRule.dailyLimitWire();
-        else if (channel.contains("mobile")) channelLimit = tierRule.dailyLimitMobile();
-        else if (channel.contains("ussd"))   channelLimit = tierRule.dailyLimitUssd();
-        else if (channel.contains("bdc"))    channelLimit = tierRule.dailyLimitBdc();
-        else                                 channelLimit = tierRule.dailyLimitOther();
 
-        if (amount > channelLimit) {
+        // a) Single-transaction limit
+        long singleLimit;
+        if      (channel.contains("wire"))   singleLimit = tierRule.singleTxnLimitWire();
+        else if (channel.contains("mobile")) singleLimit = tierRule.singleTxnLimitMobile();
+        else if (channel.contains("ussd"))   singleLimit = tierRule.singleTxnLimitUssd();
+        else if (channel.contains("bdc"))    singleLimit = tierRule.singleTxnLimitBdc();
+        else                                 singleLimit = tierRule.singleTxnLimitOther();
+
+        if (amount > singleLimit) {
           flags.add("KYC_TIER_LIMIT_EXCEEDED");
           ruleScores.add(45 + tierRule.riskScoreBoost());
+        }
+
+        // b) Cumulative daily limit — prefer directional field, fall back to combined
+        Long rawDirectional;
+        if      (channel.contains("wire"))   rawDirectional = isOutward ? tierRule.dailyLimitWireOutward()   : tierRule.dailyLimitWireInward();
+        else if (channel.contains("mobile")) rawDirectional = isOutward ? tierRule.dailyLimitMobileOutward() : tierRule.dailyLimitMobileInward();
+        else if (channel.contains("ussd"))   rawDirectional = isOutward ? tierRule.dailyLimitUssdOutward()   : tierRule.dailyLimitUssdInward();
+        else if (channel.contains("bdc"))    rawDirectional = isOutward ? tierRule.dailyLimitBdcOutward()    : tierRule.dailyLimitBdcInward();
+        else                                 rawDirectional = isOutward ? tierRule.dailyLimitOtherOutward()  : tierRule.dailyLimitOtherInward();
+
+        long dailyTierLimit;
+        if (rawDirectional != null) {
+          dailyTierLimit = rawDirectional;
+        } else {
+          if      (channel.contains("wire"))   dailyTierLimit = tierRule.dailyLimitWire();
+          else if (channel.contains("mobile")) dailyTierLimit = tierRule.dailyLimitMobile();
+          else if (channel.contains("ussd"))   dailyTierLimit = tierRule.dailyLimitUssd();
+          else if (channel.contains("bdc"))    dailyTierLimit = tierRule.dailyLimitBdc();
+          else                                 dailyTierLimit = tierRule.dailyLimitOther();
+        }
+
+        if (kycDailyChannelSum.add(transaction.amount()).longValue() > dailyTierLimit) {
+          flags.add("KYC_TIER_DAILY_LIMIT_EXCEEDED");
+          ruleScores.add(50 + tierRule.riskScoreBoost());
         }
       }
     }
@@ -562,27 +638,30 @@ public class HybridTransactionAnalysisService {
     // Rule 1: High-value transfer
     ThresholdRecord wireRule = thresholdRuleMap.get("high-value-wire");
     Long wireThreshold = wireRule == null ? null : (isOutward ? wireRule.thresholdOutward() : wireRule.thresholdInward());
+    int wireScore = wireRule != null && wireRule.riskScore() != null ? wireRule.riskScore() : 35;
     if (wireThreshold != null && transaction.amount().longValue() > wireThreshold) {
       flags.add("high-value-wire");
-      ruleScores.add(35);
+      ruleScores.add(wireScore);
     }
 
     // Rule 2: Velocity clustering (direction-aware count threshold)
     ThresholdRecord velocityRule = thresholdRuleMap.get("velocity-cluster");
     Long velocityThreshold = velocityRule == null ? null : (isOutward ? velocityRule.thresholdOutward() : velocityRule.thresholdInward());
+    int velocityScore = velocityRule != null && velocityRule.riskScore() != null ? velocityRule.riskScore() : 25;
     if (velocityThreshold != null && customerTxnCount24h > velocityThreshold) {
       flags.add("velocity-cluster");
-      ruleScores.add(25);
+      ruleScores.add(velocityScore);
     }
 
     // Rule 3: Late-night large transfer
     ThresholdRecord lateNightRule = thresholdRuleMap.get("late-night-large");
     Long lateNightThreshold = lateNightRule == null ? null : (isOutward ? lateNightRule.thresholdOutward() : lateNightRule.thresholdInward());
+    int lateNightScore = lateNightRule != null && lateNightRule.riskScore() != null ? lateNightRule.riskScore() : 30;
     if (lateNightThreshold != null
         && isLateNight(transaction.occurredAt(), zone)
         && transaction.amount().longValue() > lateNightThreshold) {
       flags.add("late-night-large");
-      ruleScores.add(30);
+      ruleScores.add(lateNightScore);
     }
 
     // Rule 4: OTP attack (no direction filter — applies regardless)
@@ -591,20 +670,50 @@ public class HybridTransactionAnalysisService {
       ruleScores.add(50);
     }
 
-    // Rule 5: Volume spike (institution-level, no direction filter)
-    if (todayCount > yesterdayCount * 1.3) {
+    // Rule 5: Institution-wide volume surge.
+    // Compares today's transaction count against the institution's configured expected daily baseline.
+    // Stored as an integer percentage (e.g. 130 = 1.30×, meaning 30% above the expected baseline).
+    // The UI slider writes to thresholdOutward; fall back to thresholdValue for legacy rows.
+    ThresholdRecord vsRule = thresholdRuleMap.get("velocity-spike");
+    long spikeValue = vsRule != null
+        ? (vsRule.thresholdOutward() != null ? vsRule.thresholdOutward() : vsRule.thresholdValue())
+        : 130L;
+    double spikeRatio  = spikeValue / 100.0;
+    int    vsScore     = vsRule != null && vsRule.riskScore() != null ? vsRule.riskScore() : 20;
+    long   expectedVol = expectedDailyTxnCount;
+    if (expectedVol > 0 && todayCount > expectedVol * spikeRatio) {
       flags.add("VELOCITY_SPIKE");
-      ruleScores.add(20);
+      ruleScores.add(vsScore);
     }
 
     // Rule 6: Cross-border BDC
     ThresholdRecord bdcRule = thresholdRuleMap.get("cross-border-bdc");
     Long bdcThreshold = bdcRule == null ? null : (isOutward ? bdcRule.thresholdOutward() : bdcRule.thresholdInward());
+    int bdcScore = bdcRule != null && bdcRule.riskScore() != null ? bdcRule.riskScore() : 30;
     if (bdcThreshold != null
         && "bdc".equalsIgnoreCase(transaction.channel())
         && transaction.amount().longValue() > bdcThreshold) {
       flags.add("cross-border-bdc");
-      ruleScores.add(30);
+      ruleScores.add(bdcScore);
+    }
+
+    // Rule 7: Dormant account reactivation
+    // Fires when the account has been inactive for > 90 days AND the transaction amount
+    // exceeds the configured direction-aware threshold.  New accounts (no prior transaction)
+    // are NOT flagged — only accounts with a transaction history that went silent.
+    ThresholdRecord dormantRule = thresholdRuleMap.get("dormant-reactivation");
+    if (dormantRule != null && dormantRule.isActive() && lastTxnDate.isPresent()) {
+      long dormantDays = java.time.temporal.ChronoUnit.DAYS.between(lastTxnDate.get(), java.time.OffsetDateTime.now());
+      long dormantThreshold = isOutward
+          ? (dormantRule.thresholdOutward() != null ? dormantRule.thresholdOutward() : dormantRule.thresholdValue())
+          : (dormantRule.thresholdInward()  != null ? dormantRule.thresholdInward()  : dormantRule.thresholdValue());
+      int dormantScore = dormantRule.riskScore() != null ? dormantRule.riskScore() : 25;
+      if (dormantDays > 90 && transaction.amount().longValue() > dormantThreshold) {
+        log.info("[DORMANT] customer={} inactive {}d, amount={} > threshold={} — flagged",
+            transaction.customerId(), dormantDays, transaction.amount().longValue(), dormantThreshold);
+        flags.add("DORMANT_REACTIVATION");
+        ruleScores.add(dormantScore);
+      }
     }
 
     return new TransactionScorer.ScoringResult(0, flags, "", ruleScores);
@@ -617,7 +726,9 @@ public class HybridTransactionAnalysisService {
       CustomerBehavioralProfile profile,
       long todayCount,
       long yesterdayCount,
-      long customerTxnCount24h) {
+      long customerTxnCount24h,
+      com.openiv.backend.aml.AmlSettings aml,
+      List<String> alreadyFlagged) {
 
     java.util.ArrayList<String> flags      = new java.util.ArrayList<>();
     java.util.ArrayList<Integer> ruleScores = new java.util.ArrayList<>();
@@ -626,10 +737,13 @@ public class HybridTransactionAnalysisService {
     for (BehavioralRuleRecord rule : rules) {
       if (!rule.isActive()) continue;
       boolean triggered = false;
-      if      ("pat-4".equals(rule.ruleId()) && todayCount > yesterdayCount * 1.5) triggered = true;
-      else if ("pat-5".equals(rule.ruleId()) && customerTxnCount24h > 10)          triggered = true;
+      if      ("pat-4".equals(rule.ruleId()) && yesterdayCount > 0 &&
+               todayCount > yesterdayCount * rule.params().getDouble("spike_ratio", 1.5) &&
+               !alreadyFlagged.contains("VELOCITY_SPIKE")) triggered = true;
+      else if ("pat-5".equals(rule.ruleId()) &&
+               customerTxnCount24h > rule.params().getInteger("max_daily_count", aml.dailyTxnLimit())) triggered = true;
       else if ("pat-2".equals(rule.ruleId()) &&
-               transaction.amount().longValue() > 2_000_000L &&
+               transaction.amount().longValue() > rule.params().getLong("min_amount", 2_000_000L) &&
                "mobile".equalsIgnoreCase(transaction.channel()))                   triggered = true;
 
       if (triggered) {
@@ -641,8 +755,8 @@ public class HybridTransactionAnalysisService {
       }
     }
 
-    // Customer-level behavioral deviation (requires an existing profile)
-    if (profile != null && profile.transactionCount() >= 5) {
+    // Customer-level behavioral deviation — require at least 10 transactions for a stable statistical profile
+    if (profile != null && profile.transactionCount() >= 10) {
       java.util.List<String> deviations = new java.util.ArrayList<>();
 
       // Amount deviation: > avg + 3 * stddev
@@ -678,21 +792,44 @@ public class HybridTransactionAnalysisService {
         deviations.add("funds are being sent to '" + recipientBank + "', a bank this customer has never used before");
       }
 
-      // Category deviation
+      // Category deviation — low weight: new category alone is weak signal
       String category = transaction.category();
+      int categoryDeviations = 0;
       if (category != null && !category.isBlank() && !profile.typicalCategories().isEmpty() &&
           profile.typicalCategories().stream().noneMatch(c -> c.equalsIgnoreCase(category))) {
         deviations.add("transaction category '" + category + "' is outside this customer's normal spending pattern");
+        categoryDeviations++;
       }
 
       if (!deviations.isEmpty()) {
         flags.add("BEHAVIORAL_PATTERN_DEVIATION");
-        // Severity scales with number of deviating dimensions
-        ruleScores.add(20 + deviations.size() * 10);
+        // Category deviations contribute only +3 each; structural deviations (amount, channel, time, bank) contribute +10 each
+        int nonCatCount = deviations.size() - categoryDeviations;
+        ruleScores.add(20 + nonCatCount * 10 + categoryDeviations * 3);
       }
     }
 
     return new TransactionScorer.ScoringResult(0, flags, "", ruleScores);
+  }
+
+  // ── DB helpers ────────────────────────────────────────────────────────────
+
+  /** Returns the occurred_at of the most recent prior transaction for this customer. */
+  private Future<java.util.Optional<java.time.OffsetDateTime>> findPreviousTransactionDate(
+      long institutionId, String customerId, String excludeId) {
+    return pool.preparedQuery(
+            "SELECT occurred_at FROM transactions "
+            + "WHERE institution_id = $1 AND customer_id = $2 AND id <> $3 "
+            + "ORDER BY occurred_at DESC LIMIT 1")
+        .execute(io.vertx.sqlclient.Tuple.of(institutionId, customerId, excludeId))
+        .map(rs -> {
+          var it = rs.iterator();
+          if (!it.hasNext()) return java.util.Optional.<java.time.OffsetDateTime>empty();
+          var odt = it.next().getOffsetDateTime("occurred_at");
+          return odt != null
+              ? java.util.Optional.of(odt)
+              : java.util.Optional.<java.time.OffsetDateTime>empty();
+        });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -730,7 +867,9 @@ public class HybridTransactionAnalysisService {
   private String translateFlag(String flag) {
     return switch (flag) {
       case "KYC_TIER_LIMIT_EXCEEDED" ->
-          "the transaction amount exceeds the limit permitted for this customer's current KYC verification tier";
+          "the transaction amount exceeds the single-transaction limit permitted for this customer's current KYC verification tier";
+      case "KYC_TIER_DAILY_LIMIT_EXCEEDED" ->
+          "this transaction would push the customer's total spending today above the daily limit for their current KYC verification tier — a higher tier of identity verification is required to increase this limit";
       case "high-value-wire" ->
           "an unusually large wire transfer — amounts this high require additional scrutiny under AML policy";
       case "velocity-cluster" ->
@@ -765,6 +904,8 @@ public class HybridTransactionAnalysisService {
           "the customer's implied travel speed between transactions is abnormally high, which may indicate location spoofing";
       case "RAPID_POST_DEPOSIT_WITHDRAWAL" ->
           "this outward transfer is withdrawing a large portion of a deposit received by this customer very recently — a common pattern in money laundering and pass-through fraud";
+      case "SUDDEN_WITHDRAWAL_AFTER_DEPOSIT" ->
+          "an outward transfer was detected within minutes of a deposit landing on this account — a strong indicator of pass-through fraud, cash-out schemes, or mule account activity";
       case "BEHAVIORAL_PATTERN_DEVIATION" ->
           "this transaction deviates from the customer's established transaction patterns in one or more dimensions (amount, channel, time, or recipient)";
       case "CUSTOMER_RULE_MAX_AMOUNT"    -> "this transaction exceeds the maximum single-transaction amount configured for this customer";
@@ -775,6 +916,8 @@ public class HybridTransactionAnalysisService {
       case "CUSTOMER_RULE_MONTHLY_LIMIT" -> "this transaction would push the customer over their monthly spending limit";
       case "CUSTOMER_RULE_VELOCITY"      -> "this customer has exceeded the allowed number of transactions in the configured time window";
       case "CUSTOMER_RULE_VIOLATION"     -> "this transaction was flagged by a compliance rule configured for this customer";
+      case "DORMANT_REACTIVATION" ->
+          "this account was inactive for more than 90 days before this transaction — sudden reactivation with a large transfer is a common indicator of account takeover or identity fraud";
       default -> flag.toLowerCase().replace("_", " ");
     };
   }
@@ -794,17 +937,95 @@ public class HybridTransactionAnalysisService {
 
   private Future<Void> updateTransactionRisk(long institutionId, String transactionId, int riskScore,
       String reason, java.util.List<String> flagReasons) {
-    String flaggedStatus = riskScore > 0 ? "flagged" : "normal";
-    // Encode flagReasons as a JSONB-compatible JSON array string
+    return updateTransactionRisk(institutionId, transactionId, riskScore, reason, flagReasons, null);
+  }
+
+  private Future<Void> updateTransactionRisk(long institutionId, String transactionId, int riskScore,
+      String reason, java.util.List<String> flagReasons, String rulesSnapshotJson) {
+    String flaggedStatus = riskScore > 0 ? "flagged" : null;
     JsonArray arr = new JsonArray();
     if (flagReasons != null) flagReasons.forEach(arr::add);
     return pool.preparedQuery(
         "UPDATE transactions SET risk_score = $1, flagged_status = $2, flag_reason = $3, " +
-        "flag_reasons = $4::jsonb, updated_at = now() " +
-        "WHERE id = $5 AND institution_id = $6")
-        .execute(io.vertx.sqlclient.Tuple.of(riskScore, flaggedStatus, reason, arr.encode(), transactionId, institutionId))
+        "flag_reasons = $4::jsonb, rules_snapshot = $5::jsonb, updated_at = now() " +
+        "WHERE id = $6 AND institution_id = $7")
+        .execute(io.vertx.sqlclient.Tuple.of(riskScore, flaggedStatus, reason, arr.encode(),
+            rulesSnapshotJson, transactionId, institutionId))
         .<Void>mapEmpty()
         .onFailure(e -> log.error("[HybridAnalysis] Failed to update risk for txn {}: {}", transactionId, e.getMessage()));
+  }
+
+  private static String buildRulesSnapshot(
+      long institutionId,
+      String transactionId,
+      com.openiv.backend.aml.AmlSettings aml,
+      List<ThresholdRecord> thresholds,
+      List<BehavioralRuleRecord> behavioralRules,
+      List<KycTierRecord> tierThresholds) {
+
+    var amlJson = new io.vertx.core.json.JsonObject()
+        .put("flagThreshold",       aml.riskScoreFlagThreshold())
+        .put("caseThreshold",       aml.riskScoreCaseThreshold())
+        .put("behFlagThreshold",    aml.behRiskScoreFlagThreshold())
+        .put("behCaseThreshold",    aml.behRiskScoreCaseThreshold())
+        .put("dailyTxnLimit",       aml.dailyTxnLimit())
+        .put("beamWindowSeconds",   aml.beamWindowSeconds())
+        .put("timezone",            aml.timezone());
+
+    var threshArr = new JsonArray();
+    for (ThresholdRecord t : thresholds) {
+      threshArr.add(new io.vertx.core.json.JsonObject()
+          .put("ruleId",           t.ruleId())
+          .put("name",             t.name())
+          .put("isActive",         t.isActive())
+          .put("thresholdValue",   t.thresholdValue())
+          .put("thresholdOutward", t.thresholdOutward())
+          .put("thresholdInward",  t.thresholdInward())
+          .put("unit",             t.unit())
+          .put("riskScore",        t.riskScore()));
+    }
+
+    var behArr = new JsonArray();
+    for (BehavioralRuleRecord b : behavioralRules) {
+      behArr.add(new io.vertx.core.json.JsonObject()
+          .put("ruleId",   b.ruleId())
+          .put("name",     b.name())
+          .put("isActive", b.isActive())
+          .put("severity", b.severity())
+          .put("params",   b.params()));
+    }
+
+    var tierArr = new JsonArray();
+    for (KycTierRecord k : tierThresholds) {
+      tierArr.add(new io.vertx.core.json.JsonObject()
+          .put("tier",                   k.kycTier())
+          .put("singleTxnLimitWire",     k.singleTxnLimitWire())
+          .put("singleTxnLimitMobile",   k.singleTxnLimitMobile())
+          .put("singleTxnLimitUssd",     k.singleTxnLimitUssd())
+          .put("singleTxnLimitBdc",      k.singleTxnLimitBdc())
+          .put("singleTxnLimitOther",    k.singleTxnLimitOther())
+          .put("dailyLimitWireOutward",  k.dailyLimitWireOutward())
+          .put("dailyLimitWireInward",   k.dailyLimitWireInward())
+          .put("dailyLimitMobileOutward",k.dailyLimitMobileOutward())
+          .put("dailyLimitMobileInward", k.dailyLimitMobileInward())
+          .put("dailyLimitUssdOutward",  k.dailyLimitUssdOutward())
+          .put("dailyLimitUssdInward",   k.dailyLimitUssdInward())
+          .put("dailyLimitBdcOutward",   k.dailyLimitBdcOutward())
+          .put("dailyLimitBdcInward",    k.dailyLimitBdcInward())
+          .put("dailyLimitOtherOutward", k.dailyLimitOtherOutward())
+          .put("dailyLimitOtherInward",  k.dailyLimitOtherInward())
+          .put("riskScoreBoost",         k.riskScoreBoost()));
+    }
+
+    return new io.vertx.core.json.JsonObject()
+        .put("capturedAt",          java.time.OffsetDateTime.now().toString())
+        .put("institutionId",       institutionId)
+        .put("transactionId",       transactionId)
+        .put("amlSettings",         amlJson)
+        .put("detectionThresholds", threshArr)
+        .put("behavioralRules",     behArr)
+        .put("kycTierThresholds",   tierArr)
+        .encode();
   }
 
   @SuppressWarnings("unused")

@@ -84,6 +84,40 @@ public final class AmlHandlers {
     };
   }
 
+  // PATCH /aml-settings/daily-txn-limit
+  public Handler<RoutingContext> updateDailyTxnLimit() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      Integer dailyTxnLimit = body.getInteger("dailyTxnLimit");
+      if (dailyTxnLimit == null || dailyTxnLimit < 1 || dailyTxnLimit > 10000) {
+        badRequest(ctx, "dailyTxnLimit must be between 1 and 10000"); return;
+      }
+      service.updateDailyTxnLimit(session, dailyTxnLimit)
+          .onSuccess(settings -> ok(ctx, settingsJson(settings)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // PATCH /aml-settings/expected-daily-txn-count
+  public Handler<RoutingContext> updateExpectedDailyTxnCount() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      JsonObject body = body(ctx);
+      if (body == null) return;
+
+      Integer count = body.getInteger("expectedDailyTxnCount");
+      if (count == null || count < 1 || count > 10_000_000) {
+        badRequest(ctx, "expectedDailyTxnCount must be between 1 and 10,000,000"); return;
+      }
+      service.updateExpectedDailyTxnCount(session, count)
+          .onSuccess(settings -> ok(ctx, settingsJson(settings)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // PATCH /aml-settings/beam-window — caller must have already passed TOTP step-up
   public Handler<RoutingContext> updateBeamWindow() {
     return ctx -> {
@@ -157,7 +191,9 @@ public final class AmlHandlers {
         .put("beamWindowSeconds", settings.beamWindowSeconds())
         .put("timezone", settings.timezone())
         .put("kycRiskNormalThreshold", settings.kycRiskNormalThreshold())
-        .put("kycRiskCaseThreshold", settings.kycRiskCaseThreshold());
+        .put("kycRiskCaseThreshold", settings.kycRiskCaseThreshold())
+        .put("dailyTxnLimit", settings.dailyTxnLimit())
+        .put("expectedDailyTxnCount", settings.expectedDailyTxnCount());
     if (settings.caseNotificationEmails() != null) {
       json.put("caseNotificationEmails", settings.caseNotificationEmails());
     }

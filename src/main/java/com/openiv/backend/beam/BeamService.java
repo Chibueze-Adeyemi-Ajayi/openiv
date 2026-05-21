@@ -40,24 +40,26 @@ public final class BeamService {
   private static final Set<String> VALID_STREAMS = Set.of(
       "transactions", "logins", "activity", "location", "devices", "otps", "kyc");
 
-  private final BeamRepository      repository;
-  private final UserRepository      users;
-  private final OtpAnalyzer         otpAnalyzer;
-  private final TransactionService  transactionService;
-  private final WebhookService      webhookService;
+  private final BeamRepository repository;
+  private final UserRepository users;
+  private final OtpAnalyzer otpAnalyzer;
+  private final TransactionService transactionService;
+  @SuppressWarnings("unused")
+  private final WebhookService webhookService;
   private final TransactionProcessingOrchestrator orchestrator;
   private final NotificationService notificationService;
-  private final CustomerService     customerService;
+  private final CustomerService customerService;
   private final com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository;
   private final BehavioralBeamAnalyzer behavioralBeamAnalyzer;
   private final KycService kycService;
   private final com.openiv.backend.cases.AutoCaseCreationService autoCaseService;
+  private final com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo;
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
       TransactionService transactionService, WebhookService webhookService,
       CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository) {
     this(repository, users, otpAnalyzer, transactionService, webhookService, null, null,
-        customerService, amlSettingsRepository, null, null, null);
+        customerService, amlSettingsRepository, null, null, null, null);
   }
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
@@ -66,7 +68,7 @@ public final class BeamService {
       CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
       BehavioralBeamAnalyzer behavioralBeamAnalyzer) {
     this(repository, users, otpAnalyzer, transactionService, webhookService, orchestrator,
-        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, null, null);
+        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, null, null, null);
   }
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
@@ -75,7 +77,7 @@ public final class BeamService {
       CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
       BehavioralBeamAnalyzer behavioralBeamAnalyzer, KycService kycService) {
     this(repository, users, otpAnalyzer, transactionService, webhookService, orchestrator,
-        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, kycService, null);
+        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, kycService, null, null);
   }
 
   public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
@@ -84,21 +86,35 @@ public final class BeamService {
       CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
       BehavioralBeamAnalyzer behavioralBeamAnalyzer, KycService kycService,
       com.openiv.backend.cases.AutoCaseCreationService autoCaseService) {
-    this.repository              = repository;
-    this.users                   = users;
-    this.otpAnalyzer             = otpAnalyzer;
-    this.transactionService      = transactionService;
-    this.webhookService          = webhookService;
-    this.orchestrator            = orchestrator;
-    this.notificationService     = notificationService;
-    this.customerService         = customerService;
-    this.amlSettingsRepository   = amlSettingsRepository;
-    this.behavioralBeamAnalyzer  = behavioralBeamAnalyzer;
-    this.kycService              = kycService;
-    this.autoCaseService         = autoCaseService;
+    this(repository, users, otpAnalyzer, transactionService, webhookService, orchestrator,
+        notificationService, customerService, amlSettingsRepository, behavioralBeamAnalyzer, kycService,
+        autoCaseService, null);
   }
 
-  public record BeamIngestResult(BeamRecord record, JsonObject analysis) {}
+  public BeamService(BeamRepository repository, UserRepository users, OtpAnalyzer otpAnalyzer,
+      TransactionService transactionService, WebhookService webhookService,
+      TransactionProcessingOrchestrator orchestrator, NotificationService notificationService,
+      CustomerService customerService, com.openiv.backend.aml.AmlSettingsRepository amlSettingsRepository,
+      BehavioralBeamAnalyzer behavioralBeamAnalyzer, KycService kycService,
+      com.openiv.backend.cases.AutoCaseCreationService autoCaseService,
+      com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo) {
+    this.repository = repository;
+    this.users = users;
+    this.otpAnalyzer = otpAnalyzer;
+    this.transactionService = transactionService;
+    this.webhookService = webhookService;
+    this.orchestrator = orchestrator;
+    this.notificationService = notificationService;
+    this.customerService = customerService;
+    this.amlSettingsRepository = amlSettingsRepository;
+    this.behavioralBeamAnalyzer = behavioralBeamAnalyzer;
+    this.kycService = kycService;
+    this.autoCaseService = autoCaseService;
+    this.evalConfigRepo = evalConfigRepo;
+  }
+
+  public record BeamIngestResult(BeamRecord record, JsonObject analysis) {
+  }
 
   public Future<BeamIngestResult> ingest(long institutionId, String stream,
       String idempotencyKey, String payload,
@@ -110,100 +126,135 @@ public final class BeamService {
       String tz = settingsOpt.map(com.openiv.backend.aml.AmlSettings::timezone).orElse("Africa/Lagos");
       ZoneId zone = ZoneId.of(tz);
 
-    // Extract occurred_at from payload for all streams
-    OffsetDateTime occurredAt = null;
-    try {
-      JsonObject obj = new JsonObject(payload);
-      String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
-      if (rawTs != null && !rawTs.isBlank()) {
-        occurredAt = parseOccurredAt(rawTs, zone);
-      }
-    } catch (Exception e) {
-      // Best effort
-    }
-
-    final OffsetDateTime finalOccurredAt = occurredAt;
-    Future<BeamRecord> saved;
-    if (idempotencyKey != null) {
-      saved = repository.findByIdempotencyKey(institutionId, idempotencyKey)
-          .compose(opt -> opt.isPresent()
-              ? Future.succeededFuture(opt.get())
-              : repository.saveRecord(institutionId, stream, idempotencyKey, payload,
-                  ip, userAgent, requestHeaders, bytes, durationMs, finalOccurredAt));
-    } else {
-      saved = repository.saveRecord(institutionId, stream, null, payload,
-          ip, userAgent, requestHeaders, bytes, durationMs, finalOccurredAt);
-    }
-
-    // Resolve AmlSettings with safe defaults so behavioral analysis always has a config object.
-    final com.openiv.backend.aml.AmlSettings amlSettings = settingsOpt.orElse(
-        new com.openiv.backend.aml.AmlSettings(
-            0L, institutionId, true, List.of(), 51, 81, 60, 85, 30, 30, 180, tz, 40, 75));
-
-    return saved.compose(record -> {
-      // Transaction beams must not create or update customer records —
-      // the customer must already exist with a completed KYC record.
-      if (customerService != null && !"transactions".equals(stream)) {
-        processCustomerUpsert(institutionId, payload);
-      }
-
-      if ("otps".equals(stream)) {
-        if (otpAnalyzer != null) {
-          otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
+      // Extract occurred_at from payload for all streams
+      OffsetDateTime occurredAt = null;
+      try {
+        JsonObject obj = new JsonObject(payload);
+        String rawTs = obj.getString("occurred_at", obj.getString("occurredAt"));
+        if (rawTs != null && !rawTs.isBlank()) {
+          occurredAt = parseOccurredAt(rawTs, zone);
         }
-        // Timestamp anomaly for OTP events (micro-timing, stale, future)
-        if (behavioralBeamAnalyzer != null && finalOccurredAt != null) {
-          behavioralBeamAnalyzer.analyzeOtpTimestamp(
-              institutionId, OtpPayload.parse(payload), finalOccurredAt, zone, amlSettings);
+      } catch (Exception e) {
+        // Best effort
+      }
+
+      final OffsetDateTime finalOccurredAt = occurredAt;
+      Future<BeamRecord> saved;
+      if (idempotencyKey != null) {
+        saved = repository.findByIdempotencyKey(institutionId, idempotencyKey)
+            .compose(opt -> opt.isPresent()
+                ? Future.succeededFuture(opt.get())
+                : repository.saveRecord(institutionId, stream, idempotencyKey, payload,
+                    ip, userAgent, requestHeaders, bytes, durationMs, finalOccurredAt));
+      } else {
+        saved = repository.saveRecord(institutionId, stream, null, payload,
+            ip, userAgent, requestHeaders, bytes, durationMs, finalOccurredAt);
+      }
+
+      // Resolve AmlSettings with safe defaults so behavioral analysis always has a
+      // config object.
+      final com.openiv.backend.aml.AmlSettings amlSettings = settingsOpt.orElse(
+          new com.openiv.backend.aml.AmlSettings(
+              0L, institutionId, true, List.of(), 51, 81, 60, 85, 30, 30, 180, tz, 40, 75, 10, 1000));
+
+      return saved.compose(record -> {
+        // Transaction beams must not create or update customer records —
+        // the customer must already exist with a completed KYC record.
+        if (customerService != null && !"transactions".equals(stream)) {
+          processCustomerUpsert(institutionId, payload);
         }
-      }
 
-      if ("logins".equals(stream)) {
-        return analyzeLoginSynchronously(institutionId, record, payload, zone, amlSettings)
-            .map(analysis -> new BeamIngestResult(record, analysis));
-      }
+        if ("otps".equals(stream)) {
+          if (otpAnalyzer != null) {
+            otpAnalyzer.analyze(institutionId, OtpPayload.parse(payload));
+          }
+          // Timestamp anomaly for OTP events (micro-timing, stale, future)
+          if (behavioralBeamAnalyzer != null && finalOccurredAt != null) {
+            behavioralBeamAnalyzer.analyzeOtpTimestamp(
+                institutionId, OtpPayload.parse(payload), finalOccurredAt, zone, amlSettings);
+          }
+        }
 
-      if ("activity".equals(stream)) {
-        return analyzeActivitySynchronously(institutionId, record, payload, zone, amlSettings)
-            .map(analysis -> new BeamIngestResult(record, analysis));
-      }
+        if ("logins".equals(stream)) {
+          return withAudit(record.id(), analyzeLoginSynchronously(institutionId, record, payload, zone, amlSettings)
+              .map(analysis -> new BeamIngestResult(record, analysis)));
+        }
 
-      if ("location".equals(stream) && behavioralBeamAnalyzer != null) {
-        behavioralBeamAnalyzer.analyzeLocation(
-            institutionId, LocationPayload.parse(payload), finalOccurredAt, zone, amlSettings);
-      }
+        if ("activity".equals(stream)) {
+          return withAudit(record.id(), analyzeActivitySynchronously(institutionId, record, payload, zone, amlSettings)
+              .map(analysis -> new BeamIngestResult(record, analysis)));
+        }
 
-      if ("devices".equals(stream) && behavioralBeamAnalyzer != null) {
-        behavioralBeamAnalyzer.analyzeDevice(
-            institutionId, DevicePayload.parse(payload), finalOccurredAt, zone, amlSettings);
-      }
+        if ("location".equals(stream) && behavioralBeamAnalyzer != null) {
+          behavioralBeamAnalyzer.analyzeLocation(
+              institutionId, LocationPayload.parse(payload), finalOccurredAt, zone, amlSettings);
+        }
 
-      if ("transactions".equals(stream) && orchestrator != null) {
-        return analyzeTransactionSynchronously(institutionId, record, payload, zone, amlSettings)
-            .map(analysis -> new BeamIngestResult(record, analysis));
-      }
+        if ("devices".equals(stream) && behavioralBeamAnalyzer != null) {
+          behavioralBeamAnalyzer.analyzeDevice(
+              institutionId, DevicePayload.parse(payload), finalOccurredAt, zone, amlSettings);
+        }
 
-      if ("kyc".equals(stream)) {
-        return processKycSynchronously(institutionId, record, payload)
-            .map(analysis -> new BeamIngestResult(record, analysis));
-      }
+        if ("transactions".equals(stream) && orchestrator != null) {
+          return withAudit(record.id(), analyzeTransactionSynchronously(institutionId, record, payload, zone, amlSettings)
+              .map(analysis -> new BeamIngestResult(record, analysis)))
+              .andThen(ar -> {
+                if (ar.succeeded() && customerService != null) {
+                  String cid = extractCustomerId(payload);
+                  if (cid != null) {
+                    // Refetch latest KYC result and sync risk score (fire-and-forget).
+                    customerService.refreshRiskFromKyc(institutionId, cid);
+                    // Check if re-evaluation is due and trigger pipeline if so.
+                    triggerReEvaluationIfDue(institutionId, cid);
+                  }
+                }
+              });
+        }
 
-      return Future.succeededFuture(new BeamIngestResult(record, null));
+        if ("kyc".equals(stream)) {
+          return withAudit(record.id(), processKycSynchronously(institutionId, record, payload)
+              .map(analysis -> new BeamIngestResult(record, analysis)))
+              .andThen(ar -> {
+                if (ar.succeeded() && customerService != null) {
+                  String cid = extractCustomerId(payload);
+                  if (cid != null) customerService.refreshScore(institutionId, cid);
+                }
+              });
+        }
+
+        return withAudit(record.id(), Future.succeededFuture(new BeamIngestResult(record, null)));
+      });
     });
-  });
-}
+  }
+
+  private Future<BeamIngestResult> withAudit(long recordId, Future<BeamIngestResult> future) {
+    return future.andThen(ar -> {
+      int code = ar.succeeded() ? 200 : 400;
+      String body;
+      if (ar.succeeded()) {
+        JsonObject analysis = ar.result().analysis();
+        body = analysis != null ? analysis.encode() : "{}";
+      } else {
+        body = ar.cause() != null ? ar.cause().getMessage() : "error";
+      }
+      repository.updateResponseAudit(recordId, code, body);
+    });
+  }
 
   private Future<JsonObject> processKycSynchronously(long institutionId, BeamRecord record, String payload) {
     try {
       JsonObject obj = new JsonObject(payload);
-      String customerId    = obj.getString("customer_id", obj.getString("customerId"));
-      String name          = obj.getString("name");
-      String bvn           = obj.getString("bvn");
-      String nin           = obj.getString("nin");
-      String phone         = obj.getString("phone", obj.getString("phone_number"));
-      String photo         = obj.getString("photo");
-      Long   monthlyInflow  = obj.containsKey("monthly_inflow")  ? obj.getLong("monthly_inflow")  : null;
-      Long   monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
+      String customerId = obj.getString("customer_id", obj.getString("customerId"));
+      String name = obj.getString("name");
+      String bvn = obj.getString("bvn");
+      String nin = obj.getString("nin");
+      String phone = obj.getString("phone", obj.getString("phone_number"));
+      String photo = obj.getString("photo");
+      Long monthlyInflow = obj.containsKey("monthly_inflow") ? obj.getLong("monthly_inflow") : null;
+      Long monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
+      // Institution's assigned KYC tier — source of truth for limit enforcement.
+      Integer institutionKycTier = obj.containsKey("customer_kyc_tier")
+          ? obj.getInteger("customer_kyc_tier") : null;
 
       if (customerId == null || customerId.isBlank()) {
         return Future.failedFuture(new IllegalArgumentException("Missing required field 'customer_id'"));
@@ -215,39 +266,53 @@ public final class BeamService {
             // 2. Run the Doja verification pipeline if kycService is wired
             if (kycService == null) {
               return Future.succeededFuture(new JsonObject()
-                  .put("customer_id",    customerId)
-                  .put("kyc_status",     "partial")
-                  .put("bvn_received",   bvn   != null && !bvn.isBlank())
-                  .put("nin_received",   nin   != null && !nin.isBlank())
+                  .put("customer_id", customerId)
+                  .put("kyc_status", "partial")
+                  .put("institution_kyc_tier", institutionKycTier)
+                  .put("bvn_received", bvn != null && !bvn.isBlank())
+                  .put("nin_received", nin != null && !nin.isBlank())
                   .put("photo_received", photo != null && !photo.isBlank())
-                  .put("processed_at",   OffsetDateTime.now().toString()));
+                  .put("processed_at", OffsetDateTime.now().toString()));
             }
 
             return kycService.runPipeline(institutionId, customerId, bvn, nin, phone, photo, name)
-                .map(result -> {
+                .compose(result -> {
+                  int score = result.overallRiskScore();
+                  String actionTaken = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
+
+                  // Fire-and-forget: persist the pipeline result and sync the customer risk score.
+                  customerService.updateRiskScore(institutionId, customerId, score)
+                      .onFailure(e -> log.warn("[Beam/KYC] Risk score update failed for {}: {}", customerId, e.getMessage()));
+                  kycService.savePipelineResultWithTier(institutionId, customerId, result, actionTaken,
+                      monthlyInflow, monthlyOutflow, institutionKycTier)
+                      .onFailure(e -> log.warn("[Beam/KYC] Pipeline result save failed for {}: {}", customerId, e.getMessage()));
+
                   io.vertx.core.json.JsonArray stepsJson = new io.vertx.core.json.JsonArray();
                   result.steps().forEach(s -> stepsJson.add(new JsonObject()
-                      .put("step",       s.step())
-                      .put("status",     s.status())
-                      .put("detail",     s.detail())
+                      .put("step", s.step())
+                      .put("status", s.status())
+                      .put("detail", s.detail())
                       .put("durationMs", s.durationMs())));
-                  return new JsonObject()
-                      .put("customer_id",    customerId)
-                      .put("kyc_status",     result.overallStatus())
-                      .put("kyc_tier",       result.kycTier())
-                      .put("risk_score",     result.overallRiskScore())
-                      .put("bvn_received",   bvn   != null && !bvn.isBlank())
-                      .put("nin_received",   nin   != null && !nin.isBlank())
+                  return Future.succeededFuture(new JsonObject()
+                      .put("customer_id", customerId)
+                      .put("kyc_status", result.overallStatus())
+                      .put("knowledge_level", com.openiv.backend.kyc.KycPipelineResultRepository.toKnowledgeLevel(result.kycTier()))
+                      .put("institution_kyc_tier", institutionKycTier)
+                      .put("risk_score", score)
+                      .put("action", actionTaken)
+                      .put("bvn_received", bvn != null && !bvn.isBlank())
+                      .put("nin_received", nin != null && !nin.isBlank())
                       .put("photo_received", photo != null && !photo.isBlank())
-                      .put("pipeline_ms",    result.totalDurationMs())
-                      .put("steps",          stepsJson)
-                      .put("processed_at",   OffsetDateTime.now().toString());
+                      .put("pipeline_ms", result.totalDurationMs())
+                      .put("steps", stepsJson)
+                      .put("processed_at", OffsetDateTime.now().toString()));
                 })
                 .recover(pipelineErr -> {
                   log.error("[Beam/KYC] Pipeline failed for {}: {}", customerId, pipelineErr.getMessage());
                   return Future.succeededFuture(new JsonObject()
-                      .put("customer_id",  customerId)
-                      .put("kyc_status",   "partial")
+                      .put("customer_id", customerId)
+                      .put("kyc_status", "partial")
+                      .put("institution_kyc_tier", institutionKycTier)
                       .put("pipeline_error", pipelineErr.getMessage())
                       .put("processed_at", OffsetDateTime.now().toString()));
                 });
@@ -268,7 +333,7 @@ public final class BeamService {
    * per-step callback, stores the result, updates the customer risk score, and
    * takes action based on the institution's AML thresholds.
    */
-  public Future<JsonObject> processKycStream(
+  public Future<BeamIngestResult> processKycStream(
       long institutionId, String payload,
       String ip, String userAgent, int bytes,
       Consumer<io.vertx.core.json.JsonObject> stepCallback) {
@@ -277,70 +342,79 @@ public final class BeamService {
       return Future.failedFuture(new IllegalStateException("KYC service not configured"));
 
     try {
-      JsonObject obj        = new JsonObject(payload);
-      String customerId     = obj.getString("customer_id", obj.getString("customerId"));
-      String name           = obj.getString("name");
-      String bvn            = obj.getString("bvn");
-      String nin            = obj.getString("nin");
-      String phone          = obj.getString("phone", obj.getString("phone_number"));
-      String photo          = obj.getString("photo");
-      Long   monthlyInflow  = obj.containsKey("monthly_inflow")  ? obj.getLong("monthly_inflow")  : null;
-      Long   monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
+      JsonObject obj = new JsonObject(payload);
+      String customerId = obj.getString("customer_id", obj.getString("customerId"));
+      String name = obj.getString("name");
+      String bvn = obj.getString("bvn");
+      String nin = obj.getString("nin");
+      String phone = obj.getString("phone", obj.getString("phone_number"));
+      String photo = obj.getString("photo");
+      Long monthlyInflow = obj.containsKey("monthly_inflow") ? obj.getLong("monthly_inflow") : null;
+      Long monthlyOutflow = obj.containsKey("monthly_outflow") ? obj.getLong("monthly_outflow") : null;
+      // Institution's own assessment of the customer's KYC tier.
+      Integer institutionKycTier = obj.containsKey("customer_kyc_tier")
+          ? obj.getInteger("customer_kyc_tier") : null;
 
       if (customerId == null || customerId.isBlank())
         return Future.failedFuture(new IllegalArgumentException("Missing required field 'customer_id'"));
 
       return amlSettingsRepository.getByInstitution(institutionId).compose(settingsOpt -> {
         AmlSettings settings = settingsOpt.orElse(
-            new AmlSettings(0L, institutionId, true, List.of(), 51, 81, 60, 85, 30, 30, 180, "Africa/Lagos", 40, 75));
+            new AmlSettings(0L, institutionId, true, List.of(), 51, 81, 60, 85, 30, 30, 180, "Africa/Lagos", 40, 75, 10, 1000));
 
         return repository.saveRecord(institutionId, "kyc", null, payload,
-                ip, userAgent, "{}", bytes, 0, null)
-            .compose(record -> customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
-                .compose(ignored -> kycService.runPipelineWithCallback(
-                    institutionId, customerId, bvn, nin, phone, photo, stepCallback, name))
-                .compose(result -> {
-                  int score = result.overallRiskScore();
-                  String actionTaken;
-                  String actionDetail;
-                  if (score < settings.kycRiskNormalThreshold()) {
-                    actionTaken  = "clear";
-                    actionDetail = "Customer KYC cleared — risk score within normal range";
-                  } else if (score < settings.kycRiskCaseThreshold()) {
-                    actionTaken  = "flagged";
-                    actionDetail = "Customer queued for analyst review — risk score elevated";
-                  } else {
-                    actionTaken  = "case_opened";
-                    actionDetail = "Investigation case auto-opened — risk score exceeded threshold";
-                  }
+            ip, userAgent, "{}", bytes, 0, null)
+            .compose(record -> withAudit(record.id(),
+                customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
+                    .compose(ignored -> kycService.runPipelineWithCallback(
+                        institutionId, customerId, bvn, nin, phone, photo, stepCallback, name))
+                    .compose(result -> {
+                      int score = result.overallRiskScore();
+                      String actionTaken;
+                      String actionDetail;
+                      if (score < settings.kycRiskNormalThreshold()) {
+                        actionTaken = "clear";
+                        actionDetail = "Customer KYC cleared — risk score within normal range";
+                      } else if (score < settings.kycRiskCaseThreshold()) {
+                        actionTaken = "flagged";
+                        actionDetail = "Customer queued for analyst review — risk score elevated";
+                      } else {
+                        actionTaken = "case_opened";
+                        actionDetail = "Investigation case auto-opened — risk score exceeded threshold";
+                      }
 
-                  return customerService.updateRiskScore(institutionId, customerId, score)
-                      .compose(v -> kycService.savePipelineResult(
-                          institutionId, customerId, result, actionTaken,
-                          monthlyInflow, monthlyOutflow))
-                      .map(saved -> {
-                        JsonArray stepsJson = new JsonArray();
-                        result.steps().forEach(s -> stepsJson.add(new JsonObject()
-                            .put("step",          s.step())
-                            .put("status",        s.status())
-                            .put("detail",        s.detail())
-                            .put("durationMs",    s.durationMs())
-                            .put("stepRiskScore", s.riskScore())));
-                        return new JsonObject()
-                            .put("customerId",       customerId)
-                            .put("kycStatus",        result.overallStatus())
-                            .put("kycTier",          result.kycTier())
-                            .put("overallRiskScore", score)
-                            .put("action",           actionTaken)
-                            .put("actionDetail",     actionDetail)
-                            .put("bvnReceived",      bvn   != null && !bvn.isBlank())
-                            .put("ninReceived",      nin   != null && !nin.isBlank())
-                            .put("photoReceived",    photo != null && !photo.isBlank())
-                            .put("pipelineMs",       result.totalDurationMs())
-                            .put("steps",            stepsJson)
-                            .put("processedAt",      OffsetDateTime.now().toString());
-                      });
-                }));
+                      return customerService.updateRiskScore(institutionId, customerId, score)
+                          .compose(v -> kycService.savePipelineResultWithTier(
+                              institutionId, customerId, result, actionTaken,
+                              monthlyInflow, monthlyOutflow, institutionKycTier))
+                          .<BeamIngestResult>map(saved -> {
+                            JsonArray stepsJson = new JsonArray();
+                            result.steps().forEach(s -> stepsJson.add(new JsonObject()
+                                .put("step", s.step())
+                                .put("status", s.status())
+                                .put("detail", s.detail())
+                                .put("durationMs", s.durationMs())
+                                .put("stepRiskScore", s.riskScore())));
+                            JsonObject analysis = new JsonObject()
+                                .put("customerId", customerId)
+                                .put("kycStatus", result.overallStatus())
+                                .put("knowledgeLevel", com.openiv.backend.kyc.KycPipelineResultRepository.toKnowledgeLevel(result.kycTier()))
+                                .put("institutionKycTier", institutionKycTier)
+                                .put("overallRiskScore", score)
+                                .put("action", actionTaken)
+                                .put("actionDetail", actionDetail)
+                                .put("bvnReceived", bvn != null && !bvn.isBlank())
+                                .put("ninReceived", nin != null && !nin.isBlank())
+                                .put("photoReceived", photo != null && !photo.isBlank())
+                                .put("pipelineMs", result.totalDurationMs())
+                                .put("steps", stepsJson)
+                                .put("processedAt", OffsetDateTime.now().toString());
+                            return new BeamIngestResult(record, analysis);
+                          })
+                          .andThen(ar -> {
+                            if (ar.succeeded()) customerService.refreshScore(institutionId, customerId);
+                          });
+                    })));
       });
     } catch (Exception e) {
       log.error("[Beam/KYC/Stream] Payload parse error", e);
@@ -348,7 +422,8 @@ public final class BeamService {
     }
   }
 
-  private Future<JsonObject> analyzeTransactionSynchronously(long institutionId, BeamRecord record, String payload, ZoneId zone, AmlSettings settings) {
+  private Future<JsonObject> analyzeTransactionSynchronously(long institutionId, BeamRecord record, String payload,
+      ZoneId zone, AmlSettings settings) {
     try {
       JsonObject obj = new JsonObject(payload);
 
@@ -365,116 +440,152 @@ public final class BeamService {
             "Invalid 'occurred_at' value '" + rawTs + "'. Expected ISO-8601 format."));
       }
 
-      String txnId     = "beam-" + record.id();
+      String txnId = "beam-" + record.id();
       String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
-      String dirRaw   = obj.getString("direction", "outward");
+      // Institution-provided KYC tier for limit enforcement (1=Basic, 2=Intermediate, 3=Full KYC).
+      Integer institutionKycTier = obj.containsKey("customer_kyc_tier")
+          ? obj.getInteger("customer_kyc_tier") : null;
+      String dirRaw = obj.getString("direction", "outward");
       String txnDirection = "inward".equalsIgnoreCase(dirRaw) ? "inward" : "outward";
 
       TransactionImport imp = buildTransactionImport(txnId, obj, zone);
-      Transaction       txn = mapToTransactionWithId(institutionId, txnId, obj, zone);
+      Transaction txn = mapToTransactionWithId(institutionId, txnId, obj, zone);
 
-      java.time.LocalDate today     = occurredAt.toLocalDate();
+      java.time.LocalDate today = occurredAt.toLocalDate();
       java.time.LocalDate yesterday = today.minusDays(1);
 
       // ── Step 1: parallel lookups — KYC record + sender account conflict ──
       String senderAccount = obj.getString("sender_account", obj.getString("senderAccount", ""));
 
-      Future<Optional<com.openiv.backend.kyc.KycPipelineResult>> fKyc =
-          (kycService != null && !customerId.isBlank())
-              ? kycService.getCustomerKycByInstitution(institutionId, customerId)
-              : Future.succeededFuture(Optional.empty());
+      Future<Optional<com.openiv.backend.kyc.KycPipelineResult>> fKyc = (kycService != null && !customerId.isBlank())
+          ? kycService.getCustomerKycByInstitution(institutionId, customerId)
+          : Future.succeededFuture(Optional.empty());
 
-      Future<Optional<String>> fConflict =
-          (!senderAccount.isBlank() && !customerId.isBlank())
-              ? transactionService.findCustomerBySenderAccount(institutionId, senderAccount, customerId)
-              : Future.succeededFuture(Optional.empty());
+      Future<Optional<String>> fConflict = (!senderAccount.isBlank() && !customerId.isBlank())
+          ? transactionService.findCustomerBySenderAccount(institutionId, senderAccount, customerId)
+          : Future.succeededFuture(Optional.empty());
 
       return Future.all(fKyc, fConflict).compose(combined -> {
-        Optional<com.openiv.backend.kyc.KycPipelineResult> kycOpt    = combined.resultAt(0);
-        Optional<String>                                   conflictOpt = combined.resultAt(1);
+        Optional<com.openiv.backend.kyc.KycPipelineResult> kycOpt = combined.resultAt(0);
+        Optional<String> conflictOpt = combined.resultAt(1);
         boolean hasAccountConflict = conflictOpt.isPresent();
 
-        // ── No KYC on file: flag and return kyc_required ─────────────────
+        // ── No KYC on file: try institution webhook lookup first ─────────────
         if (kycOpt.isEmpty()) {
-          int noKycScore = hasAccountConflict ? 90 : 75;
-          String noKycReason = hasAccountConflict
-              ? "No KYC on file and sender account '" + senderAccount + "' is already linked to customer '"
-                  + conflictOpt.get() + "'. Possible account sharing or fraudulent reuse."
-              : "Customer identity verification is required before transactions can be processed. "
-                  + "This transaction has been flagged and held pending KYC completion.";
-          log.warn("[Beam/Txn] No KYC for customer={} inst={} conflict={} — flagging txn={} score={}",
-              customerId, institutionId, hasAccountConflict, txnId, noKycScore);
+          Future<Optional<com.openiv.backend.kyc.KycPipelineResult>> fLookup =
+              (kycService != null && !customerId.isBlank())
+                  ? kycService.lookupAndRegisterFromBeam(institutionId, customerId)
+                  : Future.succeededFuture(Optional.empty());
 
-          boolean shouldOpenCase = autoCaseService != null
-              && settings.autoOpenCase()
-              && noKycScore >= settings.riskScoreCaseThreshold();
+          return fLookup.compose(lookedUpKyc -> {
+            if (lookedUpKyc.isPresent()) {
+              log.info("[Beam/Txn] Customer {} registered via webhook lookup for inst={} — processing normally",
+                  customerId, institutionId);
+              return processTransactionWithKycResult(institutionId, record, imp, txn, txnId, zone,
+                  settings, lookedUpKyc.get().overallRiskScore(), institutionKycTier,
+                  hasAccountConflict, conflictOpt, senderAccount, today, yesterday, txnDirection);
+            }
 
-          var noKycFlags = new java.util.ArrayList<String>();
-          noKycFlags.add("KYC_REQUIRED");
-          if (hasAccountConflict) noKycFlags.add("SENDER_ACCOUNT_CONFLICT");
-          var noKycScoring = new com.openiv.backend.transactions.TransactionScorer.ScoringResult(
-              noKycScore, noKycFlags, noKycReason);
+            // No lookup URL or lookup failed — flag and hold
+            int noKycScore = hasAccountConflict ? 90 : 75;
+            String noKycReason = hasAccountConflict
+                ? "No KYC on file and sender account '" + senderAccount + "' is already linked to customer '"
+                    + conflictOpt.get() + "'. Possible account sharing or fraudulent reuse."
+                : "Customer identity verification is required before transactions can be processed. "
+                    + "This transaction has been flagged and held pending KYC completion.";
+            log.warn("[Beam/Txn] No KYC for customer={} inst={} conflict={} — flagging txn={} score={}",
+                customerId, institutionId, hasAccountConflict, txnId, noKycScore);
 
-          Future<String> fCase = shouldOpenCase
-              ? autoCaseService.createCaseFromTransaction(institutionId, txn, noKycScoring)
+            boolean shouldOpenCase = autoCaseService != null
+                && settings.autoOpenCase()
+                && noKycScore >= settings.riskScoreCaseThreshold();
+
+            var noKycFlags = new java.util.ArrayList<String>();
+            noKycFlags.add("KYC_REQUIRED");
+            if (hasAccountConflict)
+              noKycFlags.add("SENDER_ACCOUNT_CONFLICT");
+            var noKycScoring = new com.openiv.backend.transactions.TransactionScorer.ScoringResult(
+                noKycScore, noKycFlags, noKycReason);
+
+            Future<String> fCase = shouldOpenCase
+                ? autoCaseService.createCaseFromTransaction(institutionId, txn, noKycScoring)
                     .compose(cas -> {
                       if (notificationService != null) {
                         notificationService.notifyCaseCreated(institutionId, cas.id(),
                             cas.priority(), txn.customerName(),
                             txn.amount().toPlainString(),
                             txn.currency() != null ? txn.currency() : "NGN",
-                            txn.channel()).onFailure(e ->
-                            log.warn("[Beam/Txn] Case notify failed: {}", e.getMessage()));
+                            txn.channel()).onFailure(e -> log.warn("[Beam/Txn] Case notify failed: {}", e.getMessage()));
                       }
                       return Future.succeededFuture(cas.id());
                     })
-              : Future.succeededFuture(null);
+                : Future.succeededFuture(null);
 
-          String noKycPanelReason = buildNoKycFlagReason(noKycScore, hasAccountConflict,
-              senderAccount, conflictOpt.orElse(null));
+            String noKycPanelReason = buildNoKycFlagReason(noKycScore, hasAccountConflict,
+                senderAccount, conflictOpt.orElse(null));
 
-          return transactionService.ingestFromBeam(institutionId, imp)
-              .compose(v -> transactionService.markFlaggedWithReason(txnId, institutionId, noKycScore, noKycPanelReason))
-              .compose(v -> notificationService != null
-                  ? notificationService.notifyTransactionFlagged(institutionId, txnId, noKycReason, noKycScore)
-                  : Future.<NotificationService.Notification>succeededFuture(null))
-              .compose(notif -> fCase.map(caseId -> {
-                var resp = new JsonObject()
-                    .put("transaction_id",     txnId)
-                    .put("kyc_required",       true)
-                    .put("risk_score",         noKycScore)
-                    .put("risk_level",         noKycScore >= 75 ? "CRITICAL" : "HIGH")
-                    .put("recommended_action", "KYC_REQUIRED")
-                    .put("account_conflict",   hasAccountConflict)
-                    .put("message",            noKycReason)
-                    .put("case_id",            caseId)
-                    .put("processed_at",       OffsetDateTime.now(zone).toString());
-                if (notif != null) resp.put("notification_id", notif.id());
-                if (hasAccountConflict) resp.put("conflicting_customer_id", conflictOpt.get());
-                return resp;
-              }));
+            return transactionService.ingestFromBeam(institutionId, imp)
+                .compose(
+                    v -> transactionService.markFlaggedWithReason(txnId, institutionId, noKycScore, noKycPanelReason))
+                .compose(v -> notificationService != null
+                    ? notificationService.notifyTransactionFlagged(institutionId, txnId, noKycReason, noKycScore)
+                    : Future.<NotificationService.Notification>succeededFuture(null))
+                .compose(notif -> fCase.map(caseId -> {
+                  var resp = new JsonObject()
+                      .put("transaction_id", txnId)
+                      .put("kyc_required", true)
+                      .put("risk_score", noKycScore)
+                      .put("risk_level", noKycScore >= 75 ? "CRITICAL" : "HIGH")
+                      .put("recommended_action", "KYC_REQUIRED")
+                      .put("account_conflict", hasAccountConflict)
+                      .put("message", noKycReason)
+                      .put("case_id", caseId)
+                      .put("processed_at", OffsetDateTime.now(zone).toString());
+                  if (notif != null)
+                    resp.put("notification_id", notif.id());
+                  if (hasAccountConflict)
+                    resp.put("conflicting_customer_id", conflictOpt.get());
+                  return resp;
+                }));
+          });
         }
 
         int kycRiskScore = kycOpt.get().overallRiskScore();
 
         // ── KYC exists: run orchestrator, blend KYC as major contributor (40%) ─
-        return transactionService.ingestFromBeam(institutionId, imp)
+        return processTransactionWithKycResult(institutionId, record, imp, txn, txnId, zone,
+            settings, kycRiskScore, institutionKycTier,
+            hasAccountConflict, conflictOpt, senderAccount, today, yesterday, txnDirection);
+      });
+    } catch (Exception e) {
+      log.error("[Beam] Sync analysis failed", e);
+      return Future.succeededFuture(new JsonObject().put("error", "Analysis failed: " + e.getMessage()));
+    }
+  }
+
+  private Future<JsonObject> processTransactionWithKycResult(
+      long institutionId, BeamRecord record, TransactionImport imp, Transaction txn,
+      String txnId, ZoneId zone, AmlSettings settings, int kycRiskScore, Integer institutionKycTier,
+      boolean hasAccountConflict, Optional<String> conflictOpt, String senderAccount,
+      java.time.LocalDate today, java.time.LocalDate yesterday, String txnDirection) {
+
+    return transactionService.ingestFromBeam(institutionId, imp)
             .compose(v -> {
-              Future<Long>    fToday      = transactionService.getTodayCount(institutionId, today);
-              Future<Long>    fYesterday  = transactionService.getYesterdayCount(institutionId, yesterday);
-              Future<Long>    fCust24h    = transactionService.getCustomerTxnCount24h(institutionId, txn.customerId());
-              Future<Boolean> fOtp        = otpAnalyzer != null
+              Future<Long> fToday = transactionService.getTodayCount(institutionId, today);
+              Future<Long> fYesterday = transactionService.getYesterdayCount(institutionId, yesterday);
+              Future<Long> fCust24h = transactionService.getCustomerTxnCount24h(institutionId, txn.customerId());
+              Future<Boolean> fOtp = otpAnalyzer != null
                   ? otpAnalyzer.hasRecentAlert(institutionId, txn.customerId(), 15)
                   : Future.succeededFuture(false);
-              Future<Optional<Transaction>> fPrevLoc =
-                  transactionService.getLastTransactionWithLocation(institutionId, txn.customerId(), txnId);
+              Future<Optional<Transaction>> fPrevLoc = transactionService.getLastTransactionWithLocation(institutionId,
+                  txn.customerId(), txnId);
               return Future.all(fToday, fYesterday, fCust24h, fOtp, fPrevLoc);
             })
             .compose(results -> {
-              long    todayCount    = results.resultAt(0);
-              long    yestCount     = results.resultAt(1);
-              long    cust24h       = results.resultAt(2);
-              boolean hasOtpAlert   = results.resultAt(3);
+              long todayCount = results.resultAt(0);
+              long yestCount = results.resultAt(1);
+              long cust24h = results.resultAt(2);
+              boolean hasOtpAlert = results.resultAt(3);
               Optional<Transaction> prevLoc = results.resultAt(4);
               return orchestrator.processTransaction(institutionId, txn,
                   todayCount, yestCount, cust24h, hasOtpAlert, false, prevLoc);
@@ -483,23 +594,29 @@ public final class BeamService {
               String rejection = null;
               if (res.triggeredRules() != null) {
                 if (res.triggeredRules().contains("MICRO_TIMING_ANOMALY"))
-                  rejection = "MICRO_TIMING_ANOMALY: occurred_at is within ±5 s of institution time — possible automated injection or clock manipulation. Case opened: " + res.caseId();
+                  rejection = "MICRO_TIMING_ANOMALY: occurred_at is within ±5 s of institution time — possible automated injection or clock manipulation. Case opened: "
+                      + res.caseId();
                 else if (res.triggeredRules().contains("STALE_TIMESTAMP_ANOMALY"))
-                  rejection = "Transaction date is too old — possible replay. Flagged and case opened. Case: " + res.caseId();
+                  rejection = "Transaction date is too old — possible replay. Flagged and case opened. Case: "
+                      + res.caseId();
                 else if (res.triggeredRules().contains("FUTURE_TIMESTAMP_ANOMALY"))
                   rejection = "Transaction occurred_at is more than 63 minutes in the future. " +
                       "Ensure the timestamp is UTC (e.g. 2026-05-17T13:00:00Z) and your system clock is correct. " +
                       "Flagged and case opened. Case: " + res.caseId();
                 else if (res.triggeredRules().contains("TXN_IMPOSSIBLE_TRAVEL"))
-                  rejection = "Geo-velocity check failed: location physically unreachable in elapsed time. Case: " + res.caseId();
+                  rejection = "Geo-velocity check failed: location physically unreachable in elapsed time. Case: "
+                      + res.caseId();
               }
-              if (rejection != null) return Future.failedFuture(new IllegalArgumentException(rejection));
+              if (rejection != null)
+                return Future.failedFuture(new IllegalArgumentException(rejection));
 
-              // KYC risk is a major contributor: 60% transaction score + 40% customer KYC risk score.
-              // A high-risk customer profile significantly boosts the blended transaction risk.
-              int rawScore     = res.riskScore();
+              // KYC risk is a major contributor: 60% transaction score + 40% customer KYC
+              // risk score.
+              // A high-risk customer profile significantly boosts the blended transaction
+              // risk.
+              int rawScore = res.riskScore();
               int conflictBump = hasAccountConflict ? 20 : 0;
-              int blendedScore = Math.min(100, (int)(rawScore * 0.60 + kycRiskScore * 0.40) + conflictBump);
+              int blendedScore = Math.min(100, (int) (rawScore * 0.60 + kycRiskScore * 0.40) + conflictBump);
 
               String blendedReason = buildBlendedFlagReason(
                   res.triggeredRules(), kycRiskScore, blendedScore, hasAccountConflict);
@@ -522,25 +639,27 @@ public final class BeamService {
                   && res.caseId() == null;
 
               var blendedFlags = new java.util.ArrayList<String>();
-              if (res.triggeredRules() != null) blendedFlags.addAll(res.triggeredRules());
-              if (hasAccountConflict) blendedFlags.add("SENDER_ACCOUNT_CONFLICT");
+              if (res.triggeredRules() != null)
+                blendedFlags.addAll(res.triggeredRules());
+              if (hasAccountConflict)
+                blendedFlags.add("SENDER_ACCOUNT_CONFLICT");
               var blendedScoring = new com.openiv.backend.transactions.TransactionScorer.ScoringResult(
                   blendedScore, blendedFlags,
                   "Blended score: " + blendedScore + " (txn=" + rawScore + " kyc=" + kycRiskScore + ")");
 
               Future<String> fNewCase = needsCase
                   ? autoCaseService.createCaseFromTransaction(institutionId, txn, blendedScoring)
-                        .compose(cas -> {
-                          if (notificationService != null) {
-                            notificationService.notifyCaseCreated(institutionId, cas.id(),
-                                cas.priority(), txn.customerName(),
-                                txn.amount().toPlainString(),
-                                txn.currency() != null ? txn.currency() : "NGN",
-                                txn.channel()).onFailure(e ->
-                                log.warn("[Beam/Txn] Case notify failed: {}", e.getMessage()));
-                          }
-                          return Future.succeededFuture(cas.id());
-                        })
+                      .compose(cas -> {
+                        if (notificationService != null) {
+                          notificationService.notifyCaseCreated(institutionId, cas.id(),
+                              cas.priority(), txn.customerName(),
+                              txn.amount().toPlainString(),
+                              txn.currency() != null ? txn.currency() : "NGN",
+                              txn.channel())
+                              .onFailure(e -> log.warn("[Beam/Txn] Case notify failed: {}", e.getMessage()));
+                        }
+                        return Future.succeededFuture(cas.id());
+                      })
                   : Future.succeededFuture(res.caseId());
 
               return Future.all(fUpdate, fConflictNotify, fNewCase).map(all -> {
@@ -549,34 +668,33 @@ public final class BeamService {
                     ? com.openiv.backend.transactions.TransactionScorer.getPriority(blendedScore)
                     : res.priority();
                 var resp = new JsonObject()
-                    .put("transaction_id",      res.transactionId())
-                    .put("risk_score",          blendedScore)
-                    .put("kyc_risk_score",      kycRiskScore)
-                    .put("risk_level",          blendedScore >= 75 ? "CRITICAL"
+                    .put("transaction_id", res.transactionId())
+                    .put("risk_score", blendedScore)
+                    .put("transaction_risk_score", rawScore)
+                    .put("kyc_risk_score", kycRiskScore)
+                    .put("risk_level", blendedScore >= 75 ? "CRITICAL"
                         : blendedScore >= 60 ? "HIGH"
-                        : blendedScore >= 30 ? "MEDIUM" : "LOW")
-                    .put("recommended_action",  blendedScore >= settings.riskScoreCaseThreshold() ? "DECLINE"
+                            : blendedScore >= 30 ? "MEDIUM" : "LOW")
+                    .put("recommended_action", blendedScore >= settings.riskScoreCaseThreshold() ? "DECLINE"
                         : blendedScore >= settings.riskScoreFlagThreshold() ? "HOLD"
-                        : res.recommendedAction())
-                    .put("case_id",             finalCaseId)
-                    .put("priority",            finalPriority)
-                    .put("account_conflict",    hasAccountConflict)
-                    .put("direction",           txnDirection)
-                    .put("processed_at",        OffsetDateTime.now(zone).toString());
-                if (hasAccountConflict) resp.put("conflicting_customer_id", conflictOpt.get());
+                            : res.recommendedAction())
+                    .put("case_id", finalCaseId)
+                    .put("priority", finalPriority)
+                    .put("account_conflict", hasAccountConflict)
+                    .put("direction", txnDirection)
+                    .put("institution_kyc_tier", institutionKycTier)
+                    .put("processed_at", OffsetDateTime.now(zone).toString());
+                if (hasAccountConflict)
+                  resp.put("conflicting_customer_id", conflictOpt.get());
                 return resp;
               });
             })
             .recover(e -> {
-              if (e instanceof IllegalArgumentException) return Future.failedFuture(e);
+              if (e instanceof IllegalArgumentException)
+                return Future.failedFuture(e);
               log.error("[Beam] Sync analysis failed for beam record {}", record.id(), e);
               return Future.succeededFuture(new JsonObject().put("error", "Analysis failed: " + e.getMessage()));
             });
-      });
-    } catch (Exception e) {
-      log.error("[Beam] Sync analysis failed", e);
-      return Future.succeededFuture(new JsonObject().put("error", "Analysis failed: " + e.getMessage()));
-    }
   }
 
   private Future<JsonObject> analyzeActivitySynchronously(long institutionId, BeamRecord record,
@@ -598,32 +716,34 @@ public final class BeamService {
       }
 
       OffsetDateTime now = OffsetDateTime.now(zone);
-      long signedDiff   = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
-      long secondsDiff  = Math.abs(signedDiff);
-      int  beamWindow   = amlSettings.beamWindowSeconds();
+      long signedDiff = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
+      long secondsDiff = Math.abs(signedDiff);
+      int beamWindow = amlSettings.beamWindowSeconds();
 
-      String anomalyKind    = null;
-      String rejectionMsg   = null;
+      String anomalyKind = null;
+      String rejectionMsg = null;
 
       if (secondsDiff <= 5) {
-        anomalyKind  = "MICRO_TIMING_ANOMALY";
+        anomalyKind = "MICRO_TIMING_ANOMALY";
         rejectionMsg = "This activity event's timestamp matches the server clock within 5 seconds — " +
             "a strong indicator of an automated injection. The event has been flagged for security review.";
       } else if (signedDiff < -beamWindow) {
-        anomalyKind  = "FUTURE_TIMESTAMP_ANOMALY";
+        anomalyKind = "FUTURE_TIMESTAMP_ANOMALY";
         long minsAhead = Math.max(1, secondsDiff / 60);
         rejectionMsg = "This activity event carries a timestamp " + minsAhead + " minute(s) ahead of " +
             "server time. A legitimate event cannot occur in the future — this may indicate clock " +
             "tampering. The event has been flagged for review.";
       } else if (signedDiff > beamWindow) {
         String ageDesc = signedDiff >= 3600
-            ? (signedDiff / 3600) + " hour(s)" : (signedDiff / 60) + " minute(s)";
-        anomalyKind  = "STALE_TIMESTAMP_ANOMALY";
+            ? (signedDiff / 3600) + " hour(s)"
+            : (signedDiff / 60) + " minute(s)";
+        anomalyKind = "STALE_TIMESTAMP_ANOMALY";
         rejectionMsg = "This activity event timestamp is " + ageDesc + " old. This may indicate a " +
             "replay attack or backdated injection. The event has been flagged for review.";
       }
 
-      // Always run behavioral analysis (time-of-day, burst, session, timestamp rules) async.
+      // Always run behavioral analysis (time-of-day, burst, session, timestamp rules)
+      // async.
       if (behavioralBeamAnalyzer != null) {
         behavioralBeamAnalyzer.analyzeActivity(
             institutionId, ActivityPayload.parse(payload), occurredAt, zone, amlSettings);
@@ -635,8 +755,8 @@ public final class BeamService {
       }
 
       return Future.succeededFuture(new JsonObject()
-          .put("event_id",        "beam-" + record.id())
-          .put("processed_at",    now.toString())
+          .put("event_id", "beam-" + record.id())
+          .put("processed_at", now.toString())
           .put("timestamp_valid", true));
 
     } catch (Exception e) {
@@ -664,27 +784,28 @@ public final class BeamService {
       }
 
       OffsetDateTime now = OffsetDateTime.now(zone);
-      long signedDiff  = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
+      long signedDiff = java.time.temporal.ChronoUnit.SECONDS.between(occurredAt, now);
       long secondsDiff = Math.abs(signedDiff);
-      int  beamWindow  = amlSettings.beamWindowSeconds();
+      int beamWindow = amlSettings.beamWindowSeconds();
 
-      String anomalyKind  = null;
+      String anomalyKind = null;
       String rejectionMsg = null;
 
       if (secondsDiff <= 5) {
-        anomalyKind  = "MICRO_TIMING_ANOMALY";
+        anomalyKind = "MICRO_TIMING_ANOMALY";
         rejectionMsg = "This login event's timestamp matches the server clock within 5 seconds — " +
             "a strong indicator of an automated injection. The event has been flagged for security review.";
       } else if (signedDiff < -beamWindow) {
-        anomalyKind  = "FUTURE_TIMESTAMP_ANOMALY";
+        anomalyKind = "FUTURE_TIMESTAMP_ANOMALY";
         long minsAhead = Math.max(1, secondsDiff / 60);
         rejectionMsg = "This login event carries a timestamp " + minsAhead + " minute(s) ahead of " +
             "server time. A legitimate login cannot occur in the future — this may indicate clock " +
             "tampering. The event has been flagged for review.";
       } else if (signedDiff > beamWindow) {
         String ageDesc = signedDiff >= 3600
-            ? (signedDiff / 3600) + " hour(s)" : (signedDiff / 60) + " minute(s)";
-        anomalyKind  = "STALE_TIMESTAMP_ANOMALY";
+            ? (signedDiff / 3600) + " hour(s)"
+            : (signedDiff / 60) + " minute(s)";
+        anomalyKind = "STALE_TIMESTAMP_ANOMALY";
         rejectionMsg = "This login event timestamp is " + ageDesc + " old. This may indicate a " +
             "replay attack or session injection. The event has been flagged for review.";
       }
@@ -700,8 +821,8 @@ public final class BeamService {
       }
 
       return Future.succeededFuture(new JsonObject()
-          .put("event_id",        "beam-" + record.id())
-          .put("processed_at",    now.toString())
+          .put("event_id", "beam-" + record.id())
+          .put("processed_at", now.toString())
           .put("timestamp_valid", true));
 
     } catch (Exception e) {
@@ -710,32 +831,35 @@ public final class BeamService {
     }
   }
 
-  /** Build a TransactionImport from the raw beam payload, using the given stable txnId. */
+  /**
+   * Build a TransactionImport from the raw beam payload, using the given stable
+   * txnId.
+   */
   private TransactionImport buildTransactionImport(String txnId, JsonObject obj, ZoneId zone) {
-    String customerId    = obj.getString("customer_id", obj.getString("customerId", ""));
-    String customerName  = obj.getString("customer_name", obj.getString("customerName", ""));
-    Number amtNum        = obj.getNumber("amount", 0);
-    String channel       = obj.getString("channel", "Unknown");
-    String counterparty  = obj.getString("counterparty_account", obj.getString("counterparty", ""));
-    String status        = sanitizeStatus(obj.getString("status"));
+    String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
+    String customerName = obj.getString("customer_name", obj.getString("customerName", ""));
+    Number amtNum = obj.getNumber("amount", 0);
+    String channel = obj.getString("channel", "Unknown");
+    String counterparty = obj.getString("counterparty_account", obj.getString("counterparty", ""));
+    String status = sanitizeStatus(obj.getString("status"));
     String flaggedStatus = obj.getString("flagged_status", obj.getString("flaggedStatus"));
-    String location      = obj.getString("location", "");
-    Double lat           = obj.getDouble("lat");
-    Double lng           = obj.getDouble("lng");
+    String location = obj.getString("location", "");
+    Double lat = obj.getDouble("lat");
+    Double lng = obj.getDouble("lng");
     OffsetDateTime occurredAt = parseOccurredAt(
         obj.getString("occurred_at", obj.getString("occurredAt")), zone);
-    String senderAccount    = obj.getString("sender_account", obj.getString("senderAccount"));
-    String senderBank       = obj.getString("sender_bank", obj.getString("senderBank"));
-    String recipientName    = obj.getString("recipient_name", obj.getString("recipientName"));
+    String senderAccount = obj.getString("sender_account", obj.getString("senderAccount"));
+    String senderBank = obj.getString("sender_bank", obj.getString("senderBank"));
+    String recipientName = obj.getString("recipient_name", obj.getString("recipientName"));
     String recipientAccount = obj.getString("recipient_account", obj.getString("recipientAccount"));
-    String recipientBank    = obj.getString("recipient_bank", obj.getString("recipientBank"));
-    String currency         = obj.getString("currency", "NGN");
-    String narration        = obj.getString("narration");
-    String deviceId         = obj.getString("device_id", obj.getString("deviceId"));
-    String ipAddress        = obj.getString("ip_address", obj.getString("ipAddress"));
-    String category         = obj.getString("category");
-    String dirRaw           = obj.getString("direction", "outward");
-    String direction        = "inward".equalsIgnoreCase(dirRaw) ? "inward" : "outward";
+    String recipientBank = obj.getString("recipient_bank", obj.getString("recipientBank"));
+    String currency = obj.getString("currency", "NGN");
+    String narration = obj.getString("narration");
+    String deviceId = obj.getString("device_id", obj.getString("deviceId"));
+    String ipAddress = obj.getString("ip_address", obj.getString("ipAddress"));
+    String category = obj.getString("category");
+    String dirRaw = obj.getString("direction", "outward");
+    String direction = "inward".equalsIgnoreCase(dirRaw) ? "inward" : "outward";
 
     return new TransactionImport(
         txnId, customerId, customerName,
@@ -748,11 +872,11 @@ public final class BeamService {
   /** Build a Transaction domain object using an explicit string ID. */
   private Transaction mapToTransactionWithId(long institutionId, String txnId, JsonObject obj, ZoneId zone) {
     String customerId = obj.getString("customer_id", obj.getString("customerId", ""));
-    Number amtNum     = obj.getNumber("amount", 0);
+    Number amtNum = obj.getNumber("amount", 0);
     OffsetDateTime occurredAt = parseOccurredAt(
         obj.getString("occurred_at", obj.getString("occurredAt")), zone);
     OffsetDateTime now = OffsetDateTime.now(zone);
-    String dirRaw   = obj.getString("direction", "outward");
+    String dirRaw = obj.getString("direction", "outward");
     String direction = "inward".equalsIgnoreCase(dirRaw) ? "inward" : "outward";
     return new Transaction(
         txnId, institutionId, customerId,
@@ -807,36 +931,39 @@ public final class BeamService {
       sb.append("Our transaction monitoring detected the following: ");
       var rules = triggeredRules.stream()
           .map(r -> switch (r) {
-            case "high-value-wire"        -> "an unusually large wire transfer";
-            case "velocity-cluster"       -> "multiple rapid transactions from this account";
-            case "late-night-large"       -> "a large late-night transfer";
-            case "OTP_ALERT"              -> "recent failed authentication attempts on this account";
-            case "VELOCITY_SPIKE"         -> "an institution-wide transaction volume spike";
-            case "KYC_TIER_LIMIT_EXCEEDED"-> "the transaction amount exceeds this customer's KYC tier limit";
-            case "cross-border-bdc"       -> "a high-value cross-border foreign exchange transfer";
-            case "STALE_TIMESTAMP_ANOMALY"-> "a suspiciously old transaction timestamp";
-            case "FUTURE_TIMESTAMP_ANOMALY"-> "a future-dated transaction timestamp";
-            case "MICRO_TIMING_ANOMALY"   -> "a timestamp that is suspiciously precise";
-            case "TXN_IMPOSSIBLE_TRAVEL"  -> "an impossible travel distance between transactions";
-            case "TXN_SUSPICIOUS_TRAVEL"  -> "an unusually fast travel distance between transactions";
+            case "high-value-wire" -> "an unusually large wire transfer";
+            case "velocity-cluster" -> "multiple rapid transactions from this account";
+            case "late-night-large" -> "a large late-night transfer";
+            case "OTP_ALERT" -> "recent failed authentication attempts on this account";
+            case "VELOCITY_SPIKE" -> "an institution-wide transaction volume spike";
+            case "KYC_TIER_LIMIT_EXCEEDED" -> "the transaction amount exceeds this customer's KYC tier limit";
+            case "cross-border-bdc" -> "a high-value cross-border foreign exchange transfer";
+            case "STALE_TIMESTAMP_ANOMALY" -> "a suspiciously old transaction timestamp";
+            case "FUTURE_TIMESTAMP_ANOMALY" -> "a future-dated transaction timestamp";
+            case "MICRO_TIMING_ANOMALY" -> "a timestamp that is suspiciously precise";
+            case "TXN_IMPOSSIBLE_TRAVEL" -> "an impossible travel distance between transactions";
+            case "TXN_SUSPICIOUS_TRAVEL" -> "an unusually fast travel distance between transactions";
             default -> r.toLowerCase().replace("_", " ");
           })
           .distinct().toList();
       for (int i = 0; i < rules.size(); i++) {
         String rule = rules.get(i);
-        if (i == 0) sb.append(Character.toUpperCase(rule.charAt(0))).append(rule.substring(1));
-        else if (i == rules.size() - 1) sb.append("; and ").append(rule);
-        else sb.append("; ").append(rule);
+        if (i == 0)
+          sb.append(Character.toUpperCase(rule.charAt(0))).append(rule.substring(1));
+        else if (i == rules.size() - 1)
+          sb.append("; and ").append(rule);
+        else
+          sb.append("; ").append(rule);
       }
       sb.append(". ");
     }
 
     if (kycRiskScore >= 70) {
       sb.append("The customer's identity verification profile also shows a high-risk score of ")
-        .append(kycRiskScore).append("/100, which has significantly increased the overall risk assessment. ");
+          .append(kycRiskScore).append("/100, which has significantly increased the overall risk assessment. ");
     } else if (kycRiskScore >= 40) {
       sb.append("The customer's identity verification profile shows a moderate risk score of ")
-        .append(kycRiskScore).append("/100, which has been factored into the final risk assessment. ");
+          .append(kycRiskScore).append("/100, which has been factored into the final risk assessment. ");
     } else {
       sb.append("The customer's identity verification profile has been factored into the overall risk score. ");
     }
@@ -849,15 +976,15 @@ public final class BeamService {
 
     if (blendedScore >= 75) {
       sb.append("The combined risk score of ").append(blendedScore)
-        .append("/100 is in the critical range. This transaction should be placed on hold and an "
-            + "investigation opened immediately. Do not release funds until the review is complete.");
+          .append("/100 is in the critical range. This transaction should be placed on hold and an "
+              + "investigation opened immediately. Do not release funds until the review is complete.");
     } else if (blendedScore >= 60) {
       sb.append("The combined risk score of ").append(blendedScore)
-        .append("/100 is elevated. Review the transaction carefully and verify the details with "
-            + "the customer before releasing any funds.");
+          .append("/100 is elevated. Review the transaction carefully and verify the details with "
+              + "the customer before releasing any funds.");
     } else {
       sb.append("The combined risk score of ").append(blendedScore)
-        .append("/100 warrants a review as part of your standard compliance process.");
+          .append("/100 warrants a review as part of your standard compliance process.");
     }
 
     return sb.toString();
@@ -866,12 +993,15 @@ public final class BeamService {
   private void processCustomerUpsert(long institutionId, String payload) {
     try {
       JsonObject obj = new JsonObject(payload);
-      String customerId = obj.getString("customer_id", obj.getString("customerId", obj.getString("user_id", obj.getString("userId"))));
-      String name = obj.getString("customer_name", obj.getString("customerName", obj.getString("user_name", obj.getString("userName"))));
-      
+      String customerId = obj.getString("customer_id",
+          obj.getString("customerId", obj.getString("user_id", obj.getString("userId"))));
+      String name = obj.getString("customer_name",
+          obj.getString("customerName", obj.getString("user_name", obj.getString("userName"))));
+
       if (customerId != null && !customerId.isBlank()) {
         customerService.upsert(institutionId, customerId, name)
-            .onFailure(err -> log.warn("Failed to upsert customer {} for institution {}: {}", customerId, institutionId, err.getMessage()));
+            .onFailure(err -> log.warn("Failed to upsert customer {} for institution {}: {}", customerId, institutionId,
+                err.getMessage()));
       }
     } catch (Exception e) {
       // Best effort
@@ -898,13 +1028,13 @@ public final class BeamService {
   }
 
   public Future<List<BeamRecord>> listRecords(Session session, String stream) {
-    return resolveUser(session).compose(u ->
-        repository.listRecords(u.institutionId(), stream, 100));
+    return resolveUser(session).compose(u -> repository.listRecords(u.institutionId(), stream, 100));
   }
 
-  public Future<BeamRecordsResult> listRecords(Session session, String stream, String q, String range, int page, int pageSize) {
-    return resolveUser(session).compose(u ->
-        repository.listRecords(u.institutionId(), stream, q, range, page, pageSize));
+  public Future<BeamRecordsResult> listRecords(Session session, String stream, String q, String range, int page,
+      int pageSize) {
+    return resolveUser(session)
+        .compose(u -> repository.listRecords(u.institutionId(), stream, q, range, page, pageSize));
   }
 
   public Future<Long> resolveInstitution(Session session) {
@@ -933,7 +1063,8 @@ public final class BeamService {
       byte[] digest = MessageDigest.getInstance("SHA-256")
           .digest(input.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder(digest.length * 2);
-      for (byte b : digest) sb.append(String.format("%02x", b));
+      for (byte b : digest)
+        sb.append(String.format("%02x", b));
       return sb.toString();
     } catch (Exception e) {
       throw new RuntimeException("SHA-256 failed", e);
@@ -941,21 +1072,25 @@ public final class BeamService {
   }
 
   /**
-   * Maps any payment status value to the three valid values enforced by transactions_status_check.
-   * Pre-V14 payloads may send 'flagged'/'blocked'/'review'/'cleared' which were the old combined column.
+   * Maps any payment status value to the three valid values enforced by
+   * transactions_status_check.
+   * Pre-V14 payloads may send 'flagged'/'blocked'/'review'/'cleared' which were
+   * the old combined column.
    */
   private static String sanitizeStatus(String raw) {
-    if (raw == null) return "pending";
+    if (raw == null)
+      return "pending";
     return switch (raw.toLowerCase()) {
       case "successful", "success", "completed", "cleared" -> "successful";
-      case "failed",     "blocked",  "declined",  "rejected" -> "failed";
+      case "failed", "blocked", "declined", "rejected" -> "failed";
       default -> "pending";
     };
   }
 
   /**
    * Parses occurred_at with support for multiple formats:
-   * 1. ISO-8601 with offset (e.g. 2026-05-09T21:43:00Z, 2026-05-09T21:43:00+01:00)
+   * 1. ISO-8601 with offset (e.g. 2026-05-09T21:43:00Z,
+   * 2026-05-09T21:43:00+01:00)
    * 2. ISO-8601 local (e.g. 2026-05-09T21:43:00) — assumes institution timezone
    * 3. Variants with spaces (e.g. 2026-05-09 21:43:00)
    * 4. Numeric timestamps (milliseconds)
@@ -980,7 +1115,8 @@ public final class BeamService {
         long ms = Long.parseLong(rawTs);
         return OffsetDateTime.ofInstant(Instant.ofEpochMilli(ms), zone);
       }
-    } catch (NumberFormatException ignored) {}
+    } catch (NumberFormatException ignored) {
+    }
 
     // Normalize: replace space with T if present
     String normalized = rawTs.trim().replace(' ', 'T');
@@ -988,14 +1124,65 @@ public final class BeamService {
     // 2. Try OffsetDateTime (explicit offset)
     try {
       return OffsetDateTime.parse(normalized);
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     // 3. Try LocalDateTime (assume institution zone)
     try {
       LocalDateTime ldt = LocalDateTime.parse(normalized);
       return ldt.atZone(zone).toOffsetDateTime();
-    } catch (Exception ignored) {}
+    } catch (Exception ignored) {
+    }
 
     throw new IllegalArgumentException("Unsupported timestamp format: " + rawTs);
+  }
+
+  /** Extracts customer_id / customerId from a raw JSON payload string without failing. */
+  private static String extractCustomerId(String payload) {
+    try {
+      io.vertx.core.json.JsonObject obj = new io.vertx.core.json.JsonObject(payload);
+      String cid = obj.getString("customer_id", obj.getString("customerId"));
+      return (cid != null && !cid.isBlank()) ? cid.trim() : null;
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /**
+   * Checks whether the institution has re-evaluation enabled and, if the customer's
+   * last_evaluated_at is at or beyond the configured interval, runs the full KYC
+   * pipeline again (fire-and-forget).
+   */
+  private void triggerReEvaluationIfDue(long institutionId, String externalId) {
+    if (evalConfigRepo == null || kycService == null || customerService == null) return;
+    evalConfigRepo.findByInstitution(institutionId)
+        .compose(cfgOpt -> {
+          if (cfgOpt.isEmpty() || !cfgOpt.get().enabled()) return Future.succeededFuture();
+          int intervalDays = cfgOpt.get().intervalDays();
+          return customerService.findByExternalId(institutionId, externalId)
+              .compose(custOpt -> {
+                if (custOpt.isEmpty()) return Future.succeededFuture();
+                com.openiv.backend.customers.Customer c = custOpt.get();
+                java.time.OffsetDateTime lastEval = c.lastEvaluatedAt();
+                if (lastEval == null ||
+                    java.time.Duration.between(lastEval, java.time.OffsetDateTime.now()).toDays() >= intervalDays) {
+                  log.info("[Beam/ReEval] Re-evaluation due for customer={} inst={} (interval={}d)",
+                      externalId, institutionId, intervalDays);
+                  return kycService.runPipeline(institutionId, externalId,
+                          c.bvn(), c.nin(), c.phone(), c.photo(), c.name())
+                      .compose(result -> {
+                        int score = result.overallRiskScore();
+                        String action = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
+                        return customerService.updateRiskScore(institutionId, externalId, score)
+                            .compose(v -> kycService.savePipelineResult(institutionId, externalId,
+                                result, action, null, null))
+                            .compose(v -> customerService.updateLastEvaluated(institutionId, externalId));
+                      });
+                }
+                return Future.succeededFuture();
+              });
+        })
+        .onFailure(e -> log.warn("[Beam/ReEval] Re-evaluation check failed for {}/{}: {}",
+            institutionId, externalId, e.getMessage()));
   }
 }

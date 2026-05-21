@@ -246,6 +246,26 @@ public final class TransactionRepository {
             : Optional.of(mapList(rs.iterator().next())));
   }
 
+  /**
+   * Returns the occurred_at of the most recent transaction for {@code customerId},
+   * excluding the current transaction {@code excludeId}.  Empty when no prior transaction exists.
+   * Used to detect dormant account reactivation (gap > 90 days).
+   */
+  public Future<Optional<java.time.OffsetDateTime>> findPreviousTransactionDate(
+      long institutionId, String customerId, String excludeId) {
+    String sql = "SELECT occurred_at FROM transactions "
+        + "WHERE institution_id = $1 AND customer_id = $2 AND id <> $3 "
+        + "ORDER BY occurred_at DESC LIMIT 1";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, customerId, excludeId))
+        .map(rs -> {
+          var it = rs.iterator();
+          if (!it.hasNext()) return Optional.<java.time.OffsetDateTime>empty();
+          var odt = it.next().getOffsetDateTime("occurred_at");
+          return odt != null ? Optional.of(odt) : Optional.<java.time.OffsetDateTime>empty();
+        });
+  }
+
   /** Returns the customer ID already associated with {@code senderAccount} for this institution,
    *  excluding {@code excludeCustomerId} (the customer who just sent the transaction).
    *  A non-empty result means the account number appears under a different customer — suspicious. */

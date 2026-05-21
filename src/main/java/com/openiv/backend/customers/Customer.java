@@ -24,5 +24,6 @@ public record Customer(
     OffsetDateTime updatedAt,
     boolean watchlisted,
     OffsetDateTime watchlistedAt,
-    String watchlistedReason
+    String watchlistedReason,
+    OffsetDateTime lastEvaluatedAt
 ) {}

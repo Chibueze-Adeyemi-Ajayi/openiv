@@ -110,7 +110,8 @@ public final class MainVerticle extends AbstractVerticle {
     ApiRouter.mount(vertx, router, dbPool, config.security(),
         authService, accessRequestService, teamService, transactionService,
         caseService, thresholdService, webhookService, config.isDevelopment(), beamService,
-        kycService, heatmapService, dashboardService, geoFenceService, customerService);
+        kycService, heatmapService, dashboardService, geoFenceService, customerService,
+        config.cloudinary());
 
     var serverBuilder = vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(

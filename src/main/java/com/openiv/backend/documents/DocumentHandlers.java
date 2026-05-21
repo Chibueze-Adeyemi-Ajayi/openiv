@@ -4,18 +4,20 @@ import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.billing.BillingService;
+import com.openiv.backend.cloudinary.CloudinaryService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
-import java.util.Set;
+import java.util.List;
+import java.util.UUID;
 
 public final class DocumentHandlers {
 
-  private static final long MAX_BYTES = 10L * 1024 * 1024;   // 10 MB
-  private static final Set<String> ALLOWED = Set.of(
+  private static final long MAX_BYTES = 10L * 1024 * 1024;
+  private static final List<String> ALLOWED = List.of(
       "application/pdf",
       "image/jpeg", "image/png", "image/gif", "image/webp",
       "application/msword",
@@ -26,19 +28,19 @@ public final class DocumentHandlers {
   );
 
   private final DocumentRepository repository;
-  private final UserRepository     users;
-  private final Vertx              vertx;
-  private final BillingService     billing;
+  private final UserRepository      users;
+  private final CloudinaryService   cloudinary;
+  private final BillingService      billing;
 
-  public DocumentHandlers(DocumentRepository repository, UserRepository users, Vertx vertx,
-      BillingService billing) {
+  public DocumentHandlers(DocumentRepository repository, UserRepository users,
+      Vertx vertx, BillingService billing, CloudinaryService cloudinary) {
     this.repository = repository;
     this.users      = users;
-    this.vertx      = vertx;
+    this.cloudinary = cloudinary;
     this.billing    = billing;
   }
 
-  /** POST /api/v1/documents/upload  (multipart/form-data, field name "file") */
+  /** POST /api/v1/documents/upload */
   public Handler<RoutingContext> upload() {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
@@ -52,16 +54,33 @@ public final class DocumentHandlers {
       if (!ALLOWED.contains(ct)) { badRequest(ctx, "unsupported file type"); return; }
 
       String filename = upload.fileName() != null ? upload.fileName() : "document";
+      String resourceType = ct.startsWith("image/") ? "image" : "raw";
 
       users.findById(session.userId())
           .compose(opt -> {
             var user = opt.orElseThrow(() -> AuthException.invalid("session"));
-            return vertx.fileSystem().readFile(upload.uploadedFileName())
-                .compose(buf -> repository.save(
-                    user.institutionId(), user.id(), filename, ct, buf.getBytes()));
+            return ctx.vertx().fileSystem().readFile(upload.uploadedFileName())
+                .compose(buf -> cloudinary.upload(
+                    buf.getBytes(),
+                    "openiv",
+                    user.institutionId() + "_" + UUID.randomUUID(),
+                    resourceType))
+                .compose(result -> repository.saveDocument(
+                    user.institutionId(), user.id(),
+                    result.publicId(), result.secureUrl(),
+                    filename, ct, result.bytes(),
+                    result.resourceType(), result.format(),
+                    result.width(), result.height(),
+                    "action_document", null)
+                .compose(doc -> repository.saveActionDocRef(
+                    user.institutionId(), user.id(), filename, ct, doc.id())
+                .map(actionId -> new JsonObject()
+                    .put("id",       actionId)
+                    .put("url",      result.secureUrl())
+                    .put("filename", filename))));
           })
-          .onSuccess(id -> {
-            ok(ctx, new JsonObject().put("id", id).put("filename", filename));
+          .onSuccess(json -> {
+            ok(ctx, json);
             billing.chargeDocumentUploadAsync(session);
           })
           .onFailure(ctx::fail);
@@ -81,9 +100,18 @@ public final class DocumentHandlers {
             var user = opt.orElseThrow(() -> AuthException.invalid("session"));
             return repository.findById(user.institutionId(), docId);
           })
-          .onSuccess(opt -> {
-            if (opt.isEmpty()) { ctx.fail(404); return; }
-            var doc = opt.get();
+          .onSuccess(optDoc -> {
+            if (optDoc.isEmpty()) { ctx.fail(404); return; }
+            var doc = optDoc.get();
+            // New Cloudinary-backed documents: redirect to the secure URL.
+            if (doc.documentUrl() != null) {
+              ctx.response().setStatusCode(302)
+                  .putHeader("Location", doc.documentUrl())
+                  .end();
+              return;
+            }
+            // Legacy documents: serve binary from DB.
+            if (doc.data() == null) { ctx.fail(404); return; }
             ctx.response()
                 .setStatusCode(200)
                 .putHeader("content-type", doc.contentType())

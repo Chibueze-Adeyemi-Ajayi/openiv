@@ -16,9 +16,19 @@ public final class AmlSettingsRepository {
     this.pool = pool;
   }
 
+  private static final String RETURNING =
+      "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, " +
+      "risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, " +
+      "risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone, " +
+      "kyc_risk_normal_threshold, kyc_risk_case_threshold, daily_txn_limit, expected_daily_txn_count";
+
   public Future<Optional<AmlSettings>> getByInstitution(long institutionId) {
     return pool.preparedQuery(
-        "SELECT id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone, kyc_risk_normal_threshold, kyc_risk_case_threshold FROM aml_settings WHERE institution_id = $1")
+        "SELECT id, institution_id, auto_open_case, risk_score_flag_threshold, " +
+        "risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, " +
+        "risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone, " +
+        "kyc_risk_normal_threshold, kyc_risk_case_threshold, daily_txn_limit, expected_daily_txn_count " +
+        "FROM aml_settings WHERE institution_id = $1")
         .execute(Tuple.of(institutionId))
         .compose(rs -> {
           var it = rs.iterator();
@@ -30,8 +40,13 @@ public final class AmlSettingsRepository {
         });
   }
 
-  public Future<AmlSettings> upsert(long institutionId, boolean autoOpenCase, Integer flagThreshold, Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold, Integer normalThreshold, Integer behNormalThreshold, Integer kycNormalThreshold, Integer kycCaseThreshold) {
-    String sql = "INSERT INTO aml_settings (institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold, kyc_risk_normal_threshold, kyc_risk_case_threshold) " +
+  public Future<AmlSettings> upsert(long institutionId, boolean autoOpenCase, Integer flagThreshold,
+      Integer caseThreshold, Integer behFlagThreshold, Integer behCaseThreshold,
+      Integer normalThreshold, Integer behNormalThreshold, Integer kycNormalThreshold, Integer kycCaseThreshold) {
+    String sql =
+        "INSERT INTO aml_settings (institution_id, auto_open_case, risk_score_flag_threshold, " +
+        "risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, " +
+        "risk_score_normal_threshold, beh_risk_score_normal_threshold, kyc_risk_normal_threshold, kyc_risk_case_threshold) " +
         "VALUES ($1, $2, COALESCE($3, 51), COALESCE($4, 81), COALESCE($5, 60), COALESCE($6, 85), COALESCE($7, 30), COALESCE($8, 30), COALESCE($9, 40), COALESCE($10, 75)) " +
         "ON CONFLICT (institution_id) DO UPDATE SET auto_open_case = $2, " +
         "risk_score_flag_threshold = COALESCE($3, aml_settings.risk_score_flag_threshold), " +
@@ -42,9 +57,11 @@ public final class AmlSettingsRepository {
         "beh_risk_score_normal_threshold = COALESCE($8, aml_settings.beh_risk_score_normal_threshold), " +
         "kyc_risk_normal_threshold = COALESCE($9, aml_settings.kyc_risk_normal_threshold), " +
         "kyc_risk_case_threshold = COALESCE($10, aml_settings.kyc_risk_case_threshold) " +
-        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, beh_risk_score_normal_threshold, beam_window_seconds, timezone, kyc_risk_normal_threshold, kyc_risk_case_threshold";
+        RETURNING;
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, autoOpenCase, flagThreshold, caseThreshold, behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold, kycNormalThreshold, kycCaseThreshold))
+        .execute(Tuple.of(institutionId, autoOpenCase, flagThreshold, caseThreshold,
+            behFlagThreshold, behCaseThreshold, normalThreshold, behNormalThreshold,
+            kycNormalThreshold, kycCaseThreshold))
         .compose(rs -> {
           Row settingsRow = rs.iterator().next();
           long amlSettingsId = settingsRow.getLong("id");
@@ -59,9 +76,7 @@ public final class AmlSettingsRepository {
         .execute(Tuple.of(amlSettingsId))
         .map(rs -> {
           List<String> emails = new ArrayList<>();
-          for (Row row : rs) {
-            emails.add(row.getString("email"));
-          }
+          for (Row row : rs) emails.add(row.getString("email"));
           return emails;
         });
   }
@@ -82,40 +97,48 @@ public final class AmlSettingsRepository {
   }
 
   public Future<AmlSettings> updateBeamWindow(long institutionId, int beamWindowSeconds) {
-    return pool.preparedQuery(
-        "UPDATE aml_settings SET beam_window_seconds = $2 WHERE institution_id = $1 " +
-        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, " +
-        "beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, " +
-        "beh_risk_score_normal_threshold, beam_window_seconds, timezone, kyc_risk_normal_threshold, kyc_risk_case_threshold")
+    return pool.preparedQuery("UPDATE aml_settings SET beam_window_seconds = $2 WHERE institution_id = $1 " + RETURNING)
         .execute(Tuple.of(institutionId, beamWindowSeconds))
         .compose(rs -> {
-          Row settingsRow = rs.iterator().next();
-          long amlSettingsId = settingsRow.getLong("id");
-          return getNotificationEmails(amlSettingsId)
-              .map(emails -> mapSettings(settingsRow, emails));
+          Row row = rs.iterator().next();
+          return getNotificationEmails(row.getLong("id")).map(e -> mapSettings(row, e));
+        });
+  }
+
+  public Future<AmlSettings> updateDailyTxnLimit(long institutionId, int dailyTxnLimit) {
+    return pool.preparedQuery("UPDATE aml_settings SET daily_txn_limit = $2 WHERE institution_id = $1 " + RETURNING)
+        .execute(Tuple.of(institutionId, dailyTxnLimit))
+        .compose(rs -> {
+          Row row = rs.iterator().next();
+          return getNotificationEmails(row.getLong("id")).map(e -> mapSettings(row, e));
+        });
+  }
+
+  public Future<AmlSettings> updateExpectedDailyTxnCount(long institutionId, int expectedDailyTxnCount) {
+    return pool.preparedQuery("UPDATE aml_settings SET expected_daily_txn_count = $2 WHERE institution_id = $1 " + RETURNING)
+        .execute(Tuple.of(institutionId, expectedDailyTxnCount))
+        .compose(rs -> {
+          Row row = rs.iterator().next();
+          return getNotificationEmails(row.getLong("id")).map(e -> mapSettings(row, e));
         });
   }
 
   public Future<AmlSettings> updateTimezone(long institutionId, String timezone) {
-    return pool.preparedQuery(
-        "UPDATE aml_settings SET timezone = $2 WHERE institution_id = $1 " +
-        "RETURNING id, institution_id, auto_open_case, risk_score_flag_threshold, risk_score_case_threshold, " +
-        "beh_risk_score_flag_threshold, beh_risk_score_case_threshold, risk_score_normal_threshold, " +
-        "beh_risk_score_normal_threshold, beam_window_seconds, timezone, kyc_risk_normal_threshold, kyc_risk_case_threshold")
+    return pool.preparedQuery("UPDATE aml_settings SET timezone = $2 WHERE institution_id = $1 " + RETURNING)
         .execute(Tuple.of(institutionId, timezone))
         .compose(rs -> {
-          Row settingsRow = rs.iterator().next();
-          long amlSettingsId = settingsRow.getLong("id");
-          return getNotificationEmails(amlSettingsId)
-              .map(emails -> mapSettings(settingsRow, emails));
+          Row row = rs.iterator().next();
+          return getNotificationEmails(row.getLong("id")).map(e -> mapSettings(row, e));
         });
   }
 
   private static AmlSettings mapSettings(Row r, List<String> emails) {
-    Integer bw  = r.getInteger("beam_window_seconds");
-    String  tz  = r.getString("timezone");
-    Integer kyn = r.getInteger("kyc_risk_normal_threshold");
-    Integer kyc = r.getInteger("kyc_risk_case_threshold");
+    Integer bw   = r.getInteger("beam_window_seconds");
+    String  tz   = r.getString("timezone");
+    Integer kyn  = r.getInteger("kyc_risk_normal_threshold");
+    Integer kyc  = r.getInteger("kyc_risk_case_threshold");
+    Integer dtl  = r.getInteger("daily_txn_limit");
+    Integer edtc = r.getInteger("expected_daily_txn_count");
     return new AmlSettings(
         r.getLong("id"),
         r.getLong("institution_id"),
@@ -127,9 +150,11 @@ public final class AmlSettingsRepository {
         r.getInteger("beh_risk_score_case_threshold"),
         r.getInteger("risk_score_normal_threshold"),
         r.getInteger("beh_risk_score_normal_threshold"),
-        bw  != null ? bw  : 180,
-        tz  != null ? tz  : "Africa/Lagos",
-        kyn != null ? kyn : 40,
-        kyc != null ? kyc : 75);
+        bw   != null ? bw   : 180,
+        tz   != null ? tz   : "Africa/Lagos",
+        kyn  != null ? kyn  : 40,
+        kyc  != null ? kyc  : 75,
+        dtl  != null ? dtl  : 10,
+        edtc != null ? edtc : 1000);
   }
 }

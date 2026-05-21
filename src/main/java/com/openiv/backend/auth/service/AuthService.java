@@ -10,6 +10,7 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.SessionState;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.BlockedDeviceRepository;
+import com.openiv.backend.auth.repository.InstitutionRepository;
 import com.openiv.backend.auth.repository.InvitationRepository;
 import com.openiv.backend.auth.repository.SessionRepository;
 import com.openiv.backend.auth.repository.SessionTransferRepository;
@@ -22,11 +23,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Orchestration for every onboarding / authentication flow.
@@ -39,6 +41,8 @@ import java.util.stream.Collectors;
  * codes. The category is safe to return to the client; detail strings are not.
  */
 public final class AuthService {
+
+  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
   private static final int EMAIL_CODE_DIGITS = 6;
   private static final int EMAIL_CODE_TTL_MINUTES = 15;
@@ -53,6 +57,7 @@ public final class AuthService {
 
   private final UserRepository users;
   private final InvitationRepository invitations;
+  private final InstitutionRepository institutions;
   private final VerificationCodeRepository codes;
   private final TotpSecretRepository totp;
   private final SessionRepository sessions;
@@ -68,11 +73,13 @@ public final class AuthService {
   private volatile String dummyHash;
 
   public AuthService(UserRepository users, InvitationRepository invitations,
-      VerificationCodeRepository codes, TotpSecretRepository totp,
-      SessionRepository sessions, EmailSender emailSender, TotpCipher totpCipher,
-      BlockedDeviceRepository blockedDevices, SessionTransferRepository transfers, Vertx vertx) {
+      InstitutionRepository institutions, VerificationCodeRepository codes,
+      TotpSecretRepository totp, SessionRepository sessions, EmailSender emailSender,
+      TotpCipher totpCipher, BlockedDeviceRepository blockedDevices,
+      SessionTransferRepository transfers, Vertx vertx) {
     this.users = users;
     this.invitations = invitations;
+    this.institutions = institutions;
     this.codes = codes;
     this.totp = totp;
     this.sessions = sessions;
@@ -82,6 +89,8 @@ public final class AuthService {
     this.transfers = transfers;
     this.vertx = vertx;
   }
+
+  public EmailSender emailSender() { return emailSender; }
 
   /** Called after construction once GeoFenceService is ready (avoids circular dependency). */
   public void setGeoFence(GeoFenceService geoFence) {
@@ -230,6 +239,11 @@ public final class AuthService {
     if (!user.emailVerified()) {
       return issueSessionAndSendEmailCode(user, deviceId, ip, userAgent, lat, lon, accuracy);
     }
+    if (user.mustChangePassword()) {
+      return issueSession(user, SessionState.MUST_CHANGE_PASSWORD, deviceId, ip, userAgent, lat, lon, accuracy)
+          .map(sess -> new LoginResult(sess.token(), SessionState.MUST_CHANGE_PASSWORD,
+              user.accountType(), user.displayName(), user.institutionId()));
+    }
     return totp.isEnabled(user.id()).compose(enabled -> {
       SessionState next = enabled ? SessionState.PENDING_TOTP_CHALLENGE : SessionState.PENDING_TOTP_SETUP;
       return issueSession(user, next, deviceId, ip, userAgent, lat, lon, accuracy)
@@ -319,7 +333,24 @@ public final class AuthService {
                   .map(v -> new VerifyResult(SessionState.AUTHENTICATED, null));
             });
       }
-      return activate.compose(v -> sessions.transitionState(session.id(), SessionState.AUTHENTICATED))
+      return activate
+          .compose(v -> sessions.transitionState(session.id(), SessionState.AUTHENTICATED))
+          .compose(v -> {
+            if (state == SessionState.PENDING_TOTP_SETUP) {
+              // Fire-and-forget welcome email — account fully active
+              return users.findById(session.userId()).compose(userOpt -> {
+                if (userOpt.isEmpty()) return Future.succeededFuture();
+                User u = userOpt.get();
+                return institutions.findById(u.institutionId()).compose(instOpt -> {
+                  String instName = instOpt.map(i -> i.name()).orElse("OpenIV");
+                  emailSender.sendWelcome(u.email(), u.displayName(), instName)
+                      .onFailure(err -> log.warn("Welcome email failed for {}: {}", u.email(), err.getMessage()));
+                  return Future.succeededFuture();
+                });
+              });
+            }
+            return Future.succeededFuture();
+          })
           .map(v -> new VerifyResult(SessionState.AUTHENTICATED, null));
     });
   }
@@ -370,8 +401,24 @@ public final class AuthService {
 
   // --- Password change / reset --------------------------------------------
 
-  public Future<Void> changePassword(Session session, String currentPassword, String newPassword) {
-    if (session.state() != SessionState.AUTHENTICATED) {
+  public Future<User> getProfile(Session session) {
+    return users.findById(session.userId())
+        .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")));
+  }
+
+  public Future<User> updateProfile(Session session, String fullName, String jobTitle) {
+    if (fullName != null && fullName.isBlank()) fullName = null;
+    if (jobTitle != null && jobTitle.isBlank()) jobTitle = null;
+    return users.updateProfile(session.userId(), fullName, jobTitle);
+  }
+
+  public Future<User> updateAvatarUrl(Session session, String avatarUrl, long documentId) {
+    return users.updateAvatarUrl(session.userId(), avatarUrl, documentId);
+  }
+
+  public Future<ChangeResult> changePassword(Session session, String currentPassword, String newPassword) {
+    boolean isFirstLogin = session.state() == SessionState.MUST_CHANGE_PASSWORD;
+    if (!isFirstLogin && session.state() != SessionState.AUTHENTICATED) {
       throw AuthException.wrongState();
     }
     validatePasswordStrength(newPassword);
@@ -381,8 +428,16 @@ public final class AuthService {
         throw AuthException.invalid("credentials");
       }
       String newHash = PasswordHasher.hash(newPassword);
+      if (isFirstLogin) {
+        // First login: transition the session to TOTP setup rather than revoking it
+        return users.updatePassword(user.id(), newHash, false)
+            .compose(v -> sessions.transitionState(session.id(), SessionState.PENDING_TOTP_SETUP))
+            .map(v -> new ChangeResult(SessionState.PENDING_TOTP_SETUP));
+      }
+      // Normal password change: revoke all sessions so the user must re-authenticate
       return users.updatePassword(user.id(), newHash, false)
-          .compose(v -> sessions.revokeAllForUser(user.id()));
+          .compose(v -> sessions.revokeAllForUser(user.id()))
+          .map(v -> new ChangeResult(null));
     });
   }
 
@@ -542,6 +597,9 @@ public final class AuthService {
   public record TotpEnrollment(String secret, String otpauthUri) {}
 
   public record ResetToken(String token) {}
+
+  /** Result of {@link #changePassword}. {@code nextState} is non-null only for first-login. */
+  public record ChangeResult(SessionState nextState) {}
 
   private record IssuedSession(String token, Session session) {}
 }

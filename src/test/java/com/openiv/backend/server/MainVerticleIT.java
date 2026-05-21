@@ -59,7 +59,7 @@ class MainVerticleIT {
         db,
         security,
         new TotpCipherConfig("", ""),
-        new AppConfig.EmailConfig("localhost", 25, null, null, "test@openiv.local", false, false), null);
+        new AppConfig.EmailConfig("localhost", null, false), null, null);
 
     Migrations.run(vertx, db)
         .onFailure(testContext::failNow)
