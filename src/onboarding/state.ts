@@ -31,6 +31,7 @@ type Key = (typeof KEYS)[keyof typeof KEYS]
 
 export type SessionState =
   | 'pending_email_verification'
+  | 'must_change_password'
   | 'pending_totp_setup'
   | 'pending_totp_challenge'
   | 'authenticated'

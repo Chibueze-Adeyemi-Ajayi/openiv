@@ -10,6 +10,7 @@ interface ChangePasswordFormProps {
   onSubmit?: (currentPassword: string, newPassword: string, confirmPassword: string) => void
   submitting?: boolean
   errorMessage?: string | null
+  isFirstLogin?: boolean
 }
 
 const inputSx = {
@@ -60,6 +61,7 @@ export default function ChangePasswordForm({
   onSubmit,
   submitting = false,
   errorMessage = null,
+  isFirstLogin = false,
 }: ChangePasswordFormProps) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -111,10 +113,12 @@ export default function ChangePasswordForm({
             mb: 0.75,
           }}
         >
-          Change Your Password
+          {isFirstLogin ? 'Create Your Password' : 'Change Your Password'}
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
-          Update your password to keep your account secure.
+          {isFirstLogin
+            ? 'You signed in with a temporary password. Please create a permanent password to continue.'
+            : 'Update your password to keep your account secure.'}
         </Typography>
       </Box>
 
@@ -127,11 +131,11 @@ export default function ChangePasswordForm({
       <form onSubmit={handleSubmit}>
         <Stack sx={{ gap: 2.5 }}>
           <Box>
-            <Typography sx={labelSx}>Current Password</Typography>
+            <Typography sx={labelSx}>{isFirstLogin ? 'Temporary Password' : 'Current Password'}</Typography>
             <TextField
               fullWidth
               type={showCurrent ? 'text' : 'password'}
-              placeholder="Enter Current Password"
+              placeholder={isFirstLogin ? 'Enter Temporary Password' : 'Enter Current Password'}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               InputProps={{
@@ -230,7 +234,7 @@ export default function ChangePasswordForm({
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
-            {submitting ? 'Updating…' : 'Update Password'}
+            {submitting ? 'Saving…' : isFirstLogin ? 'Set Password & Continue' : 'Update Password'}
           </Button>
         </Stack>
       </form>

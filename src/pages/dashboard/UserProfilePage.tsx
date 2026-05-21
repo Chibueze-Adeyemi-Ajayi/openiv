@@ -324,7 +324,9 @@ export default function UserProfilePage() {
   const initials    = displayName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
   const txPages     = Math.max(1, Math.ceil(tTotal / PAGE_SIZE))
   const beamPages   = Math.max(1, Math.ceil(bTotal / PAGE_SIZE))
-  const tierLabel   = kyc?.kycTier != null ? `TIER ${kyc.kycTier} ${kyc.overallStatus?.toUpperCase() ?? ''}` : null
+  const KL_INT: Record<string, number> = { t1: 1, t2: 2, t3: 3 }
+  const KL_LABEL: Record<string, string> = { t1: 'T1 — Basic', t2: 'T2 — Intermediate', t3: 'T3 — Full KYC' }
+  const tierLabel   = kyc?.knowledgeLevel ? `${KL_LABEL[kyc.knowledgeLevel] ?? kyc.knowledgeLevel} ${kyc.overallStatus?.toUpperCase() ?? ''}` : null
   const tierColor   = kyc?.overallStatus === 'verified' ? '#10b981' : kyc?.overallStatus === 'flagged' ? '#dc2626' : '#f59e0b'
   const tierBg      = kyc?.overallStatus === 'verified' ? '#f0fdf4'  : kyc?.overallStatus === 'flagged' ? '#fef2f2'  : '#fffbeb'
   const riskColor   = overallRisk == null ? '#64748b' : overallRisk >= 70 ? '#dc2626' : overallRisk >= 40 ? '#f59e0b' : '#10b981'
@@ -401,15 +403,15 @@ export default function UserProfilePage() {
                   {/* KYC Tier — always visible, shows tier bars + status */}
                   <Box>
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>KYC Tier</Typography>
-                    {kyc?.kycTier != null ? (
+                    {kyc?.knowledgeLevel ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {[1, 2, 3].map(t => (
-                            <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= kyc.kycTier ? colorPalette.primary : '#e5e7eb', borderRadius: '2px' }} />
+                            <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= (KL_INT[kyc.knowledgeLevel!] ?? 1) ? colorPalette.primary : '#e5e7eb', borderRadius: '2px' }} />
                           ))}
                         </Box>
                         <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost' }}>
-                          Tier {kyc.kycTier}
+                          {KL_LABEL[kyc.knowledgeLevel] ?? kyc.knowledgeLevel}
                         </Typography>
                         <Box sx={{ px: 0.875, py: 0.25, bgcolor: tierBg, borderRadius: '3px' }}>
                           <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.08em' }}>

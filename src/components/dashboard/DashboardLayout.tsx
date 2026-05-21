@@ -1,13 +1,18 @@
 import { Box, Tooltip, Typography, Button } from '@mui/material'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import EurekaAssistant from './EurekaAssistant'
 import InactivityGuard from './InactivityGuard'
 import EurekaCompanionGlow from './EurekaCompanionGlow'
+import MinimizedCaseBar from './MinimizedCaseBar'
+import InvestigationWorkspace from './InvestigationWorkspace'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
 import { EurekaProvider, useEureka } from '@/contexts/EurekaContext'
 import { SessionSocketProvider } from '@/contexts/SessionSocketContext'
+import { ProfileProvider } from '@/contexts/ProfileContext'
+import { RbacProvider } from '@/contexts/RbacContext'
+import { ActiveCaseProvider, useActiveCase } from '@/contexts/ActiveCaseContext'
 import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
@@ -19,6 +24,38 @@ import { Outlet, useNavigate } from 'react-router-dom'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
+}
+
+function GlobalCaseWorkspace() {
+  const { caseId, isWorkspaceOpen, minimizeCase, closeCase, updateSnap } = useActiveCase()
+
+  useEffect(() => {
+    const handler = (e: Event) => updateSnap((e as CustomEvent).detail)
+    window.addEventListener('case:snap', handler)
+    return () => window.removeEventListener('case:snap', handler)
+  }, [updateSnap])
+
+  const handleClose = () => {
+    closeCase()
+    window.dispatchEvent(new CustomEvent('case:updated'))
+  }
+
+  const handleUpdated = () => {
+    window.dispatchEvent(new CustomEvent('case:updated'))
+  }
+
+  return (
+    <>
+      <InvestigationWorkspace
+        caseId={caseId}
+        open={isWorkspaceOpen}
+        onClose={handleClose}
+        onMinimize={minimizeCase}
+        onUpdated={handleUpdated}
+      />
+      <MinimizedCaseBar />
+    </>
+  )
 }
 
 function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
@@ -126,6 +163,7 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
         <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
         <InactivityGuard />
         {eurekaEnabled && <EurekaCompanionGlow />}
+        <GlobalCaseWorkspace />
 
         {!eurekaOpen && (
           <Tooltip title="Ask Eureka" placement="left">
@@ -190,9 +228,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <SessionSocketProvider>
       <EurekaProvider>
         <DashboardEventsProvider>
-          <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-            {children || <Outlet />}
-          </DashboardContent>
+          <ProfileProvider>
+            <RbacProvider>
+              <ActiveCaseProvider>
+                <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
+                  {children || <Outlet />}
+                </DashboardContent>
+              </ActiveCaseProvider>
+            </RbacProvider>
+          </ProfileProvider>
         </DashboardEventsProvider>
       </EurekaProvider>
     </SessionSocketProvider>

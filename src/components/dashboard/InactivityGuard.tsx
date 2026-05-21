@@ -191,6 +191,7 @@ export default function InactivityGuard() {
         setDigits(['', '', '', '', '', ''])
         resetIdle()
       } else if (msg.type === 'logout') {
+        clearStorage()
         window.location.replace('/auth/login?expired=1')
       }
     }
@@ -204,8 +205,11 @@ export default function InactivityGuard() {
       const elapsed   = Math.floor((Date.now() - stored.since) / 1000)
       const remaining = WARNING_S - elapsed
       if (remaining <= 0) {
-        // Time already expired — log out immediately.
-        doLogout()
+        // Stale warning from a previous session — clear it and start fresh.
+        // Do NOT call doLogout() here: the logout already happened in another tab,
+        // and calling it again would revoke the freshly-created session the user
+        // just logged into.
+        clearStorage()
       } else {
         setGuardState(stored.state)
         startCountdown(remaining)

@@ -4,9 +4,9 @@ import NavigationBreadcrumb from '@/components/dashboard/NavigationBreadcrumb'
 import { Box, Typography, Stack, InputBase, Button, Chip, IconButton, Popover } from '@mui/material'
 import { colorPalette } from '@/theme'
 import CaseIntakeDrawer, { type CaseIntakePayload } from '@/components/dashboard/CaseIntakeDrawer'
-import InvestigationWorkspace from '@/components/dashboard/InvestigationWorkspace'
 import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
 import { caseApi, type Case, type CaseMetrics } from '@/api/cases'
+import { useActiveCase } from '@/contexts/ActiveCaseContext'
 import { teamApi, type TeamMember } from '@/api/team'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
@@ -137,9 +137,8 @@ export default function AMLPage() {
   const filterBtnRef = useRef<HTMLButtonElement | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const { openCase, openCaseById } = useActiveCase()
   const [intakeOpen, setIntakeOpen] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
-  const [activeCaseId, setActiveCaseId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
   const loadMetrics = useCallback(async () => {
@@ -192,8 +191,19 @@ export default function AMLPage() {
   // Auto-open workspace if navigated here with ?case= query param
   useEffect(() => {
     const caseParam = searchParams.get('case')
-    if (caseParam) { setActiveCaseId(caseParam); setWorkspaceOpen(true) }
+    if (caseParam) openCaseById(caseParam)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload lists when workspace closes or updates a case
+  useEffect(() => {
+    const handler = () => { loadMetrics(); loadCases() }
+    window.addEventListener('case:updated', handler)
+    window.addEventListener('case:closed', handler)
+    return () => {
+      window.removeEventListener('case:updated', handler)
+      window.removeEventListener('case:closed', handler)
+    }
+  }, [loadMetrics, loadCases])
 
   const handleSearchChange = (v: string) => {
     setDraftSearch(v)
@@ -233,8 +243,7 @@ export default function AMLPage() {
     + (assignFilter !== 'all' ? 1 : 0)
 
   const openWorkspace = (c: Case) => {
-    setActiveCaseId(c.id)
-    setWorkspaceOpen(true)
+    openCase(c)
     if (!c.seen) {
       caseApi.markSeen(c.id).catch(() => {})
       setCases(prev => prev.map(r => r.id === c.id ? { ...r, seen: true } : r))
@@ -248,12 +257,11 @@ export default function AMLPage() {
     try {
       const result = await caseApi.create(payload.caseInput)
       await caseApi.addEvidence(result.case.id, payload.evidence)
-      setActiveCaseId(result.case.id)
-      setWorkspaceOpen(true)
+      openCase(result.case)
       loadMetrics()
       loadCases()
     } finally { setCreating(false) }
-  }, [creating, loadMetrics, loadCases])
+  }, [creating, loadMetrics, loadCases, openCase])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -589,14 +597,6 @@ export default function AMLPage() {
 
       {/* Case intake drawer */}
       <CaseIntakeDrawer open={intakeOpen} onClose={() => setIntakeOpen(false)} onSubmit={handleIntakeSubmit} />
-
-      {/* Investigation workspace */}
-      <InvestigationWorkspace
-        caseId={activeCaseId}
-        open={workspaceOpen}
-        onClose={() => { setWorkspaceOpen(false); loadMetrics(); loadCases() }}
-        onUpdated={() => { loadMetrics(); loadCases() }}
-      />
 
       {/* Case filter popover */}
       <Popover

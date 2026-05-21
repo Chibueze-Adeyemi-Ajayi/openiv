@@ -8,6 +8,7 @@ import {
   type EvidenceCategory, type AddEvidenceInput,
 } from '@/api/cases'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
@@ -24,6 +25,7 @@ interface Props {
   caseId: string | null
   open: boolean
   onClose: () => void
+  onMinimize?: () => void
   onUpdated?: () => void
 }
 
@@ -155,7 +157,7 @@ function actionTotp(a: PendingAction, caseId: string): { operation: TOTPOperatio
   }
 }
 
-export default function InvestigationWorkspace({ caseId, open, onClose, onUpdated }: Props) {
+export default function InvestigationWorkspace({ caseId, open, onClose, onMinimize, onUpdated }: Props) {
   const currentUser = useCurrentUser()
   const isElevated  = ELEVATED_ROLES.has(currentUser?.role ?? '')
 
@@ -194,8 +196,14 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
     if (!caseId) return
     setLoading(true)
     try {
-      setData(await caseApi.detail(caseId))
+      const detail = await caseApi.detail(caseId)
+      setData(detail)
       setLocalStatus(null)
+      if (detail.case) {
+        window.dispatchEvent(new CustomEvent('case:snap', {
+          detail: { id: detail.case.id, title: detail.case.title, priority: detail.case.priority, status: detail.case.status, riskScore: detail.case.riskScore },
+        }))
+      }
     } finally { setLoading(false) }
   }, [caseId])
 
@@ -388,8 +396,8 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
       {/* ── Header bar ─────────────────────────────────────────────────────── */}
       <Box sx={{ flexShrink: 0, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, px: 3, height: 56 }}>
 
-        {/* Back button */}
-        <Box onClick={onClose} sx={{
+        {/* Back button — minimizes the workspace */}
+        <Box onClick={onMinimize ?? onClose} sx={{
           display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
           color: '#64748b', flexShrink: 0, transition: 'color 0.15s',
           '&:hover': { color: colorPalette.primary },
@@ -410,9 +418,20 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onUpdate
           </Typography>
         </Box>
 
-        {/* Close X */}
-        <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', flexShrink: 0, transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}>
-          <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
+        {/* Minimize + Close — grouped on the right */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+          {onMinimize && (
+            <Box
+              onClick={onMinimize}
+              title="Minimize — keep case open while you navigate"
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}
+            >
+              <RemoveRoundedIcon sx={{ fontSize: '1.125rem' }} />
+            </Box>
+          )}
+          <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}>
+            <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
+          </Box>
         </Box>
       </Box>
 

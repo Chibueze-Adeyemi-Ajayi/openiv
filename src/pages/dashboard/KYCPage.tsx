@@ -31,14 +31,18 @@ export interface PEPPerson {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-function TierBars({ tier }: { tier: number | null }) {
-  if (tier == null) return <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</Typography>
+const KL_LABELS: Record<string, string> = { t1: 'T1 — Basic', t2: 'T2 — Intermediate', t3: 'T3 — Full KYC' }
+const KL_INT: Record<string, number> = { t1: 1, t2: 2, t3: 3 }
+
+function TierBars({ level }: { level: string | null | undefined }) {
+  if (!level) return <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</Typography>
+  const n = KL_INT[level] ?? 1
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
       {[1, 2, 3].map((t) => (
-        <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= tier ? colorPalette.primary : '#e5e7eb' }} />
+        <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= n ? colorPalette.primary : '#e5e7eb' }} />
       ))}
-      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', ml: 0.5 }}>T{tier}</Typography>
+      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', ml: 0.5 }}>{KL_LABELS[level] ?? level}</Typography>
     </Box>
   )
 }
@@ -137,7 +141,7 @@ function CustomerProfileDialog({ customer, open, onClose }: {
           <Box>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mb: 0.5 }}>
               <Box sx={{ px: 1, py: 0.25, bgcolor: '#f1f5f9', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>
-                Tier {customer.kycTier}
+                {KL_LABELS[customer.knowledgeLevel ?? ''] ?? customer.knowledgeLevel ?? '—'}
               </Box>
               <Box sx={{ px: 1, py: 0.25, bgcolor: '#f1f5f9', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>
                 {customer.overallStatus}
@@ -259,7 +263,7 @@ function CustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNaviga
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'capitalize' }}>
             {customer.overallStatus}
           </Typography>
-          <TierBars tier={customer.kycTier} />
+          <TierBars level={customer.knowledgeLevel} />
         </Box>
       </Box>
 

@@ -6,6 +6,7 @@ export interface DashboardStats {
   totalYesterday: number
   flaggedYesterday: number
   openCases: number
+  openCasesToday: number
 }
 
 export interface RiskPoint {

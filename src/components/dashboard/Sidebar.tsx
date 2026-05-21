@@ -28,13 +28,18 @@ import { clearOnboardingState } from '@/onboarding/state'
 import { useNavigate } from 'react-router-dom'
 import { useEureka } from '@/contexts/EurekaContext'
 import { useDashboardEvents } from '@/contexts/DashboardEventsContext'
+import { useProfile } from '@/contexts/ProfileContext'
+import { useRbac } from '@/contexts/RbacContext'
 import { isBuildOne, COMING_SOON_ROUTES } from '@/utils/build'
+import { resolveMediaUrl } from '@/api/client'
+import type { Permission } from '@/rbac/permissions'
 
 interface NavItem {
   to: string
   icon: React.ReactNode
   label: string
   badge?: string
+  permission?: Permission
 }
 
 interface ActiveNavItem {
@@ -46,49 +51,61 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Monitor',
     items: [
-      { to: '/dashboard',              icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Overview' },
-      { to: '/dashboard/transactions', icon: <ReceiptLongOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transactions' },
-      { to: '/dashboard/otp-alerts',   icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,         label: 'OTP Defense' },
-      { to: '/dashboard/patterns',     icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Behavioral Patterns' },
-      { to: '/dashboard/heatmaps',     icon: <GridOnOutlinedIcon sx={{ fontSize: '1.25rem' }} />,      label: 'Heatmaps' },
+      { to: '/dashboard',              icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Overview',             permission: 'dashboard.view' },
+      { to: '/dashboard/transactions', icon: <ReceiptLongOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transactions',         permission: 'transactions.view' },
+      { to: '/dashboard/otp-alerts',   icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,         label: 'OTP Defense',          permission: 'transactions.view' },
+      { to: '/dashboard/patterns',     icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Behavioral Patterns',  permission: 'transactions.view' },
+      { to: '/dashboard/heatmaps',     icon: <GridOnOutlinedIcon sx={{ fontSize: '1.25rem' }} />,      label: 'Heatmaps',             permission: 'dashboard.view' },
     ],
   },
   {
     label: 'Investigate',
     items: [
-      { to: '/dashboard/aml',       icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />,          label: 'AML & Cases' },
-      { to: '/dashboard/customers', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,          label: 'Customers' },
+      { to: '/dashboard/aml',       icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'AML & Cases', permission: 'cases.view' },
+      { to: '/dashboard/customers', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Customers',   permission: 'customers.view' },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { to: '/dashboard/cbn',     icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance', badge: '52d' },
-      { to: '/dashboard/reports', icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Reports & Filings' },
+      { to: '/dashboard/cbn',     icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance',   badge: '52d', permission: 'reports.view' },
+      { to: '/dashboard/reports', icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Reports & Filings',              permission: 'reports.view' },
     ],
   },
   {
     label: 'Integrate',
     items: [
-      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />,         label: 'Beam to OpenIV' },
-      { to: '/dashboard/thresholds', icon: <PolicyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Rules' },
-      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Webhooks' },
-      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Network' },
+      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />,        label: 'Beam to OpenIV', permission: 'integrations.view' },
+      { to: '/dashboard/thresholds', icon: <PolicyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Rules',          permission: 'rules.view' },
+      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks',       permission: 'integrations.view' },
+      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network',        permission: 'integrations.view' },
     ],
   },
   {
     label: 'Workspace',
     items: [
-      { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles' },
-      { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', badge: 'ADMIN' },
-      { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings' },
+      { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles',    permission: 'team.view' },
+      { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', permission: 'billing.view' },
+      { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings',        permission: 'settings.view' },
     ],
   },
 ]
 
+function getInitials(fullName: string | null | undefined, email: string | null | undefined): string {
+  if (fullName && fullName.trim()) {
+    const words = fullName.trim().split(/\s+/)
+    if (words.length === 1) return words[0][0].toUpperCase()
+    return (words[0][0] + words[words.length - 1][0]).toUpperCase()
+  }
+  if (email) return email[0].toUpperCase()
+  return '?'
+}
+
 export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { profile } = useProfile()
+  const { can } = useRbac()
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [unseenTransactionCount, setUnseenTransactionCount] = useState(0)
@@ -252,18 +269,20 @@ export default function Sidebar() {
       <Box sx={{
         height: '100%', overflowY: 'scroll', px: 1.5,
         scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(255,255,255,0.18) transparent',
+        scrollbarColor: '#d9f99d transparent',
         '&::-webkit-scrollbar': { width: 4 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
-        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.18)', borderRadius: 2 },
-        '&::-webkit-scrollbar-thumb:hover': { background: 'rgba(255,255,255,0.32)' },
+        '&::-webkit-scrollbar-thumb': { background: '#d9f99d', borderRadius: 2 },
+        '&::-webkit-scrollbar-thumb:hover': { background: '#bef264' },
       }}>
         {navGroups
           .map((group) => ({
             ...group,
-            items: isBuildOne
-              ? group.items.filter((item) => !COMING_SOON_ROUTES.includes(item.to))
-              : group.items,
+            items: group.items.filter((item) => {
+              if (isBuildOne && COMING_SOON_ROUTES.includes(item.to)) return false
+              if (item.permission && !can(item.permission)) return false
+              return true
+            }),
           }))
           .filter((group) => group.items.length > 0)
           .map((group) => (
@@ -398,6 +417,7 @@ export default function Sidebar() {
       {/* User Block */}
       <Box sx={{ px: 1.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.1)', mx: 1.5 }}>
         <Box
+          onClick={() => navigate('/dashboard/profile')}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -409,35 +429,26 @@ export default function Sidebar() {
             '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
           }}
         >
-          <Box
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              bgcolor: '#d9f99d',
-              color: '#00288e',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              fontFamily: 'Jost',
-              flexShrink: 0,
-            }}
-          >
-            AC
+          <Box sx={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+            {resolveMediaUrl(profile?.avatarUrl) ? (
+              <Box component="img" src={resolveMediaUrl(profile?.avatarUrl)!} alt={profile?.fullName ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <Box sx={{ width: '100%', height: '100%', bgcolor: '#d9f99d', color: '#00288e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>
+                {getInitials(profile?.fullName, profile?.email)}
+              </Box>
+            )}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#ffffff', lineHeight: 1.2 }}>
-              Adaeze Chukwu
+              {profile?.fullName ?? profile?.email ?? 'Loading…'}
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.5)' }}>
-              Head of Compliance
+              {profile?.jobTitle ?? profile?.role ?? ''}
             </Typography>
           </Box>
           <Tooltip title="Sign out" placement="top">
             <LogoutOutlinedIcon
-              onClick={() => setLogoutDialogOpen(true)}
+              onClick={(e) => { e.stopPropagation(); setLogoutDialogOpen(true) }}
               sx={{
                 fontSize: '1.125rem',
                 color: 'rgba(255,255,255,0.4)',

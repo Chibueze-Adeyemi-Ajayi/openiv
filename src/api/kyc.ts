@@ -41,10 +41,13 @@ export interface KycBeamPayload {
 export interface KycCustomer {
   customerId: string
   overallRiskScore: number
-  totalRiskScore: number | null   // weighted: 20% kyc + 55% case history + 25% txn
-  kycTier: number
-  overallStatus: string       // "verified" | "partial" | "flagged"
-  actionTaken: string         // "clear" | "flagged" | "case_opened"
+  totalRiskScore: number | null       // weighted: 20% kyc + 55% case history + 25% txn
+  /** System-assessed knowledge level: "t1" (basic), "t2" (intermediate), "t3" (full KYC) */
+  knowledgeLevel: 't1' | 't2' | 't3' | null
+  /** Institution-provided KYC tier sent in the beam payload */
+  institutionKycTier: number | null
+  overallStatus: string               // "verified" | "partial" | "flagged"
+  actionTaken: string                 // "clear" | "flagged" | "case_opened"
   runAt: string
   bvnNinStatus: string | null
   bvnNinScore: number | null
@@ -65,6 +68,12 @@ export interface KycCustomer {
   dateOfBirth: string | null
 }
 
+export interface KycEvaluationConfig {
+  intervalDays: 7 | 14 | 21 | 31
+  enabled: boolean
+  updatedAt: string
+}
+
 export interface KycStepEvent {
   step: string
   status: string
@@ -77,7 +86,9 @@ export interface KycStepEvent {
 export interface KycStreamResult {
   customerId: string
   kycStatus: string
-  kycTier: number
+  /** System-assessed knowledge level returned from the pipeline */
+  knowledgeLevel: 't1' | 't2' | 't3'
+  institutionKycTier: number | null
   overallRiskScore: number
   action: string
   actionDetail: string
@@ -111,6 +122,15 @@ export const kycApi = {
 
   getCustomerKyc: (customerId: string) =>
     apiRequest<KycCustomer>(`/api/v1/kyc/customers/${encodeURIComponent(customerId)}`),
+
+  getEvaluationConfig: () =>
+    apiRequest<{ config: KycEvaluationConfig | null }>('/api/v1/kyc/evaluation-config'),
+
+  saveEvaluationConfig: (intervalDays: number, enabled: boolean) =>
+    apiRequest<{ config: KycEvaluationConfig }>('/api/v1/kyc/evaluation-config', {
+      method: 'PUT',
+      body: { intervalDays, enabled },
+    }),
 }
 
 export async function streamKycBeam(

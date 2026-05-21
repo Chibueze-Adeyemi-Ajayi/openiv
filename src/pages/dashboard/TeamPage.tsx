@@ -1,12 +1,11 @@
 import { Alert, Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField } from '@mui/material'
 import { colorPalette } from '@/theme'
-// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import RoleEditor, { type RoleDraft } from '@/components/dashboard/RoleEditor'
 import { useState, useMemo, useEffect } from 'react'
 import { teamApi, type TeamMember, type TeamPending, type TeamRole } from '@/api/team'
 import { authApi } from '@/api/auth'
-import { ApiError } from '@/api/client'
+import { ApiError, resolveMediaUrl } from '@/api/client'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
@@ -19,6 +18,230 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 // import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 
+
+const AVATAR_BG = ['#1e40af', '#0e7490', '#7c3aed', '#be123c', '#b45309', '#065f46', '#1d4ed8', '#9d174d']
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; fg: string; dot: string }> = {
+  active:   { label: 'Active',   bg: '#dcfce7', fg: '#15803d', dot: '#16a34a' },
+  pending:  { label: 'Pending',  bg: '#fef9c3', fg: '#854d0e', dot: '#d97706' },
+  disabled: { label: 'Disabled', bg: '#f1f5f9', fg: '#64748b', dot: '#94a3b8' },
+  locked:   { label: 'Locked',   bg: '#fee2e2', fg: '#b91c1c', dot: '#dc2626' },
+}
+
+function MemberAvatar({ name, initials, avatarUrl, size = 32 }: { name: string; initials: string; avatarUrl?: string | null; size?: number }) {
+  const bg = AVATAR_BG[(name.charCodeAt(0) ?? 0) % AVATAR_BG.length]
+  return (
+    <Box sx={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+      {resolveMediaUrl(avatarUrl) ? (
+        <Box component="img" src={resolveMediaUrl(avatarUrl)!} alt={name} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        <Box sx={{
+          width: '100%', height: '100%', bgcolor: bg, color: '#ffffff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: size * 0.34, fontWeight: 700, fontFamily: 'Jost',
+        }}>
+          {initials}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+function MemberDetailDialog({
+  member, role, currentUserEmail, currentUserRole, onClose, onRemove,
+}: {
+  member: TeamMember | null
+  role: TeamRole | null
+  currentUserEmail: string | null
+  currentUserRole: string | null
+  onClose: () => void
+  onRemove: () => void
+}) {
+  if (!member) return null
+
+  const sc = STATUS_CONFIG[member.status] ?? STATUS_CONFIG.active
+  const avatarBg = AVATAR_BG[(member.name.charCodeAt(0) ?? 0) % AVATAR_BG.length]
+  const canRemove = currentUserRole === 'admin' && member.email !== currentUserEmail && member.role !== 'admin'
+  const joinDate = member.createdAt
+    ? new Date(member.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '—'
+
+  return (
+    <>
+      <Box onClick={onClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(2px)', zIndex: 1290 }} />
+      <Box sx={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '100%', maxWidth: 660, bgcolor: '#ffffff', zIndex: 1291,
+        boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
+        animation: 'mdfadeIn 0.22s cubic-bezier(0.4,0,0.2,1)',
+        '@keyframes mdfadeIn': {
+          from: { opacity: 0, transform: 'translate(-50%, -48%) scale(0.96)' },
+          to:   { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
+        },
+      }}>
+        {/* ── Header ── */}
+        <Box sx={{ bgcolor: colorPalette.primary, px: 3, pt: 3, pb: 3, position: 'relative' }}>
+          <IconButton onClick={onClose} size="small" disableRipple sx={{
+            position: 'absolute', top: 12, right: 12, borderRadius: 0,
+            color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#ffffff', bgcolor: 'rgba(255,255,255,0.08)' },
+          }}>
+            <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
+          </IconButton>
+
+          <Stack direction="row" spacing={2.25} alignItems="center">
+            <Box sx={{ width: 62, height: 62, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2.5px solid rgba(255,255,255,0.22)' }}>
+              {resolveMediaUrl(member.avatarUrl) ? (
+                <Box component="img" src={resolveMediaUrl(member.avatarUrl)!} alt={member.name} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <Box sx={{ width: '100%', height: '100%', bgcolor: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.375rem', fontWeight: 700, fontFamily: 'Jost', color: '#ffffff' }}>
+                  {member.initials}
+                </Box>
+              )}
+            </Box>
+
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.2, mb: 0.75 }}>
+                {member.name}
+                {member.email === currentUserEmail && (
+                  <Box component="span" sx={{ ml: 1, fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>(you)</Box>
+                )}
+              </Typography>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                {role && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, px: 1, py: 0.3, bgcolor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: role.color }} />
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.07em' }}>
+                      {role.name.toUpperCase()}
+                    </Typography>
+                  </Box>
+                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.3, bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: sc.dot }} />
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.07em' }}>
+                    {sc.label.toUpperCase()}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          </Stack>
+        </Box>
+
+        {/* ── Body ── */}
+        <Box sx={{ px: 3, pt: 3, pb: 2.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+
+            {/* Left — Identity & Access */}
+            <Box>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 2 }}>
+                Identity & Access
+              </Typography>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Email</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155', fontFamily: 'SF Mono, Monaco, monospace', wordBreak: 'break-all' }}>
+                      {member.email}
+                    </Typography>
+                    <Box sx={{ px: 0.75, py: 0.15, bgcolor: member.emailVerified ? '#dcfce7' : '#fee2e2', flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.4375rem', fontWeight: 800, letterSpacing: '0.08em', color: member.emailVerified ? '#15803d' : '#b91c1c' }}>
+                        {member.emailVerified ? 'VERIFIED' : 'UNVERIFIED'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Member Since</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155' }}>{joinDate}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Last Active</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155' }}>{member.lastActive || '—'}</Typography>
+                  </Box>
+                </Box>
+
+                {member.accountType && (
+                  <Box>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Account Type</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155', textTransform: 'capitalize' }}>{member.accountType}</Typography>
+                  </Box>
+                )}
+
+                <Box>
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Account Status</Typography>
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.625, px: 1, py: 0.375, bgcolor: sc.bg }}>
+                    <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: sc.dot }} />
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: sc.fg, letterSpacing: '0.07em' }}>{sc.label.toUpperCase()}</Typography>
+                  </Box>
+                </Box>
+
+                {role?.description && (
+                  <Box sx={{ pt: 0.25 }}>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Role Description</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', lineHeight: 1.6 }}>{role.description}</Typography>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+
+            {/* Right — Permissions */}
+            <Box>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 2 }}>
+                Role Permissions
+              </Typography>
+              {role ? (
+                <Stack spacing={0}>
+                  {permissionMatrix.map((section, si) => (
+                    <Box key={section.area} sx={{ py: 1.25, borderBottom: si < permissionMatrix.length - 1 ? '1px solid #f4f5f7' : 'none', display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569', minWidth: 104, lineHeight: 1.5, pt: 0.1, flexShrink: 0 }}>
+                        {section.area}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {section.actions.map(a => {
+                          const has = getPermission(role, a.key)
+                          return (
+                            <Box key={a.key} sx={{ px: 0.875, py: 0.25, bgcolor: has ? '#f0fdf4' : '#f8fafc', border: `1px solid ${has ? '#bbf7d0' : '#e2e8f0'}` }}>
+                              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.04em', color: has ? '#15803d' : '#94a3b8' }}>
+                                {a.label}
+                              </Typography>
+                            </Box>
+                          )
+                        })}
+                      </Box>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Box sx={{ py: 4, textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>Role permissions not available.</Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── Footer ── */}
+        <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            {canRemove && (
+              <Button
+                onClick={onRemove}
+                startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: '1rem !important' }} />}
+                sx={{ color: '#dc2626', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.75, py: 0.875, border: '1px solid #fecaca', bgcolor: '#fff5f5', '&:hover': { bgcolor: '#fee2e2', borderColor: '#fca5a5' } }}
+              >
+                Remove from Team
+              </Button>
+            )}
+          </Box>
+          <Button onClick={onClose} sx={{ bgcolor: '#ffffff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
+            Close
+          </Button>
+        </Box>
+      </Box>
+    </>
+  )
+}
 
 // Members + pending come from GET /api/v1/team/members and /pending; see useEffect below.
 
@@ -51,6 +274,8 @@ export default function TeamPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -181,7 +406,7 @@ export default function TeamPage() {
   if (page > totalPages) setTimeout(() => setPage(1), 0)
 
   const submitInvite = () => {
-    // Opens the TOTP confirmation modal; real API call fires in finalizeInvite.
+    setInviteOpen(false)
     setInviteTOTP(true)
   }
 
@@ -233,13 +458,13 @@ export default function TeamPage() {
 
   const finalizeResendInvite = async () => {
     if (!resendPending) return
+    const id = resendPending.id
+    setResendPending(null)
     setApiError(null)
     try {
-      await teamApi.resendPending(resendPending.id)
-      setResendPending(null)
+      await teamApi.resendPending(id)
       await loadPending()
     } catch (err) {
-      setResendPending(null)
       setApiError(humanizeError(err, 'Could not resend invitation.'))
     }
   }
@@ -370,6 +595,7 @@ export default function TeamPage() {
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Search by name or email…"
+                  inputProps={{ autoComplete: 'off', name: 'team-member-search' }}
                   sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
                 />
               </Box>
@@ -409,6 +635,7 @@ export default function TeamPage() {
                     key={m.email}
                     data-ai-analyzable="true"
                     data-ai-description={`Team Member: ${m.name}. role: ${role.name}. email: ${m.email}. last active: ${m.lastActive}.`}
+                    onClick={() => setSelectedMember(m)}
                     sx={{
                       display: 'grid',
                       gridTemplateColumns: '1fr 1fr 200px 140px 32px',
@@ -418,27 +645,12 @@ export default function TeamPage() {
                       alignItems: 'center',
                       borderBottom: i === pageRows.length - 1 ? 'none' : '1px solid #f4f5f7',
                       transition: 'background 0.15s',
-                      '&:hover': { bgcolor: '#fafbfc' },
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: '#f0f4ff' },
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                      <Box
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          bgcolor: colorPalette.primary,
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          fontFamily: 'Jost',
-                        }}
-                      >
-                        {m.initials}
-                      </Box>
+                      <MemberAvatar name={m.name} initials={m.initials} avatarUrl={m.avatarUrl} />
                       <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
                         {m.name}
                         {m.email === currentUserEmail && (
@@ -464,7 +676,7 @@ export default function TeamPage() {
                       <IconButton
                         size="small"
                         disableRipple
-                        onClick={() => setRemoveMember(m)}
+                        onClick={(e) => { e.stopPropagation(); setRemoveMember(m) }}
                         sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
                       >
                         <DeleteOutlineRoundedIcon sx={{ fontSize: '1.125rem' }} />
@@ -643,8 +855,8 @@ export default function TeamPage() {
                           {role.name}
                         </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>
-                        {p.invitedBy}
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                        {p.invitedBy ?? 'Awaiting first login'}
                       </Typography>
                       <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                         {p.invitedOn}
@@ -690,25 +902,7 @@ export default function TeamPage() {
                   Click any role's edit pencil to adjust its access · or create a custom role for your specific workflow
                 </Typography>
               </Box>
-              <Button
-                onClick={openCreateRole}
-                startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                sx={{
-                  bgcolor: colorPalette.primary,
-                  color: '#ffffff',
-                  px: 2.25,
-                  py: 1,
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  fontFamily: 'Jost',
-                  borderRadius: 0,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1e293b' },
-                }}
-              >
-                Create Custom Role
-              </Button>
+              {/* Create Custom Role button temporarily hidden */}
             </Box>
 
             <Box sx={{ overflowX: 'auto' }}>
@@ -800,6 +994,18 @@ export default function TeamPage() {
         )}
       </Box>
 
+      {/* MEMBER DETAIL DIALOG */}
+      {selectedMember && (
+        <MemberDetailDialog
+          member={selectedMember}
+          role={roles.find(r => r.id === selectedMember.role) ?? null}
+          currentUserEmail={currentUserEmail}
+          currentUserRole={currentUserRole}
+          onClose={() => setSelectedMember(null)}
+          onRemove={() => { setSelectedMember(null); setRemoveMember(selectedMember) }}
+        />
+      )}
+
       {/* INVITE MODAL — email + role only */}
       {
         inviteOpen && (
@@ -859,10 +1065,11 @@ export default function TeamPage() {
                     <TextField
                       fullWidth
                       autoFocus
-                      type="email"
+                      type="text"
                       placeholder="name@company.com"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
+                      inputProps={{ autoComplete: 'new-password', spellCheck: false }}
                       InputProps={{
                         startAdornment: <MailOutlineRoundedIcon sx={{ mr: 1.25, color: '#94a3b8', fontSize: '1.125rem' }} />,
                       }}

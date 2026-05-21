@@ -104,7 +104,7 @@ export const authApi = {
     }),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    apiRequest<{ ok: boolean }>('/api/v1/auth/password/change', {
+    apiRequest<{ ok: boolean; nextState?: string }>('/api/v1/auth/password/change', {
       body: { currentPassword, newPassword },
     }),
 

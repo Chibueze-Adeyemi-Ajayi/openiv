@@ -69,10 +69,13 @@ export const beamApi = {
         kyc_required?: boolean;
         notification_id?: number | null;
         message?: string | null;
+        // institution_kyc_tier echoed back on transaction stream
+        institution_kyc_tier?: number | null;
         // kyc stream
         customer_id?: string;
         kyc_status?: string;
-        kyc_tier?: number;
+        /** System-assessed knowledge level: "t1" | "t2" | "t3" */
+        knowledge_level?: string;
         bvn_received?: boolean;
         nin_received?: boolean;
         photo_received?: boolean;

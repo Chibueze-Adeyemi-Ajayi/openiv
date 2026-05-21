@@ -32,12 +32,14 @@ import BehavioralPatternsPage from '@/pages/dashboard/BehavioralPatternsPage'
 import NotificationsPage from '@/pages/dashboard/NotificationsPage'
 import SurgeInvestigationPage from '@/pages/dashboard/SurgeInvestigationPage'
 import UserProfilePage from '@/pages/dashboard/UserProfilePage'
+import ProfilePage from '@/pages/dashboard/ProfilePage'
 import HighRiskCustomersPage from '@/pages/dashboard/HighRiskCustomersPage'
 import CustomersPage from '@/pages/dashboard/CustomersPage'
 import AuthVerifyTOTPPage from '@/pages/auth/VerifyTOTPPage'
 import GeoBlockedPage from '@/pages/auth/GeoBlockedPage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import PublicRoute from '@/components/auth/PublicRoute'
+import RoleGuard from '@/components/auth/RoleGuard'
 import SuperAdminRoute from '@/components/auth/SuperAdminRoute'
 import SuperAdminLayout from '@/pages/superadmin/SuperAdminLayout'
 import AccessRequestsPage from '@/pages/superadmin/AccessRequestsPage'
@@ -76,27 +78,28 @@ function App() {
       {/* Dashboard */}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<OverviewPage />} />
-        <Route path="otp-alerts" element={<ComingSoonRoute title="Real-Time OTP Defense"><OTPAlertsPage /></ComingSoonRoute>} />
-        <Route path="transactions" element={<TransactionsPage />} />
-        <Route path="patterns" element={<ComingSoonRoute title="Behavioral Pattern Matching"><BehavioralPatternsPage /></ComingSoonRoute>} />
-        <Route path="aml" element={<AMLPage />} />
-        <Route path="kyc" element={<KYCPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="users/:id" element={<UserProfilePage />} />
-        <Route path="high-risk" element={<HighRiskCustomersPage />} />
+        <Route path="otp-alerts" element={<ComingSoonRoute title="Real-Time OTP Defense"><RoleGuard permission="transactions.view"><OTPAlertsPage /></RoleGuard></ComingSoonRoute>} />
+        <Route path="transactions" element={<RoleGuard permission="transactions.view"><TransactionsPage /></RoleGuard>} />
+        <Route path="patterns" element={<ComingSoonRoute title="Behavioral Pattern Matching"><RoleGuard permission="transactions.view"><BehavioralPatternsPage /></RoleGuard></ComingSoonRoute>} />
+        <Route path="aml" element={<RoleGuard permission="cases.view"><AMLPage /></RoleGuard>} />
+        <Route path="kyc" element={<RoleGuard permission="kyc.view"><KYCPage /></RoleGuard>} />
+        <Route path="customers" element={<RoleGuard permission="customers.view"><CustomersPage /></RoleGuard>} />
+        <Route path="users/:id" element={<RoleGuard permission="customers.view"><UserProfilePage /></RoleGuard>} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="high-risk" element={<RoleGuard permission="customers.view"><HighRiskCustomersPage /></RoleGuard>} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="investigate/:alertId" element={<SurgeInvestigationPage />} />
-        <Route path="heatmaps" element={<ComingSoonRoute title="Geospatial Heatmaps"><HeatmapsPage /></ComingSoonRoute>} />
-        <Route path="cbn" element={<CBNCompliancePage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route path="thresholds" element={<ThresholdsPage />} />
-        <Route path="network" element={<NetworkPage />} />
-        <Route path="beam" element={<DataBeamingPage />} />
-        <Route path="ingest" element={<IngestionPage />} />
-        <Route path="webhooks" element={<WebhooksPage />} />
-        <Route path="team" element={<TeamPage />} />
-        <Route path="billing" element={<BillingPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="investigate/:alertId" element={<RoleGuard permission="cases.view"><SurgeInvestigationPage /></RoleGuard>} />
+        <Route path="heatmaps" element={<ComingSoonRoute title="Geospatial Heatmaps"><RoleGuard permission="dashboard.view"><HeatmapsPage /></RoleGuard></ComingSoonRoute>} />
+        <Route path="cbn" element={<RoleGuard permission="reports.view"><CBNCompliancePage /></RoleGuard>} />
+        <Route path="reports" element={<RoleGuard permission="reports.view"><ReportsPage /></RoleGuard>} />
+        <Route path="thresholds" element={<RoleGuard permission="rules.view"><ThresholdsPage /></RoleGuard>} />
+        <Route path="network" element={<RoleGuard permission="integrations.view"><NetworkPage /></RoleGuard>} />
+        <Route path="beam" element={<RoleGuard permission="integrations.view"><DataBeamingPage /></RoleGuard>} />
+        <Route path="ingest" element={<RoleGuard permission="integrations.view"><IngestionPage /></RoleGuard>} />
+        <Route path="webhooks" element={<RoleGuard permission="integrations.view"><WebhooksPage /></RoleGuard>} />
+        <Route path="team" element={<RoleGuard permission="team.view"><TeamPage /></RoleGuard>} />
+        <Route path="billing" element={<RoleGuard permission="billing.view"><BillingPage /></RoleGuard>} />
+        <Route path="settings" element={<RoleGuard permission="settings.view"><SettingsPage /></RoleGuard>} />
         <Route path="*" element={<DashboardNotFoundPage />} />
       </Route>
 

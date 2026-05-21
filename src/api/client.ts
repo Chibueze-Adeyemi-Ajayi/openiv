@@ -34,13 +34,15 @@ export class ApiError extends Error {
   code: string
   detail: string | null
   correlationId: string | null
+  extra: Record<string, unknown>
 
-  constructor(status: number, code: string, detail: string | null, correlationId: string | null) {
+  constructor(status: number, code: string, detail: string | null, correlationId: string | null, extra: Record<string, unknown> = {}) {
     super(`${code}${detail ? ':' + detail : ''}`)
     this.status = status
     this.code = code
     this.detail = detail
     this.correlationId = correlationId
+    this.extra = extra
   }
 }
 
@@ -50,6 +52,13 @@ interface RequestOptions {
   headers?: Record<string, string>
   /** Internal — prevents infinite retry loop on 401. */
   _retried?: boolean
+}
+
+/** Converts a server-relative media path (e.g. /uploads/avatars/x.jpg) into an absolute URL using the configured API base, so it works in cross-origin dev setups. */
+export function resolveMediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return `${getBaseUrl()}${path}`
 }
 
 export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -101,16 +110,14 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
   const data = isJson ? await response.json() : await response.text()
 
   if (!response.ok) {
-    const body = (isJson ? data : {}) as {
-      error?: string
-      detail?: string
-      correlationId?: string
-    }
+    const body = (isJson ? data : {}) as Record<string, unknown>
+    const { error, detail, correlationId, ...extra } = body
     throw new ApiError(
       response.status,
-      body.error ?? `http_${response.status}`,
-      body.detail ?? null,
-      body.correlationId ?? null,
+      (error as string | undefined) ?? `http_${response.status}`,
+      (detail as string | undefined) ?? null,
+      (correlationId as string | undefined) ?? null,
+      extra,
     )
   }
 

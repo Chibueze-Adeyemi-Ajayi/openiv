@@ -9,6 +9,7 @@ export interface TeamMember {
   email: string
   name: string
   initials: string
+  avatarUrl?: string | null
   role: TeamRoleId
   status: 'pending' | 'active' | 'disabled' | 'locked'
   accountType?: AccountType

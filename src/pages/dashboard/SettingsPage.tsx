@@ -1,4 +1,4 @@
-import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton, Slider } from '@mui/material'
+import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton, Slider, RadioGroup, FormControlLabel, Radio, Alert } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
@@ -19,6 +19,8 @@ import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlin
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
 import { institutionApi, type SigningCredentials } from '@/api/institution'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import { kycApi, type KycEvaluationConfig } from '@/api/kyc'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -1364,6 +1366,169 @@ function FilingCredentialsSection() {
   )
 }
 
+function KycReEvaluationSection() {
+  const [evalConfig, setEvalConfig] = useState<KycEvaluationConfig | null>(null)
+  const [evalEnabled, setEvalEnabled] = useState(true)
+  const [evalInterval, setEvalInterval] = useState<7 | 14 | 21 | 31>(31)
+  const [evalSaving, setEvalSaving] = useState(false)
+  const [evalSaveStatus, setEvalSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [evalSaveError, setEvalSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    kycApi.getEvaluationConfig().then(res => {
+      if (res.config) {
+        setEvalConfig(res.config)
+        setEvalEnabled(res.config.enabled)
+        setEvalInterval(res.config.intervalDays)
+      }
+    }).catch(() => {})
+  }, [])
+
+  return (
+    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        <RefreshRoundedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+        <Box>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            Customer Re-evaluation Schedule
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            Configure when the KYC pipeline should automatically re-run for existing customers
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box sx={{ p: 3 }}>
+        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, mb: 2.5, p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+          After every transaction beam, if a customer's last KYC evaluation is older than the selected interval, the system will automatically re-run the full KYC pipeline and update their risk scores.
+        </Typography>
+
+        {/* Enable toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, p: 2, border: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+          <Box>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+              Enable automatic re-evaluation
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+              When enabled, customers are re-evaluated based on the interval below
+            </Typography>
+          </Box>
+          <Box
+            onClick={() => setEvalEnabled(v => !v)}
+            sx={{
+              width: 34, height: 18, borderRadius: 10,
+              bgcolor: evalEnabled ? colorPalette.primary : '#e2e8f0',
+              position: 'relative', cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0,
+              '&::after': {
+                content: '""', position: 'absolute', top: 2,
+                left: evalEnabled ? 18 : 2, width: 14, height: 14,
+                borderRadius: '50%', bgcolor: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              }
+            }}
+          />
+        </Box>
+
+        {/* Interval picker */}
+        <Box sx={{ mb: 2.5, opacity: evalEnabled ? 1 : 0.4, transition: 'opacity 0.2s', pointerEvents: evalEnabled ? 'auto' : 'none' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
+            Re-evaluation Interval
+          </Typography>
+          <RadioGroup
+            row
+            value={String(evalInterval)}
+            onChange={e => setEvalInterval(Number(e.target.value) as 7 | 14 | 21 | 31)}
+            sx={{ gap: 1, flexWrap: 'wrap' }}
+          >
+            {([7, 14, 21, 31] as const).map(days => (
+              <Box
+                key={days}
+                onClick={() => evalEnabled && setEvalInterval(days)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 0.75,
+                  px: 1.75, py: 1, cursor: 'pointer', border: '1px solid',
+                  borderColor: evalInterval === days ? colorPalette.primary : '#e2e8f0',
+                  bgcolor: evalInterval === days ? `${colorPalette.primary}08` : '#ffffff',
+                  transition: 'all 0.15s',
+                  '&:hover': evalEnabled ? { borderColor: colorPalette.primary } : {},
+                }}
+              >
+                <Radio
+                  value={String(days)}
+                  size="small"
+                  sx={{ p: 0, color: '#94a3b8', '&.Mui-checked': { color: colorPalette.primary } }}
+                />
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: evalInterval === days ? 700 : 500, color: evalInterval === days ? colorPalette.primary : '#475569', fontFamily: 'Jost' }}>
+                  {days} days
+                </Typography>
+              </Box>
+            ))}
+          </RadioGroup>
+        </Box>
+
+        {/* Current config display */}
+        {evalConfig && (
+          <Box sx={{ mb: 2.5, px: 2, py: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Current setting</Typography>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                {evalConfig.enabled ? `Every ${evalConfig.intervalDays} days` : 'Disabled'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Last updated</Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>{new Date(evalConfig.updatedAt).toLocaleDateString()}</Typography>
+            </Box>
+          </Box>
+        )}
+
+        {evalSaveStatus === 'success' && (
+          <Alert severity="success" sx={{ mb: 1.5, borderRadius: 0, fontSize: '0.8125rem' }}>
+            Re-evaluation schedule saved successfully.
+          </Alert>
+        )}
+        {evalSaveStatus === 'error' && (
+          <Alert severity="error" sx={{ mb: 1.5, borderRadius: 0, fontSize: '0.8125rem' }}>
+            {evalSaveError ?? 'Failed to save. Please try again.'}
+          </Alert>
+        )}
+
+        <Button
+          onClick={async () => {
+            setEvalSaving(true)
+            setEvalSaveStatus('idle')
+            setEvalSaveError(null)
+            try {
+              const res = await kycApi.saveEvaluationConfig(evalInterval, evalEnabled)
+              setEvalConfig(res.config)
+              setEvalSaveStatus('success')
+              setTimeout(() => setEvalSaveStatus('idle'), 4000)
+            } catch (err) {
+              setEvalSaveStatus('error')
+              setEvalSaveError(err instanceof Error ? err.message : 'Unknown error')
+            } finally {
+              setEvalSaving(false)
+            }
+          }}
+          disabled={evalSaving}
+          sx={{
+            bgcolor: colorPalette.primary, color: '#ffffff',
+            px: 3, py: 1.25, fontSize: '0.875rem', fontWeight: 700,
+            fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
+            boxShadow: 'none',
+            '&:hover': { bgcolor: '#1e293b' },
+            '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+          }}
+        >
+          {evalSaving ? 'Saving…' : 'Save Schedule'}
+        </Button>
+      </Box>
+    </Box>
+  )
+}
+
 const settingsSections = [
   {
     title: 'Organization',
@@ -1513,6 +1678,9 @@ export default function SettingsPage() {
 
           {/* Filing Credentials */}
           <FilingCredentialsSection />
+
+          {/* KYC Re-evaluation Schedule */}
+          <KycReEvaluationSection />
 
           {/* Security */}
           <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>

@@ -94,7 +94,7 @@ export default function OverviewPage() {
 
   const transactionsToday = stats?.totalToday ?? null
   const flaggedToday = stats?.flaggedToday ?? null
-  const openCases = stats?.openCases ?? null
+  const openCasesToday = stats?.openCasesToday ?? null
   const complianceScore = stats
     ? Math.max(0, 100 - (stats.totalToday > 0 ? (stats.flaggedToday / stats.totalToday) * 100 : 0)).toFixed(1) + '%'
     : null
@@ -102,7 +102,7 @@ export default function OverviewPage() {
   const txnTrend = stats ? pct(stats.totalToday, stats.totalYesterday) : 0
   const flaggedTrend = stats ? pct(stats.flaggedToday, stats.flaggedYesterday) : 0
 
-  console.log('[OverviewPage] stats:', stats, 'computed values:', { transactionsToday, flaggedToday, openCases, complianceScore })
+  console.log('[OverviewPage] stats:', stats, 'computed values:', { transactionsToday, flaggedToday, openCasesToday, complianceScore })
 
   const handleExport = useCallback(async () => {
     setExportLoading(true)
@@ -231,10 +231,10 @@ export default function OverviewPage() {
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <MetricCard
-              label="Open Cases"
-              value={openCases !== null ? fmt(openCases) : '—'}
+              label="Cases Opened Today"
+              value={openCasesToday !== null ? fmt(openCasesToday) : '—'}
               trend={0}
-              trendLabel="active now"
+              trendLabel="opened today"
               invertTrend
               icon={<GavelOutlinedIcon sx={{ fontSize: '1.125rem' }} />}
               sparkline={[50, 48, 45, 42, 40, 38, 36, 35, 34, 34, 34, 34]}

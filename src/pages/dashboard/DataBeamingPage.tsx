@@ -1,6 +1,7 @@
 import {
   Box, Typography, Stack, Button, Chip, IconButton,
   Skeleton, Dialog, Collapse, TextField,
+  FormControl, Select, MenuItem,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
@@ -307,6 +308,7 @@ const streams: Stream[] = [
     powers: 'KYC tier assignment · Transaction limit gating · Risk score adjustment · PEP cross-check',
     schema: [
       { field: 'customer_id', type: 'string', required: true, example: 'CUST-001' },
+      { field: 'customer_kyc_tier', type: 'integer (1–3)', required: true, example: '2' },
       { field: 'name', type: 'string', required: false, example: 'Adamu Ibrahim' },
       { field: 'bvn', type: 'string', required: false, example: '22123456789' },
       { field: 'nin', type: 'string', required: false, example: '12345678901' },
@@ -781,6 +783,12 @@ export default function DataBeamingPage() {
   const [kycResult, setKycResult] = useState<KycStreamResult | null>(null)
   const [kycStreamError, setKycStreamError] = useState<string | null>(null)
 
+  // Transaction stream — optional customer_kyc_tier
+  const [txnKycTier, setTxnKycTier] = useState<'' | '1' | '2' | '3'>('')
+
+  // KYC stream — required customer_kyc_tier (institution's assigned tier)
+  const [kycTierForm, setKycTierForm] = useState<'1' | '2' | '3'>('1')
+
   // KYC structured form state
   const [kycForm, setKycForm] = useState({ customer_id: 'CUST-001', name: 'Adamu Ibrahim', bvn: '22123456789', nin: '12345678901', occurred_at: new Date().toISOString(), monthly_inflow: '', monthly_outflow: '' })
   const [kycPhotoFile, setKycPhotoFile] = useState<File | null>(null)
@@ -817,6 +825,7 @@ export default function DataBeamingPage() {
       if (activeStream === 'kyc') {
         const kycPayload: Record<string, unknown> = {
           customer_id: kycForm.customer_id,
+          customer_kyc_tier: Number(kycTierForm),
           occurred_at: kycForm.occurred_at || new Date().toISOString(),
         }
         if (kycForm.name.trim())           kycPayload.name           = kycForm.name
@@ -847,7 +856,11 @@ export default function DataBeamingPage() {
       }
 
       setSendingTest(true)
-      const res = await beamApi.sendTestPayload(activeStream, parsed)
+      // For transactions, inject customer_kyc_tier if selected
+      const beamPayload = (activeStream === 'transactions' && txnKycTier !== '')
+        ? { ...parsed, customer_kyc_tier: Number(txnKycTier) }
+        : parsed
+      const res = await beamApi.sendTestPayload(activeStream, beamPayload)
       setTestResponse(res)
       setTestSuccess(true)
       setTimeout(() => setTestSuccess(false), 3000)
@@ -895,6 +908,8 @@ export default function DataBeamingPage() {
       if (refreshTimerRef.current) clearInterval(refreshTimerRef.current)
     }
   }, [loadRecords])
+
+
 
   // ── Derived per-stream stats from real data ───────────────────────────────
   const liveStreamStats = useMemo(() => {
@@ -1119,7 +1134,7 @@ export default function DataBeamingPage() {
                   /* ── Compact KYC form ──────────────────────────────── */
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.875 }}>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 0.25 }}>
-                      Fill in the identity fields — only <strong>customer_id</strong> is required:
+                      Fill in the identity fields — <strong>customer_id</strong> and <strong>customer_kyc_tier</strong> are required:
                     </Typography>
 
                     {/* Row 1: customer_id · name · occurred_at */}
@@ -1203,8 +1218,8 @@ export default function DataBeamingPage() {
                       </Box>
                     </Box>
 
-                    {/* Row 3: monthly_inflow · monthly_outflow */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.875 }}>
+                    {/* Row 3: monthly_inflow · monthly_outflow · customer_kyc_tier */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.875 }}>
                       {([
                         { key: 'monthly_inflow',  label: 'monthly_inflow (kobo)',  placeholder: '5000000' },
                         { key: 'monthly_outflow', label: 'monthly_outflow (kobo)', placeholder: '3200000' },
@@ -1223,6 +1238,29 @@ export default function DataBeamingPage() {
                           />
                         </Box>
                       ))}
+                      {/* customer_kyc_tier — institution's assigned tier (required) */}
+                      <Box>
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.375, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          customer_kyc_tier <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
+                        </Typography>
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={kycTierForm}
+                            onChange={e => setKycTierForm(e.target.value as '1' | '2' | '3')}
+                            sx={{
+                              fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
+                              bgcolor: '#f8fafc', borderRadius: 0, height: 30,
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary },
+                            }}
+                          >
+                            <MenuItem value="1" sx={{ fontSize: '0.75rem' }}>Tier 1 — Basic</MenuItem>
+                            <MenuItem value="2" sx={{ fontSize: '0.75rem' }}>Tier 2 — Intermediate</MenuItem>
+                            <MenuItem value="3" sx={{ fontSize: '0.75rem' }}>Tier 3 — Full KYC</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
                     </Box>
 
                     {jsonError && (
@@ -1235,6 +1273,42 @@ export default function DataBeamingPage() {
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 1 }}>
                       Edit the payload below to simulate a custom {stream.title.toLowerCase()} event:
                     </Typography>
+
+                    {/* Customer KYC Tier — transactions only */}
+                    {activeStream === 'transactions' && (
+                      <Box sx={{ mb: 1.25 }}>
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Customer KYC Tier <Box component="span" sx={{ color: '#cbd5e1', fontWeight: 400 }}>— optional</Box>
+                        </Typography>
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={txnKycTier}
+                            onChange={e => setTxnKycTier(e.target.value as '' | '1' | '2' | '3')}
+                            displayEmpty
+                            sx={{
+                              fontSize: '0.75rem',
+                              fontFamily: 'SF Mono, Monaco, monospace',
+                              bgcolor: '#f8fafc',
+                              borderRadius: 0,
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary },
+                            }}
+                          >
+                            <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Not specified</MenuItem>
+                            <MenuItem value="1" sx={{ fontSize: '0.75rem' }}>Tier 1 — Basic</MenuItem>
+                            <MenuItem value="2" sx={{ fontSize: '0.75rem' }}>Tier 2 — Intermediate</MenuItem>
+                            <MenuItem value="3" sx={{ fontSize: '0.75rem' }}>Tier 3 — Full KYC</MenuItem>
+                          </Select>
+                        </FormControl>
+                        {txnKycTier !== '' && (
+                          <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.5 }}>
+                            <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', color: colorPalette.primary }}>customer_kyc_tier: {txnKycTier}</Box> will be appended to the payload before beaming.
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
                     <TextField
                       multiline
                       rows={8}
@@ -1367,33 +1441,60 @@ export default function DataBeamingPage() {
                   </Stack>
 
                   {kycResult && (
-                    <Box sx={{ px: 2, py: 1.75, borderTop: '2px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                      <Box>
-                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
-                          Risk Score
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                          <Typography sx={{ fontSize: '1.625rem', fontWeight: 800, fontFamily: 'Jost', lineHeight: 1,
-                            color: kycResult.overallRiskScore < 35 ? '#16a34a' : kycResult.overallRiskScore < 75 ? '#d97706' : '#dc2626' }}>
-                            {kycResult.overallRiskScore}
+                    <Box sx={{ px: 2, py: 1.75, borderTop: '2px solid #eef0f4' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: (kycResult.institutionKycTier != null || kycResult.knowledgeLevel) ? 1.5 : 0 }}>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                            Risk Score
                           </Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/100</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                            <Typography sx={{ fontSize: '1.625rem', fontWeight: 800, fontFamily: 'Jost', lineHeight: 1,
+                              color: kycResult.overallRiskScore < 35 ? '#16a34a' : kycResult.overallRiskScore < 75 ? '#d97706' : '#dc2626' }}>
+                              {kycResult.overallRiskScore}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/100</Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                            Action
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{kycResult.actionDetail}</Typography>
+                        </Box>
+                        <Box sx={{ flexShrink: 0, px: 1.5, py: 0.625, border: '1px solid',
+                          bgcolor: kycResult.action === 'clear' ? '#dcfce7' : kycResult.action === 'flagged' ? '#fffbeb' : '#fee2e2',
+                          borderColor: kycResult.action === 'clear' ? '#bbf7d0' : kycResult.action === 'flagged' ? '#fde68a' : '#fecdd3' }}>
+                          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Jost',
+                            color: kycResult.action === 'clear' ? '#15803d' : kycResult.action === 'flagged' ? '#d97706' : '#dc2626' }}>
+                            {kycResult.action === 'clear' ? 'Cleared' : kycResult.action === 'flagged' ? 'Flagged' : 'Case Opened'}
+                          </Typography>
                         </Box>
                       </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
-                          Action
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{kycResult.actionDetail}</Typography>
-                      </Box>
-                      <Box sx={{ flexShrink: 0, px: 1.5, py: 0.625, border: '1px solid',
-                        bgcolor: kycResult.action === 'clear' ? '#dcfce7' : kycResult.action === 'flagged' ? '#fffbeb' : '#fee2e2',
-                        borderColor: kycResult.action === 'clear' ? '#bbf7d0' : kycResult.action === 'flagged' ? '#fde68a' : '#fecdd3' }}>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Jost',
-                          color: kycResult.action === 'clear' ? '#15803d' : kycResult.action === 'flagged' ? '#d97706' : '#dc2626' }}>
-                          {kycResult.action === 'clear' ? 'Cleared' : kycResult.action === 'flagged' ? 'Flagged' : 'Case Opened'}
-                        </Typography>
-                      </Box>
+                      {/* Institution KYC Tier + Knowledge Level */}
+                      {(kycResult.institutionKycTier != null || kycResult.knowledgeLevel) && (
+                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          {kycResult.institutionKycTier != null && (
+                            <Box>
+                              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                                Institution KYC Tier
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0284c7', fontFamily: 'Jost' }}>
+                                Tier {kycResult.institutionKycTier}
+                              </Typography>
+                            </Box>
+                          )}
+                          {kycResult.knowledgeLevel && (
+                            <Box>
+                              <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
+                                Knowledge Level
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#7c3aed', fontFamily: 'Jost' }}>
+                                {kycResult.knowledgeLevel === 't1' ? 'T1 — Basic' : kycResult.knowledgeLevel === 't2' ? 'T2 — Intermediate' : 'T3 — Full KYC'}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                     </Box>
                   )}
 
@@ -1440,6 +1541,9 @@ export default function DataBeamingPage() {
                         )}
                         {testResponse.analysis.recommended_action && (
                           <> · Action: <Box component="span" sx={{ color: colorPalette.primary, fontWeight: 700 }}>{testResponse.analysis.recommended_action}</Box></>
+                        )}
+                        {testResponse.analysis.institution_kyc_tier != null && (
+                          <> · Institution KYC Tier: <Box component="span" sx={{ color: '#a5b4fc', fontWeight: 700 }}>{testResponse.analysis.institution_kyc_tier}</Box></>
                         )}
                       </Typography>
                       {(testResponse.analysis.kyc_required || testResponse.analysis.account_conflict) && (
@@ -1903,6 +2007,122 @@ export default function DataBeamingPage() {
                 </Box>
               )
             })()}
+
+            {/* ── Customer KYC Fetch Webhook ──────────────────────────────── */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <Box sx={{ width: 32, height: 32, bgcolor: '#f0f9ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <BadgeOutlinedIcon sx={{ fontSize: '1rem' }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Customer KYC Fetch Webhook</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Retrieve the latest KYC evaluation for any customer by ID</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 3 }}>
+                {/* Endpoint */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Endpoint</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                    <Box sx={{ px: 1, py: 0.25, bgcolor: '#dcfce7', flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#15803d', letterSpacing: '0.06em' }}>GET</Typography>
+                    </Box>
+                    <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all' }}>
+                      /api/v1/kyc/customer-fetch/<Box component="span" sx={{ color: '#7c3aed' }}>{'{customerId}'}</Box>
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Authentication */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Authentication</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55, mb: 0.75 }}>
+                    Same Beam API key used for data ingestion. Pass as header:
+                  </Typography>
+                  <Box sx={{ bgcolor: '#0d1117', px: 2, py: 1.25, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#c3e88d' }}>
+                    Authorization: Bearer &lt;your-beam-api-key&gt;
+                  </Box>
+                </Box>
+
+                {/* Path Parameters */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Path Parameters</Typography>
+                  <Box sx={{ border: '1px solid #eef0f4', overflow: 'hidden' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '120px 70px 80px 1fr', px: 2, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                      {['Parameter', 'Type', 'Required', 'Description'].map(h => (
+                        <Typography key={h} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
+                      ))}
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '120px 70px 80px 1fr', px: 2, py: 1.25, alignItems: 'center' }}>
+                      <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary }}>customerId</Typography>
+                      <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#f59e0b' }}>string</Typography>
+                      <CheckCircleOutlineRoundedIcon sx={{ fontSize: '0.9rem', color: '#10b981' }} />
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.5 }}>The external customer ID you use when beaming data</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Response Fields */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Response Fields</Typography>
+                  <Box sx={{ border: '1px solid #eef0f4', overflow: 'hidden' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '160px 100px 1fr', px: 2, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                      {['Field', 'Type', 'Description'].map(h => (
+                        <Typography key={h} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
+                      ))}
+                    </Box>
+                    {[
+                      { field: 'customerId', type: 'string', desc: 'Your customer reference' },
+                      { field: 'overallRiskScore', type: 'number', desc: 'KYC pipeline risk score (0–100)' },
+                      { field: 'knowledgeLevel', type: 'string', desc: 'System-assessed knowledge: t1 (basic), t2 (intermediate), t3 (full KYC)' },
+                      { field: 'institutionKycTier', type: 'number | null', desc: 'The tier you provided during the last KYC beam' },
+                      { field: 'overallStatus', type: 'string', desc: 'verified, partial, or flagged' },
+                      { field: 'actionTaken', type: 'string', desc: 'clear, flagged, or case_opened' },
+                      { field: 'runAt', type: 'string', desc: 'ISO-8601 timestamp of last KYC run' },
+                      { field: 'bvnNinStatus', type: 'string', desc: 'pass, fail, or error' },
+                      { field: 'phoneStatus', type: 'string', desc: 'pass, fail, or error' },
+                      { field: 'livenessStatus', type: 'string', desc: 'pass, fail, or error' },
+                      { field: 'pepStatus', type: 'string', desc: 'pass, fail, or error' },
+                    ].map((row, i, arr) => (
+                      <Box key={row.field} sx={{ display: 'grid', gridTemplateColumns: '160px 100px 1fr', px: 2, py: 1.125, alignItems: 'flex-start', borderBottom: i < arr.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary }}>{row.field}</Typography>
+                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#f59e0b' }}>{row.type}</Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.5 }}>{row.desc}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* cURL example */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Example cURL</Typography>
+                  <SyntaxCode code={`curl -H "Authorization: Bearer bk_live_xxxxxxxx" \\\n  https://api.openiv.ng/api/v1/kyc/customer-fetch/CUS-00123`} />
+                </Box>
+
+                {/* Example response */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Example Response</Typography>
+                  <SyntaxCode code={`{\n  "customerId": "CUS-00123",\n  "overallRiskScore": 42,\n  "knowledgeLevel": "t2",\n  "institutionKycTier": 2,\n  "overallStatus": "verified",\n  "actionTaken": "clear",\n  "runAt": "2026-05-15T11:23:00Z",\n  "bvnNinStatus": "pass",\n  "phoneStatus": "pass",\n  "livenessStatus": "pass",\n  "pepStatus": "pass"\n}`} />
+                </Box>
+
+                {/* Error responses */}
+                <Box>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Error Responses</Typography>
+                  <Stack gap={0.75}>
+                    {[
+                      { code: '404', color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', msg: 'No KYC record found for this customer ID' },
+                      { code: '401', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', msg: 'Invalid or missing API key' },
+                    ].map(e => (
+                      <Box key={e.code} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 1, bgcolor: e.bg, border: `1px solid ${e.border}` }}>
+                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 800, color: e.color, flexShrink: 0 }}>{e.code}</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{e.msg}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              </Box>
+            </Box>
 
           </Stack>
         </Box>

@@ -152,10 +152,11 @@ export default function LoginPage() {
 
   const afterLogin = async (state: string) => {
     switch (state) {
-      case 'pending_email_verification': navigate('/auth/verify-email');  break
-      case 'pending_totp_setup':         navigate('/auth/setup-2fa');     break
-      case 'pending_totp_challenge':     navigate('/auth/verify-otp');   break
-      case 'authenticated':              navigate('/dashboard');          break
+      case 'pending_email_verification': navigate('/auth/verify-email');     break
+      case 'must_change_password':       navigate('/auth/change-password');  break
+      case 'pending_totp_setup':         navigate('/auth/setup-2fa');        break
+      case 'pending_totp_challenge':     navigate('/auth/verify-otp');       break
+      case 'authenticated':              navigate('/dashboard');             break
     }
   }
 
@@ -180,9 +181,7 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && err.code === 'conflict') {
         if (err.detail === 'active_session_same_device') {
-          // Same-device: offer TOTP transfer
-          const raw = err as ApiError & { transferRef?: string }
-          setTransferRef((raw as unknown as Record<string, string>)['transferRef'] ?? null)
+          setTransferRef((err.extra['transferRef'] as string | undefined) ?? null)
           return
         }
         // Different device: show message, notification already sent to other machine
