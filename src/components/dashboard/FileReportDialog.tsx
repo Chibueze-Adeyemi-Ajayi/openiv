@@ -58,13 +58,14 @@ const FORM_SECTIONS = [
 ]
 
 type FormSection = 'metadata' | 'institution' | 'subject' | 'transaction' | 'narrative'
-type EditorStep  = 'compose' | 'consent' | 'confirm' | 'filing' | 'done'
+type EditorStep  = 'compose' | 'review' | 'filing' | 'done'
 type SaveStatus  = 'idle' | 'saving' | 'saved' | 'error'
 
 export interface ReportPrefill {
   reportType?: ReportType
   title?: string
   subjectName?: string
+  subjectExternalId?: string
   subjectAccount?: string
   subjectBvn?: string
   subjectType?: 'individual' | 'corporate'
@@ -435,6 +436,9 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
   const [customerQuery, setCustomerQuery]           = useState('')
   const [customerList, setCustomerList]             = useState<Customer[]>([])
   const [customerLoading, setCustomerLoading]       = useState(false)
+  const [customerPage, setCustomerPage]             = useState(1)
+  const [customerHasMore, setCustomerHasMore]       = useState(true)
+  const [customerLoadingMore, setCustomerLoadingMore] = useState(false)
   const [subjectType, setSubjectType]               = useState<'individual' | 'corporate'>('individual')
   const [subjectBvn, setSubjectBvn]                 = useState('')
   const [subjectAccount, setSubjectAccount]         = useState('')
@@ -497,6 +501,10 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
   const stampInputRef = useRef<HTMLInputElement>(null)
   const sigInputRef   = useRef<HTMLInputElement>(null)
 
+  // ── Review overlay ──
+  const [certified, setCertified] = useState(false)
+  const [goAmlDownloading, setGoAmlDownloading] = useState(false)
+
   // ── UI ──
   const [activeSection, setActiveSection] = useState<FormSection>('metadata')
   const [editorStep, setEditorStep]       = useState<EditorStep>('compose')
@@ -558,10 +566,12 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
     }
 
     setSelectedOfficer(null)
-    setCustomerQuery(''); setTxQuery(''); setTxList([])
+    setCustomerQuery(''); setCustomerPage(1); setCustomerHasMore(true)
+    setTxQuery(''); setTxList([])
     setSaveStatus('idle'); setActiveSection('metadata'); setEditorStep('compose')
     setError(null); setFiledReport(null)
     setStampDraft(null); setSigDraft(null); setConsentSaving(false); setTotpTarget(null)
+    setCertified(false); setGoAmlDownloading(false)
 
     // When prefillLocked + linkedTransactionId: build synthetic transaction so the locked
     // preview renders immediately without a picker.
@@ -622,6 +632,18 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         ) ?? r.customers[0] ?? null
         setSelectedCustomer(match)
       }).catch(() => { setSelectedCustomer(null); setCustomerList([]) })
+    } else if (!initialReport && prefill?.subjectExternalId) {
+      // Resolve full customer record from externalId (needed to load the transaction picker)
+      customerApi.getCustomer(prefill.subjectExternalId)
+        .then(c => {
+          setSelectedCustomer(c)
+          if (!prefill.subjectBvn && c.bvn)             setSubjectBvn(c.bvn)
+          if (!prefill.subjectAccount && c.accountNumber) setSubjectAccount(c.accountNumber)
+          if (!prefill.subjectType && c.subjectType)     setSubjectType(c.subjectType as 'individual' | 'corporate')
+          if (c.dob)     setSubjectDob(c.dob)
+          if (c.address) setSubjectAddress(c.address)
+        })
+        .catch(() => { setSelectedCustomer(null) })
     } else {
       setSelectedCustomer(null)
       setCustomerList([])
@@ -719,18 +741,39 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
     setTitle(`Monthly AML Return – ${now.toLocaleString('default', { month: 'long', year: 'numeric' })}`)
   }, [reportType])
 
-  // Customer search debounce
+  // Customer search — immediate first load, debounced on query change
   const custDebounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const custQueryRef = useRef(customerQuery)
+  useEffect(() => { custQueryRef.current = customerQuery }, [customerQuery])
+
   useEffect(() => {
+    if (!open) return
     clearTimeout(custDebounce.current)
+    const delay = customerQuery ? 300 : 0   // no debounce for initial empty load
     custDebounce.current = setTimeout(() => {
       setCustomerLoading(true)
-      customerApi.list(customerQuery || undefined, 30)
-        .then(r => setCustomerList(r.customers))
+      setCustomerPage(1)
+      setCustomerHasMore(true)
+      customerApi.list(customerQuery || undefined, 10, 1)
+        .then(r => { setCustomerList(r.customers); setCustomerHasMore(r.hasMore) })
         .catch(() => setCustomerList([]))
         .finally(() => setCustomerLoading(false))
-    }, 300)
-  }, [customerQuery])
+    }, delay)
+  }, [open, customerQuery])
+
+  const loadMoreCustomers = useCallback(() => {
+    if (customerLoadingMore || !customerHasMore) return
+    const nextPage = customerPage + 1
+    setCustomerLoadingMore(true)
+    customerApi.list(custQueryRef.current || undefined, 10, nextPage)
+      .then(r => {
+        setCustomerList(prev => [...prev, ...r.customers])
+        setCustomerPage(nextPage)
+        setCustomerHasMore(r.hasMore)
+      })
+      .catch(() => {})
+      .finally(() => setCustomerLoadingMore(false))
+  }, [customerPage, customerHasMore, customerLoadingMore])
 
   // Transaction search when customer selected
   useEffect(() => {
@@ -1279,12 +1322,18 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                       getOptionLabel={c => c.name}
                       value={selectedCustomer}
                       onChange={(_, v) => applyCustomer(v)}
-                      onInputChange={(_, v) => setCustomerQuery(v)}
+                      onInputChange={(_, v, reason) => { if (reason !== 'reset') setCustomerQuery(v) }}
                       loading={customerLoading}
                       filterOptions={x => x}
+                      ListboxProps={{
+                        onScroll: (e: React.SyntheticEvent) => {
+                          const el = e.currentTarget
+                          if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) loadMoreCustomers()
+                        },
+                      }}
                       renderInput={params => (
                         <TextField {...params} size="small" placeholder="Search customers…" sx={AUTO_SX}
-                          InputProps={{ ...params.InputProps, endAdornment: (<>{customerLoading && <CircularProgress size={14} />}{params.InputProps.endAdornment}</>) }} />
+                          InputProps={{ ...params.InputProps, endAdornment: (<>{(customerLoading || customerLoadingMore) && <CircularProgress size={14} />}{params.InputProps.endAdornment}</>) }} />
                       )}
                       renderOption={(props, c) => (
                         <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, py: 1 }}>
@@ -1295,7 +1344,11 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                           <Chip label={`${c.riskScore}%`} size="small" sx={{ fontSize: '0.625rem', height: 18, bgcolor: c.riskScore >= 75 ? '#fef2f2' : c.riskScore >= 50 ? '#fffbeb' : '#f0fdf4', color: c.riskScore >= 75 ? '#dc2626' : c.riskScore >= 50 ? '#d97706' : '#16a34a', fontWeight: 700, borderRadius: 0 }} />
                         </Box>
                       )}
-                      noOptionsText={<Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No customers found</Typography>}
+                      noOptionsText={
+                        customerLoading
+                          ? <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>Loading…</Typography>
+                          : <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No customers found</Typography>
+                      }
                     />
                   )}
                 </Box>
@@ -1320,8 +1373,8 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
             {/* ── TRANSACTION ── */}
             {activeSection === 'transaction' && meta.requiresSubject && (
               <Stack gap={2}>
-                {/* Transaction picker — hidden when prefillLocked (locked preview shows below) */}
-                {!prefillLocked && (selectedCustomer || selectedTransaction) ? (
+                {/* Transaction picker — shown when customer selected but no transaction linked yet */}
+                {selectedCustomer && !selectedTransaction ? (
                   <Box>
                     <Typography sx={LBL}>Link Transaction</Typography>
                     <Autocomplete
@@ -1346,12 +1399,12 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                           <Chip label={`${tx.risk}%`} size="small" sx={{ fontSize: '0.625rem', height: 18, bgcolor: tx.risk >= 75 ? '#fef2f2' : '#fffbeb', color: tx.risk >= 75 ? '#dc2626' : '#d97706', fontWeight: 700, borderRadius: 0 }} />
                         </Box>
                       )}
-                      noOptionsText={<Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions for this customer</Typography>}
+                      noOptionsText={<Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions found for this customer</Typography>}
                     />
                   </Box>
-                ) : !prefillLocked ? (
+                ) : !selectedCustomer && !selectedTransaction ? (
                   <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', px: 1.5, py: 1 }}>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#92400e' }}>Select a customer in the Subject tab to search transactions, or fill manually below.</Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#92400e' }}>Select a customer in the Subject tab first to link a transaction.</Typography>
                   </Box>
                 ) : null}
 
@@ -1380,14 +1433,21 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                   ].filter(r => r.value)
                   return (
                     <Box>
-                      {/* Lock banner */}
+                      {/* Lock banner — show clear/change option unless locked by prefill */}
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f0fdf4', border: '1px solid #d1fae5', px: 1.5, py: 0.875, mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#10b981' }} />
-                          <Typography sx={{ fontSize: '0.6875rem', color: '#065f46', fontWeight: 600 }}>Fields locked — sourced from linked transaction</Typography>
+                          <Typography sx={{ fontSize: '0.6875rem', color: '#065f46', fontWeight: 600 }}>Transaction linked — details sourced from platform record</Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, border: '1px solid #e2e8f0', px: 0.875, py: 0.25, bgcolor: tx.risk >= 75 ? '#fef2f2' : tx.risk >= 50 ? '#fffbeb' : '#f0fdf4' }}>
-                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: riskColor }}>RISK {tx.risk}%</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {(!prefillLocked || !prefill?.linkedTransactionId) && (
+                            <Box onClick={() => applyTransaction(null)} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#64748b', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em', '&:hover': { color: '#dc2626' } }}>
+                              Change
+                            </Box>
+                          )}
+                          <Box sx={{ border: '1px solid #e2e8f0', px: 0.875, py: 0.25, bgcolor: tx.risk >= 75 ? '#fef2f2' : tx.risk >= 50 ? '#fffbeb' : '#f0fdf4' }}>
+                            <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: riskColor }}>RISK {tx.risk}%</Typography>
+                          </Box>
                         </Box>
                       </Box>
 
@@ -1408,38 +1468,15 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                       </Box>
                     </Box>
                   )
-                })() : (
-                  /* ── Editable form when no transaction is linked ── */
-                  <Stack gap={2}>
-                    {selectedCustomer && (
-                      <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8' }}>No transaction linked — fill manually or select one above.</Typography>
-                    )}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                      <Box><Typography sx={LBL}>Amount (₦) *</Typography><TextField fullWidth size="small" value={amountNgn} onChange={e => setAmountNgn(e.target.value)} sx={FLD} inputProps={{ inputMode: 'decimal' }} placeholder="0.00" /></Box>
-                      <Box><Typography sx={LBL}>No. of Transactions</Typography><TextField fullWidth size="small" value={transactionCount} onChange={e => setTransactionCount(e.target.value.replace(/\D/g, ''))} sx={FLD} inputProps={{ inputMode: 'numeric' }} placeholder="1" /></Box>
-                    </Box>
-                    <Box><Typography sx={LBL}>Transaction Type</Typography>
-                      <TextField fullWidth size="small" select value={transactionType} onChange={e => setTransactionType(e.target.value)} sx={FLD}>
-                        {['Wire Transfer', 'Cash Deposit', 'Cash Withdrawal', 'POS', 'Mobile Transfer', 'Cheque', 'RTGS', 'SWIFT', 'Other'].map(v => <MenuItem key={v} value={v} sx={{ fontSize: '0.875rem' }}>{v}</MenuItem>)}
-                      </TextField>
-                    </Box>
-                    <Box><Typography sx={LBL}>Transaction Date</Typography><TextField fullWidth size="small" type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} sx={FLD} InputLabelProps={{ shrink: true }} /></Box>
-                    <Box>
-                      <Typography sx={LBL}>Transaction Location (Address)</Typography>
-                      <TextField fullWidth size="small" value={transactionLocation ?? ''} onChange={e => setTransactionLocation(e.target.value || undefined)} sx={FLD} placeholder="e.g. 14 Marina Street, Lagos Island" />
-                    </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                      <Box>
-                        <Typography sx={LBL}>Latitude</Typography>
-                        <TextField fullWidth size="small" value={transactionLat ?? ''} onChange={e => { const v = parseFloat(e.target.value); setTransactionLat(isNaN(v) ? undefined : v) }} sx={FLD} inputProps={{ inputMode: 'decimal', step: 'any' }} placeholder="e.g. 6.452739" />
-                      </Box>
-                      <Box>
-                        <Typography sx={LBL}>Longitude</Typography>
-                        <TextField fullWidth size="small" value={transactionLng ?? ''} onChange={e => { const v = parseFloat(e.target.value); setTransactionLng(isNaN(v) ? undefined : v) }} sx={FLD} inputProps={{ inputMode: 'decimal', step: 'any' }} placeholder="e.g. 3.395985" />
-                      </Box>
-                    </Box>
-                  </Stack>
-                )}
+                })() : selectedCustomer ? (
+                  /* ── No transaction linked yet — prompt to select from picker ── */
+                  <Box sx={{ px: 1.5, py: 1.25, border: '1px solid #e2e8f0', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <InfoOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#94a3b8', flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                      Select a transaction from the dropdown above to populate the transaction details for this report.
+                    </Typography>
+                  </Box>
+                ) : null}
               </Stack>
             )}
 
@@ -1488,12 +1525,12 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                     if (!periodStart || !periodEnd) { setError('Report period is required'); return }
                     if (narrative.trim().length < 20) { setError('Narrative must be at least 20 characters'); return }
                     setError(null)
-                    setStampDraft(null); setSigDraft(null)
-                    setEditorStep('consent')
+                    setCertified(false)
+                    setEditorStep('review')
                   }}
                   startIcon={<SendRoundedIcon sx={{ fontSize: '0.8125rem !important' }} />}
-                  sx={{ fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: colorPalette.primary, borderRadius: 0, textTransform: 'none', px: 2, py: 0.75, boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }}>
-                  File to NFIU
+                  sx={{ fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: '#dc2626', borderRadius: 0, textTransform: 'none', px: 2, py: 0.75, boxShadow: 'none', '&:hover': { bgcolor: '#b91c1c' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }}>
+                  Review &amp; File →
                 </Button>
               )
             ) : (
@@ -1506,271 +1543,119 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
           </Box>
         </Box>}
 
-        {/* ── Consent overlay ── */}
-        {editorStep === 'consent' && (
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(3px)' }}>
-            <Box sx={{ bgcolor: '#fff', width: 500, border: '1px solid #e2e8f0', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-              {/* Header */}
-              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>Filing Consent</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.125 }}>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Official Stamp &amp; Signature</Typography>
-                    <Tooltip title="Image upload preferences">
-                      <IconButton size="small" onClick={() => setShowCredentialPrefs(true)} sx={{ borderRadius: 0, color: '#94a3b8', p: 0.25, '&:hover': { color: colorPalette.primary, bgcolor: `${colorPalette.primary}10` } }}>
-                        <InfoOutlinedIcon sx={{ fontSize: '1rem' }} />
-                      </IconButton>
-                    </Tooltip>
+        {/* ── Review & File overlay ── */}
+        {editorStep === 'review' && (
+          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(4px)' }}>
+            <Box sx={{ bgcolor: '#fff', width: 520, border: '1px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+
+              {/* ── Header ── */}
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <Box sx={{ width: 34, height: 34, bgcolor: `${meta.color}14`, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', '& svg': { fontSize: '1.125rem !important' } }}>{meta.icon}</Box>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Pre-flight Review</Typography>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2 }}>{meta.label}</Typography>
                   </Box>
                 </Box>
-                <IconButton size="small" onClick={() => setEditorStep('compose')} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#00288e' } }}>
+                <IconButton size="small" onClick={() => setEditorStep('compose')} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#00288e', bgcolor: '#f1f5f9' } }}>
                   <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
                 </IconButton>
               </Box>
 
-              {/* ── Credential preferences modal ── */}
-              {showCredentialPrefs && (
-                <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, backdropFilter: 'blur(2px)', borderRadius: 0 }}>
-                  <Box sx={{ bgcolor: '#fff', width: 420, border: '1px solid #e2e8f0', boxShadow: '0 16px 48px rgba(0,0,0,0.25)', mx: 2 }}>
-                    {/* Modal header */}
-                    <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 28, height: 28, bgcolor: `${colorPalette.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <InfoOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary }} />
-                        </Box>
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Image Upload Preferences</Typography>
+              {/* ── Scrollable body ── */}
+              <Box sx={{ flex: 1, overflow: 'auto', px: 3, py: 2.5 }}>
+
+                {/* Pre-flight checklist */}
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.25 }}>Report summary</Typography>
+                <Box sx={{ border: '1px solid #e2e8f0', mb: 2.5 }}>
+                  {([
+                    { label: 'Type',      value: meta.label,                                                           ok: true },
+                    { label: 'Title',     value: title.trim() || '—',                                                  ok: !!title.trim() },
+                    { label: 'Period',    value: periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : '—',     ok: !!(periodStart && periodEnd) },
+                    { label: 'Priority',  value: priority.charAt(0).toUpperCase() + priority.slice(1),                 ok: true },
+                    { label: 'Officer',   value: selectedOfficer?.name ?? '—',                                         ok: !!selectedOfficer },
+                    ...(meta.requiresSubject ? [
+                      { label: 'Subject',      value: selectedCustomer?.name || '—',                                  ok: !!(selectedCustomer || subjectAccount) },
+                      { label: 'Transaction',  value: selectedTransaction ? `₦${selectedTransaction.amount.toLocaleString()} · ${channelToType(selectedTransaction.channel)}` : amountNgn ? `₦${parseFloat(amountNgn.replace(/,/g,'')).toLocaleString()} (manual)` : '—', ok: !!(selectedTransaction || amountNgn) },
+                    ] : []),
+                    { label: 'Narrative', value: `${narrative.trim().length} chars`,                                   ok: narrative.trim().length >= 20 },
+                  ] as { label: string; value: string; ok: boolean }[]).map((row, i, arr) => (
+                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i < arr.length - 1 ? '1px solid #f4f5f7' : 'none', px: 1.5, py: 0.875 }}>
+                      <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: row.ok ? '#dcfce7' : '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mr: 1.25 }}>
+                        {row.ok
+                          ? <CheckRoundedIcon sx={{ fontSize: '0.625rem', color: '#16a34a' }} />
+                          : <CloseRoundedIcon sx={{ fontSize: '0.625rem', color: '#dc2626' }} />}
                       </Box>
-                      <IconButton size="small" onClick={() => setShowCredentialPrefs(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#00288e' } }}>
-                        <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
-                      </IconButton>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', width: 80, flexShrink: 0 }}>{row.label}</Typography>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: row.ok ? '#0f172a' : '#dc2626', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.value}</Typography>
                     </Box>
+                  ))}
+                </Box>
 
-                    {/* Modal body */}
-                    <Box sx={{ px: 2.5, py: 2.5 }}>
-                      {/* Recommendation banner */}
-                      <Box sx={{ bgcolor: `${colorPalette.primary}08`, border: `1px solid ${colorPalette.primary}25`, px: 1.75, py: 1.25, mb: 2.5, display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
-                        <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: colorPalette.primary, mt: 0.125, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.8125rem', color: colorPalette.primary, fontWeight: 600, lineHeight: 1.5 }}>
-                          Transparent-background PNG images are strongly recommended for both your stamp and signature.
-                        </Typography>
+                {/* Credentials status (non-blocking) */}
+                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.25 }}>Signing credentials (for PDF printout)</Typography>
+                <Box sx={{ border: '1px solid #e2e8f0', mb: 2.5 }}>
+                  {([
+                    { label: 'Official Stamp',       ok: !!officialStamp },
+                    { label: 'Authorized Signature', ok: !!officialSignature },
+                  ]).map((row, i) => (
+                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i === 0 ? '1px solid #f4f5f7' : 'none', px: 1.5, py: 0.875 }}>
+                      <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: row.ok ? '#dcfce7' : '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mr: 1.25 }}>
+                        {row.ok
+                          ? <CheckRoundedIcon sx={{ fontSize: '0.625rem', color: '#16a34a' }} />
+                          : <InfoOutlinedIcon sx={{ fontSize: '0.625rem', color: '#d97706' }} />}
                       </Box>
-
-                      {/* Reasons */}
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>Why it matters</Typography>
-                      {[
-                        { icon: '🖨️', text: 'Prints cleanly over the document without a white box obscuring the underlying content.' },
-                        { icon: '📄', text: 'The NFIU printed report places the stamp and signature over the declaration section — a white background blocks the printed lines.' },
-                        { icon: '✅', text: 'Meets the CBN/NFIU digital filing standard for authenticated document overlays.' },
-                      ].map(({ icon, text }) => (
-                        <Box key={text} sx={{ display: 'flex', gap: 1.25, mb: 1.25, alignItems: 'flex-start' }}>
-                          <Typography sx={{ fontSize: '0.875rem', lineHeight: 1, mt: 0.125 }}>{icon}</Typography>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>{text}</Typography>
-                        </Box>
-                      ))}
-
-                      {/* Tips */}
-                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>How to prepare</Typography>
-                        {[
-                          { step: '1', text: 'Scan or photograph the stamp/signature on a plain white background.' },
-                          { step: '2', text: 'Use a free tool such as remove.bg, Adobe Express, or Canva to remove the background.' },
-                          { step: '3', text: 'Export as PNG — JPEG does not support transparency.' },
-                          { step: '4', text: 'Upload the transparent PNG here. Max recommended size: 512 × 512 px for stamps, 800 × 200 px for signatures.' },
-                        ].map(({ step, text }) => (
-                          <Box key={step} sx={{ display: 'flex', gap: 1.25, mb: 1, alignItems: 'flex-start' }}>
-                            <Box sx={{ width: 18, height: 18, bgcolor: '#f1f5f9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#64748b' }}>{step}</Typography>
-                            </Box>
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55 }}>{text}</Typography>
-                          </Box>
-                        ))}
-                      </Box>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', flex: 1 }}>{row.label}</Typography>
+                      <Typography sx={{ fontSize: '0.6875rem', color: row.ok ? '#16a34a' : '#d97706', fontWeight: 700 }}>
+                        {row.ok ? 'On file' : 'Not set — optional for digital record'}
+                      </Typography>
                     </Box>
+                  ))}
+                </Box>
 
-                    {/* Modal footer */}
-                    <Box sx={{ px: 2.5, py: 1.75, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button onClick={() => setShowCredentialPrefs(false)}
-                        sx={{ borderRadius: 0, bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', px: 2.5, py: 0.875, fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
-                        Got it
-                      </Button>
-                    </Box>
+                {/* Legal certification checkbox */}
+                <Box
+                  onClick={() => setCertified(p => !p)}
+                  sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, cursor: 'pointer', p: 1.75, border: `2px solid ${certified ? '#003366' : '#e2e8f0'}`, bgcolor: certified ? '#f0f4ff' : '#fafbfc', transition: 'all 0.15s', mb: 2 }}
+                >
+                  <Box sx={{
+                    width: 18, height: 18, border: `2px solid ${certified ? '#003366' : '#cbd5e1'}`,
+                    bgcolor: certified ? '#003366' : '#fff', flexShrink: 0, mt: 0.125,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                  }}>
+                    {certified && <CheckRoundedIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />}
                   </Box>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.65 }}>
+                    I certify that the information provided in this {meta.label} is <strong>true, accurate and complete</strong> to the best of my knowledge and belief, as required under the <strong>Money Laundering (Prevention and Prohibition) Act 2022</strong> and the NFIU Act.
+                  </Typography>
                 </Box>
-              )}
 
-              {/* Body */}
-              <Box sx={{ px: 3, py: 2.5, flex: 1, overflow: 'auto' }}>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
-                  To file this report, your official institutional stamp and authorized signature are required per CBN/NFIU compliance standards. Once uploaded they are saved for future filings.
-                </Typography>
-
-                {/* Stamp */}
-                {(() => {
-                  const current = officialStamp
-                  const pending = stampDraft
-                  const display = pending ?? current
-                  const hasExisting = !!current
-                  return (
-                    <Box sx={{ mb: 2.5 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>Official Stamp</Typography>
-                      <Box sx={{ border: '1px solid #e2e8f0', p: 1.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                        {display ? (
-                          <Box component="img" src={display} sx={{ width: 80, height: 80, objectFit: 'contain', border: '1px solid #f1f5f9', bgcolor: '#fafbfc' }} />
-                        ) : (
-                          <Box sx={{ width: 80, height: 80, border: '1px dashed #d1d5db', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <CloudUploadOutlinedIcon sx={{ fontSize: '1.5rem', color: '#cbd5e1' }} />
-                          </Box>
-                        )}
-                        <Box sx={{ flex: 1 }}>
-                          {pending && <Typography sx={{ fontSize: '0.625rem', color: '#10b981', fontWeight: 700, mb: 0.5 }}>New stamp ready to save</Typography>}
-                          {hasExisting && !pending && <Typography sx={{ fontSize: '0.625rem', color: '#10b981', fontWeight: 700, mb: 0.5 }}>Using saved stamp</Typography>}
-                          {hasExisting ? (
-                            <Button size="small" startIcon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />}
-                              onClick={() => setTotpTarget('stamp')}
-                              sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: '#475569', border: '1px solid #e2e8f0', borderRadius: 0, textTransform: 'none', px: 1.5, py: 0.5, '&:hover': { bgcolor: '#f8fafc' } }}>
-                              Change (requires TOTP)
-                            </Button>
-                          ) : (
-                            <Button size="small" component="label" startIcon={<CloudUploadOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                              sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: colorPalette.primary, border: `1px solid ${colorPalette.primary}`, borderRadius: 0, textTransform: 'none', px: 1.5, py: 0.5, '&:hover': { bgcolor: `${colorPalette.primary}08` } }}>
-                              Upload Stamp
-                              <input type="file" hidden accept="image/*" onChange={async e => {
-                                const f = e.target.files?.[0]; if (!f) return
-                                const url = await imageToDataUrl(f)
-                                setStampDraft(url)
-                                e.target.value = ''
-                              }} />
-                            </Button>
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                  )
-                })()}
-
-                {/* Signature */}
-                {(() => {
-                  const current = officialSignature
-                  const pending = sigDraft
-                  const display = pending ?? current
-                  const hasExisting = !!current
-                  return (
-                    <Box sx={{ mb: 2.5 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>Authorized Signature</Typography>
-                      <Box sx={{ border: '1px solid #e2e8f0', p: 1.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                        {display ? (
-                          <Box component="img" src={display} sx={{ width: 120, height: 60, objectFit: 'contain', border: '1px solid #f1f5f9', bgcolor: '#fafbfc' }} />
-                        ) : (
-                          <Box sx={{ width: 120, height: 60, border: '1px dashed #d1d5db', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <CloudUploadOutlinedIcon sx={{ fontSize: '1.5rem', color: '#cbd5e1' }} />
-                          </Box>
-                        )}
-                        <Box sx={{ flex: 1 }}>
-                          {pending && <Typography sx={{ fontSize: '0.625rem', color: '#10b981', fontWeight: 700, mb: 0.5 }}>New signature ready to save</Typography>}
-                          {hasExisting && !pending && <Typography sx={{ fontSize: '0.625rem', color: '#10b981', fontWeight: 700, mb: 0.5 }}>Using saved signature</Typography>}
-                          {hasExisting ? (
-                            <Button size="small" startIcon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />}
-                              onClick={() => setTotpTarget('sig')}
-                              sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: '#475569', border: '1px solid #e2e8f0', borderRadius: 0, textTransform: 'none', px: 1.5, py: 0.5, '&:hover': { bgcolor: '#f8fafc' } }}>
-                              Change (requires TOTP)
-                            </Button>
-                          ) : (
-                            <Button size="small" component="label" startIcon={<CloudUploadOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                              sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: colorPalette.primary, border: `1px solid ${colorPalette.primary}`, borderRadius: 0, textTransform: 'none', px: 1.5, py: 0.5, '&:hover': { bgcolor: `${colorPalette.primary}08` } }}>
-                              Upload Signature
-                              <input type="file" hidden accept="image/*" onChange={async e => {
-                                const f = e.target.files?.[0]; if (!f) return
-                                const url = await imageToDataUrl(f)
-                                setSigDraft(url)
-                                e.target.value = ''
-                              }} />
-                            </Button>
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                  )
-                })()}
-
-                <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', p: 1.5, display: 'flex', gap: 1 }}>
-                  <Typography sx={{ fontSize: '0.875rem' }}>⚠️</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6 }}>By proceeding you confirm this report is accurate and authorize it for submission. Filing is <strong>final and audit-logged</strong>. A <strong>₦10,000</strong> NFIU filing charge will apply.</Typography>
+                {/* Fee + finality notice */}
+                <Box sx={{ display: 'flex', gap: 1.25, p: 1.5, bgcolor: '#fff7ed', border: '1px solid #fed7aa' }}>
+                  <Typography sx={{ fontSize: '0.875rem', lineHeight: 1 }}>⚠️</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#9a3412', lineHeight: 1.65 }}>
+                    Filing is <strong>final and audit-logged</strong>. A <strong>₦10,000</strong> NFIU compliance charge will be deducted from your institution wallet. This action cannot be reversed.
+                  </Typography>
                 </Box>
+
+                {error && (
+                  <Box sx={{ mt: 1.5, px: 1.5, py: 1, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#dc2626' }}>{error}</Typography>
+                  </Box>
+                )}
               </Box>
 
-              {/* Footer */}
-              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
-                <Button onClick={() => setEditorStep('compose')} sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f8fafc' } }}>
-                  Back
+              {/* ── Footer ── */}
+              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.5, justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fafbfc', flexShrink: 0 }}>
+                <Button onClick={() => { setEditorStep('compose'); setError(null) }}
+                  sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f1f5f9' } }}>
+                  ← Back
                 </Button>
                 <Button
-                  disabled={consentSaving || (!(officialStamp || stampDraft) || !(officialSignature || sigDraft))}
-                  onClick={async () => {
-                    setConsentSaving(true)
-                    try {
-                      const newStamp = stampDraft ?? undefined
-                      const newSig   = sigDraft ?? undefined
-                      if (newStamp || newSig) {
-                        // Only send the field that changed — omitting the other
-                        // prevents the backend from nulling out the existing one
-                        const patch: { officialStamp?: string; officialSignature?: string } = {}
-                        if (newStamp) patch.officialStamp = newStamp
-                        if (newSig)   patch.officialSignature = newSig
-                        await institutionApi.updateSigningCredentials(patch)
-                        if (newStamp) setOfficialStamp(newStamp)
-                        if (newSig)   setOfficialSignature(newSig)
-                        setStampDraft(null); setSigDraft(null)
-                      }
-                      setEditorStep('confirm')
-                    } catch {
-                      // ignore — proceed anyway
-                      setEditorStep('confirm')
-                    } finally {
-                      setConsentSaving(false)
-                    }
-                  }}
-                  sx={{ borderRadius: 0, bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', px: 3, py: 1, boxShadow: 'none', '&:hover:not(:disabled)': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }}>
-                  {consentSaving ? 'Saving…' : 'Preview & File →'}
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-        )}
-
-        {/* ── Confirm overlay ── */}
-        {editorStep === 'confirm' && (
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(3px)' }}>
-            <Box sx={{ bgcolor: '#fff', width: 460, border: '1px solid #e2e8f0', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ width: 36, height: 36, bgcolor: `${meta.color}14`, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{meta.icon}</Box>
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Confirm filing</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{meta.label} — {title || 'Untitled'}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ px: 3, py: 2.5 }}>
-                {[
-                  ['Report type', meta.label],
-                  ['Period', periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : '—'],
-                  ['Priority', priority.charAt(0).toUpperCase() + priority.slice(1)],
-                  ['Officer', selectedOfficer?.name ?? '—'],
-                  ...(meta.requiresSubject ? [['Subject', selectedCustomer?.name || '—'], ['Amount', amountNgn ? `₦${parseFloat(amountNgn.replace(/,/g, '')).toLocaleString()}` : '—']] : []),
-                ].map(([l, v]) => (
-                  <Box key={l} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f4f5f7' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>{l}</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e' }}>{v}</Typography>
-                  </Box>
-                ))}
-                <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', p: 1.5, mt: 2, display: 'flex', gap: 1 }}>
-                  <Typography sx={{ fontSize: '0.875rem' }}>⚠️</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6 }}>Filing is <strong>final and audit-logged</strong>. A <strong>₦10,000</strong> NFIU filing charge will be deducted from your wallet.</Typography>
-                </Box>
-                {error && <Typography sx={{ fontSize: '0.8125rem', color: '#dc2626', mt: 1.5, fontWeight: 500 }}>{error}</Typography>}
-              </Box>
-              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
-                <Button onClick={() => { setEditorStep('compose'); setError(null) }} sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f8fafc' } }}>Cancel</Button>
-                <Button onClick={() => setFilingTotpOpen(true)} sx={{ borderRadius: 0, bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', px: 3, py: 1, boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
-                  Verify &amp; File →
+                  disabled={!certified}
+                  onClick={() => setFilingTotpOpen(true)}
+                  sx={{ borderRadius: 0, bgcolor: certified ? '#dc2626' : '#e2e8f0', color: certified ? '#fff' : '#94a3b8', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', px: 3, py: 1, boxShadow: 'none', transition: 'all 0.2s', '&:hover:not(:disabled)': { bgcolor: '#b91c1c' } }}>
+                  Verify Identity &amp; File →
                 </Button>
               </Box>
             </Box>
@@ -1779,11 +1664,11 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
         {/* ── Filing overlay ── */}
         {editorStep === 'filing' && (
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(4px)' }}>
+          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(4px)' }}>
             <Box sx={{ textAlign: 'center' }}>
-              <Box sx={{ width: 56, height: 56, border: '3px solid rgba(255,255,255,0.15)', borderTop: `3px solid ${colorPalette.primary}`, borderRadius: '50%', animation: 'spin 0.9s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } }, mx: 'auto', mb: 2 }} />
-              <Typography sx={{ color: '#fff', fontSize: '1rem', fontWeight: 600, fontFamily: 'Jost' }}>Submitting to NFIU…</Typography>
-              <Typography sx={{ color: '#64748b', fontSize: '0.8125rem', mt: 0.5 }}>Creating record and transmitting report</Typography>
+              <Box sx={{ width: 60, height: 60, border: '3px solid rgba(255,255,255,0.12)', borderTop: '3px solid #dc2626', borderRadius: '50%', animation: 'spin 0.9s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } }, mx: 'auto', mb: 2.5 }} />
+              <Typography sx={{ color: '#fff', fontSize: '1.0625rem', fontWeight: 700, fontFamily: 'Jost', mb: 0.5 }}>Submitting to NFIU…</Typography>
+              <Typography sx={{ color: '#64748b', fontSize: '0.8125rem' }}>Committing record · generating reference</Typography>
             </Box>
           </Box>
         )}
@@ -1791,49 +1676,114 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         {/* ── Done overlay ── */}
         {editorStep === 'done' && filedReport && (() => {
           const isPending = filedReport.status === 'pending_approval'
+          const headerBg  = isPending ? '#fffbeb' : '#003366'
+          const headerFg  = isPending ? '#92400e' : '#fff'
+          const accentClr = isPending ? '#d97706' : '#10b981'
           return (
-            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(4px)' }}>
-              <Box sx={{ bgcolor: '#fff', width: 480, border: '1px solid #e2e8f0', boxShadow: '0 20px 60px rgba(0,0,0,0.35)', textAlign: 'center' }}>
-                <Box sx={{ bgcolor: isPending ? '#fffbeb' : '#f0fdf4', borderBottom: `1px solid ${isPending ? '#fde68a' : '#d1fae5'}`, py: 3 }}>
-                  <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: isPending ? '#d97706' : '#10b981', mb: 1 }} />
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                    {isPending ? 'Submitted for Approval' : 'Report Filed Successfully'}
-                  </Typography>
-                  <Box sx={{ display: 'inline-block', bgcolor: '#fff', border: `1px solid ${isPending ? '#fde68a' : '#d1fae5'}`, px: 2, py: 0.75, mt: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.625rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
-                      {isPending ? 'Draft Reference' : 'NFIU Reference'}
-                    </Typography>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#00288e', fontFamily: '"Roboto Mono",monospace' }}>{filedReport.reference}</Typography>
+            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(5px)' }}>
+              <Box sx={{ bgcolor: '#fff', width: 500, border: '1px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.38)' }}>
+
+                {/* Success header */}
+                <Box sx={{ bgcolor: headerBg, px: 3, py: 3, textAlign: 'center' }}>
+                  <Box sx={{ width: 52, height: 52, borderRadius: '50%', bgcolor: isPending ? '#fef3c7' : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 1.5 }}>
+                    <CheckCircleOutlineRoundedIcon sx={{ fontSize: '2rem', color: isPending ? '#d97706' : '#fff' }} />
                   </Box>
-                </Box>
-                <Box sx={{ px: 3, py: 2.5 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mb: 2 }}>
-                    {isPending
-                      ? 'Your report is pending approval by a Compliance Officer or Admin. They will review and file it on your behalf.'
-                      : '₦10,000 NFIU filing charge applied. Print the filed document for your records.'}
+                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, color: headerFg, fontFamily: 'Jost', mb: 0.5 }}>
+                    {isPending ? 'Submitted for Approval' : 'Filed Successfully'}
                   </Typography>
-                  <Stack direction="row" gap={1.5} justifyContent="center">
-                    {!isPending && <Button onClick={handlePrint} startIcon={<PrintRoundedIcon />} sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#475569', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f8fafc' } }}>Print PDF</Button>}
-                    <Button onClick={onClose} sx={{ borderRadius: 0, bgcolor: isPending ? '#d97706' : colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', px: 2.5, py: 1, boxShadow: 'none', '&:hover': { bgcolor: isPending ? '#b45309' : '#1e293b' } }}>Close</Button>
-                  </Stack>
+                  <Typography sx={{ fontSize: '0.8125rem', color: isPending ? '#92400e' : 'rgba(255,255,255,0.72)' }}>
+                    {isPending ? `Awaiting review by a Compliance Officer` : `${meta.label} · ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                  </Typography>
+                </Box>
+
+                {/* Reference number — prominent + copyable */}
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.375 }}>
+                      {isPending ? 'Draft Reference' : 'NFIU Reference Number'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, color: '#003366', fontFamily: '"Roboto Mono",monospace', letterSpacing: '-0.01em' }}>
+                      {filedReport.reference}
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Copy reference">
+                    <IconButton size="small" onClick={() => navigator.clipboard.writeText(filedReport.reference)}
+                      sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', '&:hover': { color: '#003366', bgcolor: '#f0f4ff' } }}>
+                      <Box component="span" sx={{ fontSize: '0.75rem', px: 0.5, fontFamily: '"Roboto Mono",monospace' }}>⎘</Box>
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+
+                {/* Body */}
+                <Box sx={{ px: 3, py: 2.5 }}>
+                  {isPending ? (
+                    <Box sx={{ p: 1.5, bgcolor: '#fffbeb', border: '1px solid #fde68a', mb: 2 }}>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.65 }}>
+                        Your report is pending approval. The assigned Compliance Officer or Admin will review, sign, and file it on your behalf. You'll be notified when it's filed.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', border: '1px solid #d1fae5', mb: 2 }}>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#065f46', lineHeight: 1.65 }}>
+                        Your report has been filed and is audit-logged. <strong>Keep this reference</strong> — you will need it when uploading the goAML XML to the NFIU portal.
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Next steps */}
+                  {!isPending && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.25 }}>Next steps</Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {[
+                          { n: '1', text: 'Download the goAML XML below and log in to the NFIU portal.' },
+                          { n: '2', text: 'Create a new report, upload the XML, and save your portal acknowledgement reference.' },
+                          { n: '3', text: 'Print the PDF and file in your compliance records.' },
+                        ].map(({ n, text }) => (
+                          <Box key={n} sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                            <Box sx={{ width: 20, height: 20, bgcolor: '#003366', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.125 }}>
+                              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#fff' }}>{n}</Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>{text}</Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Footer actions */}
+                <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.25, bgcolor: '#fafbfc' }}>
+                  {!isPending && (
+                    <Button onClick={handlePrint} startIcon={<PrintRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                      sx={{ flex: 1, borderRadius: 0, border: '1px solid #e2e8f0', color: '#475569', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', py: 1, fontSize: '0.8125rem', '&:hover': { bgcolor: '#f8fafc' } }}>
+                      Print PDF
+                    </Button>
+                  )}
+                  {!isPending && (
+                    <Button
+                      disabled={goAmlDownloading}
+                      onClick={async () => {
+                        setGoAmlDownloading(true)
+                        try { await import('@/api/nfiu').then(m => m.nfiuApi.downloadGoAml(filedReport.id, filedReport.reference)) }
+                        catch { /* ignore */ }
+                        finally { setGoAmlDownloading(false) }
+                      }}
+                      startIcon={<SaveOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                      sx={{ flex: 1, borderRadius: 0, border: '1px solid #003366', color: '#003366', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', py: 1, fontSize: '0.8125rem', '&:hover:not(:disabled)': { bgcolor: '#f0f4ff' }, '&:disabled': { opacity: 0.6 } }}>
+                      {goAmlDownloading ? 'Preparing…' : 'Download goAML XML'}
+                    </Button>
+                  )}
+                  <Button onClick={onClose}
+                    sx={{ flex: 1, borderRadius: 0, bgcolor: isPending ? '#d97706' : '#003366', color: '#fff', fontFamily: 'Jost', fontWeight: 700, textTransform: 'none', py: 1, fontSize: '0.8125rem', boxShadow: 'none', '&:hover': { bgcolor: isPending ? '#b45309' : '#001a4d' } }}>
+                    Close
+                  </Button>
                 </Box>
               </Box>
             </Box>
           )
         })()}
       </Box>
-
-      {/* ── Hidden file inputs for TOTP-unlocked credential replacement ── */}
-      <input ref={stampInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
-        const f = e.target.files?.[0]; if (!f) return
-        setStampDraft(await imageToDataUrl(f)); setTotpUnlocked(null)
-        e.target.value = ''
-      }} />
-      <input ref={sigInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
-        const f = e.target.files?.[0]; if (!f) return
-        setSigDraft(await imageToDataUrl(f)); setTotpUnlocked(null)
-        e.target.value = ''
-      }} />
 
       {/* ── TOTP for filing ── */}
       <TOTPConfirmation
@@ -1886,35 +1836,6 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         resourceName={initialReport?.reference ?? initialReport?.title ?? ''}
       />
 
-      {/* ── TOTP for changing existing credentials ── */}
-      <TOTPConfirmation
-        open={totpTarget !== null}
-        onClose={() => setTotpTarget(null)}
-        onConfirm={() => {
-          const target = totpTarget
-          setTotpTarget(null)
-          setTotpUnlocked(target)
-          setTimeout(() => {
-            if (target === 'stamp') stampInputRef.current?.click()
-            else                   sigInputRef.current?.click()
-          }, 300)
-        }}
-        operation="update"
-        title={totpTarget === 'stamp' ? 'Replace Official Stamp' : 'Replace Authorized Signature'}
-        description={
-          <Box>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', mb: 1 }}>
-              Changing your official {totpTarget === 'stamp' ? 'stamp' : 'signature'} requires step-up authentication.
-              After verifying, you can upload a new image.
-            </Typography>
-            <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', p: 1.25 }}>
-              <Typography sx={{ fontSize: '0.75rem', color: '#92400e' }}>This change is audit-logged per CBN Baseline Standards §3.4.</Typography>
-            </Box>
-          </Box>
-        }
-        resourceType="Institution Credential"
-        resourceName={totpTarget === 'stamp' ? 'Official Stamp' : 'Authorized Signature'}
-      />
 
       {/* ── Status bar ── */}
       <Box sx={{ height: 28, flexShrink: 0, bgcolor: '#00288e', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', px: 2.5, gap: 3 }}>

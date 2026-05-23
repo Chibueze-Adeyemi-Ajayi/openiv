@@ -43,11 +43,12 @@ export interface HighRiskPage {
 }
 
 export const customerApi = {
-  list: (q?: string, pageSize = 30) => {
+  list: (q?: string, pageSize = 10, page = 1) => {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     params.set('pageSize', String(pageSize))
-    return apiRequest<{ customers: Customer[] }>(`/api/v1/customers?${params}`)
+    params.set('page', String(page))
+    return apiRequest<{ customers: Customer[]; page: number; pageSize: number; hasMore: boolean }>(`/api/v1/customers?${params}`)
   },
 
   getCustomer: (externalId: string) =>

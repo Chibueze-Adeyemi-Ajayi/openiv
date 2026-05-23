@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import NavigationBreadcrumb from '@/components/dashboard/NavigationBreadcrumb'
 import { Box, Typography, Stack, InputBase, Button, Chip, IconButton, Popover } from '@mui/material'
 import { colorPalette } from '@/theme'
@@ -16,7 +16,7 @@ import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import AssignmentIcon from '@mui/icons-material/Assignment'
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined'
 
 const PAGE_SIZE = 20
 
@@ -78,7 +78,7 @@ const PRIORITY_CFG: Record<string, { color: string; bg: string; label: string }>
   critical: { color: '#dc2626', bg: '#fef2f2', label: 'Critical' },
 }
 
-const ELEVATED_ROLES = new Set(['owner', 'admin', 'compliance', 'cmlco', 'mlro'])
+const ELEVATED_ROLES = new Set(['admin', 'cco'])
 
 const AVATAR_COLORS = ['#1e40af', '#0891b2', '#7c3aed', '#be123c', '#b45309', '#065f46']
 
@@ -116,14 +116,14 @@ export default function AMLPage() {
   const [metricsLoading, setMetricsLoading] = useState(true)
   const [cases, setCases] = useState<Case[]>([])
   const [total, setTotal] = useState(0)
-  const [pendingTotal, setPendingTotal] = useState(0)
+  const [allCasesCount,    setAllCasesCount]    = useState<number | null>(null)
+  const [interestCaseCount, setInterestCaseCount] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [casesLoading, setCasesLoading] = useState(true)
   const [statusFilter,   setStatusFilter]   = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [draftSearch,    setDraftSearch]    = useState('')
   const [search,         setSearch]         = useState('')
-  const [viewPending,    setViewPending]     = useState(false)
   const [range,          setRange]          = useState<DateRange>('30d')
   const [appliedRisk,    setAppliedRisk]    = useState<CaseRiskFilter>('any')
   const [appliedSort,    setAppliedSort]    = useState<CaseSortOption>('recent')
@@ -133,11 +133,14 @@ export default function AMLPage() {
   const [draftRisk,      setDraftRisk]      = useState<CaseRiskFilter>('any')
   const [draftSort,      setDraftSort]      = useState<CaseSortOption>('recent')
   const [draftAssign,    setDraftAssign]    = useState<AssignFilter>('all')
+  const [appliedHasInterest, setAppliedHasInterest] = useState(false)
+  const [draftHasInterest,   setDraftHasInterest]   = useState(false)
   const [teamMembers,    setTeamMembers]    = useState<TeamMember[]>([])
   const filterBtnRef = useRef<HTMLButtonElement | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const { openCase, openCaseById } = useActiveCase()
+  const navigate = useNavigate()
+  const { openCase } = useActiveCase()
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -146,40 +149,39 @@ export default function AMLPage() {
     try { setMetrics(await caseApi.metrics()) } finally { setMetricsLoading(false) }
   }, [])
 
+  const loadCardCounts = useCallback(() => {
+    caseApi.list({ pageSize: 1 }).then(r => setAllCasesCount(r.total)).catch(() => {})
+    caseApi.list({ hasInterest: true, pageSize: 1 }).then(r => setInterestCaseCount(r.total)).catch(() => {})
+  }, [])
+
   const loadCases = useCallback(async () => {
     setCasesLoading(true)
     try {
       const riskRange = CASE_RISK_TO_RANGE[appliedRisk]
-      const api = viewPending ? caseApi.listPendingApproval : caseApi.list
       const assignedToMe   = assignFilter === 'me' ? true : undefined
       const assignedToUser = typeof assignFilter === 'number' ? assignFilter : undefined
-      const res = await api({
-        status:   statusFilter  || undefined,
-        priority: priorityFilter || undefined,
-        q:        search        || undefined,
+      const res = await caseApi.list({
+        status:        statusFilter  || undefined,
+        priority:      priorityFilter || undefined,
+        q:             search        || undefined,
         page,
-        pageSize: PAGE_SIZE,
-        sort:     appliedSort !== 'recent' ? appliedSort : undefined,
-        range:    range,
-        minRisk:  riskRange.min,
-        maxRisk:  riskRange.max,
+        pageSize:      PAGE_SIZE,
+        sort:          appliedSort !== 'recent' ? appliedSort : undefined,
+        range:         range,
+        minRisk:       riskRange.min,
+        maxRisk:       riskRange.max,
         assignedToMe,
         assignedToUser,
+        hasInterest:   appliedHasInterest || undefined,
       })
       setCases(res.cases)
       setTotal(res.total)
-
-      if (page === 1) {
-        const activRes = await caseApi.list({ pageSize: 1 })
-        const pendRes = await caseApi.listPendingApproval({ pageSize: 1 })
-        setTotal(activRes.total)
-        setPendingTotal(pendRes.total)
-      }
     } finally { setCasesLoading(false) }
-  }, [statusFilter, priorityFilter, search, page, viewPending, appliedSort, range, appliedRisk, assignFilter])
+  }, [statusFilter, priorityFilter, search, page, appliedSort, range, appliedRisk, assignFilter, appliedHasInterest])
 
   useEffect(() => { loadMetrics() }, [loadMetrics])
   useEffect(() => { loadCases() }, [loadCases])
+  useEffect(() => { loadCardCounts() }, [loadCardCounts])
 
   // Load team members for admin/CCO assign filter
   useEffect(() => {
@@ -188,22 +190,22 @@ export default function AMLPage() {
     }
   }, [isElevated])
 
-  // Auto-open workspace if navigated here with ?case= query param
+  // Auto-navigate if arrived with ?case= query param
   useEffect(() => {
     const caseParam = searchParams.get('case')
-    if (caseParam) openCaseById(caseParam)
+    if (caseParam) navigate(`/dashboard/cases/${caseParam}`)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reload lists when workspace closes or updates a case
   useEffect(() => {
-    const handler = () => { loadMetrics(); loadCases() }
+    const handler = () => { loadMetrics(); loadCases(); loadCardCounts() }
     window.addEventListener('case:updated', handler)
     window.addEventListener('case:closed', handler)
     return () => {
       window.removeEventListener('case:updated', handler)
       window.removeEventListener('case:closed', handler)
     }
-  }, [loadMetrics, loadCases])
+  }, [loadMetrics, loadCases, loadCardCounts])
 
   const handleSearchChange = (v: string) => {
     setDraftSearch(v)
@@ -216,6 +218,7 @@ export default function AMLPage() {
     setDraftRisk(appliedRisk)
     setDraftSort(appliedSort)
     setDraftAssign(assignFilter)
+    setDraftHasInterest(appliedHasInterest)
     setFilterOpen(true)
   }
   const applyCaseFilter = () => {
@@ -223,11 +226,12 @@ export default function AMLPage() {
     setAppliedRisk(draftRisk)
     setAppliedSort(draftSort)
     setAssignFilter(draftAssign)
+    setAppliedHasInterest(draftHasInterest)
     setPage(1)
     setFilterOpen(false)
   }
   const clearCaseFilter = () => {
-    setDraftPriority(''); setDraftRisk('any'); setDraftSort('recent'); setDraftAssign('all')
+    setDraftPriority(''); setDraftRisk('any'); setDraftSort('recent'); setDraftAssign('all'); setDraftHasInterest(false)
   }
 
   const assignFilterLabel = (af: AssignFilter): string | null => {
@@ -241,14 +245,15 @@ export default function AMLPage() {
     + (appliedRisk !== 'any' ? 1 : 0)
     + (appliedSort !== 'recent' ? 1 : 0)
     + (assignFilter !== 'all' ? 1 : 0)
+    + (appliedHasInterest ? 1 : 0)
 
   const openWorkspace = (c: Case) => {
-    openCase(c)
     if (!c.seen) {
       caseApi.markSeen(c.id).catch(() => {})
       setCases(prev => prev.map(r => r.id === c.id ? { ...r, seen: true } : r))
       window.dispatchEvent(new CustomEvent('case:seen'))
     }
+    navigate(`/dashboard/cases/${c.id}`)
   }
 
   const handleIntakeSubmit = useCallback(async (payload: CaseIntakePayload) => {
@@ -291,10 +296,11 @@ export default function AMLPage() {
         </Box>
 
         {/* Case View Toggle Cards */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 3 }}>
-          <Box onClick={() => { setViewPending(false); setPage(1) }} sx={{
-            bgcolor: viewPending ? '#ffffff' : '#f0f9ff',
-            border: viewPending ? '1px solid #eef0f4' : `2px solid ${colorPalette.primary}`,
+        <Box sx={{ display: 'grid', gridTemplateColumns: isElevated ? 'repeat(2, 1fr)' : '1fr', gap: 2, mb: 3 }}>
+          {/* Active Investigations */}
+          <Box onClick={() => { setAppliedHasInterest(false); setPage(1) }} sx={{
+            bgcolor: appliedHasInterest ? '#ffffff' : '#f0f9ff',
+            border: appliedHasInterest ? '1px solid #eef0f4' : `2px solid ${colorPalette.primary}`,
             p: 2.5, cursor: 'pointer', transition: 'all 0.2s',
             '&:hover': { bgcolor: '#f0f9ff', borderColor: colorPalette.primary },
           }}>
@@ -304,10 +310,12 @@ export default function AMLPage() {
                   Active Investigations
                 </Typography>
                 <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
-                  {metricsLoading ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} /> : (total > 0 ? total : '—')}
+                  {allCasesCount == null
+                    ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                    : (allCasesCount > 0 ? allCasesCount : '—')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                  {!viewPending ? 'Cases ready for investigation' : 'Switch to view active'}
+                  {appliedHasInterest ? 'Switch to view all cases' : 'All open cases'}
                 </Typography>
               </Box>
               <Box sx={{ width: 44, height: 44, borderRadius: '8px', bgcolor: `${colorPalette.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -316,29 +324,34 @@ export default function AMLPage() {
             </Box>
           </Box>
 
-          <Box onClick={() => { setViewPending(true); setPage(1) }} sx={{
-            bgcolor: !viewPending ? '#ffffff' : '#fef3f2',
-            border: !viewPending ? '1px solid #eef0f4' : '2px solid #dc2626',
-            p: 2.5, cursor: 'pointer', transition: 'all 0.2s',
-            '&:hover': { bgcolor: '#fef3f2', borderColor: '#dc2626' },
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
-                  Pending Approval
-                </Typography>
-                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
-                  {metricsLoading ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} /> : (pendingTotal > 0 ? pendingTotal : '—')}
-                </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                  {viewPending ? 'Cases awaiting your review' : 'Switch to view pending'}
-                </Typography>
-              </Box>
-              <Box sx={{ width: 44, height: 44, borderRadius: '8px', bgcolor: '#fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <HourglassEmptyIcon sx={{ fontSize: '1.5rem', color: '#dc2626' }} />
+          {/* Interest Requests — admin/CCO only */}
+          {isElevated && (
+            <Box onClick={() => { setAppliedHasInterest(true); setPage(1) }} sx={{
+              bgcolor: !appliedHasInterest ? '#ffffff' : '#fff7ed',
+              border: !appliedHasInterest ? '1px solid #eef0f4' : '2px solid #ea580c',
+              p: 2.5, cursor: 'pointer', transition: 'all 0.2s',
+              '&:hover': { bgcolor: '#fff7ed', borderColor: '#ea580c' },
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
+                    Interest Requests
+                  </Typography>
+                  <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+                    {interestCaseCount == null
+                      ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                      : (interestCaseCount > 0 ? interestCaseCount : '—')}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                    {appliedHasInterest ? 'Cases with pending member interests' : 'Team members waiting for assignment'}
+                  </Typography>
+                </Box>
+                <Box sx={{ width: 44, height: 44, borderRadius: '8px', bgcolor: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fdba74' }}>
+                  <PanToolOutlinedIcon sx={{ fontSize: '1.5rem', color: '#ea580c' }} />
+                </Box>
               </Box>
             </Box>
-          </Box>
+          )}
         </Box>
 
         {/* Metric cards */}
@@ -366,24 +379,22 @@ export default function AMLPage() {
           <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                {viewPending ? 'Pending Approval Queue' : 'Active Case Queue'}
+                {appliedHasInterest ? 'Interest Requests Queue' : 'Active Case Queue'}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · ${viewPending ? 'awaiting your review' : CASE_SORT_OPTIONS.find(s => s.key === appliedSort)?.label ?? 'Newest first'}`}
+                {casesLoading ? 'Loading…' : `${total} case${total !== 1 ? 's' : ''} · ${appliedHasInterest ? 'cases with pending member interest' : CASE_SORT_OPTIONS.find(s => s.key === appliedSort)?.label ?? 'Newest first'}`}
               </Typography>
             </Box>
-            {!viewPending && (
-              <Box onClick={() => setIntakeOpen(true)} sx={{
-                display: 'flex', alignItems: 'center', gap: 0.875,
-                bgcolor: colorPalette.primary, color: '#ffffff',
-                px: 2.25, py: 1.125, cursor: 'pointer',
-                fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-                transition: 'opacity 0.15s', '&:hover': { opacity: 0.88 },
-              }}>
-                <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />
-                New Case
-              </Box>
-            )}
+            <Box onClick={() => setIntakeOpen(true)} sx={{
+              display: 'flex', alignItems: 'center', gap: 0.875,
+              bgcolor: colorPalette.primary, color: '#ffffff',
+              px: 2.25, py: 1.125, cursor: 'pointer',
+              fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
+              transition: 'opacity 0.15s', '&:hover': { opacity: 0.88 },
+            }}>
+              <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />
+              New Case
+            </Box>
           </Box>
 
           {/* Filter bar */}
@@ -451,8 +462,12 @@ export default function AMLPage() {
                 <Chip label={assignFilterLabel(assignFilter) ?? 'Assigned'} size="small" onDelete={() => { setAssignFilter('all'); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
                   sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
               )}
+              {appliedHasInterest && (
+                <Chip label="Has Interest Requests" size="small" onDelete={() => { setAppliedHasInterest(false); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
+                  sx={{ bgcolor: '#fff7ed', color: '#ea580c', fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: '#ea580c' } }} />
+              )}
               <Box sx={{ flex: 1 }} />
-              <Box onClick={() => { setPriorityFilter(''); setAppliedRisk('any'); setAppliedSort('recent'); setAssignFilter('all'); setPage(1) }}
+              <Box onClick={() => { setPriorityFilter(''); setAppliedRisk('any'); setAppliedSort('recent'); setAssignFilter('all'); setAppliedHasInterest(false); setPage(1) }}
                 sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
                 Clear all
               </Box>
@@ -524,9 +539,17 @@ export default function AMLPage() {
                 </Typography>
 
                 <Box sx={{ overflow: 'hidden', minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {c.title}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, overflow: 'hidden' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>
+                      {c.title}
+                    </Typography>
+                    {isElevated && c.hasPendingInterest && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.375, px: 0.625, py: 0.25, bgcolor: '#fff7ed', border: '1px solid #fdba74', borderRadius: '4px', flexShrink: 0 }}>
+                        <PanToolOutlinedIcon sx={{ fontSize: '0.75rem', color: '#ea580c' }} />
+                        <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Interest</Typography>
+                      </Box>
+                    )}
+                  </Box>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.125, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.typology}
                   </Typography>
@@ -671,6 +694,19 @@ export default function AMLPage() {
               )
             })}
           </Box>
+
+          {isElevated && (
+            <>
+              <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Interest Requests</Typography>
+              <Box sx={{ mb: 2.5 }}>
+                <Box onClick={() => setDraftHasInterest(v => !v)}
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 1.25, py: 0.5, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', border: '1px solid', borderColor: draftHasInterest ? '#ea580c' : '#e2e8f0', color: draftHasInterest ? '#ea580c' : '#64748b', bgcolor: draftHasInterest ? '#fff7ed' : 'transparent', transition: 'all 0.15s', '&:hover': { borderColor: '#ea580c', color: '#ea580c' } }}>
+                  <PanToolOutlinedIcon sx={{ fontSize: '0.875rem' }} />
+                  Has Interest Requests
+                </Box>
+              </Box>
+            </>
+          )}
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
             <Button disableRipple onClick={clearCaseFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>

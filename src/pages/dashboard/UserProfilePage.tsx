@@ -829,11 +829,13 @@ export default function UserProfilePage() {
         onFiled={() => setReportOpen(false)}
         defaultType="STR"
         prefill={{
-          subjectName:    customer?.name ?? displayName,
-          subjectType:    customer?.subjectType ?? 'individual',
-          subjectBvn:     customer?.bvn ?? '',
-          subjectAccount: customer?.accountNumber ?? '',
+          subjectName:       customer?.name ?? displayName,
+          subjectExternalId: id,
+          subjectType:       customer?.subjectType ?? 'individual',
+          subjectBvn:        customer?.bvn ?? '',
+          subjectAccount:    customer?.accountNumber ?? '',
         }}
+        prefillLocked
       />
     </>
   )

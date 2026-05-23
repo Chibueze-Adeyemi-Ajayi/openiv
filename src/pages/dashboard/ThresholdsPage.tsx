@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { isBuildOne } from '@/utils/build'
-import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogActions, DialogTitle, Grid, Tabs, Tab } from '@mui/material'
+import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogActions, DialogTitle, Grid, Tabs, Tab, Tooltip } from '@mui/material'
+import { useRbac } from '@/contexts/RbacContext'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { colorPalette } from '@/theme'
 import ComingSoonOverlay from '@/components/dashboard/ComingSoonOverlay'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
@@ -328,15 +330,15 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
   )
 }
 
-function MadLibInput({ value, onChange, width = 60, type = 'number' }: { value: any, onChange: (val: any) => void, width?: number, type?: string }) {
+function MadLibInput({ value, onChange, width = 60, type = 'number', readOnly = false }: { value: any, onChange: (val: any) => void, width?: number, type?: string, readOnly?: boolean }) {
   return (
     <Box sx={{ display: 'inline-block', mx: 0.75, verticalAlign: 'middle' }}>
       <TextField
         value={value}
-        onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+        onChange={(e) => !readOnly && onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
         type={type}
         variant="standard"
-        slotProps={{ input: { disableUnderline: true } }}
+        slotProps={{ input: { disableUnderline: true, readOnly } }}
         sx={{
           bgcolor: `${colorPalette.primary}15`,
           border: `1px solid ${colorPalette.primary}30`,
@@ -403,6 +405,9 @@ const plainEnglishDescriptions: Record<string, {
 }
 
 export default function ThresholdsPage() {
+  const { can } = useRbac()
+  const canModify = can('rules.modify')
+
   // Thresholds state
   const [rules, setRules] = useState<ThresholdRule[]>([])
   const [loading, setLoading] = useState(true)
@@ -590,36 +595,37 @@ export default function ThresholdsPage() {
 
   const renderMadLibs = (rule: BehavioralRule) => {
     const params = behDrafts[rule.id] ? { ...rule.params, ...behDrafts[rule.id] } : rule.params
+    const ro = !canModify
 
     switch (rule.ruleId) {
       case 'pat-1':
         return (
           <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
-            Flag when <MadLibInput value={params.ip_count} onChange={v => handleBehParamChange(rule.id, 'ip_count', v)} /> customer accounts — none with prior relationship — all initiate wire transfers from the same IP block within <MadLibInput value={params.timeframe_minutes} onChange={v => handleBehParamChange(rule.id, 'timeframe_minutes', v)} /> minutes of each other.
+            Flag when <MadLibInput value={params.ip_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'ip_count', v)} /> customer accounts — none with prior relationship — all initiate wire transfers from the same IP block within <MadLibInput value={params.timeframe_minutes} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_minutes', v)} /> minutes of each other.
           </Typography>
         )
       case 'pat-2':
         return (
           <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
-            Flag when a customer logs in from distant locations physically impossible without supersonic travel, separated by at least <MadLibInput value={params.distance_km} width={80} onChange={v => handleBehParamChange(rule.id, 'distance_km', v)} /> km within <MadLibInput value={params.timeframe_hours} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
+            Flag when a customer logs in from distant locations physically impossible without supersonic travel, separated by at least <MadLibInput value={params.distance_km} width={80} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'distance_km', v)} /> km within <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       case 'pat-3':
         return (
           <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
-            Flag when a single device fingerprint is authenticated as <MadLibInput value={params.user_count} onChange={v => handleBehParamChange(rule.id, 'user_count', v)} /> different customers in the past <MadLibInput value={params.timeframe_hours} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
+            Flag when a single device fingerprint is authenticated as <MadLibInput value={params.user_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'user_count', v)} /> different customers in the past <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       case 'pat-4':
         return (
           <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
-            Flag when more than <MadLibInput value={params.min_customers} onChange={v => handleBehParamChange(rule.id, 'min_customers', v)} /> customers transact outside their personal baseline of activity between <MadLibInput type="text" width={80} value={params.time_start} onChange={v => handleBehParamChange(rule.id, 'time_start', v)} /> and <MadLibInput type="text" width={80} value={params.time_end} onChange={v => handleBehParamChange(rule.id, 'time_end', v)} />.
+            Flag when more than <MadLibInput value={params.min_customers} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'min_customers', v)} /> customers transact outside their personal baseline of activity between <MadLibInput type="text" width={80} value={params.time_start} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'time_start', v)} /> and <MadLibInput type="text" width={80} value={params.time_end} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'time_end', v)} />.
           </Typography>
         )
       case 'pat-5':
         return (
           <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
-            Flag when <MadLibInput value={params.customer_count} onChange={v => handleBehParamChange(rule.id, 'customer_count', v)} /> different customers send funds to the same wallet within <MadLibInput value={params.timeframe_hours} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
+            Flag when <MadLibInput value={params.customer_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'customer_count', v)} /> different customers send funds to the same wallet within <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       default:
@@ -680,6 +686,15 @@ export default function ThresholdsPage() {
         {!isBuildOne && <Tab label="Behavioural Pattern Rules" />}
         <Tab label="Risk Score Configuration" />
       </Tabs>
+
+      {!canModify && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, mb: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <LockOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
+          <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>
+            You have <strong>view-only</strong> access to this page. Contact an admin or CCO to modify detection rules.
+          </Typography>
+        </Box>
+      )}
 
       <Stack gap={3}>
 
@@ -773,15 +788,20 @@ export default function ThresholdsPage() {
                     </Button>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Switch
-                      checked={rule.isActive}
-                      onChange={() => setPendingToggle({ rule, newActive: !rule.isActive })}
-                      size="small"
-                      sx={{
-                        '& .MuiSwitch-track': { borderRadius: 8 },
-                        '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
-                      }}
-                    />
+                    <Tooltip title={!canModify ? 'Requires rules.modify permission' : ''} placement="left">
+                      <span>
+                        <Switch
+                          checked={rule.isActive}
+                          disabled={!canModify}
+                          onChange={() => canModify && setPendingToggle({ rule, newActive: !rule.isActive })}
+                          size="small"
+                          sx={{
+                            '& .MuiSwitch-track': { borderRadius: 8 },
+                            '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
+                          }}
+                        />
+                      </span>
+                    </Tooltip>
                   </Box>
                 </Box>
 
@@ -822,11 +842,11 @@ export default function ThresholdsPage() {
                         <Box sx={{ flex: 1, px: 1, opacity: disabled ? 0.3 : 1 }}>
                           <Slider
                             value={displayVal}
-                            onChange={(_, v) => { if (!disabled) setDraft(rule.id, v as number) }}
+                            onChange={(_, v) => { if (!disabled && canModify) setDraft(rule.id, v as number) }}
                             min={rule.minValue}
                             max={rule.maxValue}
                             step={rule.stepValue}
-                            disabled={!rule.isActive || disabled}
+                            disabled={!rule.isActive || disabled || !canModify}
                             sx={{
                               color: colorPalette.primary,
                               '& .MuiSlider-track': { height: 4, border: 'none' },
@@ -840,32 +860,34 @@ export default function ThresholdsPage() {
                           />
                         </Box>
 
-                        {/* Action buttons */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120, justifyContent: 'flex-end' }}>
-                          {hasDraft && !disabled && (
-                            <Box
-                              onClick={() => setPendingSave({ rule, direction: dir, newValue: displayVal })}
-                              sx={{ px: 1.5, py: 0.5, bgcolor: colorPalette.primary, color: '#ffffff', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { opacity: 0.88 } }}
-                            >
-                              Save
-                            </Box>
-                          )}
-                          {disabled ? (
-                            <Box
-                              onClick={() => setPendingSave({ rule, direction: dir, newValue: rule.thresholdValue })}
-                              sx={{ px: 1.5, py: 0.5, border: `1px solid ${colorPalette.primary}`, color: colorPalette.primary, fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { bgcolor: `${colorPalette.primary}08` } }}
-                            >
-                              Enable
-                            </Box>
-                          ) : (
-                            <Box
-                              onClick={() => setPendingSave({ rule, direction: dir, newValue: null })}
-                              sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { borderColor: '#fca5a5', color: '#dc2626' } }}
-                            >
-                              Disable
-                            </Box>
-                          )}
-                        </Box>
+                        {/* Action buttons — only shown when user can modify rules */}
+                        {canModify && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120, justifyContent: 'flex-end' }}>
+                            {hasDraft && !disabled && (
+                              <Box
+                                onClick={() => setPendingSave({ rule, direction: dir, newValue: displayVal })}
+                                sx={{ px: 1.5, py: 0.5, bgcolor: colorPalette.primary, color: '#ffffff', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { opacity: 0.88 } }}
+                              >
+                                Save
+                              </Box>
+                            )}
+                            {disabled ? (
+                              <Box
+                                onClick={() => setPendingSave({ rule, direction: dir, newValue: rule.thresholdValue })}
+                                sx={{ px: 1.5, py: 0.5, border: `1px solid ${colorPalette.primary}`, color: colorPalette.primary, fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { bgcolor: `${colorPalette.primary}08` } }}
+                              >
+                                Enable
+                              </Box>
+                            ) : (
+                              <Box
+                                onClick={() => setPendingSave({ rule, direction: dir, newValue: null })}
+                                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { borderColor: '#fca5a5', color: '#dc2626' } }}
+                              >
+                                Disable
+                              </Box>
+                            )}
+                          </Box>
+                        )}
                       </Box>
                     )
                   })}
@@ -921,7 +943,8 @@ export default function ThresholdsPage() {
                     type="number"
                     size="small"
                     value={dailyTxnDraft}
-                    onChange={e => setDailyTxnDraft(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
+                    disabled={!canModify}
+                    onChange={e => canModify && setDailyTxnDraft(Math.max(1, Math.min(10000, Number(e.target.value) || 1)))}
                     slotProps={{ htmlInput: { min: 1, max: 10000 } }}
                     sx={{
                       width: 110,
@@ -956,7 +979,7 @@ export default function ThresholdsPage() {
                   When a customer exceeds <strong>{dailyTxnDraft}</strong> transaction{dailyTxnDraft !== 1 ? 's' : ''} within 24 hours, the engine raises a <strong>pat-5</strong> frequency alert and adds it to the transaction risk score. Raise this for high-frequency customers (merchants, agents); lower it for stricter monitoring.
                 </Typography>
               </Box>
-              {amlSettings && dailyTxnDraft !== amlSettings.dailyTxnLimit && (
+              {canModify && amlSettings && dailyTxnDraft !== amlSettings.dailyTxnLimit && (
                 <Box sx={{ display: 'flex', alignItems: 'flex-end', pb: 0.25 }}>
                   <Button
                     variant="contained"
@@ -1000,7 +1023,8 @@ export default function ThresholdsPage() {
                     type="number"
                     size="small"
                     value={expectedTxnDraft}
-                    onChange={e => setExpectedTxnDraft(Math.max(1, Math.min(10_000_000, Number(e.target.value) || 1)))}
+                    disabled={!canModify}
+                    onChange={e => canModify && setExpectedTxnDraft(Math.max(1, Math.min(10_000_000, Number(e.target.value) || 1)))}
                     slotProps={{ htmlInput: { min: 1, max: 10000000 } }}
                     sx={{
                       width: 130,
@@ -1013,7 +1037,7 @@ export default function ThresholdsPage() {
                       '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: '#00288e' },
                     }}
                   />
-                  {amlSettings && expectedTxnDraft !== amlSettings.expectedDailyTxnCount && (
+                  {canModify && amlSettings && expectedTxnDraft !== amlSettings.expectedDailyTxnCount && (
                     <Button
                       variant="contained"
                       size="small"
@@ -1126,14 +1150,19 @@ export default function ThresholdsPage() {
                           size="small"
                           sx={{ bgcolor: sev.bg, color: sev.color, fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.1em', borderRadius: 0, height: 24 }}
                         />
-                        <Switch
-                          checked={p.isActive}
-                          onChange={(e) => setBehPendingSave({ rule: p, newActive: e.target.checked })}
-                          sx={{
-                            '& .MuiSwitch-track': { borderRadius: 8 },
-                            '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
-                          }}
-                        />
+                        <Tooltip title={!canModify ? 'Requires rules.modify permission' : ''} placement="left">
+                          <span>
+                            <Switch
+                              checked={p.isActive}
+                              disabled={!canModify}
+                              onChange={(e) => canModify && setBehPendingSave({ rule: p, newActive: e.target.checked })}
+                              sx={{
+                                '& .MuiSwitch-track': { borderRadius: 8 },
+                                '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
+                              }}
+                            />
+                          </span>
+                        </Tooltip>
                       </Box>
                     </Box>
 
@@ -1159,7 +1188,7 @@ export default function ThresholdsPage() {
                       </Typography>
                       {renderMadLibs(p)}
 
-                      {hasDraft && (
+                      {hasDraft && canModify && (
                         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
                           <Button
                             variant="outlined"
@@ -1239,14 +1268,13 @@ export default function ThresholdsPage() {
                           amlDrafts.riskScoreNormalThreshold ?? amlSettings.riskScoreNormalThreshold ?? 45,
                           amlDrafts.riskScoreCaseThreshold ?? amlSettings.riskScoreCaseThreshold ?? 85,
                         ]}
-                        onChange={([v0, v1]) =>
+                        onChange={canModify ? ([v0, v1]) =>
                           setAmlDrafts(prev => ({
                             ...prev,
                             riskScoreNormalThreshold: v0,
                             riskScoreFlagThreshold: v0,
                             riskScoreCaseThreshold: v1,
-                          }))
-                        }
+                          })) : () => {}}
                       />
                       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
                         {[
@@ -1301,14 +1329,13 @@ export default function ThresholdsPage() {
                             amlDrafts.behRiskScoreCaseThreshold ?? amlSettings.behRiskScoreCaseThreshold ?? 85,
                           ]}
                           zoneLabels={['Normal', 'Suspicious', 'Case']}
-                          onChange={([v0, v1]) =>
+                          onChange={canModify ? ([v0, v1]) =>
                             setAmlDrafts(prev => ({
                               ...prev,
                               behRiskScoreNormalThreshold: v0,
                               behRiskScoreFlagThreshold: v0,
                               behRiskScoreCaseThreshold: v1,
-                            }))
-                          }
+                            })) : () => {}}
                         />
                         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
                           {[
@@ -1363,13 +1390,12 @@ export default function ThresholdsPage() {
                           amlDrafts.kycRiskCaseThreshold ?? amlSettings!.kycRiskCaseThreshold ?? 75,
                         ]}
                         zoneLabels={['Normal', 'Flagged', 'Open Case']}
-                        onChange={([v0, v1]) =>
+                        onChange={canModify ? ([v0, v1]) =>
                           setAmlDrafts(prev => ({
                             ...prev,
                             kycRiskNormalThreshold: v0,
                             kycRiskCaseThreshold: v1,
-                          }))
-                        }
+                          })) : () => {}}
                       />
                       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
                         {[
@@ -1408,7 +1434,7 @@ export default function ThresholdsPage() {
                     </Stack>
                   </Box>
 
-                  {(Object.keys(amlDrafts).length > 0) && (
+                  {(Object.keys(amlDrafts).length > 0) && canModify && (
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 4, mt: 2, borderTop: '1px solid #eef0f4' }}>
                       <Button onClick={() => setAmlDrafts({})} sx={{ textTransform: 'none', color: '#475569', fontSize: '0.9375rem', fontWeight: 600 }}>
                         Discard Changes
@@ -1493,13 +1519,15 @@ export default function ThresholdsPage() {
                             component="input"
                             type="number"
                             value={val}
+                            disabled={!canModify}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                              handleUpdateTierRule(tier.kycTier, field, parseInt(e.target.value) || 0)
+                              canModify && handleUpdateTierRule(tier.kycTier, field, parseInt(e.target.value) || 0)
                             }
                             sx={{
                               flex: 1, border: 'none', outline: 'none', px: 0.75, py: 0.375,
                               fontSize: '0.6875rem', fontFamily: 'SF Mono, Monaco, monospace',
                               color: '#00288e', bgcolor: 'transparent', width: 0,
+                              opacity: canModify ? 1 : 0.6,
                               '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
                             }}
                           />
@@ -1514,7 +1542,8 @@ export default function ThresholdsPage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>Risk Score Boost</Typography>
                   <Slider
                     value={tier.riskScoreBoost}
-                    onChange={(_, v) => handleUpdateTierRule(tier.kycTier, 'risk_score_boost', v as number)}
+                    disabled={!canModify}
+                    onChange={(_, v) => canModify && handleUpdateTierRule(tier.kycTier, 'risk_score_boost', v as number)}
                     min={0}
                     max={50}
                     step={5}

@@ -150,4 +150,18 @@ export const nfiuApi = {
 
   deleteSchedule: (id: number) =>
     apiRequest<{ ok: boolean }>(`/api/v1/nfiu/schedules/${id}`, { method: 'DELETE' }),
+
+  downloadGoAml: async (id: number, reference: string): Promise<void> => {
+    const res = await fetch(`/api/v1/nfiu/reports/${id}/goaml`, { credentials: 'include' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `${reference}-goaml.xml`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
 }

@@ -5,13 +5,22 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined'
 import { teamApi, type TeamMember } from '@/api/team'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
+import type { CaseInterest } from '@/api/cases'
 
 const AVATAR_COLORS = ['#1e40af', '#0891b2', '#7c3aed', '#be123c', '#b45309', '#065f46']
 
-function MemberAvatar({ name, size = 30 }: { name: string; size?: number }) {
+function MemberAvatar({ name, avatarUrl, size = 30 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const idx = (name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length
   const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  if (avatarUrl) {
+    return (
+      <Box component="img" src={avatarUrl} alt={name}
+        sx={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, display: 'block' }} />
+    )
+  }
   return (
     <Box sx={{ width: size, height: size, borderRadius: '50%', bgcolor: AVATAR_COLORS[idx],
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -20,15 +29,72 @@ function MemberAvatar({ name, size = 30 }: { name: string; size?: number }) {
   )
 }
 
+function MemberRow({ m, selected, currentUser, onSelect, hasInterest = false }: {
+  m: TeamMember
+  selected: TeamMember | null
+  currentUser: ReturnType<typeof import('@/hooks/useCurrentUser').useCurrentUser>
+  onSelect: (m: TeamMember | null) => void
+  hasInterest?: boolean
+}) {
+  const isSelected = selected?.id === m.id
+  const isMe = currentUser?.userId != null && m.id === currentUser.userId
+  return (
+    <Box
+      onClick={() => onSelect(isSelected ? null : m)}
+      sx={{
+        display: 'flex', alignItems: 'center', gap: 1.25,
+        px: 2.5, py: 1.125,
+        cursor: 'pointer',
+        bgcolor: isSelected ? `${colorPalette.primary}08` : 'transparent',
+        borderLeft: isSelected ? `3px solid ${colorPalette.primary}` : hasInterest ? '3px solid #ea580c' : '3px solid transparent',
+        borderBottom: '1px solid #f8fafc',
+        transition: 'all 0.12s',
+        '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : hasInterest ? '#fff7ed' : '#fafbfc' },
+      }}
+    >
+      <MemberAvatar name={m.name} avatarUrl={m.avatarUrl} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {m.name}
+          </Typography>
+          {isMe && (
+            <Box sx={{ px: 0.625, py: 0.125, bgcolor: `${colorPalette.primary}14`, flexShrink: 0 }}>
+              <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', lineHeight: 1.4 }}>You</Typography>
+            </Box>
+          )}
+          {hasInterest && !isMe && (
+            <Box sx={{ px: 0.625, py: 0.125, bgcolor: '#fff7ed', border: '1px solid #fed7aa', flexShrink: 0 }}>
+              <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.1em', lineHeight: 1.4 }}>Interested</Typography>
+            </Box>
+          )}
+        </Box>
+        <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {m.email} · {m.role}
+        </Typography>
+      </Box>
+      {isSelected && (
+        <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: colorPalette.primary,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <CheckRoundedIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />
+        </Box>
+      )}
+    </Box>
+  )
+}
+
 interface Props {
   open: boolean
   caseId: string
+  interests?: CaseInterest[]
   onClose: () => void
   /** Called with the selected member; parent proceeds to TOTP then API call */
   onSelect: (member: TeamMember) => void
 }
 
-export default function AssignCaseModal({ open, caseId, onClose, onSelect }: Props) {
+export default function AssignCaseModal({ open, caseId, interests = [], onClose, onSelect }: Props) {
+  const currentUser = useCurrentUser()
   const [members, setMembers]     = useState<TeamMember[]>([])
   const [loading, setLoading]     = useState(false)
   const [search,  setSearch]      = useState('')
@@ -45,11 +111,18 @@ export default function AssignCaseModal({ open, caseId, onClose, onSelect }: Pro
 
   if (!open) return null
 
+  const pendingInterestIds = new Set(
+    interests.filter(i => i.status === 'pending').map(i => i.userId)
+  )
+
   const filtered = members.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
     m.email.toLowerCase().includes(search.toLowerCase()) ||
     m.role.toLowerCase().includes(search.toLowerCase())
   )
+
+  const interestedMembers = filtered.filter(m => pendingInterestIds.has(m.id))
+  const otherMembers      = filtered.filter(m => !pendingInterestIds.has(m.id))
 
   const handleConfirm = () => {
     if (!selected) return
@@ -116,7 +189,7 @@ export default function AssignCaseModal({ open, caseId, onClose, onSelect }: Pro
         </Box>
 
         {/* Member list */}
-        <Box sx={{ maxHeight: 280, overflowY: 'auto', borderTop: '1px solid #f1f5f9' }}>
+        <Box sx={{ maxHeight: 320, overflowY: 'auto', borderTop: '1px solid #f1f5f9' }}>
           {loading ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={20} sx={{ color: colorPalette.primary }} />
@@ -125,42 +198,30 @@ export default function AssignCaseModal({ open, caseId, onClose, onSelect }: Pro
             <Box sx={{ py: 4, textAlign: 'center' }}>
               <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No active members found</Typography>
             </Box>
-          ) : filtered.map(m => {
-            const isSelected = selected?.id === m.id
-            return (
-              <Box
-                key={m.id}
-                onClick={() => setSelected(isSelected ? null : m)}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.25,
-                  px: 2.5, py: 1.125,
-                  cursor: 'pointer',
-                  bgcolor: isSelected ? `${colorPalette.primary}08` : 'transparent',
-                  borderLeft: isSelected ? `3px solid ${colorPalette.primary}` : '3px solid transparent',
-                  borderBottom: '1px solid #f8fafc',
-                  transition: 'all 0.12s',
-                  '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : '#fafbfc' },
-                }}
-              >
-                <MemberAvatar name={m.name} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.name}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.email} · {m.role}
-                  </Typography>
-                </Box>
-                {isSelected && (
-                  <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: colorPalette.primary,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <CheckRoundedIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />
+          ) : (
+            <>
+              {/* Interested members section */}
+              {interestedMembers.length > 0 && (
+                <>
+                  <Box sx={{ px: 2.5, py: 0.875, bgcolor: '#fff7ed', borderBottom: '1px solid #fed7aa', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <PanToolOutlinedIcon sx={{ fontSize: '0.75rem', color: '#ea580c' }} />
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Expressed Interest ({interestedMembers.length})
+                    </Typography>
                   </Box>
-                )}
-              </Box>
-            )
-          })}
+                  {interestedMembers.map(m => <MemberRow key={m.id} m={m} selected={selected} currentUser={currentUser} onSelect={setSelected} hasInterest />)}
+                  {otherMembers.length > 0 && (
+                    <Box sx={{ px: 2.5, py: 0.875, bgcolor: '#f8fafc', borderBottom: '1px solid #f1f5f9', borderTop: '1px solid #f1f5f9' }}>
+                      <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        All Team Members
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+              )}
+              {otherMembers.map(m => <MemberRow key={m.id} m={m} selected={selected} currentUser={currentUser} onSelect={setSelected} />)}
+            </>
+          )}
         </Box>
 
         {/* Footer */}

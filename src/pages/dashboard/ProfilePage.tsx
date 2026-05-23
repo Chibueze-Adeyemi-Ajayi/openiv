@@ -51,8 +51,8 @@ function fmtDate(iso?: string | null) {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: 'Owner', admin: 'Administrator', compliance: 'Compliance Officer',
-  cmlco: 'CMLCO', mlro: 'MLRO', analyst: 'Analyst', auditor: 'Auditor',
+  admin: 'Administrator', cco: 'Chief Compliance Officer',
+  analyst: 'Analyst', developer: 'Developer', auditor: 'Auditor',
 }
 
 const inputSx = {

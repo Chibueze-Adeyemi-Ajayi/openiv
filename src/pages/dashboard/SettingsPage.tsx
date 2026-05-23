@@ -1,5 +1,6 @@
-import { Box, Typography, Stack, TextField, Switch, Button, Chip, InputBase, Grid, IconButton, Slider, RadioGroup, FormControlLabel, Radio, Alert } from '@mui/material'
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import { Box, Typography, Stack, TextField, Button, Chip, InputBase, Grid, Slider, RadioGroup, Radio, Alert, Tooltip } from '@mui/material'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import { useRbac } from '@/contexts/RbacContext'
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import GeoFenceDialog from '@/components/dashboard/GeoFenceDialog'
@@ -49,6 +50,8 @@ const inputSx = {
 }
 
 function TimezoneSection() {
+  const { can } = useRbac()
+  const canEdit = can('aml.settings')
   const [currentTz, setCurrentTz] = useState<string>('Africa/Lagos')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -97,7 +100,7 @@ function TimezoneSection() {
     <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <LanguageOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Institution Timezone
           </Typography>
@@ -105,6 +108,7 @@ function TimezoneSection() {
             Configure the default timezone for your institution's transaction reporting and analysis
           </Typography>
         </Box>
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
       <Box sx={{ p: 3 }}>
         <Grid container spacing={3} alignItems="flex-end">
@@ -114,9 +118,10 @@ function TimezoneSection() {
               select
               fullWidth
               value={currentTz}
-              onChange={(e) => setCurrentTz(e.target.value)}
+              onChange={(e) => canEdit && setCurrentTz(e.target.value)}
               SelectProps={{ native: true }}
-              sx={inputSx}
+              inputProps={{ disabled: !canEdit }}
+              sx={{ ...inputSx, ...(canEdit ? {} : { pointerEvents: 'none', opacity: 0.7 }) }}
             >
               {timezones.map((tz) => (
                 <option key={tz.value} value={tz.value}>
@@ -129,7 +134,7 @@ function TimezoneSection() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Button
                 onClick={handleSave}
-                disabled={!isDirty || saving}
+                disabled={!isDirty || saving || !canEdit}
                 sx={{
                   bgcolor: colorPalette.primary,
                   color: '#fff',
@@ -284,6 +289,8 @@ function EurekaCompanionSection() {
 }
 
 function AmlSettingsSection() {
+  const { can } = useRbac()
+  const canEdit = can('aml.settings')
   const [settings, setSettings] = useState<AmlSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [autoOpenCase, setAutoOpenCase] = useState(true)
@@ -366,13 +373,16 @@ function AmlSettingsSection() {
 
   return (
     <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-          AML Case Settings
-        </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-          Configure automatic case creation behavior and notifications for fraud detection
-        </Typography>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            AML Case Settings
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            Configure automatic case creation behavior and notifications for fraud detection
+          </Typography>
+        </Box>
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
 
       {/* Auto-open cases toggle */}
@@ -396,17 +406,17 @@ function AmlSettingsSection() {
           </Typography>
         </Box>
         <Box
-          onClick={handleToggle}
+          onClick={canEdit ? handleToggle : undefined}
           sx={{
             width: 34,
             height: 18,
             borderRadius: 10,
             bgcolor: autoOpenCase ? colorPalette.primary : '#e2e8f0',
             position: 'relative',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
+            cursor: !canEdit ? 'not-allowed' : isSaving ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             flexShrink: 0,
-            opacity: isSaving ? 0.6 : 1,
+            opacity: !canEdit ? 0.5 : isSaving ? 0.6 : 1,
             '&::after': {
               content: '""',
               position: 'absolute',
@@ -445,7 +455,7 @@ function AmlSettingsSection() {
                 handleAddEmail()
               }
             }}
-            disabled={isAddingEmail}
+            disabled={isAddingEmail || !canEdit}
             sx={{
               flex: 1,
               '& .MuiOutlinedInput-root': {
@@ -465,7 +475,7 @@ function AmlSettingsSection() {
           />
           <Button
             onClick={handleAddEmail}
-            disabled={isAddingEmail || !newEmail.trim()}
+            disabled={isAddingEmail || !newEmail.trim() || !canEdit}
             sx={{
               bgcolor: colorPalette.primary,
               color: '#fff',
@@ -491,7 +501,7 @@ function AmlSettingsSection() {
               <Chip
                 key={email}
                 label={email}
-                onDelete={() => handleRemoveEmail(email)}
+                onDelete={canEdit ? () => handleRemoveEmail(email) : undefined}
                 sx={{
                   bgcolor: '#f0f9ff',
                   borderColor: '#bae6fd',
@@ -614,6 +624,8 @@ function getBeamProfile(idx: number): BeamProfile {
 }
 
 function BeamWindowSection() {
+  const { can } = useRbac()
+  const canEdit = can('aml.settings')
   const [savedSeconds, setSavedSeconds] = useState(180)
   const [draftIdx, setDraftIdx]         = useState(secondsToIdx(180))
   const [loading, setLoading]           = useState(true)
@@ -677,6 +689,7 @@ function BeamWindowSection() {
             Set how closely a transaction's recorded date must match its arrival time — tighter means stronger fraud protection
           </Typography>
         </Box>
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         {savedIdx !== secondsToIdx(180) && (
           <Box
             onClick={() => setDraftIdx(secondsToIdx(180))}
@@ -761,7 +774,8 @@ function BeamWindowSection() {
                 max={12}
                 step={1}
                 value={draftIdx}
-                onChange={(_, v) => setDraftIdx(v as number)}
+                disabled={!canEdit}
+                onChange={(_, v) => canEdit && setDraftIdx(v as number)}
                 marks={BEAM_PRESETS.map((p, i) => ({ value: i, label: p.major ? p.short : '' }))}
               />
             </Box>
@@ -789,7 +803,7 @@ function BeamWindowSection() {
               return (
                 <Box
                   key={idx}
-                  onClick={() => setDraftIdx(idx)}
+                  onClick={() => canEdit && setDraftIdx(idx)}
                   sx={{
                     px: 1.5,
                     py: 0.625,
@@ -855,7 +869,7 @@ function BeamWindowSection() {
               </Button>
               <Button
                 onClick={() => setTotpOpen(true)}
-                disabled={saving}
+                disabled={saving || !canEdit}
                 sx={{
                   bgcolor: profile.color,
                   color: '#fff',
@@ -1143,6 +1157,8 @@ function DeveloperSandboxSection() {
 }
 
 function FilingCredentialsSection() {
+  const { can } = useRbac()
+  const canEdit = can('institution.modify')
   const [credentials, setCredentials] = useState<SigningCredentials>({ officialStamp: null, officialSignature: null })
   const [loading, setLoading] = useState(true)
   const [totpOpen, setTotpOpen] = useState(false)
@@ -1255,50 +1271,52 @@ function FilingCredentialsSection() {
           style={{ display: 'none' }}
           onChange={handleFileChange(field)}
         />
-        <Stack direction="row" spacing={1}>
-          <Button
-            onClick={() => inputRef.current?.click()}
-            disabled={saving}
-            sx={{
-              bgcolor: value ? '#f5f3fb' : colorPalette.primary,
-              color: value ? colorPalette.primary : '#fff',
-              border: `1px solid ${value ? colorPalette.primary + '40' : 'transparent'}`,
-              px: 2,
-              py: 0.75,
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              textTransform: 'none',
-              borderRadius: 0,
-              fontFamily: 'Jost',
-              '&:hover': { bgcolor: value ? `${colorPalette.primary}12` : '#1e293b' },
-              '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
-            }}
-          >
-            {value ? 'Replace' : 'Upload'}
-          </Button>
-          {value && (
+        {canEdit && (
+          <Stack direction="row" spacing={1}>
             <Button
-              onClick={() => handleRemove(field)}
+              onClick={() => inputRef.current?.click()}
               disabled={saving}
               sx={{
-                color: '#ef4444',
-                border: '1px solid #fecaca',
-                bgcolor: '#fef2f2',
-                px: 1.75,
+                bgcolor: value ? '#f5f3fb' : colorPalette.primary,
+                color: value ? colorPalette.primary : '#fff',
+                border: `1px solid ${value ? colorPalette.primary + '40' : 'transparent'}`,
+                px: 2,
                 py: 0.75,
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 textTransform: 'none',
                 borderRadius: 0,
                 fontFamily: 'Jost',
-                '&:hover': { bgcolor: '#fee2e2' },
-                '&:disabled': { bgcolor: '#fef2f2', color: '#fca5a5' },
+                '&:hover': { bgcolor: value ? `${colorPalette.primary}12` : '#1e293b' },
+                '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >
-              Remove
+              {value ? 'Replace' : 'Upload'}
             </Button>
-          )}
-        </Stack>
+            {value && (
+              <Button
+                onClick={() => handleRemove(field)}
+                disabled={saving}
+                sx={{
+                  color: '#ef4444',
+                  border: '1px solid #fecaca',
+                  bgcolor: '#fef2f2',
+                  px: 1.75,
+                  py: 0.75,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  borderRadius: 0,
+                  fontFamily: 'Jost',
+                  '&:hover': { bgcolor: '#fee2e2' },
+                  '&:disabled': { bgcolor: '#fef2f2', color: '#fca5a5' },
+                }}
+              >
+                Remove
+              </Button>
+            )}
+          </Stack>
+        )}
       </Box>
     )
   }
@@ -1312,7 +1330,7 @@ function FilingCredentialsSection() {
       <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
         <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
               Filing Credentials
             </Typography>
@@ -1320,6 +1338,7 @@ function FilingCredentialsSection() {
               Official stamp and signature embedded in NFIU report filings and compliance documents
             </Typography>
           </Box>
+          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         </Box>
         <Box sx={{ p: 3 }}>
           <Stack
@@ -1367,6 +1386,8 @@ function FilingCredentialsSection() {
 }
 
 function KycReEvaluationSection() {
+  const { can } = useRbac()
+  const canEdit = can('kyc.config')
   const [evalConfig, setEvalConfig] = useState<KycEvaluationConfig | null>(null)
   const [evalEnabled, setEvalEnabled] = useState(true)
   const [evalInterval, setEvalInterval] = useState<7 | 14 | 21 | 31>(31)
@@ -1388,7 +1409,7 @@ function KycReEvaluationSection() {
     <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
       <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <RefreshRoundedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
             Customer Re-evaluation Schedule
           </Typography>
@@ -1396,6 +1417,7 @@ function KycReEvaluationSection() {
             Configure when the KYC pipeline should automatically re-run for existing customers
           </Typography>
         </Box>
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
 
       <Box sx={{ p: 3 }}>
@@ -1414,12 +1436,13 @@ function KycReEvaluationSection() {
             </Typography>
           </Box>
           <Box
-            onClick={() => setEvalEnabled(v => !v)}
+            onClick={canEdit ? () => setEvalEnabled(v => !v) : undefined}
             sx={{
               width: 34, height: 18, borderRadius: 10,
               bgcolor: evalEnabled ? colorPalette.primary : '#e2e8f0',
-              position: 'relative', cursor: 'pointer',
+              position: 'relative', cursor: canEdit ? 'pointer' : 'not-allowed',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0,
+              opacity: canEdit ? 1 : 0.5,
               '&::after': {
                 content: '""', position: 'absolute', top: 2,
                 left: evalEnabled ? 18 : 2, width: 14, height: 14,
@@ -1432,7 +1455,7 @@ function KycReEvaluationSection() {
         </Box>
 
         {/* Interval picker */}
-        <Box sx={{ mb: 2.5, opacity: evalEnabled ? 1 : 0.4, transition: 'opacity 0.2s', pointerEvents: evalEnabled ? 'auto' : 'none' }}>
+        <Box sx={{ mb: 2.5, opacity: !canEdit ? 0.5 : evalEnabled ? 1 : 0.4, transition: 'opacity 0.2s', pointerEvents: (!canEdit || !evalEnabled) ? 'none' : 'auto' }}>
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
             Re-evaluation Interval
           </Typography>
@@ -1496,6 +1519,7 @@ function KycReEvaluationSection() {
         )}
 
         <Button
+          disabled={!canEdit || evalSaving}
           onClick={async () => {
             setEvalSaving(true)
             setEvalSaveStatus('idle')
@@ -1512,7 +1536,6 @@ function KycReEvaluationSection() {
               setEvalSaving(false)
             }
           }}
-          disabled={evalSaving}
           sx={{
             bgcolor: colorPalette.primary, color: '#ffffff',
             px: 3, py: 1.25, fontSize: '0.875rem', fontWeight: 700,
@@ -1529,29 +1552,124 @@ function KycReEvaluationSection() {
   )
 }
 
-const settingsSections = [
-  {
-    title: 'Organization',
-    desc: 'Profile and contact details for your institution',
-    fields: [
-      { label: 'Institution name', value: 'First City Monument Bank' },
-      { label: 'Regulator code (CBN)', value: '058' },
-      { label: 'Compliance contact email', value: 'compliance@fcmb.com' },
-      { label: 'NFIU reporting officer', value: 'Adaeze Chukwu' },
-    ],
-  },
-]
+function OrganizationSection() {
+  const { can } = useRbac()
+  const canEdit = can('institution.modify')
 
-const toggles = [
-  { label: 'Auto-file STRs above risk score 90', desc: 'Eureka files NFIU reports without manual review when risk is unambiguous', enabled: true },
-  { label: 'Require dual approval for rule changes', desc: 'Threshold modifications need a second senior officer to confirm', enabled: true },
-  { label: 'Email digest at 08:00 daily', desc: 'Adaeze receives a morning briefing summarizing overnight activity', enabled: true },
-  { label: 'Slack alerts for critical events', desc: 'Send #fraud-ops a notification on any risk-90+ event', enabled: false },
-  { label: 'NDIC quarterly auto-export', desc: 'Push deposit risk profile to NDIC compliance portal each quarter', enabled: true },
-]
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [cbnCode, setCbnCode] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [savedState, setSavedState] = useState({ cbnCode: '', contactPhone: '', address: '' })
+
+  useEffect(() => {
+    institutionApi.getProfile()
+      .then(p => {
+        setName(p.name ?? '')
+        setCbnCode(p.cbnCode ?? '')
+        setContactPhone(p.contactPhone ?? '')
+        setAddress(p.address ?? '')
+        setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '' })
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const isDirty = cbnCode !== savedState.cbnCode || contactPhone !== savedState.contactPhone || address !== savedState.address
+
+  const doSave = async () => {
+    setSaving(true)
+    try {
+      const p = await institutionApi.updateProfile({ cbnCode: cbnCode || undefined, contactPhone: contactPhone || undefined, address: address || undefined })
+      setName(p.name ?? name)
+      setCbnCode(p.cbnCode ?? '')
+      setContactPhone(p.contactPhone ?? '')
+      setAddress(p.address ?? '')
+      setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '' })
+    } catch {
+      alert('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+      setSaveOpen(false)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <>
+      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              Organization
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+              Profile and contact details for your institution
+            </Typography>
+          </Box>
+          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+        </Box>
+        <Stack sx={{ p: 3 }} gap={2.5}>
+          <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Institution name. current value: ${name}.`}>
+            <Typography sx={labelSx}>Institution name</Typography>
+            <TextField fullWidth value={name} disabled sx={inputSx} />
+          </Box>
+          <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Regulator code (CBN). current value: ${cbnCode}.`}>
+            <Typography sx={labelSx}>Regulator code (CBN)</Typography>
+            <TextField fullWidth value={cbnCode} disabled={!canEdit} onChange={e => setCbnCode(e.target.value)} sx={inputSx} />
+          </Box>
+          <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Contact phone. current value: ${contactPhone}.`}>
+            <Typography sx={labelSx}>Contact phone</Typography>
+            <TextField fullWidth value={contactPhone} disabled={!canEdit} onChange={e => setContactPhone(e.target.value)} sx={inputSx} />
+          </Box>
+          <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Address. current value: ${address}.`}>
+            <Typography sx={labelSx}>Address</Typography>
+            <TextField fullWidth value={address} disabled={!canEdit} onChange={e => setAddress(e.target.value)} sx={inputSx} />
+          </Box>
+          {canEdit && isDirty && (
+            <Button
+              onClick={() => setSaveOpen(true)}
+              disabled={saving}
+              sx={{
+                alignSelf: 'flex-start',
+                bgcolor: colorPalette.primary, color: '#ffffff',
+                px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600,
+                fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none',
+                '&:hover': { bgcolor: '#1e293b' },
+                '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+              }}
+            >
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          )}
+        </Stack>
+      </Box>
+
+      <TOTPConfirmation
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        onConfirm={doSave}
+        operation="update"
+        title="Save organization settings"
+        description="Organization profile changes propagate to all NFIU and CBN report templates immediately. Confirm with your authenticator code."
+        resourceType="Organization"
+        resourceName={name}
+        changes={[
+          ...(cbnCode !== savedState.cbnCode ? [{ field: 'Regulator code', from: savedState.cbnCode || '—', to: cbnCode || '—' }] : []),
+          ...(contactPhone !== savedState.contactPhone ? [{ field: 'Contact phone', from: savedState.contactPhone || '—', to: contactPhone || '—' }] : []),
+          ...(address !== savedState.address ? [{ field: 'Address', from: savedState.address || '—', to: address || '—' }] : []),
+        ]}
+      />
+    </>
+  )
+}
 
 export default function SettingsPage() {
-  const [saveOpen, setSaveOpen] = useState(false)
+  const { can } = useRbac()
   const [geoFenceOpen, setGeoFenceOpen] = useState(false)
   return (
     <>
@@ -1564,102 +1682,13 @@ export default function SettingsPage() {
             Settings
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Organization profile, automation rules, and notification preferences
+            Organization profile, compliance configuration, and security settings
           </Typography>
         </Box>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
           {/* Organization */}
-          {settingsSections.map((section) => (
-            <Box key={section.title} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  {section.title}
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                  {section.desc}
-                </Typography>
-              </Box>
-              <Stack sx={{ p: 3 }} gap={2.5}>
-                {section.fields.map((f) => (
-                  <Box
-                    key={f.label}
-                    data-ai-analyzable="true"
-                    data-ai-description={`Organization Setting: ${f.label}. current value: ${f.value}. This information is used as metadata in regulatory NFIU filings.`}>
-                    <Typography sx={labelSx}>{f.label}</Typography>
-                    <TextField fullWidth defaultValue={f.value} sx={inputSx} />
-                  </Box>
-                ))}
-                <Button
-                  onClick={() => setSaveOpen(true)}
-                  sx={{
-                    alignSelf: 'flex-start',
-                    bgcolor: colorPalette.primary,
-                    color: '#ffffff',
-                    px: 2.25,
-                    py: 1.125,
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    fontFamily: 'Jost',
-                    borderRadius: 0,
-                    textTransform: 'none',
-                    boxShadow: 'none',
-                    '&:hover': { bgcolor: '#1e293b' },
-                  }}
-                >
-                  Save Changes
-                </Button>
-              </Stack>
-            </Box>
-          ))}
-
-          {/* Automation toggles */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                Automation & Notifications
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                Configure what runs automatically and what alerts go where
-              </Typography>
-            </Box>
-            <Stack>
-              {toggles.map((t, i) => (
-                <Box
-                  key={t.label}
-                  data-ai-analyzable="true"
-                  data-ai-description={`Automation Rule: ${t.label}. status: ${t.enabled ? 'Enabled' : 'Disabled'}. description: ${t.desc}.`}
-                  sx={{
-                    px: 3,
-                    py: 2.25,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                    borderBottom: i === toggles.length - 1 ? 'none' : '1px solid #f4f5f7',
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
-                      {t.label}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                      {t.desc}
-                    </Typography>
-                  </Box>
-                  <Switch
-                    defaultChecked={t.enabled}
-                    size="small"
-                    sx={{
-                      mt: 0.5,
-                      '& .MuiSwitch-track': { borderRadius: 8 },
-                      '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
-                    }}
-                  />
-                </Box>
-              ))}
-            </Stack>
-          </Box>
+          <OrganizationSection />
 
           {/* AML Case Settings */}
           <AmlSettingsSection />
@@ -1682,65 +1711,56 @@ export default function SettingsPage() {
           {/* KYC Re-evaluation Schedule */}
           <KycReEvaluationSection />
 
-          {/* Security */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
-              <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
-              <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  Security
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                  Access control and physical security boundaries
-                </Typography>
-              </Box>
-            </Box>
-            <Box
-              onClick={() => setGeoFenceOpen(true)}
-              data-ai-analyzable="true"
-              data-ai-description="Geographical Access Fence: Advanced spatial security. Restrict dashboard access to specific coordinates or polygons using GPS calibration."
-              sx={{
-                px: 3, py: 2.25,
-                display: 'flex', alignItems: 'center', gap: 2,
-                cursor: 'pointer',
-                '&:hover': { bgcolor: '#f8fafc' },
-                transition: 'background 0.15s',
-              }}
-            >
-              <Box sx={{
-                width: 40, height: 40, borderRadius: '8px', flexShrink: 0,
-                bgcolor: `${colorPalette.primary}12`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <PublicOutlinedIcon sx={{ fontSize: '1.25rem', color: colorPalette.primary }} />
-              </Box>
-              <Box sx={{ flex: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                    Geographical Access Fence
+          {/* Security — admin only */}
+          {can('settings.modify') && (
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+                <Box>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    Security
                   </Typography>
-                  <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />
-                </Stack>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>
-                  Draw a polygon on OpenStreetMap and restrict specific users to that zone. Calibrate for GPS drift. Real-time admin approval for out-of-zone login attempts.
-                </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                    Access control and physical security boundaries
+                  </Typography>
+                </Box>
               </Box>
-              <ChevronRightIcon sx={{ color: '#94a3b8', flexShrink: 0 }} />
+              <Box
+                onClick={() => setGeoFenceOpen(true)}
+                data-ai-analyzable="true"
+                data-ai-description="Geographical Access Fence: Advanced spatial security. Restrict dashboard access to specific coordinates or polygons using GPS calibration."
+                sx={{
+                  px: 3, py: 2.25,
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: '#f8fafc' },
+                  transition: 'background 0.15s',
+                }}
+              >
+                <Box sx={{
+                  width: 40, height: 40, borderRadius: '8px', flexShrink: 0,
+                  bgcolor: `${colorPalette.primary}12`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <PublicOutlinedIcon sx={{ fontSize: '1.25rem', color: colorPalette.primary }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      Geographical Access Fence
+                    </Typography>
+                    <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />
+                  </Stack>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>
+                    Draw a polygon on OpenStreetMap and restrict specific users to that zone. Calibrate for GPS drift. Real-time admin approval for out-of-zone login attempts.
+                  </Typography>
+                </Box>
+                <ChevronRightIcon sx={{ color: '#94a3b8', flexShrink: 0 }} />
+              </Box>
             </Box>
-          </Box>
+          )}
         </Box>
       </Box>
-
-      <TOTPConfirmation
-        open={saveOpen}
-        onClose={() => setSaveOpen(false)}
-        onConfirm={() => setSaveOpen(false)}
-        operation="update"
-        title="Save organization settings"
-        description="Organization profile changes propagate to all NFIU and CBN report templates immediately. Confirm with your authenticator code."
-        resourceType="Organization"
-        resourceName="First City Monument Bank"
-      />
 
       <GeoFenceDialog open={geoFenceOpen} onClose={() => setGeoFenceOpen(false)} />
     </>

@@ -74,6 +74,11 @@ export interface KycEvaluationConfig {
   updatedAt: string
 }
 
+export interface KycFetchConfig {
+  lookupUrl: string | null
+  lookupTimeout: number | null
+}
+
 export interface KycStepEvent {
   step: string
   status: string
@@ -130,6 +135,15 @@ export const kycApi = {
     apiRequest<{ config: KycEvaluationConfig }>('/api/v1/kyc/evaluation-config', {
       method: 'PUT',
       body: { intervalDays, enabled },
+    }),
+
+  getFetchConfig: () =>
+    apiRequest<{ config: KycFetchConfig | null }>('/api/v1/kyc/config'),
+
+  saveFetchConfig: (lookupUrl: string | null, lookupTimeout: number | null) =>
+    apiRequest<{ config: KycFetchConfig }>('/api/v1/kyc/config', {
+      method: 'PUT',
+      body: { lookupUrl, lookupTimeout },
     }),
 }
 

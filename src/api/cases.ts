@@ -28,6 +28,7 @@ export interface Case {
   linkedNfiuReportId?: number | null
   customerId?: string | null
   customerName?: string | null
+  hasPendingInterest?: boolean
 }
 
 export interface CaseActivityEntry {
@@ -82,6 +83,19 @@ export interface CasePage {
   pageSize: number
 }
 
+export interface CaseTypologyEntry {
+  typology: string
+  count:    number
+  avgRisk:  number
+}
+
+export interface CaseAnalytics {
+  typologyBreakdown:   CaseTypologyEntry[]
+  resolutionBreakdown: { resolution: string; count: number }[]
+  slaBreach:           { breached: number; total: number; rate: number }
+  volumeByDay:         { date: string; count: number }[]
+}
+
 export interface CreateCaseInput {
   title: string
   typology: string
@@ -96,11 +110,20 @@ export interface CreateCaseInput {
   customerName?: string
 }
 
+export interface CaseInterest {
+  id: number
+  caseId: string
+  userId: number
+  userName: string
+  status: 'pending' | 'accepted'
+  createdAt: string
+}
+
 export const caseApi = {
   metrics: () =>
     apiRequest<CaseMetrics>('/api/v1/cases/metrics'),
 
-  list: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number; sort?: string; range?: string; minRisk?: number; maxRisk?: number; assignedToMe?: boolean; assignedToUser?: number } = {}) => {
+  list: (params: { status?: string; priority?: string; q?: string; page?: number; pageSize?: number; sort?: string; range?: string; minRisk?: number; maxRisk?: number; assignedToMe?: boolean; assignedToUser?: number; hasInterest?: boolean } = {}) => {
     const qs = new URLSearchParams()
     if (params.status)           qs.set('status',         params.status)
     if (params.priority)         qs.set('priority',       params.priority)
@@ -113,6 +136,7 @@ export const caseApi = {
     if (params.maxRisk != null)  qs.set('maxRisk',        String(params.maxRisk))
     if (params.assignedToMe)     qs.set('assignedToMe',   'true')
     if (params.assignedToUser != null) qs.set('assignedToUser', String(params.assignedToUser))
+    if (params.hasInterest)      qs.set('hasInterest',    'true')
     const query = qs.toString()
     return apiRequest<CasePage>(`/api/v1/cases${query ? '?' + query : ''}`)
   },
@@ -182,4 +206,19 @@ export const caseApi = {
       method: 'PATCH',
       body: { nfiuReportId },
     }),
+
+  analytics: (range?: string) =>
+    apiRequest<CaseAnalytics>(`/api/v1/cases/analytics${range ? `?range=${range}` : ''}`),
+
+  expressInterest: (id: string) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/cases/${id}/interest`, { body: {} }),
+
+  listInterests: (id: string) =>
+    apiRequest<{ interests: CaseInterest[] }>(`/api/v1/cases/${id}/interests`),
+
+  acceptInterest: (id: string, userId: number) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/cases/${id}/interests/${userId}/accept`, { body: {} }),
+
+  myInterest: (id: string) =>
+    apiRequest<{ interest: CaseInterest | null }>(`/api/v1/cases/${id}/my-interest`),
 }

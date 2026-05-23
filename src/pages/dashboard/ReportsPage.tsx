@@ -6,6 +6,7 @@ import { colorPalette } from '@/theme'
 import FileReportDialog from '@/components/dashboard/FileReportDialog'
 import ScheduleReportDialog from '@/components/dashboard/ScheduleReportDialog'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
+import GoAmlFilingGuide from '@/components/dashboard/GoAmlFilingGuide'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -85,6 +86,7 @@ export default function ReportsPage() {
   const [viewReadOnly, setViewReadOnly] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<NfiuReport | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'filed'>('all')
+  const [goAmlTarget,  setGoAmlTarget]  = useState<NfiuReport | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -176,11 +178,11 @@ export default function ReportsPage() {
             </Typography>
           </Box>
           <Stack direction="row" gap={1.25}>
-            <Button onClick={() => setSchedOpen(true)}
+            {/* <Button onClick={() => setSchedOpen(true)}
               startIcon={<ScheduleRoundedIcon sx={{ fontSize: '1rem !important' }} />}
               sx={{ bgcolor: '#fff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
               Schedule Report
-            </Button>
+            </Button> */}
             <Button onClick={() => { setViewReport(null); setViewReadOnly(false); setFileOpen(true) }}
               startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
               sx={{ bgcolor: colorPalette.primary, color: '#fff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
@@ -483,8 +485,9 @@ export default function ReportsPage() {
                           </IconButton>
                         </Tooltip>
                       ) : (
-                        <Tooltip title="Download">
-                          <IconButton size="small" sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary } }}>
+                        <Tooltip title="Download goAML XML for NFIU portal">
+                          <IconButton size="small" onClick={() => setGoAmlTarget(r)}
+                            sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: colorPalette.primary } }}>
                             <FileDownloadOutlinedIcon sx={{ fontSize: '1rem' }} />
                           </IconButton>
                         </Tooltip>
@@ -531,6 +534,12 @@ export default function ReportsPage() {
         resourceType="NFIU Draft Report"
         resourceName={deleteTarget?.title ?? ''}
         itemsAffected={deleteTarget ? [`Ref: ${deleteTarget.reference}`, `Type: ${deleteTarget.reportType}`, `Created: ${fmtDate(deleteTarget.createdAt)}`] : []}
+      />
+
+      <GoAmlFilingGuide
+        open={goAmlTarget !== null}
+        report={goAmlTarget}
+        onClose={() => setGoAmlTarget(null)}
       />
       </Box>
     </>

@@ -9,7 +9,9 @@ export interface NotificationItem {
   status:        'unread' | 'read'
   createdAt:     string
   entityId?:     string | null
-  entityType?:   string | null  // 'transaction' | 'case' | ...
+  entityType?:   string | null
+  recipientId?:  number | null   // set → user-specific; null → role-broadcast
+  targetRoles?:  string[] | null // roles that can see this notification
 }
 
 export type NotifSeverity = 'critical' | 'warning' | 'info' | 'success'

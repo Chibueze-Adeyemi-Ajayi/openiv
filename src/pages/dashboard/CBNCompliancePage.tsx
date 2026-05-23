@@ -1,8 +1,7 @@
-import { Box, Typography, Stack, Button, Chip } from '@mui/material'
+import { Box, Typography, Stack, Button, Chip, CircularProgress } from '@mui/material'
 import { colorPalette } from '@/theme'
-// import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
@@ -11,6 +10,9 @@ import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
+import { nfiuApi } from '@/api/nfiu'
+import { customerApi } from '@/api/customers'
+import { institutionApi } from '@/api/institution'
 
 interface Pillar {
   id: string
@@ -23,79 +25,85 @@ interface Pillar {
   gaps?: string[]
 }
 
-const pillars: Pillar[] = [
-  {
-    id: 'realtime',
-    number: 1,
-    title: 'Real-time Monitoring',
-    cbnRequirement: 'Behavioral analytics that flag anomalies in seconds, not days. Institutions must demonstrate transaction inspection latency below industry baselines.',
-    openIVCapability: 'OpenIV inspects every transaction in <14ms via the live stream. Behavioral anomalies surface to the case queue within the same SLA.',
-    status: 'covered',
-    evidence: [
-      'Median transaction-scoring latency: 11ms (last 30 days)',
-      '6 behavioral signal streams active (Transactions, Logins, Activity, Location, Devices, Webhooks)',
-      'Live alert feed with severity classification operational',
-    ],
-  },
-  {
-    id: 'risk-scoring',
-    number: 2,
-    title: 'Dynamic Risk Assessment',
-    cbnRequirement: "Real-time recalibration of customer risk scores based on evolving behavior. Static periodic reviews are no longer sufficient.",
-    openIVCapability: 'Every customer holds a continuously-updated risk score driven by 200+ behavioral signals. Score decays and recovers based on live activity.',
-    status: 'covered',
-    evidence: [
-      '847,219 customer profiles with live risk scoring',
-      'Score recalculation triggered on every event (transaction, login, KYC change)',
-      'High-risk profiles auto-routed to enhanced due diligence queue',
-    ],
-  },
-  {
-    id: 'screening',
-    number: 3,
-    title: 'Automated Sanctions & PEP Screening',
-    cbnRequirement: 'Continuous checking against global and domestic Sanctions and PEP lists — at onboarding and on every transaction touching a counterparty.',
-    openIVCapability: 'OpenIV integrates OFAC, UN, EU, NFIU, and CBN-maintained PEP/sanctions lists. Counterparty screening fires on every wire over ₦100k.',
-    status: 'partial',
-    evidence: [
-      'OFAC and UN consolidated lists synced hourly',
-      'NFIU domestic PEP list integrated',
-      'Counterparty screening enabled on all wire transactions',
-    ],
-    gaps: [
-      'Pending: EU sanctions list daily refresh hook',
-      'Pending: Adverse media screening integration (NewsRoom feed)',
-    ],
-  },
-  {
-    id: 'kyc',
-    number: 4,
-    title: 'Integrated KYC / CDD',
-    cbnRequirement: 'Onboarding flows that connect identity verification (BVN/NIN) directly to ongoing transaction monitoring — no manual handoffs.',
-    openIVCapability: 'NIBSS BVN and NIMC NIN verification feed directly into the customer profile. KYC tier changes trigger automatic risk re-scoring.',
-    status: 'covered',
-    evidence: [
-      'NIBSS BVN verification integrated (NIBSS-eBVN-API v3)',
-      'NIMC NIN verification integrated',
-      'Tier-1/2/3 customer classification with auto-risk inheritance',
-      '142 EDD profiles under enhanced monitoring',
-    ],
-  },
-  {
-    id: 'reporting',
-    number: 5,
-    title: 'Automated NFIU Reporting',
-    cbnRequirement: 'Auto-generation of STRs and SARs in NFIU-prescribed digital formats. The new Standards specifically prohibit manual entry for institutions above MFB-2 tier.',
-    openIVCapability: 'STRs are auto-drafted by Eureka the moment a case crosses the regulatory threshold. NFIU electronic-filing format is the default output.',
-    status: 'covered',
-    evidence: [
-      '847 reports filed YTD (NFIU + CBN combined)',
-      '99.7% NFIU acknowledgement rate',
-      'Average filing time: 3.2 minutes from flag to submission',
-      'CBN Risk-Based Supervision Return template active',
-    ],
-  },
-]
+function buildPillars(totalFiled: number | null, highRiskTotal: number | null): Pillar[] {
+  return [
+    {
+      id: 'realtime',
+      number: 1,
+      title: 'Real-time Monitoring',
+      cbnRequirement: 'Behavioral analytics that flag anomalies in seconds, not days. Institutions must demonstrate transaction inspection latency below industry baselines.',
+      openIVCapability: 'OpenIV inspects every transaction in <14ms via the live stream. Behavioral anomalies surface to the case queue within the same SLA.',
+      status: 'covered',
+      evidence: [
+        'Median transaction-scoring latency: 11ms (last 30 days)',
+        '6 behavioral signal streams active (Transactions, Logins, Activity, Location, Devices, Webhooks)',
+        'Live alert feed with severity classification operational',
+      ],
+    },
+    {
+      id: 'risk-scoring',
+      number: 2,
+      title: 'Dynamic Risk Assessment',
+      cbnRequirement: 'Real-time recalibration of customer risk scores based on evolving behavior. Static periodic reviews are no longer sufficient.',
+      openIVCapability: 'Every customer holds a continuously-updated risk score driven by 200+ behavioral signals. Score decays and recovers based on live activity.',
+      status: 'covered',
+      evidence: [
+        'Customer risk scoring active across all monitored profiles',
+        'Score recalculation triggered on every event (transaction, login, KYC change)',
+        'High-risk profiles auto-routed to enhanced due diligence queue',
+      ],
+    },
+    {
+      id: 'screening',
+      number: 3,
+      title: 'Automated Sanctions & PEP Screening',
+      cbnRequirement: 'Continuous checking against global and domestic Sanctions and PEP lists — at onboarding and on every transaction touching a counterparty.',
+      openIVCapability: 'OpenIV integrates OFAC, UN, EU, NFIU, and CBN-maintained PEP/sanctions lists. Counterparty screening fires on every wire over ₦100k.',
+      status: 'partial',
+      evidence: [
+        'OFAC and UN consolidated lists synced hourly',
+        'NFIU domestic PEP list integrated',
+        'Counterparty screening enabled on all wire transactions',
+      ],
+      gaps: [
+        'Pending: EU sanctions list daily refresh hook',
+        'Pending: Adverse media screening integration (NewsRoom feed)',
+      ],
+    },
+    {
+      id: 'kyc',
+      number: 4,
+      title: 'Integrated KYC / CDD',
+      cbnRequirement: 'Onboarding flows that connect identity verification (BVN/NIN) directly to ongoing transaction monitoring — no manual handoffs.',
+      openIVCapability: 'NIBSS BVN and NIMC NIN verification feed directly into the customer profile. KYC tier changes trigger automatic risk re-scoring.',
+      status: 'covered',
+      evidence: [
+        'NIBSS BVN verification integrated (NIBSS-eBVN-API v3)',
+        'NIMC NIN verification integrated',
+        'Tier-1/2/3 customer classification with auto-risk inheritance',
+        highRiskTotal !== null
+          ? `${highRiskTotal.toLocaleString()} high-risk profiles under enhanced monitoring`
+          : 'High-risk profiles under enhanced monitoring',
+      ],
+    },
+    {
+      id: 'reporting',
+      number: 5,
+      title: 'Automated NFIU Reporting',
+      cbnRequirement: 'Auto-generation of STRs and SARs in NFIU-prescribed digital formats. The new Standards specifically prohibit manual entry for institutions above MFB-2 tier.',
+      openIVCapability: 'STRs are auto-drafted by Eureka the moment a case crosses the regulatory threshold. NFIU electronic-filing format is the default output.',
+      status: 'covered',
+      evidence: [
+        totalFiled !== null
+          ? `${totalFiled.toLocaleString()} reports filed YTD (NFIU + CBN combined)`
+          : 'Reports filed YTD (NFIU + CBN combined)',
+        '99.7% NFIU acknowledgement rate',
+        'Average filing time: 3.2 minutes from flag to submission',
+        'CBN Risk-Based Supervision Return template active',
+      ],
+    },
+  ]
+}
 
 const statusConfig: Record<Pillar['status'], { color: string; bg: string; icon: React.ReactNode; label: string }> = {
   covered: { color: '#10b981', bg: '#f0fdf4', icon: <CheckRoundedIcon sx={{ fontSize: '0.875rem' }} />, label: 'Covered' },
@@ -103,14 +111,33 @@ const statusConfig: Record<Pillar['status'], { color: string; bg: string; icon: 
   gap: { color: '#dc2626', bg: '#fef2f2', icon: <RemoveRoundedIcon sx={{ fontSize: '0.875rem' }} />, label: 'Gap' },
 }
 
-const today = new Date('2026-04-19')
 const deadline = new Date('2026-06-10')
-const daysRemaining = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
 export default function CBNCompliancePage() {
   const [planGenerated, setPlanGenerated] = useState(false)
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  const [institutionName, setInstitutionName] = useState<string | null>(null)
+  const [totalFiled, setTotalFiled] = useState<number | null>(null)
+  const [highRiskTotal, setHighRiskTotal] = useState<number | null>(null)
+
+  useEffect(() => {
+    Promise.allSettled([
+      institutionApi.getProfile(),
+      nfiuApi.getMetrics(),
+      customerApi.highRisk(1, 1),
+    ]).then(([profileRes, metricsRes, highRiskRes]) => {
+      if (profileRes.status === 'fulfilled') setInstitutionName(profileRes.value.name)
+      if (metricsRes.status === 'fulfilled') setTotalFiled(metricsRes.value.totalFiled)
+      if (highRiskRes.status === 'fulfilled') setHighRiskTotal(highRiskRes.value.total)
+    })
+  }, [])
+
+  const today = new Date()
+  const daysRemaining = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const pillars = buildPillars(totalFiled, highRiskTotal)
+  const displayName = institutionName ?? 'Your Institution'
 
   const coveredCount = pillars.filter((p) => p.status === 'covered').length
   const score = Math.round((coveredCount / pillars.length) * 100)
@@ -345,7 +372,7 @@ export default function CBNCompliancePage() {
               </Box>
               <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, mb: 1, fontFamily: 'Jost', letterSpacing: '-0.01em', maxWidth: '85%' }}>
                 {planGenerated
-                  ? 'CBN Implementation Plan — First City Monument Bank, drafted 19 April 2026'
+                  ? `CBN Implementation Plan — ${displayName}, drafted ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
                   : 'Generate a CBN-ready implementation plan in under 60 seconds'}
               </Typography>
               <Typography sx={{ fontSize: '0.875rem', opacity: planGenerated ? 0.7 : 0.85, maxWidth: '80%', lineHeight: 1.6 }}>
@@ -476,7 +503,7 @@ export default function CBNCompliancePage() {
           title="Submit implementation plan to CBN"
           description="This action submits the 24-page implementation plan to the CBN Compliance Portal under your CCO sign-off. Once submitted, the plan cannot be retracted — only superseded by a new submission."
           resourceType="CBN Implementation Plan"
-          resourceName="First City Monument Bank · Drafted 19 April 2026"
+          resourceName={`${displayName} · Drafted ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`}
           itemsAffected={[
             'Plan submitted to CBN Compliance Portal',
             'CCO digital signature applied (Adaeze Chukwu)',

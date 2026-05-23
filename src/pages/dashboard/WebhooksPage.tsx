@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box, Typography, Stack, Button, TextField, Switch,
   IconButton, Popover, Skeleton, Collapse, Dialog, CircularProgress,
@@ -13,6 +13,13 @@ import {
   type WebhookDelivery,
   type WebhookSecurityRule,
 } from '@/api/webhooks'
+import { kycApi, type KycFetchConfig } from '@/api/kyc'
+import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined'
+import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined'
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined'
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -28,6 +35,9 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
+import AutorenewOutlinedIcon from '@mui/icons-material/AutorenewOutlined'
 
 // ── Style constants ───────────────────────────────────────────────────────────
 
@@ -260,7 +270,7 @@ function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
   )
 }
 
-function CodeBlock({ content, copyLabel, highlight = false }: { content: string; copyLabel?: string; highlight?: boolean }) {
+function CodeBlock({ content, copyLabel, highlight = false, fixedHeight }: { content: string; copyLabel?: string; highlight?: boolean; fixedHeight?: number }) {
   const tokens = highlight ? syntaxTokenize(content) : null
   return (
     <Box sx={{ position: 'relative' }}>
@@ -268,12 +278,13 @@ function CodeBlock({ content, copyLabel, highlight = false }: { content: string;
         bgcolor: '#0d1117', borderRadius: 0,
         p: 2, fontFamily: 'SF Mono, Monaco, Consolas, monospace',
         fontSize: '0.6875rem', lineHeight: 1.7,
-        overflowX: 'auto', whiteSpace: 'pre',
-        maxHeight: 320, overflowY: 'auto',
+        overflowX: 'hidden', overflowY: 'auto',
+        whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+        ...(fixedHeight ? { height: fixedHeight } : { maxHeight: 320 }),
       }}>
         {tokens
           ? tokens.map((t, i) => (
-            <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>{t.text}</Box>
+            <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{t.text}</Box>
           ))
           : <Box component="span" sx={{ color: '#e2e8f0' }}>{content || '(empty)'}</Box>
         }
@@ -1325,6 +1336,19 @@ export default function WebhooksPage() {
   const [rotateOpen, setRotateOpen] = useState(false)
   const [tabValue, setTabValue] = useState(0)
 
+  // KYC fetch webhook config state
+  const [kycConfig, setKycConfig] = useState<KycFetchConfig | null>(null)
+  const [kycConfigLoading, setKycConfigLoading] = useState(true)
+  const [kycLookupUrl, setKycLookupUrl] = useState('')
+  const [kycTimeout, setKycTimeout] = useState(10)
+  const [kycSaving, setKycSaving] = useState(false)
+  const [kycMsg, setKycMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // Secrets tab state
+  const [revealOpen, setRevealOpen] = useState(false)
+  const [notifSampleLang, setNotifSampleLang] = useState('Node.js')
+  const [fetchSampleLang, setFetchSampleLang] = useState('Node.js')
+
   // ── Loaders ─────────────────────────────────────────────────────────────────
 
   const loadSecret = useCallback(async () => {
@@ -1339,7 +1363,22 @@ export default function WebhooksPage() {
     finally { setEpLoading(false) }
   }, [])
 
-  useEffect(() => { loadSecret(); loadEndpoints() }, [loadSecret, loadEndpoints])
+  const loadKycConfig = useCallback(async () => {
+    setKycConfigLoading(true)
+    try {
+      const res = await kycApi.getFetchConfig()
+      const cfg = res.config
+      setKycConfig(cfg)
+      if (cfg) {
+        setKycLookupUrl(cfg.lookupUrl ?? '')
+        setKycTimeout(cfg.lookupTimeout ?? 10)
+      }
+
+    } catch { }
+    finally { setKycConfigLoading(false) }
+  }, [])
+
+  useEffect(() => { loadSecret(); loadEndpoints(); loadKycConfig() }, [loadSecret, loadEndpoints, loadKycConfig])
 
   // ── Endpoint form handlers ────────────────────────────────────────────────────
 
@@ -1384,6 +1423,23 @@ export default function WebhooksPage() {
     try { setSecret((await webhookApi.updateSecret(checked)).secret) } catch { }
   }
 
+  const handleKycSave = async () => {
+    setKycSaving(true)
+    setKycMsg(null)
+    try {
+      const res = await kycApi.saveFetchConfig(kycLookupUrl.trim() || null, kycTimeout)
+      setKycConfig(res.config)
+      setKycMsg({ ok: true, text: 'Customer fetch webhook saved successfully.' })
+    } catch {
+      setKycMsg({ ok: false, text: 'Failed to save — please try again.' })
+    } finally { setKycSaving(false) }
+  }
+
+  const handleRevealConfirm = () => {
+    setRevealOpen(false)
+    setShowSecret(true)
+  }
+
   const rotationDays = secret ? daysUntil(secret.nextRotation) : null
   const rotationOverdue = rotationDays !== null && rotationDays <= 0
 
@@ -1420,11 +1476,24 @@ export default function WebhooksPage() {
           }}
         >
           <Tab label="Notification Webhooks" />
+          <Tab label="Customer Fetch Webhook" />
+          <Tab label="Secrets" />
         </Tabs>
 
         {/* Tab 0: Notification Webhooks ────────────────────────────────────── */}
         {tabValue === 0 && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
+          <Box>
+            <Box sx={{ mb: 2.5, px: 2.5, py: 1.75, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <LockOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b', flexShrink: 0 }} />
+              <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+                Every delivery is signed with <strong>HMAC-SHA256</strong> using the shared signing secret.
+                Manage the secret and see integration guides in the{' '}
+                <Box component="span" onClick={() => setTabValue(2)}
+                  sx={{ color: colorPalette.primary, fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                  Secrets tab
+                </Box>.
+              </Typography>
+            </Box>
             <Stack gap={3}>
               {/* New endpoint form */}
               <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
@@ -1550,134 +1619,785 @@ export default function WebhooksPage() {
                 )}
               </Box>
             </Stack>
+          </Box>
+        )}
 
-            {/* Right sidebar */}
+        {/* Tab 1: Customer Fetch Webhook ───────────────────────────────────── */}
+        {tabValue === 1 && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '480px 1fr' }, gap: 3, alignItems: 'start' }}>
+
+            {/* Left: Config card */}
             <Stack gap={3}>
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
-                  Signing Secret
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
-                  Use this secret to verify the HMAC-SHA256 signature on every webhook delivery.
-                </Typography>
-
-                <Box sx={{ bgcolor: '#00288e', color: '#e2e8f0', p: 1.75, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', wordBreak: 'break-all', mb: 1.25 }}>
-                  {secretLoading
-                    ? <Skeleton variant="text" sx={{ bgcolor: '#1e293b' }} />
-                    : showSecret
-                      ? (secret?.secret ?? '—')
-                      : '•'.repeat(48)}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                  <Box sx={{ width: 34, height: 34, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <PersonSearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#1d4ed8' }} />
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                      Customer Lookup
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                      Customer Fetch Webhook
+                    </Typography>
+                  </Box>
                 </Box>
 
-                <Stack direction="row" gap={1}>
-                  <Button
-                    startIcon={showSecret
-                      ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem !important' }} />
-                      : <VisibilityOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
-                    onClick={() => setShowSecret(p => !p)}
-                    sx={{
-                      flex: 1, bgcolor: '#ffffff', color: '#475569', border: '1px solid #e5e7eb',
-                      px: 1.75, py: 1, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
-                      borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' },
-                    }}
-                  >
-                    {showSecret ? 'Hide' : 'Reveal'}
-                  </Button>
-                  <Button
-                    startIcon={
-                      copied
-                        ? <CheckRoundedIcon sx={{ fontSize: '1rem !important', color: '#ffffff' }} />
-                        : <ContentCopyOutlinedIcon sx={{ fontSize: '1rem !important', color: '#ffffff' }} />
-                    }
-                    onClick={handleCopy}
-                    disabled={!secret}
-                    sx={{
-                      flex: 1,
-                      bgcolor: copied ? '#10b981' : colorPalette.primary,
-                      color: '#ffffff',
-                      px: 1.75, py: 1,
-                      fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
-                      borderRadius: 0, textTransform: 'none', boxShadow: 'none',
-                      '& .MuiButton-startIcon': { color: '#ffffff' },
-                      '&:hover': { bgcolor: copied ? '#10b981' : '#1e293b' },
-                      '&:disabled': { bgcolor: '#e2e8f0' },
-                    }}
-                  >
-                    <Box component="span" sx={{ color: '#ffffff' }}>{copied ? 'Copied' : 'Copy'}</Box>
-                  </Button>
-                </Stack>
+                <Box sx={{ p: 3 }}>
+                  {kycConfigLoading ? (
+                    <Stack gap={2}>
+                      {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={44} />)}
+                    </Stack>
+                  ) : (
+                    <Stack gap={2.5}>
+                      <Box sx={{ px: 2.5, py: 2, bgcolor: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.6 }}>
+                          When a transaction is beamed for an <strong>unknown customer</strong>, OpenIV calls this endpoint
+                          to fetch their profile. Requests are signed with <strong>HMAC-SHA256</strong> using the shared
+                          signing secret from the{' '}
+                          <Box component="span" onClick={() => setTabValue(2)}
+                            sx={{ fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                            Secrets tab
+                          </Box>.
+                        </Typography>
+                      </Box>
 
-                <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eef0f4' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                    <Box>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
-                        Auto-rotate every 90 days
-                      </Typography>
-                      {secret && (
-                        <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{
-                            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                            bgcolor: rotationOverdue ? '#dc2626' : secret.autoRotate ? '#10b981' : '#94a3b8',
-                          }} />
-                          <Typography sx={{ fontSize: '0.6875rem', color: rotationOverdue ? '#dc2626' : '#94a3b8', fontWeight: rotationOverdue ? 600 : 400 }}>
-                            {rotationOverdue
-                              ? 'Rotation overdue — will run on next check'
-                              : `Next rotation in ${rotationDays} day${rotationDays === 1 ? '' : 's'} · ${new Date(secret.nextRotation).toLocaleDateString()}`}
+                      <Box>
+                        <Typography sx={labelSx}>Lookup URL</Typography>
+                        <TextField
+                          fullWidth
+                          value={kycLookupUrl}
+                          onChange={e => setKycLookupUrl(e.target.value)}
+                          placeholder="https://api.yourbank.com/customers"
+                          sx={inputSx}
+                        />
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
+                          OpenIV will call <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>GET {'{your_url}/{customerId}'}</code> when a customer is not on file.
+                          Must be HTTPS.
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography sx={labelSx}>Request timeout (seconds)</Typography>
+                        <TextField
+                          fullWidth type="number"
+                          value={kycTimeout}
+                          onChange={e => setKycTimeout(Math.max(1, Math.min(30, Number(e.target.value))))}
+                          inputProps={{ min: 1, max: 30 }}
+                          sx={inputSx}
+                        />
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>
+                          1–30 seconds. If your endpoint doesn't respond in time, the transaction is rejected.
+                        </Typography>
+                      </Box>
+
+                      {kycMsg && (
+                        <Box sx={{ px: 2, py: 1.25, bgcolor: kycMsg.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${kycMsg.ok ? '#bbf7d0' : '#fecaca'}` }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: kycMsg.ok ? '#10b981' : '#dc2626' }}>
+                            {kycMsg.text}
                           </Typography>
                         </Box>
                       )}
-                      {secretLoading && <Skeleton variant="text" width={160} sx={{ mt: 0.5 }} />}
-                    </Box>
-                    <Switch
-                      checked={secret?.autoRotate ?? true}
-                      onChange={e => handleAutoRotateChange(e.target.checked)}
-                      disabled={secretLoading}
-                      size="small"
-                      sx={{
-                        '& .MuiSwitch-track': { borderRadius: 8 },
-                        '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
-                        '& .Mui-checked .MuiSwitch-thumb': { color: '#ffffff' },
-                      }}
-                    />
-                  </Box>
-                  <Button
-                    onClick={() => setRotateOpen(true)}
-                    startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                    sx={{
-                      fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary,
-                      fontFamily: 'Jost', textTransform: 'none', p: 0,
-                      '&:hover': { bgcolor: 'transparent', opacity: 0.75 },
-                    }}
-                  >
-                    Rotate now
-                  </Button>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                          onClick={handleKycSave}
+                          disabled={kycSaving}
+                          startIcon={<SaveOutlinedIcon sx={{ fontSize: '1rem !important', color: '#ffffff' }} />}
+                          sx={{
+                            bgcolor: colorPalette.primary, color: '#ffffff',
+                            px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
+                            borderRadius: 0, textTransform: 'none', boxShadow: 'none',
+                            '& .MuiButton-startIcon': { color: '#ffffff' },
+                            '&:hover': { bgcolor: '#1e293b' },
+                            '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+                          }}
+                        >
+                          {kycSaving ? 'Saving…' : 'Save Configuration'}
+                        </Button>
+                      </Box>
+                    </Stack>
+                  )}
+                </Box>
+              </Box>
+            </Stack>
+
+            {/* Right: Documentation */}
+            <Stack gap={3}>
+              {/* How it works */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <InfoOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    How it works
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <Stack gap={2}>
+                    {[
+                      { icon: <WebhookOutlinedIcon sx={{ fontSize: '1rem', color: '#7c3aed' }} />, title: 'Transaction beamed for unknown customer', body: 'A transaction arrives via the Beam API with a customer_id that OpenIV has no KYC record for.' },
+                      { icon: <PersonSearchOutlinedIcon sx={{ fontSize: '1rem', color: '#1d4ed8' }} />, title: 'OpenIV calls your lookup webhook', body: 'OpenIV sends a signed GET request to {your_url}/{customerId}. The request is authenticated with an HMAC-SHA256 signature — no Bearer token, no session cookie.' },
+                      { icon: <TaskAltOutlinedIcon sx={{ fontSize: '1rem', color: '#10b981' }} />, title: 'Customer found — transaction proceeds', body: 'If your endpoint returns a valid 200 response with the customer\'s KYC payload, OpenIV registers the customer and processes the transaction normally.' },
+                      { icon: <BlockOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />, title: 'Customer not found — transaction rejected', body: 'If your endpoint returns 404, times out, or returns an error, the transaction is immediately rejected with recommended_action: "REJECTED". Nothing is stored.' },
+                    ].map((step, i) => (
+                      <Box key={i} sx={{ display: 'flex', gap: 1.5 }}>
+                        <Box sx={{ width: 28, height: 28, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.125 }}>
+                          {step.icon}
+                        </Box>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>{step.title}</Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>{step.body}</Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
                 </Box>
               </Box>
 
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
-                  Verify a payload
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
-                  Sample Node.js verification snippet
-                </Typography>
-                <Box sx={{
-                  bgcolor: '#00288e', color: '#e2e8f0',
-                  p: 1.75, fontFamily: 'SF Mono, Monaco, monospace',
-                  fontSize: '0.6875rem', lineHeight: 1.6,
-                  overflowX: 'auto', whiteSpace: 'pre',
-                }}>
-                  {`const sig = req.headers['x-openiv-signature']
-const hash = crypto
-  .createHmac('sha256', process.env.OPENIV_SECRET)
-  .update(req.rawBody)
-  .digest('hex')
+              {/* Request format */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    Request OpenIV sends to your endpoint
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <Stack gap={2.5}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Method & URL</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                        <Box sx={{ px: 1, py: 0.25, bgcolor: '#dcfce7', flexShrink: 0 }}>
+                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#15803d', letterSpacing: '0.06em' }}>GET</Typography>
+                        </Box>
+                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e' }}>
+                          {'{your_lookup_url}'}/
+                          <Box component="span" sx={{ color: '#7c3aed' }}>{'{customerId}'}</Box>
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Headers</Typography>
+                      <CodeBlock
+                        content={`X-OpenIV-Timestamp: 1748908440          // Unix epoch seconds\nX-OpenIV-Signature: a3f9d2...c1e8b4    // HMAC-SHA256 hex (see below)\nX-OpenIV-Request:   customer-lookup\nAccept:             application/json`}
+                        highlight
+                      />
+                    </Box>
+                    <Box sx={{ px: 2.5, py: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
+                        Signature construction
+                      </Typography>
+                      <Stack gap={1}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6 }}>
+                          The signed payload is the concatenation of the Unix timestamp and the customer ID, separated by a dot:
+                        </Typography>
+                        <CodeBlock content={`signed_payload = "{timestamp}.{customerId}"\nsignature      = HMAC-SHA256(signing_secret, signed_payload)`} highlight />
+                        <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6 }}>
+                          Reject the request if the timestamp is more than <strong>5 minutes</strong> old — this prevents replay attacks.
+                          Always use a constant-time comparison when verifying the signature.
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Box>
 
-if (sig !== hash) return res.sendStatus(401)`}
+              {/* Expected response */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    Expected response from your endpoint
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                    Identical to the KYC beam payload — the same format your core banking system uses to beam customer data
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <Stack gap={2.5}>
+                    <CodeBlock
+                      content={`{\n  "customer_id": "CUS-00123",\n  "name": "Adebayo Okafor",\n  "bvn": "22234567890",\n  "nin": "12345678901",\n  "customer_kyc_tier": 2,\n  "photo": "<base64-encoded JPEG selfie>",  // optional\n  "occurred_at": "2026-05-22T09:14:00Z"\n}`}
+                      highlight
+                      copyLabel="Copy schema"
+                    />
+
+                    <Box>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Field Reference</Typography>
+                      <Box sx={{ border: '1px solid #eef0f4', overflow: 'hidden' }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                          {['Field', 'Type', 'Required', 'Description'].map(h => (
+                            <Typography key={h} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
+                          ))}
+                        </Box>
+                        {[
+                          { field: 'customer_id', type: 'string', req: true, desc: 'Your unique customer reference — must match the ID from the transaction beam' },
+                          { field: 'name', type: 'string', req: false, desc: 'Full legal name of the customer' },
+                          { field: 'bvn', type: 'string', req: false, desc: '11-digit Bank Verification Number. Providing BVN or NIN (or both) unlocks higher trust levels' },
+                          { field: 'nin', type: 'string', req: false, desc: '11-digit National Identification Number' },
+                          { field: 'customer_kyc_tier', type: 'number', req: false, desc: 'Your institution\'s KYC tier for this customer (e.g. 1, 2, 3). Stored and surfaced in the risk dashboard alongside the system-assessed knowledge level' },
+                          { field: 'photo', type: 'string', req: false, desc: 'Base64-encoded JPEG or PNG selfie for liveness check. Omit if not available' },
+                          { field: 'occurred_at', type: 'string', req: true, desc: 'ISO-8601 timestamp when this KYC data was collected by your institution' },
+                        ].map((row, i, arr) => (
+                          <Box key={row.field} sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1.25, alignItems: 'flex-start', borderBottom: i < arr.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                            <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary }}>{row.field}</Typography>
+                            <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#f59e0b' }}>{row.type}</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography sx={{ fontSize: '0.6875rem', color: row.req ? '#10b981' : '#94a3b8', fontWeight: 600 }}>
+                                {row.req ? 'Yes' : 'No'}
+                              </Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.5 }}>{row.desc}</Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ px: 2.5, py: 2, bgcolor: '#fff7ed', border: '1px solid #fed7aa' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#b45309', mb: 0.5 }}>
+                        HTTP status codes
+                      </Typography>
+                      <Stack gap={0.75}>
+                        {[
+                          { code: '200', color: '#10b981', bg: '#f0fdf4', border: '#bbf7d0', msg: 'Customer found — OpenIV will parse the body and register the customer' },
+                          { code: '404', color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', msg: 'Customer not found — transaction is rejected immediately' },
+                          { code: '4xx / 5xx', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', msg: 'Error — transaction is rejected immediately' },
+                          { code: 'Timeout', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', msg: 'No response within the configured timeout — transaction is rejected' },
+                        ].map(e => (
+                          <Box key={e.code} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 1.5, py: 1, bgcolor: e.bg, border: `1px solid ${e.border}` }}>
+                            <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 800, color: e.color, flexShrink: 0, mt: 0.1 }}>{e.code}</Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{e.msg}</Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* Code samples */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    Implementation example
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                    Sample endpoint your core banking system should expose
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <Stack gap={2}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Node.js / Express</Typography>
+                      <CodeBlock
+                        highlight
+                        copyLabel="Copy"
+                        content={`const crypto  = require('crypto')
+const express = require('express')
+const app     = express()
+
+const SIGNING_SECRET = process.env.OPENIV_LOOKUP_SECRET
+
+function verifySignature(req, customerId) {
+  const ts  = req.headers['x-openiv-timestamp']
+  const sig = req.headers['x-openiv-signature']
+  if (!ts || !sig) return false
+
+  // Reject requests older than 5 minutes
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false
+
+  const expected = crypto
+    .createHmac('sha256', SIGNING_SECRET)
+    .update(\`\${ts}.\${customerId}\`)
+    .digest('hex')
+
+  // Always use timingSafeEqual to prevent timing attacks
+  return crypto.timingSafeEqual(
+    Buffer.from(sig,      'hex'),
+    Buffer.from(expected, 'hex'),
+  )
+}
+
+app.get('/customers/:customerId', async (req, res) => {
+  if (!verifySignature(req, req.params.customerId)) {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  const customer = await db.customers.findById(req.params.customerId)
+  if (!customer) return res.status(404).json({ error: 'Not found' })
+
+  return res.json({
+    customer_id:       customer.id,
+    name:              customer.fullName,
+    bvn:               customer.bvn ?? undefined,
+    nin:               customer.nin ?? undefined,
+    customer_kyc_tier: customer.kycTier ?? undefined,
+    occurred_at:       customer.kycDate ?? new Date().toISOString(),
+  })
+})`}
+                      />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Python / FastAPI</Typography>
+                      <CodeBlock
+                        highlight
+                        copyLabel="Copy"
+                        content={`import hashlib, hmac, os, time
+from fastapi import FastAPI, Header, HTTPException, Request
+
+app = FastAPI()
+SIGNING_SECRET = os.environ["OPENIV_LOOKUP_SECRET"].encode()
+
+def verify_signature(customer_id: str, timestamp: str, signature: str) -> bool:
+    # Reject requests older than 5 minutes
+    if abs(time.time() - float(timestamp)) > 300:
+        return False
+    expected = hmac.new(
+        SIGNING_SECRET,
+        f"{timestamp}.{customer_id}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    # hmac.compare_digest is constant-time
+    return hmac.compare_digest(expected, signature)
+
+@app.get("/customers/{customer_id}")
+async def fetch_customer(
+    customer_id: str,
+    x_openiv_timestamp: str = Header(...),
+    x_openiv_signature: str = Header(...),
+):
+    if not verify_signature(customer_id, x_openiv_timestamp, x_openiv_signature):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    customer = await db.get_customer(customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return {
+        "customer_id":       customer.id,
+        "name":              customer.full_name,
+        "bvn":               customer.bvn,
+        "nin":               customer.nin,
+        "customer_kyc_tier": customer.kyc_tier,
+        "occurred_at":       customer.kyc_date.isoformat() + "Z",
+    }`}
+                      />
+                    </Box>
+                  </Stack>
                 </Box>
               </Box>
             </Stack>
           </Box>
+        )}
+
+        {/* ── Tab 2: Secrets ───────────────────────────────────────────────── */}
+        {tabValue === 2 && (
+          <Stack gap={3}>
+
+            {/* ── Secret card ───────────────────────────────────────────────── */}
+            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <Box sx={{ width: 34, height: 34, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <KeyOutlinedIcon sx={{ fontSize: '1.125rem', color: '#1d4ed8' }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                    Shared Signing Secret
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                    One secret authenticates all webhook types
+                  </Typography>
+                </Box>
+                <Box sx={{ px: 1.5, py: 0.5, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#10b981', letterSpacing: '0.1em' }}>ACTIVE</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 3, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
+                {/* Left: secret value + actions */}
+                <Stack gap={2.5}>
+                  {/* Value */}
+                  <Box>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875 }}>
+                      Signing Secret
+                    </Typography>
+                    <Box sx={{
+                      bgcolor: '#0f172a', p: 2, fontFamily: 'SF Mono, Monaco, monospace',
+                      fontSize: '0.8125rem', color: showSecret ? '#c3e88d' : '#64748b',
+                      wordBreak: 'break-all', lineHeight: 1.6, letterSpacing: showSecret ? '0.02em' : '0.15em',
+                      minHeight: 56, display: 'flex', alignItems: 'center',
+                    }}>
+                      {secretLoading
+                        ? <Skeleton variant="text" width="80%" sx={{ bgcolor: '#1e293b' }} />
+                        : showSecret ? (secret?.secret ?? '—') : '•'.repeat(48)
+                      }
+                    </Box>
+                    <Stack direction="row" gap={1} sx={{ mt: 1.25 }}>
+                      <Button
+                        startIcon={<LockOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                        onClick={() => showSecret ? setShowSecret(false) : setRevealOpen(true)}
+                        sx={{
+                          flex: 1, bgcolor: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0',
+                          px: 1.75, py: 0.875, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                          borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f1f5f9' },
+                          '& .MuiButton-startIcon': { mr: 0.5 },
+                        }}
+                      >
+                        {showSecret ? 'Hide secret' : 'Reveal (TOTP required)'}
+                      </Button>
+                      <Button
+                        startIcon={copied
+                          ? <CheckRoundedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />
+                          : <ContentCopyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
+                        onClick={handleCopy}
+                        disabled={!showSecret || !secret}
+                        sx={{
+                          flex: 1, bgcolor: copied ? '#10b981' : colorPalette.primary, color: '#ffffff',
+                          px: 1.75, py: 0.875, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                          borderRadius: 0, textTransform: 'none', boxShadow: 'none',
+                          '& .MuiButton-startIcon': { color: '#ffffff', mr: 0.5 },
+                          '&:hover': { bgcolor: copied ? '#10b981' : '#1e293b' },
+                          '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+                        }}
+                      >
+                        <Box component="span" sx={{ color: '#ffffff' }}>{copied ? 'Copied!' : 'Copy secret'}</Box>
+                      </Button>
+                    </Stack>
+                  </Box>
+
+                  {/* Rotation */}
+                  <Box sx={{ pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.5 }}>
+                      Rotation
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5, gap: 2 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                          Auto-rotate every 90 days
+                        </Typography>
+                        {secretLoading
+                          ? <Skeleton variant="text" width={200} sx={{ mt: 0.5 }} />
+                          : secret && (
+                            <Box sx={{ mt: 0.625, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: rotationOverdue ? '#dc2626' : secret.autoRotate ? '#10b981' : '#94a3b8' }} />
+                              <Typography sx={{ fontSize: '0.75rem', color: rotationOverdue ? '#dc2626' : '#64748b', fontWeight: rotationOverdue ? 600 : 400 }}>
+                                {rotationOverdue
+                                  ? 'Rotation overdue — will run on next check'
+                                  : `Next rotation ${new Date(secret.nextRotation).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${rotationDays} day${rotationDays === 1 ? '' : 's'} away`}
+                              </Typography>
+                            </Box>
+                          )}
+                      </Box>
+                      <Switch
+                        checked={secret?.autoRotate ?? true}
+                        onChange={e => handleAutoRotateChange(e.target.checked)}
+                        disabled={secretLoading}
+                        size="small"
+                        sx={{
+                          flexShrink: 0,
+                          '& .MuiSwitch-track': { borderRadius: 8 },
+                          '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${colorPalette.primary} !important`, opacity: '1 !important' },
+                          '& .Mui-checked .MuiSwitch-thumb': { color: '#ffffff' },
+                        }}
+                      />
+                    </Box>
+                    <Button
+                      onClick={() => setRotateOpen(true)}
+                      startIcon={<AutorenewOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
+                      sx={{
+                        bgcolor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
+                        px: 1.75, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                        borderRadius: 0, textTransform: 'none',
+                        '& .MuiButton-startIcon': { mr: 0.5 },
+                        '&:hover': { bgcolor: '#fee2e2' },
+                      }}
+                    >
+                      Rotate now (TOTP required)
+                    </Button>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 1 }}>
+                      Rotating immediately invalidates the current secret. Update all your endpoints before rotating.
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                {/* Right: usage summary */}
+                <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', p: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 1.5, letterSpacing: '0.05em' }}>
+                    Used by
+                  </Typography>
+                  <Stack gap={1.25}>
+                    {[
+                      { label: 'Notification Webhooks', sub: 'Signs the raw POST body — verify with X-OpenIV-Signature', color: '#7c3aed', bg: '#f5f3ff' },
+                      { label: 'Customer Fetch Webhook', sub: 'Signs {timestamp}.{customerId} — verify X-OpenIV-Signature + X-OpenIV-Timestamp', color: '#1d4ed8', bg: '#eff6ff' },
+                    ].map(item => (
+                      <Box key={item.label} sx={{ px: 1.5, py: 1.25, bgcolor: item.bg, border: `1px solid ${item.color}20` }}>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: item.color, fontFamily: 'Jost' }}>{item.label}</Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>{item.sub}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.6 }}>
+                      The same secret signs every outbound request OpenIV makes to your infrastructure.
+                      Store it as an environment variable — never hard-code it.
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* ── Integration guide ─────────────────────────────────────────── */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+
+              {/* Notification webhooks verification */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
+                    <Box sx={{ px: 1, py: 0.25, bgcolor: '#f5f3ff' }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#7c3aed', letterSpacing: '0.08em' }}>POST</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      Verifying notification webhooks
+                    </Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    OpenIV POSTs signed JSON to your endpoint. Compute HMAC-SHA256 over the raw request body and compare to <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>X-OpenIV-Signature</code>.
+                  </Typography>
+                </Box>
+                <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+                  <Box sx={{ display: 'flex', overflowX: 'auto' }}>
+                    {Object.keys(codeSamples).map(lang => (
+                      <Box
+                        key={lang}
+                        onClick={() => setNotifSampleLang(lang)}
+                        sx={{
+                          px: 2, py: 1.25, cursor: 'pointer', flexShrink: 0,
+                          borderBottom: notifSampleLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
+                          color: notifSampleLang === lang ? colorPalette.primary : '#94a3b8',
+                          fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                          '&:hover': { color: notifSampleLang === lang ? colorPalette.primary : '#475569' },
+                        }}
+                      >
+                        {lang}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+                <CodeBlock content={codeSamples[notifSampleLang] ?? ''} highlight copyLabel={`Copy ${notifSampleLang}`} fixedHeight={400} />
+              </Box>
+
+              {/* Customer fetch verification */}
+              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
+                    <Box sx={{ px: 1, py: 0.25, bgcolor: '#eff6ff' }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.08em' }}>GET</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      Verifying customer fetch requests
+                    </Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    OpenIV GETs customer data from your endpoint. Compute HMAC-SHA256 over <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>"{'{timestamp}.{customerId}'}"</code> and compare to <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>X-OpenIV-Signature</code>. Reject requests older than 5 minutes.
+                  </Typography>
+                </Box>
+                <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+                  <Box sx={{ display: 'flex', overflowX: 'auto' }}>
+                    {['Node.js', 'Python', 'Go', 'Java'].map(lang => (
+                      <Box
+                        key={lang}
+                        onClick={() => setFetchSampleLang(lang)}
+                        sx={{
+                          px: 2, py: 1.25, cursor: 'pointer', flexShrink: 0,
+                          borderBottom: fetchSampleLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
+                          color: fetchSampleLang === lang ? colorPalette.primary : '#94a3b8',
+                          fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                          '&:hover': { color: fetchSampleLang === lang ? colorPalette.primary : '#475569' },
+                        }}
+                      >
+                        {lang}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+                <CodeBlock content={{
+                  'Node.js': `const crypto = require('crypto')
+
+// Middleware: verify every incoming OpenIV GET request
+function verifyOpenIVSignature(req, res, next) {
+  const ts  = req.headers['x-openiv-timestamp']
+  const sig = req.headers['x-openiv-signature']
+  const id  = req.params.customerId
+
+  if (!ts || !sig) return res.status(401).json({ error: 'Missing signature headers' })
+
+  // Reject requests older than 5 minutes (replay attack protection)
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300)
+    return res.status(401).json({ error: 'Request timestamp expired' })
+
+  const expected = crypto
+    .createHmac('sha256', process.env.OPENIV_SIGNING_SECRET)
+    .update(\`\${ts}.\${id}\`)
+    .digest('hex')
+
+  try {
+    const valid = crypto.timingSafeEqual(
+      Buffer.from(sig,      'hex'),
+      Buffer.from(expected, 'hex'),
+    )
+    if (!valid) return res.status(401).json({ error: 'Invalid signature' })
+  } catch {
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+  next()
+}
+
+app.get('/customers/:customerId', verifyOpenIVSignature, async (req, res) => {
+  const customer = await db.findById(req.params.customerId)
+  if (!customer) return res.status(404).json({ error: 'Not found' })
+  res.json({
+    customer_id:       customer.id,
+    name:              customer.fullName,
+    bvn:               customer.bvn,
+    nin:               customer.nin,
+    customer_kyc_tier: customer.kycTier,
+    occurred_at:       new Date().toISOString(),
+  })
+})`,
+                  'Python': `import hashlib, hmac, os, time
+from fastapi import FastAPI, Header, HTTPException
+
+app     = FastAPI()
+SECRET  = os.environ["OPENIV_SIGNING_SECRET"].encode()
+
+def verify(customer_id: str, timestamp: str, signature: str) -> bool:
+    # Reject requests older than 5 minutes
+    if abs(time.time() - float(timestamp)) > 300:
+        return False
+    expected = hmac.new(SECRET, f"{timestamp}.{customer_id}".encode(),
+                        hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+@app.get("/customers/{customer_id}")
+async def fetch_customer(
+    customer_id: str,
+    x_openiv_timestamp: str = Header(...),
+    x_openiv_signature: str = Header(...),
+):
+    if not verify(customer_id, x_openiv_timestamp, x_openiv_signature):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    customer = await db.get(customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "customer_id":       customer.id,
+        "name":              customer.full_name,
+        "bvn":               customer.bvn,
+        "nin":               customer.nin,
+        "customer_kyc_tier": customer.kyc_tier,
+        "occurred_at":       customer.kyc_date.isoformat() + "Z",
+    }`,
+                  'Go': `package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "fmt"
+    "math"
+    "net/http"
+    "os"
+    "strconv"
+    "time"
+)
+
+var signingSecret = []byte(os.Getenv("OPENIV_SIGNING_SECRET"))
+
+func verifySignature(r *http.Request, customerId string) bool {
+    ts  := r.Header.Get("X-OpenIV-Timestamp")
+    sig := r.Header.Get("X-OpenIV-Signature")
+    if ts == "" || sig == "" { return false }
+
+    epoch, err := strconv.ParseFloat(ts, 64)
+    if err != nil || math.Abs(float64(time.Now().Unix())-epoch) > 300 {
+        return false
+    }
+
+    sigBytes, err := hex.DecodeString(sig)
+    if err != nil { return false }
+
+    mac := hmac.New(sha256.New, signingSecret)
+    mac.Write([]byte(fmt.Sprintf("%s.%s", ts, customerId)))
+    return hmac.Equal(mac.Sum(nil), sigBytes)
+}
+
+func handleCustomer(w http.ResponseWriter, r *http.Request) {
+    customerId := r.PathValue("customerId")
+    if !verifySignature(r, customerId) {
+        http.Error(w, \`{"error":"Invalid signature"}\`, 401); return
+    }
+    // ... return customer JSON
+}`,
+                  'Java': `import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Map;
+
+@RestController
+public class CustomerController {
+
+    private final String secret = System.getenv("OPENIV_SIGNING_SECRET");
+
+    private boolean verifySignature(String customerId,
+            String timestamp, String signature) {
+        try {
+            // Reject requests older than 5 minutes
+            long ts = Long.parseLong(timestamp);
+            if (Math.abs(Instant.now().getEpochSecond() - ts) > 300) return false;
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(
+                secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            String payload  = timestamp + "." + customerId;
+            byte[] computed = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : computed) sb.append(String.format("%02x", b));
+
+            // Constant-time comparison
+            return MessageDigest.isEqual(
+                sb.toString().getBytes(StandardCharsets.UTF_8),
+                signature.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) { return false; }
+    }
+
+    @GetMapping("/customers/{customerId}")
+    public ResponseEntity<?> fetchCustomer(
+            @PathVariable String customerId,
+            @RequestHeader("X-OpenIV-Timestamp") String ts,
+            @RequestHeader("X-OpenIV-Signature") String sig) {
+
+        if (!verifySignature(customerId, ts, sig))
+            return ResponseEntity.status(401).build();
+
+        Customer c = db.findById(customerId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return ResponseEntity.ok(Map.of(
+            "customer_id",       c.getId(),
+            "name",              c.getFullName(),
+            "bvn",               c.getBvn(),
+            "nin",               c.getNin(),
+            "customer_kyc_tier", c.getKycTier(),
+            "occurred_at",       c.getKycDate().toString()
+        ));
+    }
+}`
+                }[fetchSampleLang] ?? ''} highlight copyLabel={`Copy ${fetchSampleLang}`} fixedHeight={400} />
+              </Box>
+
+            </Box>
+          </Stack>
         )}
 
 
@@ -1706,6 +2426,18 @@ if (sig !== hash) return res.sendStatus(401)`}
         resourceType="Signing secret"
         resourceName="Webhook signing secret"
         changes={[{ field: 'Secret', from: 'Current secret', to: 'New generated secret' }]}
+      />
+
+      {/* TOTP — reveal signing secret */}
+      <TOTPConfirmation
+        open={revealOpen}
+        onClose={() => setRevealOpen(false)}
+        onConfirm={handleRevealConfirm}
+        operation="update"
+        title="Reveal signing secret"
+        description="Verify your identity to view the signing secret in plain text. The secret will be visible only for this session."
+        resourceType="Signing secret"
+        resourceName="Webhook signing secret"
       />
     </>
   )

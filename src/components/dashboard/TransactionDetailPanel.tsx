@@ -273,7 +273,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   </Box>
                 ) : existingCase ? (
                   <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}
-                    onClick={() => { setActiveCaseId(existingCase.id); setWorkspaceOpen(true) }}
+                    onClick={() => navigate(`/dashboard/cases/${existingCase.id}`)}
                     sx={{ px: 1.5, py: 0.875, border: `1px solid ${colorPalette.primary}40`, cursor: 'pointer', bgcolor: `${colorPalette.primary}06`, transition: 'all 0.15s', '&:hover': { bgcolor: `${colorPalette.primary}0e` } }}>
                     <Stack direction="row" alignItems="center" gap={0.75}>
                       <GavelOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary }} />

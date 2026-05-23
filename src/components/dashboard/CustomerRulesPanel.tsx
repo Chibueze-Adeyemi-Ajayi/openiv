@@ -18,6 +18,7 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
+import { useRbac } from '@/contexts/RbacContext'
 
 interface RuleTypeConfig {
   label: string
@@ -159,6 +160,8 @@ function ruleToForm(rule: CustomerTransactionRule): RuleFormState {
 }
 
 export default function CustomerRulesPanel({ customerId }: { customerId: string }) {
+  const { can } = useRbac()
+  const canModify = can('rules.modify')
   const [rules, setRules]             = useState<CustomerTransactionRule[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
@@ -251,13 +254,15 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             Per-customer restrictions enforced on every incoming transaction.
           </Typography>
         </Box>
-        <Button
-          startIcon={<AddOutlinedIcon />}
-          onClick={openAdd}
-          sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, whiteSpace: 'nowrap', flexShrink: 0, '&:hover': { bgcolor: '#1e293b' } }}
-        >
-          Add Rule
-        </Button>
+        {canModify && (
+          <Button
+            startIcon={<AddOutlinedIcon />}
+            onClick={openAdd}
+            sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, whiteSpace: 'nowrap', flexShrink: 0, '&:hover': { bgcolor: '#1e293b' } }}
+          >
+            Add Rule
+          </Button>
+        )}
       </Box>
 
       {/* Loading */}
@@ -277,9 +282,11 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
           <ShieldOutlinedIcon sx={{ fontSize: '2.5rem', color: '#cbd5e1', mb: 1 }} />
           <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#64748b' }}>No rules configured</Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', mb: 2 }}>Add rules to restrict or monitor this customer's transactions.</Typography>
-          <Button onClick={openAdd} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: '#1e293b' } }}>
-            Add the first rule
-          </Button>
+          {canModify && (
+            <Button onClick={openAdd} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: '#1e293b' } }}>
+              Add the first rule
+            </Button>
+          )}
         </Box>
       )}
 
@@ -336,28 +343,31 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             />
 
             {/* Toggle */}
-            <Tooltip title={rule.isActive ? 'Disable rule' : 'Enable rule'}>
+            <Tooltip title={!canModify ? 'You do not have permission to modify rules' : rule.isActive ? 'Disable rule' : 'Enable rule'}>
               <Switch
                 size="small"
                 checked={rule.isActive}
+                disabled={!canModify}
                 onChange={e => handleToggle(rule, e.target.checked)}
                 sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: colorPalette.primary }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: colorPalette.primary } }}
               />
             </Tooltip>
 
             {/* Actions */}
-            <Stack direction="row" gap={0.5}>
-              <Tooltip title="Edit rule">
-                <IconButton size="small" onClick={() => openEdit(rule)} sx={{ color: '#64748b', '&:hover': { color: colorPalette.primary } }}>
-                  <EditOutlinedIcon sx={{ fontSize: '1rem' }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Delete rule">
-                <IconButton size="small" onClick={() => setDeleteId(rule.id)} sx={{ color: '#64748b', '&:hover': { color: '#dc2626' } }}>
-                  <DeleteOutlineIcon sx={{ fontSize: '1rem' }} />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            {canModify && (
+              <Stack direction="row" gap={0.5}>
+                <Tooltip title="Edit rule">
+                  <IconButton size="small" onClick={() => openEdit(rule)} sx={{ color: '#64748b', '&:hover': { color: colorPalette.primary } }}>
+                    <EditOutlinedIcon sx={{ fontSize: '1rem' }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete rule">
+                  <IconButton size="small" onClick={() => setDeleteId(rule.id)} sx={{ color: '#64748b', '&:hover': { color: '#dc2626' } }}>
+                    <DeleteOutlineIcon sx={{ fontSize: '1rem' }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )}
           </Box>
         )
       })}

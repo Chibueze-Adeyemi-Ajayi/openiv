@@ -15,6 +15,7 @@ import RequestAccessPage from '@/pages/auth/RequestAccessPage'
 import OverviewPage from '@/pages/dashboard/OverviewPage'
 import TransactionsPage from '@/pages/dashboard/TransactionsPage'
 import AMLPage from '@/pages/dashboard/AMLPage'
+import CasePage from '@/pages/dashboard/CasePage'
 import KYCPage from '@/pages/dashboard/KYCPage'
 import HeatmapsPage from '@/pages/dashboard/HeatmapsPage'
 import ReportsPage from '@/pages/dashboard/ReportsPage'
@@ -82,6 +83,7 @@ function App() {
         <Route path="transactions" element={<RoleGuard permission="transactions.view"><TransactionsPage /></RoleGuard>} />
         <Route path="patterns" element={<ComingSoonRoute title="Behavioral Pattern Matching"><RoleGuard permission="transactions.view"><BehavioralPatternsPage /></RoleGuard></ComingSoonRoute>} />
         <Route path="aml" element={<RoleGuard permission="cases.view"><AMLPage /></RoleGuard>} />
+        <Route path="cases/:id" element={<RoleGuard permission="cases.view"><CasePage /></RoleGuard>} />
         <Route path="kyc" element={<RoleGuard permission="kyc.view"><KYCPage /></RoleGuard>} />
         <Route path="customers" element={<RoleGuard permission="customers.view"><CustomersPage /></RoleGuard>} />
         <Route path="users/:id" element={<RoleGuard permission="customers.view"><UserProfilePage /></RoleGuard>} />
