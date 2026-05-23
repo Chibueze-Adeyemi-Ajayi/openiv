@@ -18,6 +18,10 @@ import io.vertx.ext.web.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.openiv.backend.webhooks.WebhookRepository;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -34,21 +38,29 @@ public final class KycService {
   private final CustomerService customerService;
   final DojaClient dojaClient;
   private final KycPipelineResultRepository pipelineResults;
+  private final WebhookRepository webhookRepository;
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService) {
-    this(repository, users, client, cases, notifications, customerService, null, null);
+    this(repository, users, client, cases, notifications, customerService, null, null, null);
   }
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService,
       DojaClient dojaClient) {
-    this(repository, users, client, cases, notifications, customerService, dojaClient, null);
+    this(repository, users, client, cases, notifications, customerService, dojaClient, null, null);
   }
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService,
       DojaClient dojaClient, KycPipelineResultRepository pipelineResults) {
+    this(repository, users, client, cases, notifications, customerService, dojaClient, pipelineResults, null);
+  }
+
+  public KycService(KycRepository repository, UserRepository users, WebClient client,
+      CaseService cases, NotificationService notifications, CustomerService customerService,
+      DojaClient dojaClient, KycPipelineResultRepository pipelineResults,
+      WebhookRepository webhookRepository) {
     this.repository = repository;
     this.users = users;
     this.client = client;
@@ -57,6 +69,7 @@ public final class KycService {
     this.customerService = customerService;
     this.dojaClient = dojaClient;
     this.pipelineResults = pipelineResults;
+    this.webhookRepository = webhookRepository;
   }
 
   // ── Config ────────────────────────────────────────────────────────────────
@@ -187,10 +200,17 @@ public final class KycService {
       String src = triggerSource != null ? triggerSource : "manual";
 
       long start = System.currentTimeMillis();
-      var req = client.getAbs(url).timeout(timeoutMs);
-      if (cfg.lookupApiKey() != null && !cfg.lookupApiKey().isBlank()) {
-        req = req.putHeader("Authorization", "Bearer " + cfg.lookupApiKey());
-      }
+
+      return getInstitutionWebhookSecret(u.institutionId()).compose(secret -> {
+        var req = client.getAbs(url).timeout(timeoutMs)
+            .putHeader("X-OpenIV-Request", "customer-lookup")
+            .putHeader("Accept", "application/json");
+        if (secret != null) {
+          long ts = System.currentTimeMillis() / 1_000;
+          String sig = hmacSha256(secret, ts + "." + customerRef);
+          req = req.putHeader("X-OpenIV-Timestamp", String.valueOf(ts))
+                   .putHeader("X-OpenIV-Signature", sig);
+        }
 
       return req.send().compose(resp -> {
         int durationMs = (int) (System.currentTimeMillis() - start);
@@ -256,7 +276,8 @@ public final class KycService {
         return repository.saveLog(u.institutionId(), customerRef, src,
             failStatus, null, elapsed, null, null, err.getMessage())
             .compose(ignored -> Future.<JsonObject>failedFuture(err));
-      });
+      }); // end req.send()
+      }); // end getInstitutionWebhookSecret compose
     }));
   }
 
@@ -433,9 +454,16 @@ public final class KycService {
       int timeoutMs = cfg.lookupTimeout() > 0 ? cfg.lookupTimeout() * 1_000 : 10_000;
 
       long start = System.currentTimeMillis();
-      var req = client.getAbs(url).timeout(timeoutMs);
-      if (cfg.lookupApiKey() != null && !cfg.lookupApiKey().isBlank())
-        req = req.putHeader("Authorization", "Bearer " + cfg.lookupApiKey());
+      return getInstitutionWebhookSecret(institutionId).compose(secret -> {
+        var req = client.getAbs(url).timeout(timeoutMs)
+            .putHeader("X-OpenIV-Request", "customer-lookup")
+            .putHeader("Accept", "application/json");
+        if (secret != null) {
+          long ts = System.currentTimeMillis() / 1_000;
+          String sig = hmacSha256(secret, ts + "." + customerId);
+          req = req.putHeader("X-OpenIV-Timestamp", String.valueOf(ts))
+                   .putHeader("X-OpenIV-Signature", sig);
+        }
 
       return req.send().compose(resp -> {
         int durationMs = (int) (System.currentTimeMillis() - start);
@@ -469,9 +497,10 @@ public final class KycService {
         String photo = body.getString("photo");
         Long monthlyInflow  = body.containsKey("monthly_inflow")  ? body.getLong("monthly_inflow")  : null;
         Long monthlyOutflow = body.containsKey("monthly_outflow") ? body.getLong("monthly_outflow") : null;
+        Integer kycTier = body.containsKey("customer_kyc_tier") ? body.getInteger("customer_kyc_tier") : null;
 
-        log.info("[Beam/Lookup] Webhook returned data for customer={} inst={} — registering and running pipeline",
-            customerId, institutionId);
+        log.info("[Beam/Lookup] Webhook returned data for customer={} inst={} tier={} — registering and running pipeline",
+            customerId, institutionId, kycTier);
 
         long pipelineStart = System.currentTimeMillis();
         return customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
@@ -480,8 +509,8 @@ public final class KycService {
               int score = result.overallRiskScore();
               String actionTaken = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
               return customerService.updateRiskScore(institutionId, customerId, score)
-                  .compose(v -> savePipelineResult(institutionId, customerId, result,
-                      actionTaken, monthlyInflow, monthlyOutflow))
+                  .compose(v -> savePipelineResultWithTier(institutionId, customerId, result,
+                      actionTaken, monthlyInflow, monthlyOutflow, kycTier))
                   .compose(saved -> {
                     int totalMs = (int) (System.currentTimeMillis() - pipelineStart);
                     return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
@@ -501,7 +530,8 @@ public final class KycService {
         return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
             "failed", null, elapsed, null, null, e.getMessage())
             .map(ignored -> Optional.<KycPipelineResult>empty());
-      });
+      }); // end req.send()
+      }); // end getInstitutionWebhookSecret compose
     });
   }
 
@@ -520,5 +550,25 @@ public final class KycService {
   private Future<User> resolveUser(Session session) {
     return users.findById(session.userId())
         .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")));
+  }
+
+  private Future<String> getInstitutionWebhookSecret(long institutionId) {
+    if (webhookRepository == null) return Future.succeededFuture(null);
+    return webhookRepository.findOrCreateSecret(institutionId)
+        .map(s -> s.secret())
+        .otherwise((String) null);
+  }
+
+  private static String hmacSha256(String secret, String payload) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      byte[] bytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+      StringBuilder sb = new StringBuilder(bytes.length * 2);
+      for (byte b : bytes) sb.append(String.format("%02x", b));
+      return sb.toString();
+    } catch (Exception e) {
+      throw new RuntimeException("HMAC signing failed", e);
+    }
   }
 }

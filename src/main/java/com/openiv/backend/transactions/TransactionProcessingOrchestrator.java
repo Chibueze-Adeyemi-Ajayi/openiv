@@ -58,7 +58,7 @@ public class TransactionProcessingOrchestrator {
                 reasonBuilder.toString(),
                 analysisResult.riskScore());
           } else {
-            notifFuture = Future.succeededFuture(new com.openiv.backend.notifications.NotificationService.Notification(0L, institutionId, "system", "info", "Flag skipped", "read", OffsetDateTime.now(), null, null));
+            notifFuture = Future.succeededFuture(new com.openiv.backend.notifications.NotificationService.Notification(0L, institutionId, "system", "info", "Flag skipped", "read", OffsetDateTime.now(), null, null, null, null));
           }
 
           if (analysisResult.caseCreated() && analysisResult.caseid() != null) {

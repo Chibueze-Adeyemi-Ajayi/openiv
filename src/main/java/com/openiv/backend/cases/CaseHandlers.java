@@ -49,9 +49,10 @@ public final class CaseHandlers {
       Integer maxRisk = intParamOrNull(ctx, "maxRisk");
       Boolean assignedToMe   = "true".equals(first(ctx, "assignedToMe")) ? Boolean.TRUE : null;
       Long    assignedToUser = longParamOrNull(ctx, "assignedToUser");
+      Boolean hasInterest    = "true".equals(first(ctx, "hasInterest")) ? Boolean.TRUE : null;
 
       service.list(session, status, priority, q, page, pageSize, sort, range, minRisk, maxRisk,
-              assignedToMe, assignedToUser)
+              assignedToMe, assignedToUser, hasInterest)
           .onSuccess(result -> {
             var arr = new JsonArray();
             result.cases().forEach(c -> arr.add(caseJson(c)));
@@ -318,6 +319,69 @@ public final class CaseHandlers {
     };
   }
 
+  // POST /cases/:id/interest
+  public Handler<RoutingContext> expressInterest() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      service.expressInterest(session, caseId)
+          .onSuccess(expressed -> ok(ctx, new JsonObject().put("ok", expressed)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /cases/:id/interests
+  public Handler<RoutingContext> listInterests() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      service.listInterests(session, caseId)
+          .onSuccess(interests -> {
+            var arr = new JsonArray();
+            interests.forEach(i -> arr.add(interestJson(i)));
+            ok(ctx, new JsonObject().put("interests", arr));
+          })
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /cases/:id/interests/:userId/accept
+  public Handler<RoutingContext> acceptInterest() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      long userId;
+      try { userId = Long.parseLong(ctx.pathParam("userId")); }
+      catch (NumberFormatException e) { badRequest(ctx, "invalid userId"); return; }
+      service.acceptInterest(session, caseId, userId)
+          .onSuccess(v -> ok(ctx, new JsonObject().put("ok", true)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /cases/:id/my-interest
+  public Handler<RoutingContext> myInterest() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String caseId = ctx.pathParam("id");
+      service.myInterest(session, caseId)
+          .onSuccess(opt -> ok(ctx, new JsonObject()
+              .put("interest", opt.map(CaseHandlers::interestJson).orElse(null))))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // GET /cases/analytics
+  public Handler<RoutingContext> analytics() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      String range = first(ctx, "range");
+      service.analytics(session, range)
+          .onSuccess(data -> ok(ctx, data))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // ── JSON serialisers ─────────────────────────────────────────────────────
 
   private static JsonObject caseJson(CaseRecord c) {
@@ -341,7 +405,8 @@ public final class CaseHandlers {
         .put("isAvailableForInvestigation", c.isAvailableForInvestigation())
         .put("linkedNfiuReportId", c.linkedNfiuReportId())
         .put("customerId",   c.customerId())
-        .put("customerName", c.customerName());
+        .put("customerName", c.customerName())
+        .put("hasPendingInterest", c.hasPendingInterest());
     if (c.assignedTo() != null) {
       o.put("assignedTo",   c.assignedTo());
       o.put("assigneeName", c.assigneeName());
@@ -371,6 +436,16 @@ public final class CaseHandlers {
         .put("detail",      e.detail())
         .put("refId",       e.refId())
         .put("createdAt",   e.createdAt().toString());
+  }
+
+  private static JsonObject interestJson(CaseInterest i) {
+    return new JsonObject()
+        .put("id",        i.id())
+        .put("caseId",    i.caseId())
+        .put("userId",    i.userId())
+        .put("userName",  i.userName())
+        .put("status",    i.status())
+        .put("createdAt", i.createdAt().toString());
   }
 
   private static JsonObject txnJson(Transaction t) {

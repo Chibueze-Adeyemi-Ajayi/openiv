@@ -8,9 +8,9 @@ public record KycPipelineResult(
     String         customerId,
     OffsetDateTime runAt,
     int            overallRiskScore,
-    /** System-assessed knowledge level: "t1" (basic), "t2" (intermediate), "t3" (full KYC). */
+    // System-assessed knowledge level: "t1" (basic), "t2" (intermediate), "t3" (full KYC).
     String         knowledgeLevel,
-    /** Institution-provided KYC tier sent in the beam payload (1/2/3), or null if not supplied. */
+    // Institution-provided KYC tier sent in the beam payload (1/2/3), or null if not supplied.
     Integer        institutionKycTier,
     String         overallStatus,
     String         actionTaken,

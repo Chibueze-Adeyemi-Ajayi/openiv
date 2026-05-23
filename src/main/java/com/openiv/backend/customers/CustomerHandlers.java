@@ -67,30 +67,42 @@ public final class CustomerHandlers {
     }
   }
 
-  // GET /customers?q=&pageSize=
+  // GET /customers?q=&pageSize=&page=
   public Handler<RoutingContext> listCustomers() {
     return ctx -> {
       Session session = SessionAuthHandler.require(ctx);
       String q = ctx.queryParam("q").stream().findFirst().orElse(null);
       int pageSize;
+      int page;
       try {
-        pageSize = Integer.parseInt(ctx.queryParam("pageSize").stream().findFirst().orElse("30"));
+        pageSize = Integer.parseInt(ctx.queryParam("pageSize").stream().findFirst().orElse("10"));
       } catch (NumberFormatException e) {
-        pageSize = 30;
+        pageSize = 10;
+      }
+      try {
+        page = Integer.parseInt(ctx.queryParam("page").stream().findFirst().orElse("1"));
+      } catch (NumberFormatException e) {
+        page = 1;
       }
       int finalPageSize = pageSize;
+      int finalPage = page;
 
       users.findById(session.userId())
           .compose(uOpt -> {
             User u = uOpt.orElseThrow(() -> AuthException.invalid("session"));
-            return service.listCustomers(u.institutionId(), q, finalPageSize);
+            return service.listCustomers(u.institutionId(), q, finalPageSize, finalPage);
           })
           .onSuccess(list -> {
             var arr = new io.vertx.core.json.JsonArray();
             list.forEach(c -> arr.add(toJson(c)));
             ctx.response().setStatusCode(200)
                 .putHeader("Content-Type", "application/json")
-                .end(new JsonObject().put("customers", arr).encode());
+                .end(new JsonObject()
+                    .put("customers", arr)
+                    .put("page", finalPage)
+                    .put("pageSize", finalPageSize)
+                    .put("hasMore", list.size() == finalPageSize)
+                    .encode());
           })
           .onFailure(ctx::fail);
     };

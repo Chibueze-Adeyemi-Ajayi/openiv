@@ -2,6 +2,7 @@ package com.openiv.backend.dashboard;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.model.Session;
+import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.beam.OtpAlert;
 import com.openiv.backend.beam.OtpAlertRepository;
 import com.openiv.backend.billing.BillingService;
@@ -28,19 +29,21 @@ public final class DashboardHandlers {
 
   private static final Logger log = LoggerFactory.getLogger(DashboardHandlers.class);
 
-  private final DashboardService  service;
-  private final GeoFenceService   geoFenceService;
-  private final Vertx             vertx;
-  private final BillingService    billing;
+  private final DashboardService    service;
+  private final GeoFenceService     geoFenceService;
+  private final Vertx               vertx;
+  private final BillingService      billing;
   private final NotificationService notifications;
+  private final UserRepository      users;
 
   public DashboardHandlers(DashboardService service, GeoFenceService geoFenceService, Vertx vertx,
-      BillingService billing, NotificationService notifications) {
+      BillingService billing, NotificationService notifications, UserRepository users) {
     this.service         = service;
     this.billing         = billing;
     this.geoFenceService = geoFenceService;
     this.notifications   = notifications;
     this.vertx           = vertx;
+    this.users           = users;
   }
 
   // ── SSE: unified events stream ────────────────────────────────────────────
@@ -67,10 +70,11 @@ public final class DashboardHandlers {
           .putHeader("cache-control",   "no-cache")
           .putHeader("x-accel-buffering", "no");
 
-      final long[] lastActivityId = { 0L };
-      final long[] lastOtpId      = { 0L };
-      final long[] institutionId  = { 0L };
-      final int[]  pendingInit    = { 7 };   // stats + activity + otp + beam + cases + institutionId + notifications
+      final long[]   lastActivityId = { 0L };
+      final long[]   lastOtpId      = { 0L };
+      final long[]   institutionId  = { 0L };
+      final String[] userRole       = { null };
+      final int[]    pendingInit    = { 6 };   // stats + activity + otp + beam + cases + (user+notifInit combined)
 
       Runnable startTimers = () -> {
         if (sseEnded(resp)) return;
@@ -138,10 +142,11 @@ public final class DashboardHandlers {
           safeWrite(resp, sseEvent("geoRequestInit", arr));
         });
 
-        // ── Real-time notification push ───────────────────────────────────
+        // ── Real-time notification push (filtered per user) ──────────────
         var notifConsumer = vertx.eventBus().<JsonObject>consumer(
             NotificationService.busAddress(institutionId[0]), msg -> {
-          if (!sseEnded(resp))
+          if (!sseEnded(resp)
+              && NotificationService.isVisibleToUser(msg.body(), session.userId(), userRole[0]))
             safeWrite(resp, sseEvent("notifUpdate", new JsonArray().add(msg.body())));
         });
 
@@ -155,11 +160,7 @@ public final class DashboardHandlers {
         });
       };
 
-      // ── Initial push: 4 parallel calls ───────────────────────────────────
-
-      service.resolveInstitutionId(session)
-          .onSuccess(iid -> institutionId[0] = iid)
-          .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
+      // ── Initial push: parallel calls ─────────────────────────────────────
 
       service.stats(session)
           .onSuccess(s -> { if (!sseEnded(resp)) safeWrite(resp, sseEvent("stats", statsJson(s))); })
@@ -196,10 +197,14 @@ public final class DashboardHandlers {
           })
           .onComplete(ar -> { if (--pendingInit[0] == 0) startTimers.run(); });
 
-      // ── notifInit: last 50 notifications on connect ───────────────────────
-      service.resolveInstitutionId(session).compose(iid ->
-          notifications.listRecent(iid, 50)
-      ).onSuccess(list -> {
+      // ── Resolve user (role + institution) then push notifInit ────────────
+      users.findById(session.userId()).compose(opt -> {
+        if (opt.isEmpty()) return io.vertx.core.Future.failedFuture("user not found");
+        var u = opt.get();
+        institutionId[0] = u.institutionId();
+        userRole[0]      = u.role() != null ? u.role() : "analyst";
+        return notifications.listRecent(u.institutionId(), session.userId(), userRole[0], 50);
+      }).onSuccess(list -> {
         if (sseEnded(resp)) return;
         var arr = new JsonArray();
         list.forEach(n -> arr.add(NotificationService.toJson(n)));

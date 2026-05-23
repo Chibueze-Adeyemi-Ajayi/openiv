@@ -23,8 +23,9 @@ import java.util.Optional;
  * pending super-admin approval (→ GEO_BLOCKED).
  *
  * <p>
- * Admins are always exempt; users not listed in geo_fenced_users are always
- * allowed.
+ * Admins are always exempt. Every other team member is subject to the fence
+ * automatically whenever the institution's geo-fence is enabled and has a valid
+ * polygon — no per-user opt-in required.
  */
 public final class GeoFenceService {
 
@@ -53,36 +54,32 @@ public final class GeoFenceService {
   public Future<Optional<GeoAccessRequest>> checkGate(Session session) {
     return users.findById(session.userId()).compose(opt -> {
       var user = opt.orElseThrow();
-      // Admins always bypass
+      // Admins always bypass — every other role is subject to the fence
       if (user.role() != null && user.role().toLowerCase().contains("admin")) {
         return Future.succeededFuture(Optional.empty());
       }
       long institutionId = user.institutionId();
-      return repo.isUserFenced(institutionId, user.id()).compose(fenced -> {
-        if (!fenced)
+      return repo.findByInstitution(institutionId).compose(fenceOpt -> {
+        if (fenceOpt.isEmpty() || !fenceOpt.get().enabled()) {
           return Future.succeededFuture(Optional.empty());
-        return repo.findByInstitution(institutionId).compose(fenceOpt -> {
-          if (fenceOpt.isEmpty() || !fenceOpt.get().enabled()) {
-            return Future.succeededFuture(Optional.empty());
-          }
-          GeoFence fence = fenceOpt.get();
-          if (fence.polygon().size() < 3) {
-            // Polygon not yet drawn — allow through
-            return Future.succeededFuture(Optional.empty());
-          }
-          // Apply calibration offset to user GPS
-          Double adjLat = session.lat() == null ? null
-              : session.lat() + fence.calLatOffset();
-          Double adjLng = session.lon() == null ? null
-              : session.lon() + fence.calLngOffset();
+        }
+        GeoFence fence = fenceOpt.get();
+        if (fence.polygon().size() < 3) {
+          // Polygon not yet drawn — allow through
+          return Future.succeededFuture(Optional.empty());
+        }
+        // Apply calibration offset to user GPS
+        Double adjLat = session.lat() == null ? null
+            : session.lat() + fence.calLatOffset();
+        Double adjLng = session.lon() == null ? null
+            : session.lon() + fence.calLngOffset();
 
-          if (adjLat == null || adjLng == null
-              || isInsidePolygon(adjLat, adjLng, fence.polygon())) {
-            return Future.succeededFuture(Optional.empty());
-          }
-          // Outside fence — block
-          return blockSession(session, institutionId, user.id(), adjLat, adjLng);
-        });
+        if (adjLat == null || adjLng == null
+            || isInsidePolygon(adjLat, adjLng, fence.polygon())) {
+          return Future.succeededFuture(Optional.empty());
+        }
+        // Outside fence — block
+        return blockSession(session, institutionId, user.id(), adjLat, adjLng);
       });
     });
   }

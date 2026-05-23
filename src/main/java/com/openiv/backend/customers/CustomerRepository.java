@@ -78,16 +78,16 @@ public final class CustomerRepository {
         });
   }
 
-  public Future<List<Customer>> list(long institutionId, String q, int pageSize) {
+  public Future<List<Customer>> list(long institutionId, String q, int pageSize, int offset) {
     String sql = "SELECT " + READ_COLS + " FROM customers c"
         + " WHERE c.institution_id = $1"
         + "   AND ($2::text IS NULL OR c.name ILIKE '%' || $2 || '%'"
         + "                        OR c.external_id ILIKE '%' || $2 || '%'"
         + "                        OR c.email ILIKE '%' || $2 || '%')"
         + " ORDER BY c.risk_score DESC, c.name ASC"
-        + " LIMIT $3";
+        + " LIMIT $3 OFFSET $4";
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(institutionId, q, pageSize))
+        .execute(Tuple.of(institutionId, q, pageSize, offset))
         .map(rs -> {
           List<Customer> list = new ArrayList<>();
           rs.forEach(r -> list.add(mapRow(r)));

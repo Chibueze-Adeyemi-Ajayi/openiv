@@ -62,7 +62,7 @@ public final class RiskReportService {
           Future<Void> emailFuture = userRepository.listActiveByInstitution(institutionId)
               .compose(users -> {
                 List<Future<Void>> sends = users.stream()
-                    .filter(u -> "admin".equals(u.role()) || "compliance".equals(u.role()))
+                    .filter(u -> "admin".equals(u.role()) || "cco".equals(u.role()))
                     .map(u -> emailSender
                         .sendDailyRiskReport(u.email(), firstName(u.fullName()), reportHtml)
                         .onFailure(e -> log.warn("[RiskReport] Email failed for {}: {}", u.email(), e.getMessage())))

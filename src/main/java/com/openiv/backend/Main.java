@@ -196,7 +196,7 @@ public final class Main {
         }
 
         // KYC service — needed by fraud pipeline for automatic KYC lookups
-        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService, dojaClient, new com.openiv.backend.kyc.KycPipelineResultRepository(pool));
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService, dojaClient, new com.openiv.backend.kyc.KycPipelineResultRepository(pool), webhookRepository);
 
         var hybridAnalysis = new com.openiv.backend.transactions.HybridTransactionAnalysisService(
             new com.openiv.backend.transactions.TransactionScorer(),

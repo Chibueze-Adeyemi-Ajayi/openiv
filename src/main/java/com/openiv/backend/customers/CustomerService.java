@@ -40,9 +40,10 @@ public final class CustomerService {
     return repository.findByExternalId(institutionId, externalId);
   }
 
-  public Future<List<Customer>> listCustomers(long institutionId, String q, int pageSize) {
-    int limit = Math.min(Math.max(1, pageSize), 100);
-    return repository.list(institutionId, q == null || q.isBlank() ? null : q.trim(), limit);
+  public Future<List<Customer>> listCustomers(long institutionId, String q, int pageSize, int page) {
+    int limit  = Math.min(Math.max(1, pageSize), 100);
+    int offset = (Math.max(1, page) - 1) * limit;
+    return repository.list(institutionId, q == null || q.isBlank() ? null : q.trim(), limit, offset);
   }
 
   public Future<Void> updateRiskScore(long institutionId, String externalId, int riskScore) {

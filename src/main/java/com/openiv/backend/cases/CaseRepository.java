@@ -27,7 +27,8 @@ public final class CaseRepository {
       + "c.assigned_to, COALESCE(u1.full_name, u1.email) AS assignee_name, "
       + "c.notes, c.resolution, c.created_by, COALESCE(u2.full_name, u2.email) AS created_by_name, "
       + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at, c.is_available_for_investigation, "
-      + "c.linked_nfiu_report_id, c.customer_id, c.customer_name";
+      + "c.linked_nfiu_report_id, c.customer_id, c.customer_name, "
+      + "EXISTS(SELECT 1 FROM case_interests ci WHERE ci.case_id = c.id AND ci.status = 'pending') AS has_pending_interest";
 
   private static final String CASE_FROM =
       " FROM cases c "
@@ -49,7 +50,7 @@ public final class CaseRepository {
   public Future<CasePage> list(long institutionId, String status, String priority,
       String q, int page, int pageSize, String sort, String range,
       Integer minRisk, Integer maxRisk, long userId, String userRole,
-      Boolean assignedToMe, Long assignedToUser) {
+      Boolean assignedToMe, Long assignedToUser, Boolean hasInterest) {
 
     var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = true");
     var params = new ArrayList<Object>();
@@ -85,6 +86,9 @@ public final class CaseRepository {
     if (maxRisk != null) {
       where.append(" AND c.risk_score <= $").append(params.size() + 1);
       params.add(maxRisk);
+    }
+    if (Boolean.TRUE.equals(hasInterest)) {
+      where.append(" AND EXISTS (SELECT 1 FROM case_interests ci WHERE ci.case_id = c.id AND ci.status = 'pending')");
     }
     if (q != null && !q.isBlank()) {
       String like = "%" + q.toLowerCase() + "%";
@@ -447,6 +451,62 @@ public final class CaseRepository {
         .mapEmpty();
   }
 
+  // ── Analytics ─────────────────────────────────────────────────────────────
+
+  public Future<io.vertx.core.json.JsonObject> analytics(long institutionId, String range) {
+    String rc = caseRangeClause(range);
+    String rf = rc != null ? " AND " + rc : "";
+    Tuple t = Tuple.of(institutionId);
+
+    String typSql = "SELECT typology, COUNT(*) AS cnt, ROUND(AVG(risk_score))::int AS avg_risk"
+        + " FROM cases WHERE institution_id = $1" + rf
+        + " GROUP BY typology ORDER BY cnt DESC LIMIT 12";
+    String resSql = "SELECT COALESCE(resolution, 'unresolved') AS resolution, COUNT(*) AS cnt"
+        + " FROM cases WHERE institution_id = $1 AND status = 'closed'" + rf
+        + " GROUP BY resolution ORDER BY cnt DESC";
+    String slaSql = "SELECT"
+        + " COUNT(*) FILTER (WHERE status != 'closed' AND sla_deadline < NOW()) AS breached,"
+        + " COUNT(*) FILTER (WHERE status != 'closed') AS total"
+        + " FROM cases WHERE institution_id = $1";
+    String volSql = "SELECT TO_CHAR(created_at::date, 'YYYY-MM-DD') AS day, COUNT(*) AS cnt"
+        + " FROM cases WHERE institution_id = $1" + rf
+        + " GROUP BY day ORDER BY day";
+
+    return pool.preparedQuery(typSql).execute(t).compose(typRs ->
+        pool.preparedQuery(resSql).execute(t).compose(resRs ->
+            pool.preparedQuery(slaSql).execute(t).compose(slaRs ->
+                pool.preparedQuery(volSql).execute(t).map(volRs -> {
+                  var typArr = new io.vertx.core.json.JsonArray();
+                  typRs.forEach(r -> typArr.add(new io.vertx.core.json.JsonObject()
+                      .put("typology", r.getString("typology"))
+                      .put("count",    r.getLong("cnt"))
+                      .put("avgRisk",  r.getInteger("avg_risk") != null ? r.getInteger("avg_risk") : 0)));
+
+                  var resArr = new io.vertx.core.json.JsonArray();
+                  resRs.forEach(r -> resArr.add(new io.vertx.core.json.JsonObject()
+                      .put("resolution", r.getString("resolution"))
+                      .put("count",      r.getLong("cnt"))));
+
+                  Row sla      = slaRs.iterator().next();
+                  long breached = sla.getLong("breached");
+                  long total    = sla.getLong("total");
+
+                  var volArr = new io.vertx.core.json.JsonArray();
+                  volRs.forEach(r -> volArr.add(new io.vertx.core.json.JsonObject()
+                      .put("date",  r.getString("day"))
+                      .put("count", r.getLong("cnt"))));
+
+                  return new io.vertx.core.json.JsonObject()
+                      .put("typologyBreakdown",   typArr)
+                      .put("resolutionBreakdown", resArr)
+                      .put("slaBreach", new io.vertx.core.json.JsonObject()
+                          .put("breached", breached)
+                          .put("total",    total)
+                          .put("rate",     total > 0 ? (int) Math.round((double) breached / total * 100) : 0))
+                      .put("volumeByDay", volArr);
+                }))));
+  }
+
   // ── Metrics ──────────────────────────────────────────────────────────────
 
   public Future<CaseMetrics> metrics(long institutionId) {
@@ -498,7 +558,8 @@ public final class CaseRepository {
         seen != null && seen,
         linkedNfiuVal != null ? ((Number) linkedNfiuVal).longValue() : null,
         r.getString("customer_id"),
-        r.getString("customer_name"));
+        r.getString("customer_name"),
+        Boolean.TRUE.equals(r.getBoolean("has_pending_interest")));
   }
 
   private static CaseActivity mapActivity(Row r) {
@@ -532,7 +593,7 @@ public final class CaseRepository {
   }
 
   private static boolean isElevatedRole(String role) {
-    return role != null && Set.of("owner", "admin", "compliance", "cmlco", "mlro").contains(role);
+    return role != null && Set.of("admin", "cco").contains(role);
   }
 
   private static String caseOrderBy(String sort) {
@@ -561,5 +622,54 @@ public final class CaseRepository {
     Tuple t = Tuple.tuple();
     params.forEach(t::addValue);
     return t;
+  }
+
+  // ── Case interests ────────────────────────────────────────────────────────
+
+  public Future<Boolean> expressInterest(String caseId, long institutionId, long userId, String userName) {
+    return pool.preparedQuery(
+            "INSERT INTO case_interests (case_id, institution_id, user_id, user_name)"
+            + " VALUES ($1, $2, $3, $4) ON CONFLICT (case_id, user_id) DO NOTHING")
+        .execute(Tuple.of(caseId, institutionId, userId, userName))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
+  public Future<List<CaseInterest>> listInterests(String caseId, long institutionId) {
+    return pool.preparedQuery(
+            "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
+            + " FROM case_interests WHERE case_id = $1 AND institution_id = $2 ORDER BY created_at ASC")
+        .execute(Tuple.of(caseId, institutionId))
+        .map(rs -> {
+          var list = new ArrayList<CaseInterest>();
+          rs.forEach(r -> list.add(new CaseInterest(
+              r.getLong("id"), r.getString("case_id"), r.getLong("institution_id"),
+              r.getLong("user_id"), r.getString("user_name"), r.getString("status"),
+              r.getOffsetDateTime("created_at"))));
+          return list;
+        });
+  }
+
+  public Future<Boolean> acceptInterest(String caseId, long institutionId, long userId) {
+    return pool.preparedQuery(
+            "UPDATE case_interests SET status = 'accepted'"
+            + " WHERE case_id = $1 AND institution_id = $2 AND user_id = $3")
+        .execute(Tuple.of(caseId, institutionId, userId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
+  public Future<Optional<CaseInterest>> myInterest(String caseId, long institutionId, long userId) {
+    return pool.preparedQuery(
+            "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
+            + " FROM case_interests WHERE case_id = $1 AND institution_id = $2 AND user_id = $3")
+        .execute(Tuple.of(caseId, institutionId, userId))
+        .map(rs -> {
+          var iter = rs.iterator();
+          if (!iter.hasNext()) return Optional.<CaseInterest>empty();
+          var r = iter.next();
+          return Optional.of(new CaseInterest(
+              r.getLong("id"), r.getString("case_id"), r.getLong("institution_id"),
+              r.getLong("user_id"), r.getString("user_name"), r.getString("status"),
+              r.getOffsetDateTime("created_at")));
+        });
   }
 }

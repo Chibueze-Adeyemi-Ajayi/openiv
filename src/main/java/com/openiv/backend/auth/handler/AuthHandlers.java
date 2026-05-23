@@ -277,6 +277,8 @@ public final class AuthHandlers {
               body.put("email", info.email());
             if (info.fullName() != null)
               body.put("fullName", info.fullName());
+            if (info.role() != null)
+              body.put("role", info.role());
             body.put("userId", info.userId());
             okJson(ctx, body);
           })

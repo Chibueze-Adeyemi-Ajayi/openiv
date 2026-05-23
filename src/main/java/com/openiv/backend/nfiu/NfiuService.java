@@ -117,9 +117,7 @@ public final class NfiuService {
 
   private static boolean isApprover(String role) {
     if (role == null) return false;
-    String r = role.toLowerCase();
-    return r.contains("owner") || r.contains("admin") || r.contains("compliance")
-        || r.contains("cmlco") || r.contains("mlro");
+    return "admin".equals(role) || "cco".equals(role);
   }
 
   public Future<Void> deleteReport(Session session, long id) {

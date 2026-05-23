@@ -1,6 +1,8 @@
 package com.openiv.backend.nfiu;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.auth.repository.InstitutionRepository;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -10,10 +12,16 @@ import java.time.LocalDate;
 
 public final class NfiuHandlers {
 
-  private final NfiuService service;
+  private final NfiuService           service;
+  private final InstitutionRepository institutions;
 
   public NfiuHandlers(NfiuService service) {
-    this.service = service;
+    this(service, null);
+  }
+
+  public NfiuHandlers(NfiuService service, InstitutionRepository institutions) {
+    this.service      = service;
+    this.institutions = institutions;
   }
 
   // GET /nfiu/metrics
@@ -175,6 +183,34 @@ public final class NfiuHandlers {
       long id = parseLong(ctx, "id"); if (id < 0) return;
       service.approveReport(session, id)
           .onSuccess(r -> ok(ctx, reportJson(r)))
+          .onFailure(err -> {
+            if (err instanceof IllegalArgumentException || err instanceof IllegalStateException)
+              badRequest(ctx, err.getMessage());
+            else ctx.fail(err);
+          });
+    };
+  }
+
+  // GET /nfiu/reports/:id/goaml  — returns goAML-compliant XML for portal upload
+  public Handler<RoutingContext> downloadGoAml() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      long id = parseLong(ctx, "id"); if (id < 0) return;
+      if (institutions == null) { badRequest(ctx, "Institution data unavailable"); return; }
+      service.getReport(session, id)
+          .compose(report -> institutions.findById(report.institutionId())
+              .map(opt -> opt.orElseThrow(() ->
+                  new IllegalStateException("Institution not found")))
+              .compose(inst -> {
+                String xml      = GoAmlXmlBuilder.build(report, inst);
+                String filename = report.reference() + "-goaml.xml";
+                ctx.response()
+                    .setStatusCode(200)
+                    .putHeader("content-type",        "application/xml; charset=UTF-8")
+                    .putHeader("content-disposition", "attachment; filename=\"" + filename + "\"")
+                    .end(xml);
+                return Future.succeededFuture();
+              }))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException || err instanceof IllegalStateException)
               badRequest(ctx, err.getMessage());

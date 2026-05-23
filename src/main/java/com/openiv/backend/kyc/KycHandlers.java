@@ -41,10 +41,9 @@ public final class KycHandlers {
       var session = SessionAuthHandler.require(ctx);
       JsonObject body = body(ctx);
       if (body == null) return;
-      String  lookupUrl      = body.getString("lookupUrl");
-      String  lookupApiKey   = body.getString("lookupApiKey");
-      Integer lookupTimeout  = body.getInteger("lookupTimeout");
-      service.saveConfig(session, lookupUrl, lookupApiKey, lookupTimeout)
+      String  lookupUrl     = body.getString("lookupUrl");
+      Integer lookupTimeout = body.getInteger("lookupTimeout");
+      service.saveConfig(session, lookupUrl, null, lookupTimeout)
           .onSuccess(cfg -> ok(ctx, new JsonObject().put("config", configJson(cfg))))
           .onFailure(err -> {
             if (err instanceof IllegalArgumentException) badRequest(ctx, err.getMessage());

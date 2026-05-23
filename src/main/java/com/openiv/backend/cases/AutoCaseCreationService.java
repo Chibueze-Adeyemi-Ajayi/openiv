@@ -11,6 +11,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 public final class AutoCaseCreationService {
+  @SuppressWarnings("unused")
   private static final Logger log = LoggerFactory.getLogger(AutoCaseCreationService.class);
 
   private final CaseRepository caseRepository;
@@ -56,29 +57,28 @@ public final class AutoCaseCreationService {
           "Auto-created by fraud detection rules",
           null, // no document yet
           transaction.customerId(),
-          transaction.customerName()
-      ).compose(caseRecord -> {
-        // Link transaction to case
-        return caseRepository.linkTransaction(caseRecord.id(), transaction.id(), institutionId)
-            .compose(v -> caseRepository.addActivity(
-                caseRecord.id(),
-                null, // system activity
-                "opened",
-                "Auto-created by transaction rule engine. Rules: " + String.join(", ", scoringResult.flags)
-            ))
-            .compose(v -> {
-              // Add customer profile reference as evidence for system-created cases
-              return caseRepository.addEvidence(
-                  caseRecord.id(),
-                  null, // system-added evidence
-                  "kyc",
-                  "Customer Profile: " + transaction.customerName(),
-                  "View customer KYC data, transaction history, and behavioral patterns for investigation context. Customer ID: " + transaction.customerId(),
-                  transaction.customerId() // Customer ID as reference
-              );
-            })
-            .map(caseRecord);
-      });
+          transaction.customerName()).compose(caseRecord -> {
+            // Link transaction to case
+            return caseRepository.linkTransaction(caseRecord.id(), transaction.id(), institutionId)
+                .compose(v -> caseRepository.addActivity(
+                    caseRecord.id(),
+                    null, // system activity
+                    "opened",
+                    "Auto-created by transaction rule engine. Rules: " + String.join(", ", scoringResult.flags)))
+                .compose(v -> {
+                  // Add customer profile reference as evidence for system-created cases
+                  return caseRepository.addEvidence(
+                      caseRecord.id(),
+                      null, // system-added evidence
+                      "kyc",
+                      "Customer Profile: " + transaction.customerName(),
+                      "View customer KYC data, transaction history, and behavioral patterns for investigation context. Customer ID: "
+                          + transaction.customerId(),
+                      transaction.customerId() // Customer ID as reference
+                  );
+                })
+                .map(caseRecord);
+          });
     });
   }
 
@@ -200,39 +200,40 @@ public final class AutoCaseCreationService {
   private String ruleToPainEnglish(String rule, Transaction txn) {
     return switch (rule) {
       case "high-value-wire", "High-value wire transfer" ->
-          String.format("Large transfer: ₦%,d being sent (exceeds institution's high-value threshold)", txn.amount().longValue());
+        String.format("Large transfer: ₦%,d being sent (exceeds institution's high-value threshold)",
+            txn.amount().longValue());
       case "OTP_ALERT", "OTP attack detected in time window" ->
-          "Multiple failed login attempts detected just before this transaction (possible account compromise)";
+        "Multiple failed login attempts detected just before this transaction (possible account compromise)";
       case "late-night-large", "Late-night large transfer" ->
-          String.format("Large transfer of ₦%,d happening at an unusual time (late night)", txn.amount().longValue());
+        String.format("Large transfer of ₦%,d happening at an unusual time (late night)", txn.amount().longValue());
       case "velocity-cluster", "High transaction velocity" ->
-          "Many transactions happening in rapid succession from the same customer (unusual pattern)";
+        "Many transactions happening in rapid succession from the same customer (unusual pattern)";
       case "POS transaction at unusual time" ->
-          "Card purchase at an unusual time of day (outside normal patterns)";
+        "Card purchase at an unusual time of day (outside normal patterns)";
       case "Unusually high POS transaction amount" ->
-          String.format("Card purchase of ₦%,d is higher than this customer's normal amounts", txn.amount().longValue());
+        String.format("Card purchase of ₦%,d is higher than this customer's normal amounts", txn.amount().longValue());
       case "Device shared across multiple accounts" ->
-          "This device has been used to access multiple different customer accounts";
+        "This device has been used to access multiple different customer accounts";
       case "Impossible travel detected" ->
-          "Customer appears to be in two different locations within an impossible travel time";
+        "Customer appears to be in two different locations within an impossible travel time";
       case "Suspicious IP cluster" ->
-          "Multiple accounts accessed from the same IP address (possible coordinated fraud)";
+        "Multiple accounts accessed from the same IP address (possible coordinated fraud)";
       case "STALE_TIMESTAMP_ANOMALY" ->
-          "The transaction's recorded time is much older than when it reached us — a possible replay or backdating attack";
+        "The transaction's recorded time is much older than when it reached us — a possible replay or backdating attack";
       case "FUTURE_TIMESTAMP_ANOMALY" ->
-          "The transaction's recorded time is in the future — a possible clock-tampering or forged-timestamp attack";
+        "The transaction's recorded time is in the future — a possible clock-tampering or forged-timestamp attack";
       case "MICRO_TIMING_ANOMALY" ->
-          "The transaction's recorded time is suspiciously close to 'now' — a possible API injection attack";
+        "The transaction's recorded time is suspiciously close to 'now' — a possible API injection attack";
       case "KYC_TIER_LIMIT_EXCEEDED" ->
-          "The transaction amount exceeds the customer's current KYC tier limits";
+        "The transaction amount exceeds the customer's current KYC tier limits";
       case "VELOCITY_SPIKE", "pat-4" ->
-          "A sudden spike in transaction volume detected, which may indicate a coordinated attack or system anomaly";
+        "A sudden spike in transaction volume detected, which may indicate a coordinated attack or system anomaly";
       case "pat-5" ->
-          "Unusual transaction frequency detected for this specific customer profile";
+        "Unusual transaction frequency detected for this specific customer profile";
       case "pat-2" ->
-          "High-value mobile/digital channel transaction that deviates from historical norms";
+        "High-value mobile/digital channel transaction that deviates from historical norms";
       case "cross-border-bdc" ->
-          "High-value cross-border Bureau De Change (BDC) transaction detected";
+        "High-value cross-border Bureau De Change (BDC) transaction detected";
       default -> rule.replace("_", " ").toLowerCase();
     };
   }

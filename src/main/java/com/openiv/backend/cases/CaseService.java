@@ -13,6 +13,7 @@ import io.vertx.core.Future;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,10 +38,10 @@ public final class CaseService {
 
   public Future<CasePage> list(Session session, String status, String priority,
       String q, int page, int pageSize, String sort, String range,
-      Integer minRisk, Integer maxRisk, Boolean assignedToMe, Long assignedToUser) {
+      Integer minRisk, Integer maxRisk, Boolean assignedToMe, Long assignedToUser, Boolean hasInterest) {
     return resolveUser(session)
         .compose(u -> repository.list(u.institutionId(), status, priority, q, page, pageSize,
-            sort, range, minRisk, maxRisk, u.id(), u.role(), assignedToMe, assignedToUser));
+            sort, range, minRisk, maxRisk, u.id(), u.role(), assignedToMe, assignedToUser, hasInterest));
   }
 
   public Future<CasePage> listUnavailable(Session session, String status, String priority,
@@ -144,12 +145,23 @@ public final class CaseService {
       if (!isL2Role(u.role()) && targetId != u.id()) {
         return Future.failedFuture(AuthException.security("insufficient_role_to_assign_others"));
       }
-      return repository.assignCase(caseId, u.institutionId(), targetId)
-          .compose(v -> repository.addActivity(caseId, u.id(), "assigned",
-              "Case assigned to user #" + targetId + " by " + u.displayName()))
-          .compose(v -> notifications
-              .notifyCaseAssigned(u.institutionId(), caseId, targetId, u.displayName())
-              .mapEmpty());
+      // If the case already has an assignee, only super-admin roles may override it
+      return repository.findById(caseId, u.institutionId(), u.id()).compose(caseOpt -> {
+        if (caseOpt.isEmpty()) return Future.failedFuture(new IllegalArgumentException("case_not_found"));
+        CaseRecord cas = caseOpt.get();
+        if (cas.assignedTo() != null && !isL2Role(u.role())) {
+          return Future.failedFuture(AuthException.security("only_privileged_role_can_reassign"));
+        }
+        return users.findById(targetId).compose(targetOpt -> {
+          String targetName = targetOpt.map(User::displayName).orElse("User #" + targetId);
+          return repository.assignCase(caseId, u.institutionId(), targetId)
+              .compose(v -> repository.addActivity(caseId, u.id(), "assigned",
+                  "Case assigned to " + targetName + " by " + u.displayName()))
+              .compose(v -> notifications
+                  .notifyCaseAssigned(u.institutionId(), caseId, targetId, u.displayName())
+                  .mapEmpty());
+        });
+      });
     });
   }
 
@@ -282,6 +294,57 @@ public final class CaseService {
             }));
   }
 
+  public Future<io.vertx.core.json.JsonObject> analytics(Session session, String range) {
+    return resolveUser(session).compose(u -> repository.analytics(u.institutionId(), range));
+  }
+
+  // ── Case interests ────────────────────────────────────────────────────────
+
+  public Future<Boolean> expressInterest(Session session, String caseId) {
+    return resolveUser(session).compose(u ->
+        repository.findById(caseId, u.institutionId(), u.id()).compose(opt -> {
+          if (opt.isEmpty()) return Future.failedFuture(new IllegalArgumentException("case_not_found"));
+          return repository.expressInterest(caseId, u.institutionId(), u.id(), u.displayName())
+              .compose(expressed -> {
+                if (expressed) {
+                  notifications.notifyInterestExpressed(u.institutionId(), caseId, u.displayName())
+                      .onFailure(e -> {});
+                }
+                return Future.succeededFuture(expressed);
+              });
+        }));
+  }
+
+  public Future<List<CaseInterest>> listInterests(Session session, String caseId) {
+    return resolveUser(session).compose(u ->
+        repository.listInterests(caseId, u.institutionId()));
+  }
+
+  public Future<Void> acceptInterest(Session session, String caseId, long userId) {
+    return resolveUser(session).compose(u -> {
+      if (!isL2Role(u.role())) {
+        return Future.failedFuture(AuthException.security("insufficient_role_to_accept_interest"));
+      }
+      return repository.acceptInterest(caseId, u.institutionId(), userId).compose(accepted -> {
+        if (!accepted) return Future.failedFuture(new IllegalArgumentException("interest_not_found"));
+        return users.findById(userId).compose(targetOpt -> {
+          String targetName = targetOpt.map(User::displayName).orElse("User #" + userId);
+          return repository.assignCase(caseId, u.institutionId(), userId)
+              .compose(v -> repository.addActivity(caseId, u.id(), "assigned",
+                  "Case assigned to " + targetName + " (interest accepted) by " + u.displayName()))
+              .compose(v -> notifications
+                  .notifyInterestAccepted(u.institutionId(), caseId, userId, u.displayName())
+                  .mapEmpty());
+        });
+      });
+    });
+  }
+
+  public Future<Optional<CaseInterest>> myInterest(Session session, String caseId) {
+    return resolveUser(session).compose(u ->
+        repository.myInterest(caseId, u.institutionId(), u.id()));
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private Future<User> resolveUser(Session session) {
@@ -310,6 +373,6 @@ public final class CaseService {
   }
 
   private static boolean isL2Role(String role) {
-    return role != null && Set.of("owner", "admin", "compliance", "cmlco", "mlro").contains(role);
+    return role != null && Set.of("admin", "cco").contains(role);
   }
 }

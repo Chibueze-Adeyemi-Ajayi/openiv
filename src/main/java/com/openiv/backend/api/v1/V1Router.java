@@ -167,7 +167,8 @@ public final class V1Router {
     // NFIU compliance — reports and scheduled filings
     NfiuService nfiuService = new NfiuService(
         new NfiuRepository(dbPool), new UserRepository(dbPool), billingService);
-    NfiuHandlers nfiuHandlers = new NfiuHandlers(nfiuService);
+    NfiuHandlers nfiuHandlers = new NfiuHandlers(nfiuService,
+        new InstitutionRepository(dbPool));
     Handler<RoutingContext> nfiuAuth     = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> nfiuView     = RoleAuthHandler.require(sharedUsers, Permission.REPORTS_VIEW);
     Handler<RoutingContext> nfiuCreate   = RoleAuthHandler.require(sharedUsers, Permission.REPORTS_CREATE);
@@ -181,6 +182,7 @@ public final class V1Router {
     router.get("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.getReport());
     router.patch("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuCreate).handler(nfiuHandlers.updateReport());
     router.delete("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.deleteReport());
+    router.get("/nfiu/reports/:id/goaml").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.downloadGoAml());
     router.get("/nfiu/schedules").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.listSchedules());
     router.post("/nfiu/schedules").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.createSchedule());
     router.patch("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.updateSchedule());
@@ -215,6 +217,7 @@ public final class V1Router {
     router.get("/cases/pending-approval").handler(caseAuth).handler(casesView).handler(caseHandlers.listPendingApproval());
     router.get("/cases/unassigned-count").handler(caseAuth).handler(casesView).handler(caseHandlers.unassignedCount());
     router.get("/cases/unseen-count").handler(caseAuth).handler(casesView).handler(caseHandlers.unseenCount());
+    router.get("/cases/analytics").handler(caseAuth).handler(casesView).handler(caseHandlers.analytics());
     router.get("/cases").handler(caseAuth).handler(casesView).handler(caseHandlers.list());
     router.post("/cases").handler(caseAuth).handler(casesCreate).handler(caseHandlers.create());
     router.get("/cases/:id").handler(caseAuth).handler(casesView).handler(caseHandlers.detail());
@@ -225,6 +228,10 @@ public final class V1Router {
     router.post("/cases/:id/assign").handler(caseAuth).handler(casesAssign).handler(caseHandlers.assignCase());
     router.patch("/cases/:id/seen").handler(caseAuth).handler(casesView).handler(caseHandlers.markSeen());
     router.patch("/cases/:id/link-nfiu-report").handler(caseAuth).handler(casesClose).handler(caseHandlers.linkNfiuReport());
+    router.post("/cases/:id/interest").handler(caseAuth).handler(casesView).handler(caseHandlers.expressInterest());
+    router.get("/cases/:id/interests").handler(caseAuth).handler(casesView).handler(caseHandlers.listInterests());
+    router.post("/cases/:id/interests/:userId/accept").handler(caseAuth).handler(casesAssign).handler(caseHandlers.acceptInterest());
+    router.get("/cases/:id/my-interest").handler(caseAuth).handler(casesView).handler(caseHandlers.myInterest());
 
     // Thresholds — metrics before /:id to avoid path collision
     ThresholdHandlers thresholdHandlers = new ThresholdHandlers(thresholdService);
@@ -408,7 +415,7 @@ public final class V1Router {
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
     DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx,
-        billingService, notificationService);
+        billingService, notificationService, new UserRepository(dbPool));
     Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
     router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
     router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());

@@ -25,5 +25,6 @@ public record CaseRecord(
     boolean seen,
     Long linkedNfiuReportId,
     String customerId,
-    String customerName
+    String customerName,
+    boolean hasPendingInterest
 ) {}

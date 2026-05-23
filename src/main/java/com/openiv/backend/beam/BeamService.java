@@ -486,67 +486,27 @@ public final class BeamService {
                   hasAccountConflict, conflictOpt, senderAccount, today, yesterday, txnDirection);
             }
 
-            // No lookup URL or lookup failed — flag and hold
-            int noKycScore = hasAccountConflict ? 90 : 75;
-            String noKycReason = hasAccountConflict
-                ? "No KYC on file and sender account '" + senderAccount + "' is already linked to customer '"
-                    + conflictOpt.get() + "'. Possible account sharing or fraudulent reuse."
-                : "Customer identity verification is required before transactions can be processed. "
-                    + "This transaction has been flagged and held pending KYC completion.";
-            log.warn("[Beam/Txn] No KYC for customer={} inst={} conflict={} — flagging txn={} score={}",
-                customerId, institutionId, hasAccountConflict, txnId, noKycScore);
-
-            boolean shouldOpenCase = autoCaseService != null
-                && settings.autoOpenCase()
-                && noKycScore >= settings.riskScoreCaseThreshold();
-
-            var noKycFlags = new java.util.ArrayList<String>();
-            noKycFlags.add("KYC_REQUIRED");
+            // Webhook not configured or lookup failed — reject transaction immediately (do not ingest)
+            String rejectReason = hasAccountConflict
+                ? "Customer '" + customerId + "' is not registered and could not be retrieved via the "
+                    + "customer fetch webhook. Additionally, the sender account '" + senderAccount
+                    + "' is already linked to a different customer. Transaction rejected."
+                : "Customer '" + customerId + "' is not registered and could not be retrieved via the "
+                    + "customer fetch webhook. Transactions from unverified customers are not accepted. "
+                    + "Please beam the customer's KYC before beaming transactions.";
+            log.warn("[Beam/Txn] No KYC and webhook lookup failed for customer={} inst={} — rejecting txn={}",
+                customerId, institutionId, txnId);
+            var rejResp = new JsonObject()
+                .put("transaction_id", txnId)
+                .put("rejected", true)
+                .put("recommended_action", "REJECTED")
+                .put("reason", "unknown_customer")
+                .put("account_conflict", hasAccountConflict)
+                .put("message", rejectReason)
+                .put("processed_at", OffsetDateTime.now(zone).toString());
             if (hasAccountConflict)
-              noKycFlags.add("SENDER_ACCOUNT_CONFLICT");
-            var noKycScoring = new com.openiv.backend.transactions.TransactionScorer.ScoringResult(
-                noKycScore, noKycFlags, noKycReason);
-
-            Future<String> fCase = shouldOpenCase
-                ? autoCaseService.createCaseFromTransaction(institutionId, txn, noKycScoring)
-                    .compose(cas -> {
-                      if (notificationService != null) {
-                        notificationService.notifyCaseCreated(institutionId, cas.id(),
-                            cas.priority(), txn.customerName(),
-                            txn.amount().toPlainString(),
-                            txn.currency() != null ? txn.currency() : "NGN",
-                            txn.channel()).onFailure(e -> log.warn("[Beam/Txn] Case notify failed: {}", e.getMessage()));
-                      }
-                      return Future.succeededFuture(cas.id());
-                    })
-                : Future.succeededFuture(null);
-
-            String noKycPanelReason = buildNoKycFlagReason(noKycScore, hasAccountConflict,
-                senderAccount, conflictOpt.orElse(null));
-
-            return transactionService.ingestFromBeam(institutionId, imp)
-                .compose(
-                    v -> transactionService.markFlaggedWithReason(txnId, institutionId, noKycScore, noKycPanelReason))
-                .compose(v -> notificationService != null
-                    ? notificationService.notifyTransactionFlagged(institutionId, txnId, noKycReason, noKycScore)
-                    : Future.<NotificationService.Notification>succeededFuture(null))
-                .compose(notif -> fCase.map(caseId -> {
-                  var resp = new JsonObject()
-                      .put("transaction_id", txnId)
-                      .put("kyc_required", true)
-                      .put("risk_score", noKycScore)
-                      .put("risk_level", noKycScore >= 75 ? "CRITICAL" : "HIGH")
-                      .put("recommended_action", "KYC_REQUIRED")
-                      .put("account_conflict", hasAccountConflict)
-                      .put("message", noKycReason)
-                      .put("case_id", caseId)
-                      .put("processed_at", OffsetDateTime.now(zone).toString());
-                  if (notif != null)
-                    resp.put("notification_id", notif.id());
-                  if (hasAccountConflict)
-                    resp.put("conflicting_customer_id", conflictOpt.get());
-                  return resp;
-                }));
+              rejResp.put("conflicting_customer_id", conflictOpt.get());
+            return Future.succeededFuture(rejResp);
           });
         }
 
@@ -899,27 +859,6 @@ public final class BeamService {
         obj.getString("ip_address", obj.getString("ipAddress", "")),
         false, null,
         obj.getString("category"), direction, java.util.List.of());
-  }
-
-  private static String buildNoKycFlagReason(int score, boolean hasConflict,
-      String senderAccount, String conflictingCustomer) {
-    if (hasConflict) {
-      return "This transaction has been automatically placed on hold due to two serious concerns that "
-          + "require immediate attention. First, the customer has not completed identity verification (KYC). "
-          + "Under regulatory and anti-money laundering requirements, transactions from unverified customers "
-          + "must be reviewed before they can be processed. Second — and more critically — the sender account "
-          + "number on this transaction (" + senderAccount + ") is already linked to a different customer "
-          + "profile (" + conflictingCustomer + ") in our system. This is a strong indicator of account "
-          + "sharing, identity fraud, or account misuse. We recommend escalating this to your fraud and "
-          + "compliance team immediately and verifying the identities of both customers before taking any action.";
-    }
-    return "This transaction has been automatically placed on hold. Our records show that the customer "
-        + "associated with this transaction has not completed identity verification (KYC). Under regulatory "
-        + "and anti-money laundering requirements, we are not permitted to process transactions from customers "
-        + "whose identities have not been verified. The transaction has been flagged with a risk score of "
-        + score + "/100 pending KYC completion. To release this hold, the customer must complete their "
-        + "identity verification process with your institution. Please do not release these funds until "
-        + "verification is complete.";
   }
 
   private static String buildBlendedFlagReason(java.util.List<String> triggeredRules,
