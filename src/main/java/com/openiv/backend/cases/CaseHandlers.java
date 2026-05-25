@@ -2,6 +2,8 @@ package com.openiv.backend.cases;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.billing.BillingService;
+import com.openiv.backend.billing.PlanGuard;
+import com.openiv.backend.billing.PlanLimitException;
 import com.openiv.backend.transactions.Transaction;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
@@ -139,7 +141,17 @@ public final class CaseHandlers {
             ok(ctx, new JsonObject().put("case", caseJson(cas)));
             billing.chargeCaseOpenAsync(session);
           })
-          .onFailure(ctx::fail);
+          .onFailure(err -> {
+            if (err instanceof PlanLimitException pex) {
+              String planLabel = pex.currentPlan().isEmpty() ? pex.currentPlan()
+                  : Character.toUpperCase(pex.currentPlan().charAt(0)) + pex.currentPlan().substring(1);
+              PlanGuard.planLimitResponse(ctx, pex.feature(), pex.currentPlan(), pex.requiredPlan(),
+                  "You have reached your active case limit for the "
+                  + planLabel + " plan. Upgrade to open more cases.");
+            } else {
+              ctx.fail(err);
+            }
+          });
     };
   }
 

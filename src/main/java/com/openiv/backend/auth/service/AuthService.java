@@ -406,6 +406,20 @@ public final class AuthService {
         .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")));
   }
 
+  public Future<String> getInstitutionName(Session session) {
+    return users.findById(session.userId())
+        .compose(opt -> {
+          var u = opt.orElseThrow(() -> AuthException.invalid("session"));
+          return institutions.findById(u.institutionId());
+        })
+        .map(inst -> inst.map(i -> i.name()).orElse(null));
+  }
+
+  public Future<Long> getInstitutionId(Session session) {
+    return users.findById(session.userId())
+        .map(opt -> opt.orElseThrow(() -> AuthException.invalid("session")).institutionId());
+  }
+
   public Future<User> updateProfile(Session session, String fullName, String jobTitle) {
     if (fullName != null && fullName.isBlank()) fullName = null;
     if (jobTitle != null && jobTitle.isBlank()) jobTitle = null;

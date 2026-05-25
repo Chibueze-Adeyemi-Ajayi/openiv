@@ -391,6 +391,13 @@ public final class CaseRepository {
         .mapEmpty();
   }
 
+  public Future<Long> countActiveCases(long institutionId) {
+    return pool.preparedQuery(
+            "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND status != 'closed'")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> rs.iterator().next().getLong(0));
+  }
+
   public Future<Long> unassignedCount(long institutionId) {
     return pool.preparedQuery(
             "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND assigned_to IS NULL AND status != 'closed'")

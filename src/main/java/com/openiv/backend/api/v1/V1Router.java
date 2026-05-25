@@ -11,6 +11,17 @@ import com.openiv.backend.superadmin.SuperAdminService;
 import com.openiv.backend.billing.BillingHandlers;
 import com.openiv.backend.billing.BillingRepository;
 import com.openiv.backend.billing.BillingService;
+import com.openiv.backend.billing.InvoiceRepository;
+import com.openiv.backend.billing.PaystackClient;
+import com.openiv.backend.billing.PlanGuard;
+import com.openiv.backend.billing.SubscriptionBlockGuard;
+import com.openiv.backend.billing.SubscriptionHandlers;
+import com.openiv.backend.billing.SubscriptionLifecycleService;
+import com.openiv.backend.billing.SubscriptionRepository;
+import com.openiv.backend.billing.UsageGuard;
+import com.openiv.backend.billing.UsageRepository;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import com.openiv.backend.nfiu.NfiuHandlers;
 import com.openiv.backend.nfiu.NfiuRepository;
 import com.openiv.backend.nfiu.NfiuService;
@@ -133,9 +144,11 @@ public final class V1Router {
         cloudinaryConfig.apiKey(),
         cloudinaryConfig.apiSecret());
     DocumentRepository documentRepository = new DocumentRepository(dbPool);
+    SubscriptionRepository subscriptionRepository = new SubscriptionRepository(dbPool);
+    UsageRepository usageRepository = new UsageRepository(dbPool);
 
     router.route("/auth/*").subRouter(AuthRouter.create(vertx, authService, !devMode,
-        customerService, cloudinary, documentRepository));
+        customerService, cloudinary, documentRepository, subscriptionRepository, usageRepository));
 
     // Team management — session + role-based gates inside TeamRouter.
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService, dbPool, sharedUsers));
@@ -164,6 +177,28 @@ public final class V1Router {
     router.post("/billing/card/charge").handler(billingAuth).handler(billingManage).handler(billingHandlers.chargeCard());
     router.post("/billing/card/challenge").handler(billingAuth).handler(billingManage).handler(billingHandlers.submitChallenge());
 
+    // Subscription plans
+    WebClient subWebClient = WebClient.create(vertx,
+        new WebClientOptions().setSsl(true).setTrustAll(false));
+    InvoiceRepository invoiceRepository = new InvoiceRepository(dbPool);
+    PaystackClient paystackClient = new PaystackClient(subWebClient, paystackSecret);
+    SubscriptionLifecycleService lifecycle = new SubscriptionLifecycleService(
+        subscriptionRepository, invoiceRepository, paystackClient, sharedUsers);
+    SubscriptionHandlers subHandlers = new SubscriptionHandlers(
+        subscriptionRepository, sharedUsers, lifecycle, invoiceRepository);
+    SubscriptionBlockGuard blockGuard = new SubscriptionBlockGuard(
+        subscriptionRepository, sharedUsers, authService);
+    Handler<RoutingContext> subAuth   = SessionAuthHandler.authenticated(authService);
+    router.get("/subscription/plans").handler(subHandlers.listPlans());
+    router.get("/subscription/current").handler(subAuth).handler(billingView).handler(blockGuard).handler(subHandlers.getCurrent());
+    router.post("/subscription/upgrade").handler(subAuth).handler(billingManage).handler(subHandlers.upgrade());
+    router.post("/subscription/initiate").handler(subAuth).handler(billingManage).handler(subHandlers.initiatePayment());
+    router.post("/subscription/verify").handler(subAuth).handler(billingManage).handler(subHandlers.verifyPayment());
+    router.get("/subscription/active-discount").handler(subAuth).handler(billingView).handler(subHandlers.getActiveDiscount());
+
+    // Shared plan guard for export endpoints (used by both NFIU and transactions)
+    Handler<RoutingContext> planExport = PlanGuard.feature(subscriptionRepository, sharedUsers, "reports_export", "growth");
+
     // NFIU compliance — reports and scheduled filings
     NfiuService nfiuService = new NfiuService(
         new NfiuRepository(dbPool), new UserRepository(dbPool), billingService);
@@ -182,7 +217,7 @@ public final class V1Router {
     router.get("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.getReport());
     router.patch("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuCreate).handler(nfiuHandlers.updateReport());
     router.delete("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.deleteReport());
-    router.get("/nfiu/reports/:id/goaml").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.downloadGoAml());
+    router.get("/nfiu/reports/:id/goaml").handler(nfiuAuth).handler(nfiuView).handler(planExport).handler(nfiuHandlers.downloadGoAml());
     router.get("/nfiu/schedules").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.listSchedules());
     router.post("/nfiu/schedules").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.createSchedule());
     router.patch("/nfiu/schedules/:id").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.updateSchedule());
@@ -196,7 +231,7 @@ public final class V1Router {
     Handler<RoutingContext> txnFlag   = RoleAuthHandler.require(sharedUsers, Permission.TRANSACTIONS_FLAG);
     Handler<RoutingContext> txnImport = RoleAuthHandler.require(sharedUsers, Permission.TRANSACTIONS_IMPORT);
     router.get("/transactions").handler(txnAuth).handler(txnView).handler(txnHandlers.list());
-    router.get("/transactions/export").handler(txnAuth).handler(txnView).handler(txnHandlers.export());
+    router.get("/transactions/export").handler(txnAuth).handler(txnView).handler(planExport).handler(txnHandlers.export());
     router.get("/transactions/unseen-count").handler(txnAuth).handler(txnView).handler(txnHandlers.unseenCount());
     router.post("/transactions/bulk-status").handler(txnAuth).handler(txnFlag).handler(txnHandlers.bulkStatus());
     router.post("/transactions/import").handler(txnAuth).handler(txnImport).handler(txnHandlers.importTransactions());
@@ -252,9 +287,10 @@ public final class V1Router {
     BehavioralRuleService behavioralRuleService = new BehavioralRuleService(
         new BehavioralRuleRepository(dbPool), new UserRepository(dbPool));
     BehavioralRuleHandlers behavioralRuleHandlers = new BehavioralRuleHandlers(behavioralRuleService);
-    Handler<RoutingContext> behavioralAuth = SessionAuthHandler.authenticated(authService);
-    router.get("/behavioral-rules").handler(behavioralAuth).handler(rulesView).handler(behavioralRuleHandlers.list());
-    router.patch("/behavioral-rules/:id").handler(behavioralAuth).handler(rulesModify).handler(behavioralRuleHandlers.update());
+    Handler<RoutingContext> behavioralAuth  = SessionAuthHandler.authenticated(authService);
+    Handler<RoutingContext> planBehavioral  = PlanGuard.feature(subscriptionRepository, sharedUsers, "behavioral", "growth");
+    router.get("/behavioral-rules").handler(behavioralAuth).handler(rulesView).handler(planBehavioral).handler(behavioralRuleHandlers.list());
+    router.patch("/behavioral-rules/:id").handler(behavioralAuth).handler(rulesModify).handler(planBehavioral).handler(behavioralRuleHandlers.update());
 
     // Beam API key auth for ingest endpoints
     BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
@@ -275,31 +311,34 @@ public final class V1Router {
     router.post("/beam/kyc/stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingestKycStream());
 
     // Inbound beam ingestion — authenticated with institution API key (not session)
-    router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(beamHandlers.ingest());
+    Handler<RoutingContext> usageTxnGuard = UsageGuard.transactionForBeam(usageRepository);
+    router.post("/beam/:stream").handler(beamApiKeyHandler.resolve()).handler(usageTxnGuard).handler(beamHandlers.ingest());
 
     // Webhooks — fixed paths before /:id to avoid collision
     WebhookHandlers webhookHandlers = new WebhookHandlers(webhookService, authService);
-    Handler<RoutingContext> webhookAuth = SessionAuthHandler.authenticated(authService);
-    router.get("/webhooks/secret").handler(webhookAuth).handler(integrationsView).handler(webhookHandlers.getSecret());
-    router.post("/webhooks/secret/rotate").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.rotateSecret());
-    router.patch("/webhooks/secret").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.updateSecret());
-    router.get("/webhooks/deliveries").handler(webhookAuth).handler(integrationsView).handler(webhookHandlers.listAllDeliveries());
-    router.get("/webhooks").handler(webhookAuth).handler(integrationsView).handler(webhookHandlers.listEndpoints());
-    router.post("/webhooks/verify").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.verifyEndpoint());
-    router.post("/webhooks").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.createEndpoint());
-    router.patch("/webhooks/:id").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.updateEndpoint());
-    router.delete("/webhooks/:id").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.deleteEndpoint());
-    router.post("/webhooks/:id/test").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.testEndpoint());
-    router.get("/webhooks/:id/deliveries").handler(webhookAuth).handler(integrationsView).handler(webhookHandlers.listDeliveries());
-    router.get("/webhooks/:id/security").handler(webhookAuth).handler(integrationsView).handler(webhookHandlers.getSecurityRule());
-    router.put("/webhooks/:id/security").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.upsertSecurityRule());
-    router.post("/webhooks/:id/security/api-key").handler(webhookAuth).handler(integrationsModify).handler(webhookHandlers.generateApiKey());
+    Handler<RoutingContext> webhookAuth    = SessionAuthHandler.authenticated(authService);
+    Handler<RoutingContext> planWebhooks   = PlanGuard.feature(subscriptionRepository, sharedUsers, "webhooks", "growth");
+    router.get("/webhooks/secret").handler(webhookAuth).handler(integrationsView).handler(planWebhooks).handler(webhookHandlers.getSecret());
+    router.post("/webhooks/secret/rotate").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.rotateSecret());
+    router.patch("/webhooks/secret").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.updateSecret());
+    router.get("/webhooks/deliveries").handler(webhookAuth).handler(integrationsView).handler(planWebhooks).handler(webhookHandlers.listAllDeliveries());
+    router.get("/webhooks").handler(webhookAuth).handler(integrationsView).handler(planWebhooks).handler(webhookHandlers.listEndpoints());
+    router.post("/webhooks/verify").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.verifyEndpoint());
+    router.post("/webhooks").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.createEndpoint());
+    router.patch("/webhooks/:id").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.updateEndpoint());
+    router.delete("/webhooks/:id").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.deleteEndpoint());
+    router.post("/webhooks/:id/test").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.testEndpoint());
+    router.get("/webhooks/:id/deliveries").handler(webhookAuth).handler(integrationsView).handler(planWebhooks).handler(webhookHandlers.listDeliveries());
+    router.get("/webhooks/:id/security").handler(webhookAuth).handler(integrationsView).handler(planWebhooks).handler(webhookHandlers.getSecurityRule());
+    router.put("/webhooks/:id/security").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.upsertSecurityRule());
+    router.post("/webhooks/:id/security/api-key").handler(webhookAuth).handler(integrationsModify).handler(planWebhooks).handler(webhookHandlers.generateApiKey());
 
     // Network logs — unified beam + webhook traffic view
     NetworkHandlers networkHandlers = new NetworkHandlers(
         new NetworkService(new NetworkRepository(dbPool), new UserRepository(dbPool)));
-    Handler<RoutingContext> networkAuth = SessionAuthHandler.authenticated(authService);
-    router.get("/network/logs").handler(networkAuth).handler(integrationsView).handler(networkHandlers.listLogs());
+    Handler<RoutingContext> networkAuth  = SessionAuthHandler.authenticated(authService);
+    Handler<RoutingContext> planNetwork  = PlanGuard.feature(subscriptionRepository, sharedUsers, "network", "growth");
+    router.get("/network/logs").handler(networkAuth).handler(integrationsView).handler(planNetwork).handler(networkHandlers.listLogs());
 
     // KYC — lookup URL config, manual lookup, pipeline results
     KycPipelineResultRepository kycPipelineRepo = new KycPipelineResultRepository(dbPool);
@@ -309,17 +348,19 @@ public final class V1Router {
     Handler<RoutingContext> kycAuth    = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> kycView    = RoleAuthHandler.require(sharedUsers, Permission.KYC_VIEW);
     Handler<RoutingContext> kycConfig  = RoleAuthHandler.require(sharedUsers, Permission.KYC_CONFIG);
-    router.get("/kyc/config").handler(kycAuth).handler(kycView).handler(kycHandlers.getConfig());
-    router.put("/kyc/config").handler(kycAuth).handler(kycConfig).handler(kycHandlers.saveConfig());
-    router.get("/kyc/pep-search").handler(kycAuth).handler(kycView).handler(kycHandlers.searchPEP());
-    router.post("/kyc/lookup").handler(kycAuth).handler(kycView).handler(kycHandlers.lookup());
-    router.get("/kyc/customers/stats").handler(kycAuth).handler(kycView).handler(kycHandlers.getStats());
-    router.get("/kyc/customers").handler(kycAuth).handler(kycView).handler(kycHandlers.listCustomers());
-    router.get("/kyc/customers/:customerId").handler(kycAuth).handler(kycView).handler(kycHandlers.getCustomerKyc());
-    router.get("/kyc/logs").handler(kycAuth).handler(kycView).handler(kycHandlers.listLogs());
+    Handler<RoutingContext> planKyc    = PlanGuard.feature(subscriptionRepository, sharedUsers, "kyc", "growth");
+    router.get("/kyc/config").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getConfig());
+    router.put("/kyc/config").handler(kycAuth).handler(kycConfig).handler(planKyc).handler(kycHandlers.saveConfig());
+    router.get("/kyc/pep-search").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.searchPEP());
+    Handler<RoutingContext> usageKycGuard = UsageGuard.kycLookup(usageRepository, sharedUsers);
+    router.post("/kyc/lookup").handler(kycAuth).handler(kycView).handler(planKyc).handler(usageKycGuard).handler(kycHandlers.lookup());
+    router.get("/kyc/customers/stats").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getStats());
+    router.get("/kyc/customers").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.listCustomers());
+    router.get("/kyc/customers/:customerId").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getCustomerKyc());
+    router.get("/kyc/logs").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.listLogs());
     // Evaluation scheduling config
-    router.get("/kyc/evaluation-config").handler(kycAuth).handler(kycView).handler(kycHandlers.getEvaluationConfig());
-    router.put("/kyc/evaluation-config").handler(kycAuth).handler(kycConfig).handler(kycHandlers.saveEvaluationConfig());
+    router.get("/kyc/evaluation-config").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getEvaluationConfig());
+    router.put("/kyc/evaluation-config").handler(kycAuth).handler(kycConfig).handler(planKyc).handler(kycHandlers.saveEvaluationConfig());
     // Customer KYC fetch — beam-API-key-protected endpoint for institutions
     router.get("/kyc/customer-fetch/:customerId").handler(beamApiKeyHandler.resolve()).handler(kycHandlers.customerKycFetch());
 

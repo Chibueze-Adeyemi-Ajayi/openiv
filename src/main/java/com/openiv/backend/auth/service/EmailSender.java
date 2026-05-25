@@ -34,4 +34,12 @@ public interface EmailSender {
 
   /** Sent when a team-invited user completes TOTP setup and their account is fully active. */
   Future<Void> sendWelcome(String toEmail, String recipientName, String institutionName);
+
+  /** Sent with a renewal invoice — includes discount coupon and payment URL. */
+  Future<Void> sendSubscriptionInvoice(String toEmail, String institutionName, String planName,
+      String invoiceType, java.math.BigDecimal amountNgn, java.math.BigDecimal discountPct,
+      String couponCode, String paymentUrl, int daysUntilRenewal);
+
+  /** Sent as a 24h warning that the subscription is about to expire (no new discount). */
+  Future<Void> sendSubscriptionExpired(String toEmail, String institutionName, String planName);
 }

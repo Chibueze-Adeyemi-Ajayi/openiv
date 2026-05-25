@@ -6,6 +6,8 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.billing.PlanLimitException;
+import com.openiv.backend.billing.SubscriptionRepository;
 import com.openiv.backend.cases.CaseRepository.CasePage;
 import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
@@ -19,17 +21,20 @@ import java.util.Set;
 
 public final class CaseService {
 
-  private final CaseRepository repository;
-  private final UserRepository users;
+  private final CaseRepository        repository;
+  private final UserRepository        users;
   private final AmlSettingsRepository amlSettingsRepository;
-  private final NotificationService notifications;
+  private final NotificationService   notifications;
+  private final SubscriptionRepository subscriptions;
 
   public CaseService(CaseRepository repository, UserRepository users,
-      AmlSettingsRepository amlSettingsRepository, NotificationService notifications) {
-    this.repository = repository;
-    this.users = users;
+      AmlSettingsRepository amlSettingsRepository, NotificationService notifications,
+      SubscriptionRepository subscriptions) {
+    this.repository           = repository;
+    this.users                = users;
     this.amlSettingsRepository = amlSettingsRepository;
-    this.notifications = notifications;
+    this.notifications        = notifications;
+    this.subscriptions        = subscriptions;
   }
 
   public Future<CaseMetrics> metrics(Session session) {
@@ -55,27 +60,44 @@ public final class CaseService {
   public Future<CaseRecord> create(Session session, String title, String typology,
       String priority, int riskScore, Long assignedTo, String notes, String transactionId,
       String reason, Long documentId, String customerId, String customerName) {
-    return resolveUser(session).compose(u -> {
-      OffsetDateTime sla = computeSla(priority);
-      return repository.nextSeq().compose(seq -> {
-        String id = "CASE-"
-            + YearMonth.now().format(DateTimeFormatter.ofPattern("yyyyMM"))
-            + "-" + String.format("%06d", seq);
-        return repository.create(id, u.institutionId(), title, title, typology,
-                priority, riskScore, assignedTo, notes, sla, u.id(), reason, documentId,
-                customerId, customerName)
-            .compose(cas -> {
-              Future<Void> linkFuture = (transactionId != null && !transactionId.isBlank())
-                  ? repository.linkTransaction(cas.id(), transactionId, u.institutionId()).mapEmpty()
-                  : Future.succeededFuture();
-              String actDetail = (transactionId != null && !transactionId.isBlank())
-                  ? "Case opened from transaction " + transactionId
-                  : "Case opened";
-              Future<Void> actFuture = repository.addActivity(cas.id(), u.id(), "opened", actDetail);
-              return Future.all(linkFuture, actFuture).map(cas);
-            });
-      });
-    });
+    return resolveUser(session).compose(u ->
+        // Check plan limit before creating
+        Future.all(
+            subscriptions.getByInstitution(u.institutionId()),
+            repository.countActiveCases(u.institutionId())
+        ).compose(cf -> {
+          var subOpt = cf.<java.util.Optional<com.openiv.backend.billing.InstitutionSubscription>>resultAt(0);
+          long activeCount = cf.<Long>resultAt(1);
+          if (subOpt.isPresent()) {
+            var plan = subOpt.get().plan();
+            if (plan.maxActiveCases() != -1 && activeCount >= plan.maxActiveCases()) {
+              String required = "starter".equals(plan.slug()) ? "growth" : "enterprise";
+              return Future.failedFuture(new PlanLimitException("active_cases", plan.slug(), required));
+            }
+          }
+          return Future.succeededFuture(u);
+        }).compose(u2 -> {
+          OffsetDateTime sla = computeSla(priority);
+          return repository.nextSeq().compose(seq -> {
+            String id = "CASE-"
+                + YearMonth.now().format(DateTimeFormatter.ofPattern("yyyyMM"))
+                + "-" + String.format("%06d", seq);
+            return repository.create(id, u2.institutionId(), title, title, typology,
+                    priority, riskScore, assignedTo, notes, sla, u2.id(), reason, documentId,
+                    customerId, customerName)
+                .compose(cas -> {
+                  Future<Void> linkFuture = (transactionId != null && !transactionId.isBlank())
+                      ? repository.linkTransaction(cas.id(), transactionId, u2.institutionId()).mapEmpty()
+                      : Future.succeededFuture();
+                  String actDetail = (transactionId != null && !transactionId.isBlank())
+                      ? "Case opened from transaction " + transactionId
+                      : "Case opened";
+                  Future<Void> actFuture = repository.addActivity(cas.id(), u2.id(), "opened", actDetail);
+                  return Future.all(linkFuture, actFuture).map(cas);
+                });
+          });
+        }) // close compose(u2 ->
+    ); // close resolveUser compose
   }
 
   public Future<Optional<CaseDetail>> detail(Session session, String id) {

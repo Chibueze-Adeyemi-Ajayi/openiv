@@ -3,6 +3,8 @@ package com.openiv.backend.auth.handler;
 import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.billing.SubscriptionRepository;
+import com.openiv.backend.billing.UsageRepository;
 import com.openiv.backend.cloudinary.CloudinaryService;
 import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.documents.DocumentRepository;
@@ -34,20 +36,25 @@ public final class AuthHandlers {
    */
   private static final int SESSION_COOKIE_SECONDS = 24 * 60 * 60;
 
-  private final AuthService        auth;
-  private final boolean            productionCookies;
-  private final CustomerService    customerService;
-  private final CloudinaryService  cloudinary;
-  private final DocumentRepository documents;
+  private final AuthService            auth;
+  private final boolean                productionCookies;
+  private final CustomerService        customerService;
+  private final CloudinaryService      cloudinary;
+  private final DocumentRepository     documents;
+  private final SubscriptionRepository subscriptions;
+  private final UsageRepository        usage;
 
   public AuthHandlers(AuthService auth, boolean productionCookies,
       CustomerService customerService, CloudinaryService cloudinary,
-      DocumentRepository documents) {
+      DocumentRepository documents, SubscriptionRepository subscriptions,
+      UsageRepository usage) {
     this.auth              = auth;
     this.productionCookies = productionCookies;
     this.customerService   = customerService;
     this.cloudinary        = cloudinary;
     this.documents         = documents;
+    this.subscriptions     = subscriptions;
+    this.usage             = usage;
   }
 
   public Handler<RoutingContext> verifyInvite() {
@@ -201,17 +208,52 @@ public final class AuthHandlers {
   public Handler<RoutingContext> getProfile() {
     return ctx -> {
       Session session = SessionAuthHandler.require(ctx);
-      auth.getProfile(session)
-          .map(u -> new JsonObject()
-              .put("id", u.id())
-              .put("email", u.email())
-              .put("fullName", u.fullName())
-              .put("jobTitle", u.jobTitle())
-              .put("role", u.role())
-              .put("accountType", u.accountType().dbValue())
-              .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
-              .put("createdAt", u.createdAt().toString())
-              .put("avatarUrl", u.avatarUrl()))
+      auth.getProfile(session).compose(u ->
+          auth.getInstitutionId(session).compose(instId ->
+              Future.all(
+                  auth.getInstitutionName(session),
+                  subscriptions.getByInstitution(instId),
+                  usage.getSummary(instId)
+              ).map(cf -> {
+                String instName = cf.resultAt(0);
+                var subOpt = cf.<java.util.Optional<com.openiv.backend.billing.InstitutionSubscription>>resultAt(1);
+                var usageSummary = cf.<com.openiv.backend.billing.UsageRepository.UsageSummary>resultAt(2);
+                var json = new JsonObject()
+                    .put("id",                u.id())
+                    .put("email",             u.email())
+                    .put("fullName",          u.fullName())
+                    .put("jobTitle",          u.jobTitle())
+                    .put("role",              u.role())
+                    .put("accountType",       u.accountType().dbValue())
+                    .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
+                    .put("createdAt",         u.createdAt().toString())
+                    .put("avatarUrl",         u.avatarUrl())
+                    .put("institutionName",   instName)
+                    .put("monthlyTxnUsed",    usageSummary.monthlyTxnUsed())
+                    .put("monthlyKycUsed",    usageSummary.monthlyKycUsed())
+                    .put("usagePeriodStart",  usageSummary.usagePeriodStart() != null
+                        ? usageSummary.usagePeriodStart().toString() : null);
+                subOpt.ifPresent(sub -> {
+                  var p = sub.plan();
+                  json.put("planSlug",                p.slug())
+                      .put("planName",                p.name())
+                      .put("aiFeaturesEnabled",       p.aiFeaturesEnabled())
+                      .put("featureKycEnabled",       p.featureKycEnabled())
+                      .put("featureWebhooksEnabled",  p.featureWebhooksEnabled())
+                      .put("featureNetworkEnabled",   p.featureNetworkEnabled())
+                      .put("featureBehavioralEnabled",p.featureBehavioralEnabled())
+                      .put("featureReportsExport",    p.featureReportsExport())
+                      .put("maxAmlRules",             p.maxAmlRules())
+                      .put("maxActiveCases",          p.maxActiveCases())
+                      .put("maxMonthlyTransactions",  p.maxMonthlyTransactions())
+                      .put("maxMonthlyKycLookups",    p.maxMonthlyKycLookups())
+                      .put("maxUsers",                p.maxUsers())
+                      .put("subscriptionStatus",      sub.status())
+                      .put("trialEndsAt",             sub.trialEndsAt() != null ? sub.trialEndsAt().toString() : null)
+                      .put("subscriptionRenewsAt",    sub.renewsAt()    != null ? sub.renewsAt().toString()    : null);
+                });
+                return json;
+              })))
           .onSuccess(json -> ctx.response().setStatusCode(200)
               .putHeader("Content-Type", "application/json")
               .end(json.encode()))

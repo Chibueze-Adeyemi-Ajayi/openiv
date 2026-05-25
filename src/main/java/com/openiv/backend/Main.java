@@ -169,7 +169,8 @@ public final class Main {
         var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
         AmlSettingsRepository amlSettingsRepository = new AmlSettingsRepository(pool);
         var notificationServiceForCases = new com.openiv.backend.notifications.NotificationService(pool, vertx);
-        CaseService caseService = new CaseService(caseRepository, users, amlSettingsRepository, notificationServiceForCases);
+        CaseService caseService = new CaseService(caseRepository, users, amlSettingsRepository,
+            notificationServiceForCases, new com.openiv.backend.billing.SubscriptionRepository(pool));
         var thresholdRepository = new com.openiv.backend.thresholds.ThresholdRepository(pool);
         ThresholdService thresholdService = new ThresholdService(thresholdRepository, users);
         WebhookRepository webhookRepository = new WebhookRepository(pool);
@@ -243,6 +244,8 @@ public final class Main {
             .onSuccess(res -> {
               scheduleWebhookAutoRotation(vertx, webhookService);
               scheduleNightlyRiskReport(vertx, riskReportService);
+              String appBaseUrl = System.getenv().getOrDefault("APP_BASE_URL", "https://app.openiv.ng");
+              scheduleRenewalReminders(vertx, pool, emailSender, appBaseUrl);
             });
       });
     });
@@ -289,6 +292,16 @@ public final class Main {
     java.time.ZonedDateTime now = java.time.ZonedDateTime.now(zone);
     java.time.ZonedDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay(zone);
     return java.time.Duration.between(now, midnight).toMillis();
+  }
+
+  private static void scheduleRenewalReminders(Vertx vertx, Pool pool, EmailSender emailSender, String appBaseUrl) {
+    String paystackSecret = System.getenv().getOrDefault("PAYSTACK_SECRET_KEY", "sk_test_placeholder");
+    WebClient webClient = WebClient.create(vertx,
+        new WebClientOptions().setSsl(true).setTrustAll(false));
+    var invoiceRepo = new com.openiv.backend.billing.InvoiceRepository(pool);
+    var subRepo = new com.openiv.backend.billing.SubscriptionRepository(pool);
+    var paystackClient = new com.openiv.backend.billing.PaystackClient(webClient, paystackSecret);
+    new com.openiv.backend.billing.RenewalReminderScheduler(vertx, invoiceRepo, subRepo, emailSender, paystackClient, appBaseUrl).start();
   }
 
   private static void scheduleWebhookAutoRotation(Vertx vertx, WebhookService webhookService) {

@@ -80,4 +80,19 @@ public final class LogEmailSender implements EmailSender {
     log.warn("[DEV EMAIL] welcome to {} ({}): institution={}", recipientName, toEmail, institutionName);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendSubscriptionInvoice(String toEmail, String institutionName, String planName,
+      String invoiceType, java.math.BigDecimal amountNgn, java.math.BigDecimal discountPct,
+      String couponCode, String paymentUrl, int daysUntilRenewal) {
+    log.warn("[DEV EMAIL] subscription-invoice to {}: institution={} plan={} type={} amount=₦{} discount={}% coupon={} url={} daysUntil={}",
+        toEmail, institutionName, planName, invoiceType, amountNgn, discountPct, couponCode, paymentUrl, daysUntilRenewal);
+    return Future.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> sendSubscriptionExpired(String toEmail, String institutionName, String planName) {
+    log.warn("[DEV EMAIL] subscription-expiry-warning to {}: institution={} plan={}", toEmail, institutionName, planName);
+    return Future.succeededFuture();
+  }
 }

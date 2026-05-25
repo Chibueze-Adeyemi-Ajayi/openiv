@@ -126,6 +126,37 @@ public final class VertxEmailSender implements EmailSender {
         EmailTemplates.welcome(recipientName, institutionName));
   }
 
+  @Override
+  public Future<Void> sendSubscriptionInvoice(String toEmail, String institutionName, String planName,
+      String invoiceType, java.math.BigDecimal amountNgn, java.math.BigDecimal discountPct,
+      String couponCode, String paymentUrl, int daysUntilRenewal) {
+    String subject = "OpenIV — Subscription Renewal Reminder for " + institutionName;
+    String text = "Your " + planName + " plan renews in " + daysUntilRenewal + " day(s).\n"
+        + "Amount: ₦" + amountNgn + " (" + discountPct + "% discount applied)\n"
+        + "Coupon: " + couponCode + "\n"
+        + "Pay now: " + paymentUrl;
+    String html = "<p>Your <strong>" + planName + "</strong> plan renews in "
+        + "<strong>" + daysUntilRenewal + " day(s)</strong>.</p>"
+        + "<p>Amount: <strong>₦" + amountNgn + "</strong> (" + discountPct + "% early-renewal discount)</p>"
+        + "<p>Coupon code: <strong>" + couponCode + "</strong></p>"
+        + "<p><a href=\"" + paymentUrl + "\">Pay now to keep your account active</a></p>"
+        + "<p style='color:#6b7280;font-size:12px;'>Offer expires in 3 days.</p>";
+    return send(toEmail, subject, text, html);
+  }
+
+  @Override
+  public Future<Void> sendSubscriptionExpired(String toEmail, String institutionName, String planName) {
+    String subject = "OpenIV — Your Subscription Expires in 24 Hours";
+    String text = "Your " + planName + " plan for " + institutionName
+        + " expires in less than 24 hours.\n"
+        + "Please renew from your dashboard to avoid service interruption.";
+    String html = "<p>Your <strong>" + planName + "</strong> plan for <strong>" + institutionName
+        + "</strong> expires in less than <strong>24 hours</strong>.</p>"
+        + "<p>Please <a href='https://app.openiv.ng/dashboard/subscription'>renew from your dashboard</a>"
+        + " to avoid service interruption.</p>";
+    return send(toEmail, subject, text, html);
+  }
+
   // -------------------------------------------------------------------------
 
   private Future<Void> send(String toEmail, String subject, String text, String html) {
