@@ -19,13 +19,18 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Team management, scoped to the caller's institution. Every method resolves the caller's
- * session → institution_id and mutates only rows belonging there. No cross-tenant reads,
+ * Team management, scoped to the caller's institution. Every method resolves
+ * the caller's
+ * session → institution_id and mutates only rows belonging there. No
+ * cross-tenant reads,
  * no cross-tenant writes.
  *
- * <p>The invite flow creates users directly with a temporary password and {@code
- * must_change_password=true}. On first login the session transitions to MUST_CHANGE_PASSWORD →
- * PENDING_TOTP_SETUP → AUTHENTICATED. No invitation codes or secondary tables are involved.
+ * <p>
+ * The invite flow creates users directly with a temporary password and {@code
+ * must_change_password=true}. On first login the session transitions to
+ * MUST_CHANGE_PASSWORD →
+ * PENDING_TOTP_SETUP → AUTHENTICATED. No invitation codes or secondary tables
+ * are involved.
  */
 public final class TeamService {
 
@@ -48,14 +53,14 @@ public final class TeamService {
     this.frontendUrl = System.getenv().getOrDefault("FRONTEND_URL", "http://localhost:5173");
   }
 
-  // --- Read ---------------------------------------------------------------
+  // --- Read from team record on
+  // DB---------------------------------------------------------------
 
   public Future<TeamContext> context(Session session) {
     return users.findById(session.userId()).compose(opt -> {
       User u = opt.orElseThrow(() -> AuthException.invalid("session"));
-      return institutions.findById(u.institutionId()).map(iopt ->
-          new TeamContext(u, iopt.orElseThrow(() ->
-              new IllegalStateException("institution missing for user " + u.id()))));
+      return institutions.findById(u.institutionId()).map(iopt -> new TeamContext(u,
+          iopt.orElseThrow(() -> new IllegalStateException("institution missing for user " + u.id()))));
     });
   }
 
@@ -63,7 +68,10 @@ public final class TeamService {
     return users.listActiveByInstitution(ctx.institution().id());
   }
 
-  /** Returns users who were directly invited but have not yet completed their account setup. */
+  /**
+   * Returns users who were directly invited but have not yet completed their
+   * account setup.
+   */
   public Future<List<User>> listPending(TeamContext ctx) {
     return users.listPendingByInstitution(ctx.institution().id());
   }
@@ -78,10 +86,10 @@ public final class TeamService {
             .put("color", "#1e40af")
             .put("permissions", new io.vertx.core.json.JsonObject()
                 .put("monitor", new io.vertx.core.json.JsonObject().put("view", true).put("act", true))
-                .put("cases", new io.vertx.core.json.JsonObject().put("view", true).put("assign", true).put("close", true))
+                .put("cases",
+                    new io.vertx.core.json.JsonObject().put("view", true).put("assign", true).put("close", true))
                 .put("reports", new io.vertx.core.json.JsonObject().put("view", true).put("file", true))
-                .put("team", new io.vertx.core.json.JsonObject().put("view", true).put("manage", false))
-            );
+                .put("team", new io.vertx.core.json.JsonObject().put("view", true).put("manage", false)));
         return customRoles.upsert(ctx.institution().id(), defaultRole).map(v -> List.of(defaultRole));
       }
       return Future.succeededFuture(list);
@@ -123,8 +131,10 @@ public final class TeamService {
   // --- Mutate -------------------------------------------------------------
 
   /**
-   * Directly creates a user with a temporary password and sends them a login email.
-   * The user must change their password on first login before they can use the platform.
+   * Directly creates a user with a temporary password and sends them a login
+   * email.
+   * The user must change their password on first login before they can use the
+   * platform.
    */
   public Future<User> invite(TeamContext ctx, String email, String role) {
     requireManager(ctx);
@@ -141,11 +151,11 @@ public final class TeamService {
       String hash = PasswordHasher.hash(tempPassword);
       AccountType accountType = ctx.institution().type();
       return users.createInvited(normalized, null, hash, role, accountType,
-              ctx.institution().id(), ctx.caller().id())
+          ctx.institution().id(), ctx.caller().id())
           .map(user -> {
             String loginUrl = frontendUrl + "/auth/login";
             emailSender.sendTeamInvite(normalized, normalized, ctx.institution().name(),
-                    tempPassword, loginUrl)
+                tempPassword, loginUrl)
                 .onFailure(err -> log.warn(
                     "Team invite email failed for {} (userId={}); user created, admin can resend: {}",
                     normalized, user.id(), err.getMessage()));
@@ -202,7 +212,7 @@ public final class TeamService {
           .map(v -> {
             String loginUrl = frontendUrl + "/auth/login";
             emailSender.sendTeamInvite(target.email(), target.email(),
-                    ctx.institution().name(), tempPassword, loginUrl)
+                ctx.institution().name(), tempPassword, loginUrl)
                 .onFailure(err -> log.warn(
                     "Resend invite email failed for {} (userId={}); password updated, admin can retry: {}",
                     target.email(), target.id(), err.getMessage()));
@@ -214,9 +224,11 @@ public final class TeamService {
   // --- helpers ------------------------------------------------------------
 
   private static String normalizeEmail(String raw) {
-    if (raw == null) throw AuthException.invalid("email");
+    if (raw == null)
+      throw AuthException.invalid("email");
     String trimmed = raw.trim().toLowerCase();
-    if (!EMAIL.matcher(trimmed).matches()) throw AuthException.invalid("email");
+    if (!EMAIL.matcher(trimmed).matches())
+      throw AuthException.invalid("email");
     return trimmed;
   }
 
@@ -226,5 +238,6 @@ public final class TeamService {
     }
   }
 
-  public record TeamContext(User caller, Institution institution) {}
+  public record TeamContext(User caller, Institution institution) {
+  }
 }
