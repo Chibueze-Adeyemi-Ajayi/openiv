@@ -5,6 +5,7 @@ import Topbar from './Topbar'
 import EurekaAssistant from './EurekaAssistant'
 import InactivityGuard from './InactivityGuard'
 import EurekaCompanionGlow from './EurekaCompanionGlow'
+import { useAiEnabled } from '@/hooks/useAiEnabled'
 import MinimizedCaseBar from './MinimizedCaseBar'
 import InvestigationWorkspace from './InvestigationWorkspace'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
@@ -13,7 +14,6 @@ import { SessionSocketProvider } from '@/contexts/SessionSocketContext'
 import { ProfileProvider } from '@/contexts/ProfileContext'
 import { RbacProvider } from '@/contexts/RbacContext'
 import { ActiveCaseProvider, useActiveCase } from '@/contexts/ActiveCaseContext'
-import { colorPalette } from '@/theme'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
@@ -21,6 +21,8 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LoginAttemptAlert from './LoginAttemptAlert'
 import GeoAccessNotification from './GeoAccessNotification'
 import { Outlet, useNavigate } from 'react-router-dom'
+import { PlanProvider } from '@/contexts/PlanContext'
+import UpgradeModal from './UpgradeModal'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
@@ -64,6 +66,7 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   setEurekaOpen: (v: boolean) => void
 }) {
   const { eurekaEnabled } = useEureka()
+  const isAiEnabled = useAiEnabled()
   const { securityEvents, geoAccessRequests, notifications } = useDashboardEvents()
   const navigate = useNavigate()
   const [dismissed,       setDismissed]       = useState<Set<string>>(new Set())
@@ -160,12 +163,13 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
             {children}
           </Box>
         </Box>
-        <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
+        {isAiEnabled && <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />}
         <InactivityGuard />
-        {eurekaEnabled && <EurekaCompanionGlow />}
+        {isAiEnabled && eurekaEnabled && <EurekaCompanionGlow />}
         <GlobalCaseWorkspace />
+        <UpgradeModal />
 
-        {!eurekaOpen && (
+        {isAiEnabled && !eurekaOpen && (
           <Tooltip title="Ask Eureka" placement="left">
             <Box
               onClick={() => setEurekaOpen(true)}
@@ -230,11 +234,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <DashboardEventsProvider>
           <ProfileProvider>
             <RbacProvider>
-              <ActiveCaseProvider>
-                <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
-                  {children || <Outlet />}
-                </DashboardContent>
-              </ActiveCaseProvider>
+              <PlanProvider>
+                <ActiveCaseProvider>
+                  <DashboardContent eurekaOpen={eurekaOpen} setEurekaOpen={setEurekaOpen}>
+                    {children || <Outlet />}
+                  </DashboardContent>
+                </ActiveCaseProvider>
+              </PlanProvider>
             </RbacProvider>
           </ProfileProvider>
         </DashboardEventsProvider>

@@ -6,6 +6,8 @@ import {
 import { colorPalette } from '@/theme'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { usePlan } from '@/hooks/usePlan'
+import { usePlanModal } from '@/contexts/PlanContext'
 import { nfiuApi, type ReportType, type NfiuReport } from '@/api/nfiu'
 import { institutionApi, type InstitutionProfile, type SigningCredentials } from '@/api/institution'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
@@ -38,15 +40,18 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 interface ReportTypeMeta {
   id: ReportType; label: string; short: string
   icon: React.ReactNode; color: string; requiresSubject: boolean
+  minPlan: 'starter' | 'growth' | 'enterprise'
 }
 
+const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, enterprise: 2 }
+
 const REPORT_TYPES: ReportTypeMeta[] = [
-  { id: 'STR', label: 'Suspicious Transaction Report', short: 'STR', icon: <DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#dc2626', requiresSubject: true },
-  { id: 'CTR', label: 'Currency Transaction Report',   short: 'CTR', icon: <AccountBalanceOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#d97706', requiresSubject: true },
-  { id: 'SAR', label: 'Suspicious Activity Report',    short: 'SAR', icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#7c3aed', requiresSubject: true },
-  { id: 'ITF', label: 'International Transfer Filing', short: 'ITF', icon: <SwapHorizOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#0891b2', requiresSubject: true },
-  { id: 'PEP', label: 'PEP Disclosure Report',         short: 'PEP', icon: <PersonSearchOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#be185d', requiresSubject: true },
-  { id: 'AML_RETURN', label: 'Monthly AML Return',     short: 'AML', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#15803d', requiresSubject: false },
+  { id: 'STR',       label: 'Suspicious Transaction Report', short: 'STR', icon: <DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />,       color: '#dc2626', requiresSubject: true,  minPlan: 'starter' },
+  { id: 'CTR',       label: 'Currency Transaction Report',   short: 'CTR', icon: <AccountBalanceOutlinedIcon sx={{ fontSize: '1.1rem' }} />,     color: '#d97706', requiresSubject: true,  minPlan: 'starter' },
+  { id: 'SAR',       label: 'Suspicious Activity Report',    short: 'SAR', icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem' }} />,               color: '#7c3aed', requiresSubject: true,  minPlan: 'growth'  },
+  { id: 'ITF',       label: 'International Transfer Filing', short: 'ITF', icon: <SwapHorizOutlinedIcon sx={{ fontSize: '1.1rem' }} />,           color: '#0891b2', requiresSubject: true,  minPlan: 'growth'  },
+  { id: 'PEP',       label: 'PEP Disclosure Report',         short: 'PEP', icon: <PersonSearchOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#be185d', requiresSubject: true,  minPlan: 'growth'  },
+  { id: 'AML_RETURN',label: 'Monthly AML Return',            short: 'AML', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />,  color: '#15803d', requiresSubject: false, minPlan: 'starter' },
 ]
 
 const FORM_SECTIONS = [
@@ -413,6 +418,11 @@ function DocumentPreview(p: DocProps) {
 
 export default function FileReportDialog({ open, onClose, onFiled, defaultType, initialReport, readOnly, prefill, prefillLocked }: Props) {
   const currentUser = useCurrentUser()
+  const plan        = usePlan()
+  const { triggerUpgrade } = usePlanModal()
+
+  const isTypeAllowed = (t: ReportTypeMeta) =>
+    !plan.isLoaded || !plan.slug || (PLAN_RANK[plan.slug] ?? 0) >= PLAN_RANK[t.minPlan]
 
   // ── Remote data ──
   const [profile, setProfile]         = useState<InstitutionProfile | null>(null)
@@ -1029,26 +1039,40 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
         {/* Report type pills */}
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          {REPORT_TYPES.map(t => (
-            <Tooltip key={t.id} title={readOnly ? t.label : `Switch to ${t.label}`}>
-              <Box
-                onClick={readOnly ? undefined : () => { setReportType(t.id); setActiveSection('metadata') }}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.625,
-                  cursor: readOnly ? 'default' : 'pointer',
-                  bgcolor: reportType === t.id ? t.color : 'transparent',
-                  color: reportType === t.id ? '#fff' : '#94a3b8',
-                  border: '1px solid', borderColor: reportType === t.id ? t.color : 'transparent',
-                  transition: 'all 0.15s',
-                  opacity: readOnly && reportType !== t.id ? 0.35 : 1,
-                  ...(!readOnly && { '&:hover': { bgcolor: reportType === t.id ? t.color : 'rgba(255,255,255,0.06)', color: '#fff' } }),
-                }}
-              >
-                <Box sx={{ '& svg': { fontSize: '0.875rem !important' } }}>{t.icon}</Box>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em' }}>{t.short}</Typography>
-              </Box>
-            </Tooltip>
-          ))}
+          {REPORT_TYPES.map(t => {
+            const allowed = isTypeAllowed(t)
+            const isActive = reportType === t.id
+            const tooltipTitle = !allowed
+              ? `${t.label} — requires Growth plan`
+              : readOnly ? t.label : `Switch to ${t.label}`
+            return (
+              <Tooltip key={t.id} title={tooltipTitle}>
+                <Box
+                  onClick={
+                    !allowed
+                      ? () => triggerUpgrade({ feature: 'reports_export', currentPlan: plan.slug ?? 'starter', requiredPlan: 'growth' })
+                      : readOnly ? undefined : () => { setReportType(t.id); setActiveSection('metadata') }
+                  }
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.625,
+                    cursor: readOnly && allowed ? 'default' : 'pointer',
+                    bgcolor: isActive && allowed ? t.color : 'transparent',
+                    color: !allowed ? 'rgba(148,163,184,0.4)' : isActive ? '#fff' : '#94a3b8',
+                    border: '1px solid',
+                    borderColor: isActive && allowed ? t.color : 'transparent',
+                    transition: 'all 0.15s',
+                    opacity: (readOnly && !isActive) || !allowed ? 0.35 : 1,
+                    ...(!readOnly && allowed && { '&:hover': { bgcolor: isActive ? t.color : 'rgba(255,255,255,0.06)', color: '#fff' } }),
+                  }}
+                >
+                  <Box sx={{ '& svg': { fontSize: '0.875rem !important' } }}>
+                    {allowed ? t.icon : <LockOutlinedIcon sx={{ fontSize: '0.875rem' }} />}
+                  </Box>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em' }}>{t.short}</Typography>
+                </Box>
+              </Tooltip>
+            )
+          })}
         </Box>
 
         <Box sx={{ flex: 1 }} />

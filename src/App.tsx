@@ -25,6 +25,7 @@ import IngestionPage from '@/pages/dashboard/IngestionPage'
 import TeamPage from '@/pages/dashboard/TeamPage'
 import SettingsPage from '@/pages/dashboard/SettingsPage'
 import BillingPage from '@/pages/dashboard/BillingPage'
+import SubscriptionPage from '@/pages/dashboard/SubscriptionPage'
 import OTPAlertsPage from '@/pages/dashboard/OTPAlertsPage'
 import DataBeamingPage from '@/pages/dashboard/DataBeamingPage'
 import NetworkPage from '@/pages/dashboard/NetworkPage'
@@ -101,6 +102,7 @@ function App() {
         <Route path="webhooks" element={<RoleGuard permission="integrations.view"><WebhooksPage /></RoleGuard>} />
         <Route path="team" element={<RoleGuard permission="team.view"><TeamPage /></RoleGuard>} />
         <Route path="billing" element={<RoleGuard permission="billing.view"><BillingPage /></RoleGuard>} />
+        <Route path="subscription" element={<RoleGuard permission="billing.view"><SubscriptionPage /></RoleGuard>} />
         <Route path="settings" element={<RoleGuard permission="settings.view"><SettingsPage /></RoleGuard>} />
         <Route path="*" element={<DashboardNotFoundPage />} />
       </Route>

@@ -112,6 +112,12 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
   if (!response.ok) {
     const body = (isJson ? data : {}) as Record<string, unknown>
     const { error, detail, correlationId, ...extra } = body
+
+    // Broadcast plan-limit events so any component or the global modal can react
+    if (response.status === 402 && error === 'plan_limit') {
+      window.dispatchEvent(new CustomEvent('plan:limit', { detail: body }))
+    }
+
     throw new ApiError(
       response.status,
       (error as string | undefined) ?? `http_${response.status}`,

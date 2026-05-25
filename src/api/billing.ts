@@ -97,6 +97,82 @@ export interface BillingUsageSummary {
   categories: CategoryUsage[]
 }
 
+// ── Subscription ─────────────────────────────────────────────────────────────
+
+export type PlanSlug = 'starter' | 'growth' | 'enterprise'
+
+export interface SubscriptionPlan {
+  id: string
+  name: string
+  slug: PlanSlug
+  monthlyPriceNgn: number
+  maxUsers: number                   // -1 = unlimited
+  maxMonthlyTransactions: number     // -1 = unlimited
+  maxActiveCases: number             // -1 = unlimited
+  aiFeaturesEnabled: boolean
+  apiRateLimitPerMin: number
+  includedTransactionUnits: number
+  features: string[]
+  sortOrder: number
+  maxMonthlyKycLookups: number        // -1 = unlimited
+}
+
+export interface InstitutionSubscription {
+  plan: SubscriptionPlan
+  status: 'trial' | 'active' | 'past_due' | 'cancelled'
+  startsAt: string | null
+  trialEndsAt: string | null
+  renewsAt: string | null
+}
+
+export interface ActiveDiscount {
+  discountPercent: number
+  couponCode: string
+  couponExpiresAt: string
+  amountNgn: number
+  discountedAmountNgn: number
+}
+
+export interface InitiatePaymentResult {
+  invoiceId: string
+  reference: string
+  accessCode: string | null   // null = dev mode, use authorizationUrl fallback
+  authorizationUrl: string
+  amountNgn: number
+  discountedAmountNgn: number
+  discountPercent: number
+  invoiceType: string
+}
+
+export const subscriptionApi = {
+  listPlans: () =>
+    apiRequest<{ plans: SubscriptionPlan[] }>('/api/v1/subscription/plans'),
+
+  getCurrent: () =>
+    apiRequest<InstitutionSubscription>('/api/v1/subscription/current'),
+
+  upgrade: (planId: string) =>
+    apiRequest<{ ok: boolean }>('/api/v1/subscription/upgrade', {
+      method: 'POST',
+      body: { planId },
+    }),
+
+  initiatePayment: (planId: string, couponCode?: string) =>
+    apiRequest<InitiatePaymentResult>('/api/v1/subscription/initiate', {
+      method: 'POST',
+      body: { planId, couponCode },
+    }),
+
+  verifyPayment: (reference: string) =>
+    apiRequest<{ ok: boolean; planId: string }>('/api/v1/subscription/verify', {
+      method: 'POST',
+      body: { reference },
+    }),
+
+  getActiveDiscount: () =>
+    apiRequest<ActiveDiscount | null>('/api/v1/subscription/active-discount'),
+}
+
 export const billingApi = {
   getConfig: () =>
     apiRequest<BillingConfig>('/api/v1/billing/config'),

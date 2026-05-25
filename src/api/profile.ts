@@ -10,6 +10,29 @@ export interface UserProfile {
   avatarUrl: string | null
   passwordUpdatedAt: string | null
   createdAt: string
+  institutionName: string | null
+  // Subscription — populated once an institution has a plan assigned
+  planSlug?: 'starter' | 'growth' | 'enterprise'
+  planName?: string
+  subscriptionStatus?: 'trial' | 'active' | 'past_due' | 'cancelled'
+  trialEndsAt?: string | null
+  subscriptionRenewsAt?: string | null
+  // Per-feature flags from the plan
+  aiFeaturesEnabled?: boolean
+  featureKycEnabled?: boolean
+  featureWebhooksEnabled?: boolean
+  featureNetworkEnabled?: boolean
+  featureBehavioralEnabled?: boolean
+  featureReportsExport?: boolean
+  maxAmlRules?: number
+  maxActiveCases?: number        // -1 = unlimited
+  maxMonthlyTransactions?: number
+  maxMonthlyKycLookups?: number  // -1 = unlimited
+  maxUsers?: number
+  // Current-period usage (reset every 30 days)
+  monthlyTxnUsed?: number
+  monthlyKycUsed?: number
+  usagePeriodStart?: string | null
 }
 
 export const profileApi = {

@@ -187,23 +187,26 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
     setNfiuOpen(true)
   }, [cas, data])
 
-  // File SAR/STR: transition to investigating (if needed) then open NFIU dialog immediately
+  // File SAR/STR: if the case is still open, nudge it to investigating first;
+  // for escalated/investigating cases skip the transition and open the dialog directly.
+  // Always open the dialog — a failed status transition must not block filing.
   const fileSarStr = useCallback(async () => {
-    if (!cas || actioning) return
-    setActioning(true)
-    try {
-      if (currentStatus !== 'investigating') {
+    if (!cas) return
+    if (currentStatus === 'open') {
+      setActioning(true)
+      try {
         await caseApi.updateStatus(cas.id, 'investigating', undefined, 'SAR/STR filing initiated', null)
         setLocalStatus('investigating')
         onUpdated()
+      } catch {
+        // transition failed — continue to open dialog anyway
+      } finally {
+        setActioning(false)
       }
-    } finally {
-      setActioning(false)
     }
-    setActionSuccess('Opening NFIU STR/SAR filing form…')
     openNfiuDialog()
     loadDetail().catch(() => {})
-  }, [cas, actioning, currentStatus, onUpdated, openNfiuDialog, loadDetail])
+  }, [cas, currentStatus, onUpdated, openNfiuDialog, loadDetail])
 
   const requestTransition = (status: CaseStatus, resolution: CaseResolution | undefined,
       label: string, color: string, skipDoc = false) => {

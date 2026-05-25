@@ -3,6 +3,9 @@ import { colorPalette } from '@/theme'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import SidebarAIBubble from './SidebarAIBubble'
+import { useAiEnabled } from '@/hooks/useAiEnabled'
+import { usePlan, type PlanFeature } from '@/hooks/usePlan'
+import { usePlanModal } from '@/contexts/PlanContext'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -15,12 +18,14 @@ import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined'
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
 import { transactionApi } from '@/api/transactions'
@@ -40,6 +45,16 @@ interface NavItem {
   label: string
   badge?: string
   permission?: Permission
+  planFeature?: PlanFeature
+}
+
+const FEATURE_REQUIRED_PLAN: Record<PlanFeature, string> = {
+  kyc:            'growth',
+  webhooks:       'growth',
+  network:        'growth',
+  behavioral:     'growth',
+  reports_export: 'growth',
+  ai:             'growth',
 }
 
 interface ActiveNavItem {
@@ -54,7 +69,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/dashboard',              icon: <DashboardOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Overview',             permission: 'dashboard.view' },
       { to: '/dashboard/transactions', icon: <ReceiptLongOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transactions',         permission: 'transactions.view' },
       { to: '/dashboard/otp-alerts',   icon: <KeyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,         label: 'OTP Defense',          permission: 'transactions.view' },
-      { to: '/dashboard/patterns',     icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Behavioral Patterns',  permission: 'transactions.view' },
+      { to: '/dashboard/patterns',     icon: <PsychologyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Behavioral Patterns',  permission: 'transactions.view', planFeature: 'behavioral' },
       { to: '/dashboard/heatmaps',     icon: <GridOnOutlinedIcon sx={{ fontSize: '1.25rem' }} />,      label: 'Heatmaps',             permission: 'dashboard.view' },
     ],
   },
@@ -77,16 +92,17 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />,        label: 'Beam to OpenIV', permission: 'integrations.view' },
       { to: '/dashboard/thresholds', icon: <PolicyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Rules',          permission: 'rules.view' },
-      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks',       permission: 'integrations.view' },
-      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network',        permission: 'integrations.view' },
+      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks',       permission: 'integrations.view', planFeature: 'webhooks' },
+      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network',        permission: 'integrations.view', planFeature: 'network'   },
     ],
   },
   {
     label: 'Workspace',
     items: [
-      { to: '/dashboard/team',     icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles',    permission: 'team.view' },
-      { to: '/dashboard/billing',  icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', permission: 'billing.view' },
-      { to: '/dashboard/settings', icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings',        permission: 'settings.view' },
+      { to: '/dashboard/team',         icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles',    permission: 'team.view' },
+      { to: '/dashboard/billing',      icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', permission: 'billing.view' },
+      { to: '/dashboard/subscription', icon: <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Subscription',    permission: 'billing.view' },
+      { to: '/dashboard/settings',     icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings',        permission: 'settings.view' },
     ],
   },
 ]
@@ -107,6 +123,9 @@ export default function Sidebar() {
   const { profile } = useProfile()
   const { can } = useRbac()
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
+  const isAiEnabled = useAiEnabled()
+  const plan = usePlan()
+  const { triggerUpgrade } = usePlanModal()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [unseenTransactionCount, setUnseenTransactionCount] = useState(0)
   const [unassignedCasesCount,   setUnassignedCasesCount]   = useState(0)
@@ -260,7 +279,7 @@ export default function Sidebar() {
             letterSpacing: '0.04em',
           }}
         >
-          First City Monument Bank
+          {profile?.institutionName ?? '—'}
         </Typography>
       </Box>
 
@@ -302,91 +321,88 @@ export default function Sidebar() {
             </Typography>
             {group.items.map((item) => {
               const active = location.pathname === item.to
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  style={{ textDecoration: 'none' }}
+              const isLocked = !!(item.planFeature && plan.isLoaded && !plan.canUse(item.planFeature))
+
+              const itemContent = (
+                <Box
+                  onMouseEnter={e => !isLocked && handleNavMouseEnter(item, e)}
+                  onMouseLeave={!isLocked ? handleNavMouseLeave : undefined}
+                  data-ai-analyzable={!isLocked ? 'true' : undefined}
+                  data-ai-description={`Navigate to ${item.label} module. ${item.badge ? `Current attention required: ${item.badge}` : ''}`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    px: 1.5,
+                    py: 1.125,
+                    mb: 0.25,
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    color: isLocked ? 'rgba(255,255,255,0.35)' : (active ? '#d9f99d' : 'rgba(255,255,255,0.7)'),
+                    bgcolor: active && !isLocked ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    transition: 'all 0.18s ease',
+                    '&:hover': {
+                      bgcolor: isLocked ? 'rgba(255,255,255,0.03)' : (active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'),
+                      color: isLocked ? 'rgba(255,255,255,0.5)' : (active ? '#d9f99d' : '#ffffff'),
+                    },
+                    '&::before': active && !isLocked
+                      ? {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: 6,
+                          bottom: 6,
+                          width: '3px',
+                          bgcolor: '#d9f99d',
+                        }
+                      : {},
+                  }}
                 >
-                  <Box
-                    onMouseEnter={e => handleNavMouseEnter(item, e)}
-                    onMouseLeave={handleNavMouseLeave}
-                    data-ai-analyzable="true"
-                    data-ai-description={`Navigate to ${item.label} module. ${item.badge ? `Current attention required: ${item.badge}` : ''}`}
+                  {!isLocked && hoveringItemTo === item.to && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: 280,
+                        height: 280,
+                        borderRadius: '50%',
+                        pointerEvents: 'none',
+                        border: `1.5px solid ${colorPalette.primary}35`,
+                        bgcolor: `${colorPalette.primary}07`,
+                        animation: 'navRipple 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+                        '@keyframes navRipple': {
+                          '0%':   { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0.9 },
+                          '72%':  { transform: 'translate(-50%, -50%) scale(1)',    opacity: 0.35 },
+                          '86%':  { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0.18 },
+                          '100%': { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0 },
+                        },
+                      }}
+                    />
+                  )}
+                  {item.icon}
+                  <Typography
                     sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      px: 1.5,
-                      py: 1.125,
-                      mb: 0.25,
-                      cursor: 'pointer',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      color: active ? '#d9f99d' : 'rgba(255,255,255,0.7)',
-                      bgcolor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                      transition: 'all 0.18s ease',
-                      '&:hover': {
-                        bgcolor: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                        color: active ? '#d9f99d' : '#ffffff',
-                      },
-                      '&::before': active
-                        ? {
-                            content: '""',
-                            position: 'absolute',
-                            left: 0,
-                            top: 6,
-                            bottom: 6,
-                            width: '3px',
-                            bgcolor: '#d9f99d',
-                          }
-                        : {},
+                      fontSize: '0.875rem',
+                      fontWeight: active && !isLocked ? 600 : 500,
+                      fontFamily: 'Jost',
+                      flex: 1,
                     }}
                   >
-                    {/* 2-second hover ripple: expands out → contracts in → fades */}
-                    {hoveringItemTo === item.to && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: '50%',
-                          width: 280,
-                          height: 280,
-                          borderRadius: '50%',
-                          pointerEvents: 'none',
-                          border: `1.5px solid ${colorPalette.primary}35`,
-                          bgcolor: `${colorPalette.primary}07`,
-                          animation: 'navRipple 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
-                          '@keyframes navRipple': {
-                            '0%':   { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0.9 },
-                            '72%':  { transform: 'translate(-50%, -50%) scale(1)',    opacity: 0.35 },
-                            '86%':  { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0.18 },
-                            '100%': { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0 },
-                          },
-                        }}
-                      />
-                    )}
-                    {item.icon}
-                    <Typography
-                      sx={{
-                        fontSize: '0.875rem',
-                        fontWeight: active ? 600 : 500,
-                        fontFamily: 'Jost',
-                        flex: 1,
-                      }}
-                    >
-                      {item.label}
-                    </Typography>
-                    {(() => {
+                    {item.label}
+                  </Typography>
+                  {isLocked ? (
+                    <LockOutlinedIcon sx={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                  ) : (
+                    (() => {
                       let badgeValue = item.badge;
                       if (item.to === '/dashboard/transactions' && unseenTransactionCount > 0) {
                         badgeValue = unseenTransactionCount.toString();
                       } else if (item.to === '/dashboard/aml' && unassignedCasesCount > 0) {
                         badgeValue = unassignedCasesCount.toString();
                       }
-                      
                       if (!badgeValue) return null;
-
                       return (
                         <Chip
                           label={badgeValue}
@@ -404,8 +420,29 @@ export default function Sidebar() {
                           }}
                         />
                       );
-                    })()}
-                  </Box>
+                    })()
+                  )}
+                </Box>
+              )
+
+              return isLocked ? (
+                <Box
+                  key={item.to}
+                  onClick={() => triggerUpgrade({
+                    feature: item.planFeature!,
+                    currentPlan: plan.slug ?? 'starter',
+                    requiredPlan: FEATURE_REQUIRED_PLAN[item.planFeature!],
+                  })}
+                >
+                  {itemContent}
+                </Box>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  style={{ textDecoration: 'none' }}
+                >
+                  {itemContent}
                 </NavLink>
               )
             })}
@@ -461,7 +498,7 @@ export default function Sidebar() {
       </Box>
 
       {/* AI hover bubble */}
-      {activeNavItem && (
+      {isAiEnabled && activeNavItem && (
         <SidebarAIBubble
           anchorRect={activeNavItem.rect}
           navItem={activeNavItem.navItem}

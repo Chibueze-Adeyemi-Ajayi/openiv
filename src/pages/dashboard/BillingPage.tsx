@@ -1,572 +1,478 @@
-import {
-  Box, Typography, Stack, Button, Chip, IconButton, CircularProgress, Divider,
-} from '@mui/material'
+import { Box, Typography, Button } from '@mui/material'
 import { colorPalette } from '@/theme'
-import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
-import DateRangeFilter, { type DateRange } from '@/components/dashboard/DateRangeFilter'
-import FundWalletDialog from '@/components/dashboard/FundWalletDialog'
-import AddCardDialog from '@/components/dashboard/AddCardDialog'
-import { useState, useEffect, useCallback } from 'react'
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined'
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import { useNavigate } from 'react-router-dom'
+import { usePlan } from '@/hooks/usePlan'
+import { useProfile } from '@/contexts/ProfileContext'
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined'
+import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined'
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
-import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
-import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
-import StreamOutlinedIcon from '@mui/icons-material/StreamOutlined'
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
-import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
-import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined'
-import {
-  billingApi,
-  type BillingSummary,
-  type LedgerEntry,
-  type BillingUsageSummary,
-  type CategoryUsage,
-  type PaymentMethod,
-} from '@/api/billing'
-
-// ── constants ─────────────────────────────────────────────────────────────────
-
-const UNITS_PER_NGN = 10_000
-const WELCOME_NGN   = 500_000
-
-const CATEGORY_META: Record<string, {
-  label: string; sub: string; rate: string; icon: React.ReactNode; color: string
-}> = {
-  beam_ingest:         { label: 'Beam data ingests',      sub: 'Data streaming events',      rate: '₦0.10 / event',      icon: <StreamOutlinedIcon sx={{ fontSize: '1.1rem' }} />,              color: colorPalette.primary },
-  kyc_lookup:          { label: 'KYC / identity lookups', sub: 'Customer identity checks',   rate: '₦100.00 / lookup',    icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#7c3aed' },
-  kyc_pep_lookup:      { label: 'KYC PEP look-ups',       sub: 'Politically exposed persons', rate: '₦2,500.00 / look-up',  icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.1rem' }} />,        color: '#be185d' },
-  webhook_delivery:    { label: 'Webhook deliveries',     sub: 'Outbound event callbacks',   rate: '₦0.0001 / delivery', icon: <WebhookOutlinedIcon sx={{ fontSize: '1.1rem' }} />,             color: '#0891b2' },
-  ai_token:            { label: 'Eureka AI tokens',       sub: 'Intelligence tokens used',   rate: '₦0.05 / token',      icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem' }} />,         color: '#d97706' },
-  nfiu_return:         { label: 'NFIU returns',           sub: 'Regulatory compliance filings', rate: '₦10,000.00 / filing', icon: <AssignmentTurnedInOutlinedIcon sx={{ fontSize: '1.1rem' }} />, color: '#92400e' },
-}
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
+import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function unitsToNgn(units: number) { return units / UNITS_PER_NGN }
-
-function fmtNgn(ngn: number, decimals = 0) {
-  if (ngn >= 1_000_000) return `₦${(ngn / 1_000_000).toFixed(2)}M`
-  if (ngn >= 1_000)     return `₦${(ngn / 1_000).toFixed(1)}k`
-  return `₦${ngn.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
+function pct(used: number, max: number): number {
+  if (max === -1 || max === 0) return 0
+  return Math.min(100, (used / max) * 100)
 }
 
-function fmtSign(ngn: number) {
-  const abs = Math.abs(ngn)
-  return `${ngn < 0 ? '−' : '+'}₦${abs.toLocaleString()}`
+function fmtNum(n: number | undefined | null): string {
+  if (n == null) return '—'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
+  return n.toLocaleString()
 }
 
-function daysUntil(isoStr: string) {
-  const ms = new Date(isoStr).getTime() - Date.now()
+function fmtNgn(n: number): string {
+  if (n === 0) return 'Custom'
+  return '₦' + n.toLocaleString('en-NG')
+}
+
+function daysUntilReset(periodStart: string | null): number | null {
+  if (!periodStart) return null
+  const elapsed = (Date.now() - new Date(periodStart).getTime()) / 86_400_000
+  return Math.max(0, Math.ceil(30 - elapsed))
+}
+
+function periodEndDate(periodStart: string | null): Date | null {
+  if (!periodStart) return null
+  return new Date(new Date(periodStart).getTime() + 30 * 86_400_000)
+}
+
+function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const ms = new Date(iso).getTime() - Date.now()
   return Math.max(0, Math.ceil(ms / 86_400_000))
+}
+
+const PLAN_ACCENT: Record<string, string> = {
+  starter:    '#3b82f6',
+  growth:     colorPalette.primary,
+  enterprise: '#7c3aed',
+}
+
+const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+  trial:     { label: 'Trial',     bg: '#fef9c3', color: '#92400e' },
+  active:    { label: 'Active',    bg: '#dcfce7', color: '#166534' },
+  past_due:  { label: 'Past Due',  bg: '#fee2e2', color: '#991b1b' },
+  cancelled: { label: 'Cancelled', bg: '#f1f5f9', color: '#64748b' },
+}
+
+// ── sub-components ────────────────────────────────────────────────────────────
+
+function StatusChip({ status }: { status: string }) {
+  const cfg = STATUS_BADGE[status] ?? STATUS_BADGE.active
+  return (
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.375,
+      bgcolor: cfg.bg, border: `1px solid ${cfg.color}30` }}>
+      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: cfg.color,
+        letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
+        {cfg.label}
+      </Typography>
+    </Box>
+  )
+}
+
+interface UsageRowProps {
+  icon: React.ReactNode
+  label: string
+  used: number
+  max: number
+  color: string
+  unit?: string
+}
+
+function UsageRow({ icon, label, used, max, color, unit = '' }: UsageRowProps) {
+  const unlimited = max === -1
+  const p         = pct(used, max)
+  const isDanger  = p >= 95
+  const isWarn    = p >= 80 && !isDanger
+  const barColor  = isDanger ? '#dc2626' : isWarn ? '#f59e0b' : color
+  const remaining = unlimited ? null : max - used
+
+  return (
+    <Box sx={{ py: 2.5, borderBottom: '1px solid #f1f5f9', '&:last-child': { borderBottom: 'none' } }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ color: unlimited ? '#94a3b8' : color, mt: '1px' }}>{icon}</Box>
+          <Box>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.25 }}>
+              {label}
+            </Typography>
+            {unlimited ? (
+              <Typography sx={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Unlimited</Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.75rem', color: isDanger ? '#dc2626' : isWarn ? '#d97706' : '#64748b' }}>
+                {remaining != null ? `${fmtNum(remaining)}${unit} remaining` : ''}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        <Box sx={{ textAlign: 'right' }}>
+          <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, color: isDanger ? '#dc2626' : '#0f172a', fontFamily: 'Jost', lineHeight: 1 }}>
+            {fmtNum(used)}
+          </Typography>
+          <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+            {unlimited ? 'used' : `of ${fmtNum(max)}`}
+          </Typography>
+        </Box>
+      </Box>
+      {!unlimited && (
+        <Box sx={{ width: '100%', height: 5, bgcolor: '#f1f5f9', overflow: 'hidden' }}>
+          <Box sx={{ width: `${p}%`, height: '100%', bgcolor: barColor, transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
+        </Box>
+      )}
+    </Box>
+  )
 }
 
 // ── page ──────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  const [fundOpen, setFundOpen]       = useState(false)
-  const [addCardOpen, setAddCardOpen] = useState(false)
-  const [pendingPlan, setPendingPlan] = useState<string | null>(null)
-  const [range, setRange]         = useState<DateRange>('30d')
+  const plan     = usePlan()
+  const { profile } = useProfile()
+  const navigate = useNavigate()
 
-  const [summary, setSummary]           = useState<BillingSummary | null>(null)
-  const [usage, setUsage]               = useState<BillingUsageSummary | null>(null)
-  const [ledger, setLedger]             = useState<LedgerEntry[]>([])
-  const [methods, setMethods]           = useState<PaymentMethod[]>([])
-  const [paystackKey, setPaystackKey]   = useState('')
-  const [loading, setLoading]           = useState(true)
-  const [deletingId, setDeletingId]     = useState<number | null>(null)
+  const accent     = PLAN_ACCENT[plan.slug ?? 'growth'] ?? colorPalette.primary
+  const isTrial    = profile?.subscriptionStatus === 'trial'
+  const isEnterprise = plan.slug === 'enterprise'
 
-  const loadData = useCallback(() => {
-    setLoading(true)
-    Promise.all([
-      billingApi.getSummary(),
-      billingApi.getUsage(),
-      billingApi.getLedger(),
-      billingApi.getConfig(),
-      billingApi.listPaymentMethods(),
-    ]).then(([s, u, l, c, m]) => {
-      setSummary(s)
-      setUsage(u)
-      setLedger(l.entries)
-      setPaystackKey(c.paystackPublicKey)
-      setMethods(m.paymentMethods)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => { loadData() }, [loadData])
-
-  async function deleteMethod(id: number) {
-    setDeletingId(id)
-    try {
-      await billingApi.deletePaymentMethod(id)
-      setMethods(prev => prev.filter(m => m.id !== id))
-    } catch { /* ignore */ }
-    finally { setDeletingId(null) }
-  }
-
-  const balanceNgn      = summary?.balanceNgn ?? 0
-  const creditExpires   = usage?.creditExpiresAt
-  const inFreePeriod    = usage?.isInFreePeriod ?? false
-  const daysLeft        = creditExpires ? daysUntil(creditExpires) : 0
-  const creditUsedNgn   = unitsToNgn(usage?.totalDebitUnits ?? 0)
-  const creditPct       = Math.min(100, (creditUsedNgn / WELCOME_NGN) * 100)
-  const lowBalance      = !inFreePeriod && balanceNgn < 5_000
-  const noPaymentMethod = methods.length === 0
+  const renewsAt   = profile?.subscriptionRenewsAt ?? null
+  const trialEndsAt = profile?.trialEndsAt ?? null
+  const renewDays  = isTrial ? daysUntil(trialEndsAt) : daysUntil(renewsAt)
+  const resetDays  = daysUntilReset(plan.usagePeriodStart)
+  const periodEnd  = periodEndDate(plan.usagePeriodStart)
 
   return (
-    <>
-      <Box sx={{ p: 4, maxWidth: 1200 }}>
+    <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 4 }}>
 
-        {/* ── Header ── */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-              <LockOutlinedIcon sx={{ fontSize: '0.875rem', color: colorPalette.primary }} />
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                Admin only
+      {/* ── Header ── */}
+      <Box sx={{ mb: 4 }}>
+        <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: '#00288e',
+          fontFamily: 'Jost', letterSpacing: '-0.01em' }}>
+          Billing & Subscription
+        </Typography>
+        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', mt: 0.5 }}>
+          Your current plan, monthly usage, and limits.
+        </Typography>
+      </Box>
+
+      {/* ── Top row: plan card + period card ── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 340px' }, gap: 2.5, mb: 2.5 }}>
+
+        {/* Current plan card */}
+        <Box sx={{ border: `2px solid ${accent}`, bgcolor: `${accent}05`, p: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ bgcolor: accent, px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ width: 40, height: 40, bgcolor: 'rgba(255,255,255,0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1.25rem', color: '#fff' }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)',
+                letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
+                Current Plan
+              </Typography>
+              <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', fontFamily: 'Jost', lineHeight: 1.2 }}>
+                {plan.name ?? '—'}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
-              Billing & Usage
-            </Typography>
-            <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-              Pay as you go · ₦500,000 welcome credit · usage charged per event
-            </Typography>
+            {profile?.subscriptionStatus && (
+              <StatusChip status={profile.subscriptionStatus} />
+            )}
           </Box>
-          <Button
-            onClick={() => setFundOpen(true)}
-            startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-            sx={{
-              bgcolor: colorPalette.primary, color: '#fff',
-              px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 700,
-              fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-              boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' },
-            }}
-          >
-            Fund Wallet
-          </Button>
-        </Box>
 
-        {/* ── Balance + credit status ── */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 3 }}>
-
-          {/* Balance card */}
-          <Box 
-            data-ai-analyzable="true"
-            data-ai-description={`Wallet Balance: ${fmtNgn(balanceNgn)}. status: ${inFreePeriod ? 'Welcome credit active' : lowBalance ? 'Low balance alert' : 'Healthy'}.`}
-            sx={{
-            bgcolor: colorPalette.primary, color: '#fff', p: 3, position: 'relative', overflow: 'hidden',
-            '&::before': { content: '""', position: 'absolute', top: '-40%', right: '-8%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' },
-          }}>
-            <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.125rem' }} />
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.85 }}>
-                  Wallet balance
-                </Typography>
-              </Box>
-
-              {loading ? (
-                <CircularProgress size={32} sx={{ color: '#fff', my: 1 }} />
-              ) : (
-                <Typography sx={{ fontSize: '2.75rem', fontWeight: 700, fontFamily: 'Jost', lineHeight: 1, letterSpacing: '-0.02em', mb: 1 }}>
-                  {fmtNgn(balanceNgn)}
-                </Typography>
+          <Box sx={{ px: 3, py: 2.5, flex: 1 }}>
+            {/* Price */}
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.5 }}>
+              <Typography sx={{ fontSize: '2rem', fontWeight: 800, color: accent, fontFamily: 'Jost', lineHeight: 1 }}>
+                {plan.slug ? fmtNgn(plan.slug === 'starter' ? 500000 : plan.slug === 'growth' ? 750000 : 0) : '—'}
+              </Typography>
+              {!isEnterprise && (
+                <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', fontFamily: 'Jost' }}> / month</Typography>
               )}
-
-              {/* Credit / low balance badge */}
-              {inFreePeriod ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <CheckCircleOutlineRoundedIcon sx={{ fontSize: '0.875rem', opacity: 0.85 }} />
-                  <Typography sx={{ fontSize: '0.8125rem', opacity: 0.9 }}>
-                    Welcome credit active · {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining
-                  </Typography>
-                </Box>
-              ) : lowBalance ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, bgcolor: 'rgba(245,158,11,0.2)', px: 1.5, py: 0.75, width: 'fit-content' }}>
-                  <WarningAmberRoundedIcon sx={{ fontSize: '0.875rem', color: '#fbbf24' }} />
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#fbbf24', fontWeight: 600 }}>
-                    Low balance — add funds to avoid interruption
-                  </Typography>
-                </Box>
-              ) : !inFreePeriod ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', opacity: 0.75 }}>
-                    Pay as you go · usage deducted in real-time
-                  </Typography>
-                </Box>
-              ) : null}
-
-              <Stack direction="row" gap={1}>
-                <Button
-                  onClick={() => setFundOpen(true)}
-                  startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                  sx={{ bgcolor: '#fff', color: colorPalette.primary, px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}
-                >
-                  Fund Wallet
-                </Button>
-              </Stack>
             </Box>
-          </Box>
 
-          {/* Credit usage / pay-as-you-go status */}
-          <Box 
-            data-ai-analyzable="true"
-            data-ai-description={inFreePeriod ? `Welcome Credit Status: ${fmtNgn(creditUsedNgn, 2)} used of ₦500k. expires: ${creditExpires ? new Date(creditExpires).toLocaleDateString() : 'N/A'}.` : `Pay-as-you-go Status: ${fmtNgn(unitsToNgn(usage?.totalDebitUnits ?? 0), 2)} spent this billing cycle.`}
-            sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', p: 3 }}>
-            {inFreePeriod ? (
-              <>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
-                  Welcome credit usage
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                    {fmtNgn(creditUsedNgn, 2)} used
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                    of ₦500,000
-                  </Typography>
-                </Box>
-                <Box sx={{ width: '100%', height: 8, bgcolor: '#f1f5f9', mb: 0.75 }}>
-                  <Box sx={{ width: `${creditPct}%`, height: '100%', bgcolor: creditPct > 80 ? '#f59e0b' : colorPalette.primary, transition: 'width 0.5s' }} />
-                </Box>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
-                  {(100 - creditPct).toFixed(1)}% credit remaining · expires {creditExpires ? new Date(creditExpires).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
-                </Typography>
-                <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #d1fae5', p: 1.5 }}>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#047857', fontWeight: 500, lineHeight: 1.5 }}>
-                    After your credit expires, usage is charged against your wallet balance. Add a card now so we can auto-debit and keep you running.
-                  </Typography>
-                </Box>
-              </>
-            ) : (
-              <>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
-                  Pay as you go
-                </Typography>
-                <Typography sx={{ fontSize: '1.375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
-                  {fmtNgn(unitsToNgn(usage?.totalDebitUnits ?? 0), 2)} this month
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
-                  {usage?.periodStart} – {usage?.periodEnd} · Day {usage?.dayOfPeriod ?? '—'} of {usage?.daysInPeriod ?? '—'}
-                </Typography>
-                {noPaymentMethod && (
-                  <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', p: 1.5 }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 500, lineHeight: 1.5 }}>
-                      No card on file — your service will stop when the wallet hits ₦0. Add a card for seamless auto-debit.
-                    </Typography>
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        </Box>
-
-        {/* ── Usage tiles — always 4 categories ── */}
-        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                Usage this billing period
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                {usage
-                  ? `${usage.periodStart} – ${usage.periodEnd} · Day ${usage.dayOfPeriod} of ${usage.daysInPeriod}`
-                  : '…'}
-              </Typography>
-            </Box>
-            {!loading && usage && (
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Total spend
-                </Typography>
-                <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  {fmtNgn(unitsToNgn(usage.totalDebitUnits), 2)}
+            {/* Renewal / trial notice */}
+            {isTrial && renewDays !== null && (
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mb: 2,
+                px: 1.25, py: 0.5, bgcolor: renewDays <= 5 ? '#fef2f2' : '#fffbeb',
+                border: `1px solid ${renewDays <= 5 ? '#fecaca' : '#fde68a'}` }}>
+                <AccessTimeOutlinedIcon sx={{ fontSize: '0.875rem', color: renewDays <= 5 ? '#dc2626' : '#92400e' }} />
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700,
+                  color: renewDays <= 5 ? '#dc2626' : '#92400e', fontFamily: 'Jost' }}>
+                  {renewDays === 0 ? 'Trial expires today' : `${renewDays} day${renewDays === 1 ? '' : 's'} left in trial`}
                 </Typography>
               </Box>
             )}
-          </Box>
 
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={28} sx={{ color: colorPalette.primary }} />
-            </Box>
-          ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-              {(usage?.categories ?? []).filter(c => c.category in CATEGORY_META).map((cat: CategoryUsage, idx: number, arr: CategoryUsage[]) => {
-                const meta       = CATEGORY_META[cat.category] ?? { label: cat.category, sub: '', rate: '', icon: null, color: '#64748b' }
-                const costNgn    = unitsToNgn(cat.totalAmountUnits)
-                const total      = usage?.totalDebitUnits ?? 0
-                const pct        = total > 0 ? (cat.totalAmountUnits / total) * 100 : 0
-                const isEmpty    = cat.eventCount === 0
-                const N          = arr.length
-                const isRightCol = (idx + 1) % 3 === 0 || idx === N - 1
-                const isLastRow  = idx >= N - ((N % 3) || 3)
-
-                return (
-                  <Box
-                    key={cat.category}
-                    data-ai-analyzable="true"
-                    data-ai-description={`Billing Category: ${meta.label}. event count: ${cat.eventCount.toLocaleString()}. total cost: ${fmtNgn(costNgn, 2)}. unit rate: ${meta.rate}. percentage of spend: ${pct.toFixed(1)}%.`}
-                    sx={{
-                      p: 2.5, minWidth: 0,
-                      borderRight: isRightCol ? 'none' : '1px solid #eef0f4',
-                      borderBottom: isLastRow ? 'none' : '1px solid #eef0f4',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: isEmpty ? '#94a3b8' : meta.color }}>
-                      {meta.icon}
-                      <Box>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: isEmpty ? '#94a3b8' : '#475569', fontFamily: 'Jost', lineHeight: 1.2 }}>
-                          {meta.label}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', lineHeight: 1.2 }}>
-                          {meta.sub}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#00288e', fontFamily: 'Jost', lineHeight: 1, mb: 0.25 }}>
-                      {cat.eventCount.toLocaleString()}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mb: 1.25 }}>
-                      events · {meta.rate}
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600 }}>
-                        {isEmpty ? 'No usage' : `${pct.toFixed(0)}% of spend`}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isEmpty ? '#cbd5e1' : '#00288e', fontFamily: 'Jost' }}>
-                        {isEmpty ? '₦0' : fmtNgn(costNgn, 2)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ width: '100%', height: 3, bgcolor: '#f1f5f9' }}>
-                      <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: meta.color, transition: 'width 0.4s' }} />
-                    </Box>
-                  </Box>
-                )
-              })}
-            </Box>
-          )}
-        </Box>
-
-        {/* ── Payment methods ── */}
-        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4', mb: 3 }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                Payment methods
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                Saved cards for one-click top-up and auto-debit
-              </Typography>
-            </Box>
-            <Button
-              onClick={() => setAddCardOpen(true)}
-              startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{
-                bgcolor: '#fff', color: colorPalette.primary,
-                border: `1px solid ${colorPalette.primary}40`,
-                px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 700,
-                fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-                '&:hover': { bgcolor: `${colorPalette.primary}06`, borderColor: colorPalette.primary },
-              }}
-            >
-              Add card
-            </Button>
-          </Box>
-
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-              <CircularProgress size={24} sx={{ color: colorPalette.primary }} />
-            </Box>
-          ) : methods.length === 0 ? (
-            <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <CreditCardOutlinedIcon sx={{ fontSize: '2rem', color: '#cbd5e1' }} />
-              <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>
-                  No payment methods yet
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                  Add a card via the Fund Wallet dialog — we'll save it for future top-ups and auto-debit.
-                </Typography>
-              </Box>
-            </Box>
-          ) : (
-            <Box>
-              {methods.map((m, i) => (
-                <Box
-                  key={m.id}
-                  data-ai-analyzable="true"
-                  data-ai-description={`Saved Payment Method: ${m.displayName}. last 4 digits: ${m.last4 || 'N/A'}. status: ${m.isDefault ? 'Default auto-debit card' : 'Backup card'}. added: ${new Date(m.createdAt).toLocaleDateString()}.`}
-                  sx={{
-                    display: 'flex', alignItems: 'center', gap: 2, px: 3, py: 1.75,
-                    borderBottom: i === methods.length - 1 ? 'none' : '1px solid #f4f5f7',
-                    '&:hover': { bgcolor: '#fafbfc' },
-                  }}
-                >
-                  <CreditCardOutlinedIcon sx={{ fontSize: '1.375rem', color: '#64748b', flexShrink: 0 }} />
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>
-                      {m.displayName}
-                      {m.isDefault && (
-                        <Chip label="default" size="small" sx={{ ml: 1, height: 18, fontSize: '0.625rem', fontWeight: 700, bgcolor: `${colorPalette.primary}12`, color: colorPalette.primary, borderRadius: 0 }} />
-                      )}
-                    </Typography>
-                    {m.last4 && (
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                        ···· {m.last4}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
-                    Added {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    disabled={deletingId === m.id}
-                    onClick={() => deleteMethod(m.id)}
-                    sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
-                  >
-                    {deletingId === m.id
-                      ? <CircularProgress size={14} sx={{ color: '#94a3b8' }} />
-                      : <DeleteOutlineRoundedIcon sx={{ fontSize: '1rem' }} />}
-                  </IconButton>
+            {/* Key inclusions */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 3 }}>
+              {[
+                `${plan.maxMonthlyTransactions === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyTransactions)} transactions / month`,
+                `${plan.maxMonthlyKycLookups === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyKycLookups)} KYC lookups / month`,
+                `${plan.maxActiveCases === -1 ? 'Unlimited' : fmtNum(plan.maxActiveCases)} concurrent active cases`,
+                `${plan.maxUsers === -1 ? 'Unlimited' : plan.maxUsers} team members`,
+                plan.maxAmlRules === 29 ? '29-rule AML engine' : `${plan.maxAmlRules}-rule AML engine`,
+              ].map(line => (
+                <Box key={line} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckCircleOutlinedIcon sx={{ fontSize: '0.875rem', color: accent, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.875rem', color: '#334155', fontFamily: 'Jost' }}>{line}</Typography>
                 </Box>
               ))}
             </Box>
-          )}
-        </Box>
 
-        {/* ── Wallet ledger ── */}
-        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4' }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ReceiptLongOutlinedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />
-              <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
-                  Wallet ledger
-                </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.125 }}>
-                  Every charge and top-up · audit-grade trail
-                </Typography>
-              </Box>
-            </Box>
-            <DateRangeFilter value={range} onChange={setRange} compact options={['7d', '30d', '90d', 'ytd']} />
-          </Box>
-
-          {/* Table header */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 130px 100px', gap: 2, px: 3, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-            {['Date', 'Description', 'Amount (₦)', 'Balance (₦)', 'Type'].map(h => (
-              <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {h}
-              </Typography>
-            ))}
-          </Box>
-
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={28} sx={{ color: colorPalette.primary }} />
-            </Box>
-          ) : ledger.length === 0 ? (
-            <Box sx={{ py: 4, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8' }}>No ledger entries yet</Typography>
-            </Box>
-          ) : ledger.map((row, i) => {
-            const amountNgn  = Math.round(unitsToNgn(row.totalAmountUnits))
-            const balNgn     = Math.round(unitsToNgn(row.endingBalanceUnits))
-            const isCredit   = row.type === 'credit'
-            return (
-              <Box
-                key={`${row.dayStr}-${row.type}`}
-                data-ai-analyzable="true"
-                data-ai-description={`Ledger Record: ${isCredit ? 'Wallet funding' : 'Service usage charge'}. amount: ${fmtSign(isCredit ? amountNgn : -amountNgn)}. final balance: ${fmtNgn(balNgn)}. date: ${row.dayStr}.`}
+            {/* Actions */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                onClick={() => navigate('/dashboard/subscription')}
+                endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
                 sx={{
-                  display: 'grid', gridTemplateColumns: '120px 1fr 120px 130px 100px',
-                  gap: 2, px: 3, py: 1.75, alignItems: 'center',
-                  borderBottom: i === ledger.length - 1 ? 'none' : '1px solid #f4f5f7',
-                  '&:hover': { bgcolor: '#fafbfc' },
+                  bgcolor: accent, color: '#fff', borderRadius: 0, textTransform: 'none',
+                  fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
+                  boxShadow: 'none', '&:hover': { bgcolor: accent, filter: 'brightness(0.9)', boxShadow: 'none' },
                 }}
               >
-                <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
-                  {row.dayStr}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: isCredit ? '#10b981' : colorPalette.primary, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#00288e' }}>
-                    {isCredit ? 'Credit' : 'Usage charges'} · {row.dayStr}
-                    {row.eventCount > 1 && (
-                      <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 0.75 }}>
-                        {row.eventCount.toLocaleString()} events
-                      </Typography>
-                    )}
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: isCredit ? '#10b981' : '#00288e', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
-                  {fmtSign(isCredit ? amountNgn : -amountNgn)}
-                </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: balNgn < 0 ? '#dc2626' : '#475569', fontFamily: 'SF Mono, Monaco, monospace', textAlign: 'right' }}>
-                  ₦{Math.abs(balNgn).toLocaleString()}{balNgn < 0 ? ' (negative)' : ''}
-                </Typography>
-                <Chip
-                  label={row.type}
-                  size="small"
+                {isEnterprise ? 'Manage Plan' : 'View Plans'}
+              </Button>
+              {isEnterprise && (
+                <Button
+                  href="mailto:support@openiv.com"
+                  startIcon={<MailOutlineRoundedIcon sx={{ fontSize: '1rem !important' }} />}
                   sx={{
-                    borderRadius: 0, height: 20, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em',
-                    bgcolor: isCredit ? '#f0fdf4' : '#eff6ff',
-                    color: isCredit ? '#10b981' : colorPalette.primary,
+                    border: `1px solid ${accent}40`, color: accent, borderRadius: 0,
+                    textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
+                    px: 2, py: 1, fontSize: '0.875rem',
+                    '&:hover': { bgcolor: `${accent}06`, borderColor: accent },
                   }}
-                />
-              </Box>
-            )
-          })}
+                >
+                  Contact Us
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </Box>
 
-          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              {ledger.length > 0 ? `${ledger.length} entries shown · last 90 days` : ''}
+        {/* Billing period card */}
+        <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
+              letterSpacing: '0.12em', textTransform: 'uppercase', mb: 1 }}>
+              Billing Period
+            </Typography>
+            {isTrial ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75,
+                px: 1.25, py: 0.625, bgcolor: '#fef9c3', border: '1px solid #fde68a', mb: 1 }}>
+                <AccessTimeOutlinedIcon sx={{ fontSize: '0.875rem', color: '#92400e' }} />
+                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#92400e', fontFamily: 'Jost' }}>
+                  Trial period
+                </Typography>
+              </Box>
+            ) : (
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+                Renews {renewsAt
+                  ? new Date(renewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : '—'}
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ width: '100%', height: '1px', bgcolor: '#f1f5f9' }} />
+
+          <Box>
+            <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
+              letterSpacing: '0.12em', textTransform: 'uppercase', mb: 1 }}>
+              Usage Window
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+              {plan.usagePeriodStart
+                ? new Date(plan.usagePeriodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                : '—'}{' '}
+              –{' '}
+              {periodEnd
+                ? periodEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : '—'}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <AccessTimeOutlinedIcon sx={{ fontSize: '0.8125rem', color: '#64748b' }} />
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                {resetDays != null
+                  ? resetDays === 0 ? 'Resets today' : `Resets in ${resetDays} day${resetDays === 1 ? '' : 's'}`
+                  : '—'}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ width: '100%', height: '1px', bgcolor: '#f1f5f9' }} />
+
+          <Box>
+            <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
+              letterSpacing: '0.12em', textTransform: 'uppercase', mb: 1 }}>
+              Billing
+            </Typography>
+            {isEnterprise ? (
+              <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
+                Managed contract · invoiced separately
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
+                Monthly flat rate · auto-renews
+              </Typography>
+            )}
+            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 0.5 }}>
+              Limits reset every 30 days
             </Typography>
           </Box>
         </Box>
-
-      {/* ── Add Card dialog ── */}
-      <AddCardDialog
-        open={addCardOpen}
-        onClose={() => setAddCardOpen(false)}
-        onCardAdded={(method) => {
-          setMethods(prev => [...prev, method])
-          setAddCardOpen(false)
-        }}
-      />
-
-      {/* ── Fund Wallet dialog ── */}
-      <FundWalletDialog
-        open={fundOpen}
-        onClose={() => setFundOpen(false)}
-        paystackPublicKey={paystackKey}
-        onSuccess={(newBalance) => {
-          setSummary(prev => prev ? { ...prev, balanceNgn: newBalance } : null)
-          loadData()
-        }}
-      />
-
-      {/* ── TOTP — plan change (kept for future use) ── */}
-      <TOTPConfirmation
-        open={!!pendingPlan}
-        onClose={() => setPendingPlan(null)}
-        onConfirm={() => setPendingPlan(null)}
-        operation="update"
-        title="Change plan"
-        description="Plan changes apply immediately."
-        resourceType="Subscription"
-        resourceName=""
-      />
       </Box>
-    </>
+
+      {/* ── Usage this period ── */}
+      <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', mb: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              Usage This Period
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+              {plan.usagePeriodStart
+                ? `Started ${new Date(plan.usagePeriodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                : 'Tracking monthly consumption against your plan limits'}
+            </Typography>
+          </Box>
+          {resetDays != null && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75,
+              px: 1.5, py: 0.625, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <AccessTimeOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>
+                Resets in {resetDays} day{resetDays === 1 ? '' : 's'}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        <Box sx={{ px: 3, py: 0.5 }}>
+          <UsageRow
+            icon={<SwapVertOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+            label="Transactions Ingested"
+            used={plan.monthlyTxnUsed}
+            max={plan.maxMonthlyTransactions}
+            color={colorPalette.primary}
+            unit=" transactions"
+          />
+          <UsageRow
+            icon={<BadgeOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+            label="KYC Lookups"
+            used={plan.monthlyKycUsed}
+            max={plan.maxMonthlyKycLookups}
+            color="#7c3aed"
+            unit=" lookups"
+          />
+        </Box>
+      </Box>
+
+      {/* ── Plan limits summary ── */}
+      <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', mb: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            Plan Limits
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+            Fixed entitlements included in your subscription
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 0 }}>
+          {[
+            { icon: <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />,         label: 'Active Cases',    value: plan.maxActiveCases === -1 ? 'Unlimited' : fmtNum(plan.maxActiveCases),   sub: 'concurrent open cases' },
+            { icon: <GroupsOutlinedIcon sx={{ fontSize: '1rem' }} />,        label: 'Team Members',   value: plan.maxUsers === -1 ? 'Unlimited' : String(plan.maxUsers),                sub: 'seats included' },
+            { icon: <PolicyOutlinedIcon sx={{ fontSize: '1rem' }} />,        label: 'AML Rules',      value: String(plan.maxAmlRules),                                                  sub: 'detection rules active' },
+            { icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />,   label: 'Eureka AI',      value: plan.canUse('ai') ? 'Enabled' : 'Not included',                            sub: plan.canUse('ai') ? 'AI investigation assistant' : 'Upgrade to unlock' },
+            { icon: <LockOutlinedIcon sx={{ fontSize: '1rem' }} />,          label: 'Behavioral Rules', value: plan.canUse('behavioral') ? 'Enabled' : 'Not included',                 sub: plan.canUse('behavioral') ? 'Anomaly detection active' : 'Upgrade to unlock' },
+            { icon: <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1rem' }} />, label: 'KYC Pipeline', value: plan.canUse('kyc') ? 'Enabled' : 'Not included',                         sub: plan.canUse('kyc') ? 'BVN, NIN, PEP checks' : 'Upgrade to unlock' },
+          ].map(({ icon, label, value, sub }, i, arr) => {
+            const isDisabled = value === 'Not included'
+            const isLast = i === arr.length - 1
+            return (
+              <Box
+                key={label}
+                sx={{
+                  px: 3, py: 2.25,
+                  borderRight: (i + 1) % 3 === 0 || isLast ? 'none' : '1px solid #f1f5f9',
+                  borderBottom: i < arr.length - 3 ? '1px solid #f1f5f9' : 'none',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDisabled ? '#cbd5e1' : '#64748b', mb: 0.75 }}>
+                  {icon}
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: isDisabled ? '#cbd5e1' : '#64748b',
+                    textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Jost' }}>
+                    {label}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'Jost',
+                  color: isDisabled ? '#cbd5e1' : value === 'Unlimited' || value === 'Enabled' ? '#10b981' : '#0f172a',
+                  lineHeight: 1.2, mb: 0.25 }}>
+                  {value}
+                </Typography>
+                <Typography sx={{ fontSize: '0.6875rem', color: isDisabled ? '#cbd5e1' : '#94a3b8' }}>
+                  {sub}
+                </Typography>
+              </Box>
+            )
+          })}
+        </Box>
+      </Box>
+
+      {/* ── Upgrade banner — hidden for Enterprise ── */}
+      {!isEnterprise && plan.isLoaded && (
+        <Box sx={{ border: '1px solid #e0e7ff', bgcolor: '#f0f4ff', p: 3,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#1e40af', fontFamily: 'Jost', mb: 0.375 }}>
+              {plan.slug === 'starter' ? 'Unlock Growth — more capacity, KYC, webhooks, and AI' : 'Enterprise — unlimited everything, dedicated SLA'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: '#3b82f6' }}>
+              {plan.slug === 'starter'
+                ? '500k transactions/mo · 5k KYC lookups · full 29-rule AML engine'
+                : 'Unlimited transactions, lookups, and cases · white-label option available'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            {plan.slug === 'starter' ? (
+              <Button
+                onClick={() => navigate('/dashboard/subscription')}
+                endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+                sx={{
+                  bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',
+                  fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
+                  boxShadow: 'none', '&:hover': { bgcolor: '#1e3a8a', boxShadow: 'none' },
+                }}
+              >
+                Upgrade to Growth
+              </Button>
+            ) : (
+              <Button
+                href="mailto:sales@openiv.com"
+                startIcon={<MailOutlineRoundedIcon sx={{ fontSize: '1rem !important' }} />}
+                sx={{
+                  bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',
+                  fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
+                  boxShadow: 'none', '&:hover': { bgcolor: '#1e3a8a', boxShadow: 'none' },
+                }}
+              >
+                Contact Enterprise Sales
+              </Button>
+            )}
+          </Box>
+        </Box>
+      )}
+
+    </Box>
   )
 }

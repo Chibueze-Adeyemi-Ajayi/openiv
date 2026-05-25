@@ -1,7 +1,8 @@
 import { Box, InputBase, IconButton, Typography, Badge, Popover } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import CommandPalette from './CommandPalette'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
@@ -52,7 +53,19 @@ export default function Topbar(_props?: Record<string, unknown>) {
   const location = useLocation()
   const initials = getInitials(profile?.fullName, profile?.email)
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const unreadCount = notifications.filter((n) => n.status === 'unread').length
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const handleMarkAllRead = async () => {
     markAllNotifsRead()
@@ -118,10 +131,11 @@ export default function Topbar(_props?: Record<string, unknown>) {
         color: '#0f172a',
       }}
     >
-      {/* Search */}
+      {/* Search — click or ⌘K to open command palette */}
       <Box
         data-ai-analyzable="true"
         data-ai-description="Intelligent Search: Find transactions, customers, or cases instantly using semantic search logic."
+        onClick={() => setPaletteOpen(true)}
         sx={{
           flex: 1,
           maxWidth: 480,
@@ -131,44 +145,44 @@ export default function Topbar(_props?: Record<string, unknown>) {
           bgcolor: '#f1f5f9',
           px: 2,
           height: 38,
+          cursor: 'pointer',
           transition: 'all 0.18s ease',
-          '&:focus-within': {
-            bgcolor: '#ffffff',
-            boxShadow: `0 0 0 3px rgba(0, 40, 142, 0.05)`,
-            borderColor: '#00288e',
-          },
           border: '1px solid transparent',
-          '&:hover': { borderColor: '#e2e8f0' },
+          '&:hover': { borderColor: '#e2e8f0', bgcolor: '#e8eef5' },
         }}
       >
         <SearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#64748b' }} />
         <InputBase
           placeholder="Search transactions, customers, cases…"
+          readOnly
+          inputProps={{ style: { cursor: 'pointer' } }}
           sx={{
             flex: 1,
             fontSize: '0.875rem',
             fontFamily: 'Jost',
             color: '#000000',
+            pointerEvents: 'none',
             '& input::placeholder': { color: '#94a3b8', opacity: 1 },
           }}
         />
-          <Box
-            sx={{
-              display: { xs: 'none', md: 'flex' },
-              alignItems: 'center',
-              gap: 0.5,
-              px: 1,
-              py: 0.25,
-              border: '1px solid #e2e8f0',
-              bgcolor: '#ffffff',
-              fontSize: '0.6875rem',
-              color: '#94a3b8',
-              fontWeight: 600,
-              borderRadius: '4px',
-            }}
-          >
-            ⌘K
-          </Box>
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'flex' },
+            alignItems: 'center',
+            gap: 0.5,
+            px: 1,
+            py: 0.25,
+            border: '1px solid #e2e8f0',
+            bgcolor: '#ffffff',
+            fontSize: '0.6875rem',
+            color: '#94a3b8',
+            fontWeight: 600,
+            borderRadius: '4px',
+            flexShrink: 0,
+          }}
+        >
+          ⌘K
+        </Box>
       </Box>
 
       <Box sx={{ flex: 1 }} />
@@ -347,6 +361,8 @@ export default function Topbar(_props?: Record<string, unknown>) {
           </Typography>
         </Box>
       </Popover>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
     </Box>
   )
