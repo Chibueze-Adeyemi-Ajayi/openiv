@@ -1,8 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { getSessionState, type SessionState } from '@/onboarding/state'
+import { getSessionState, hydrate, clearOnboardingState, type SessionState } from '@/onboarding/state'
 import { useEffect, useState } from 'react'
-import { hydrate } from '@/onboarding/state'
-
+import { getBaseUrl } from '@/api/client'
 import { Box, CircularProgress } from '@mui/material'
 
 interface ProtectedRouteProps {
@@ -10,15 +9,59 @@ interface ProtectedRouteProps {
   requiredState?: SessionState
 }
 
+type Status = 'pending' | 'allowed' | 'denied'
+
 export default function ProtectedRoute({ children, requiredState = 'authenticated' }: ProtectedRouteProps) {
-  const [hydrated, setHydrated] = useState(false)
+  const [status, setStatus]     = useState<Status>('pending')
+  const [denyTarget, setDenyTarget] = useState('/auth/login')
   const location = useLocation()
 
   useEffect(() => {
-    hydrate().then(() => setHydrated(true))
-  }, [])
+    const check = async () => {
+      await hydrate()
+      const state = getSessionState()
 
-  if (!hydrated) {
+      if (!state) {
+        setDenyTarget('/auth/login')
+        setStatus('denied')
+        return
+      }
+
+      if (state !== requiredState) {
+        switch (state) {
+          case 'pending_email_verification': setDenyTarget('/auth/verify-email'); break
+          case 'pending_totp_setup':         setDenyTarget('/auth/setup-2fa');    break
+          case 'pending_totp_challenge':     setDenyTarget('/auth/verify-otp');   break
+          case 'authenticated':              setDenyTarget('/dashboard');         break
+          default:                           setDenyTarget('/auth/login');
+        }
+        setStatus('denied')
+        return
+      }
+
+      // For authenticated routes, verify the server session is still alive before
+      // rendering the dashboard — prevents a flash of protected content when the
+      // local state is stale after a server-side session expiry.
+      if (requiredState === 'authenticated') {
+        try {
+          const res = await fetch(`${getBaseUrl()}/api/v1/auth/session`, { credentials: 'include' })
+          if (!res.ok) {
+            clearOnboardingState()
+            setDenyTarget('/auth/login?expired=1')
+            setStatus('denied')
+            return
+          }
+        } catch {
+          // Network error — let through; API calls will handle it
+        }
+      }
+
+      setStatus('allowed')
+    }
+    check()
+  }, [requiredState])
+
+  if (status === 'pending') {
     return (
       <Box sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
@@ -26,27 +69,8 @@ export default function ProtectedRoute({ children, requiredState = 'authenticate
     )
   }
 
-  const state = getSessionState()
-
-  if (!state) {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />
-  }
-
-  if (state !== requiredState) {
-    // Redirect to the correct step based on current state
-    switch (state) {
-      case 'pending_email_verification':
-        return <Navigate to="/auth/verify-email" replace />
-      case 'pending_totp_setup':
-        return <Navigate to="/auth/setup-2fa" replace />
-      case 'pending_totp_challenge':
-        return <Navigate to="/auth/verify-otp" replace />
-      case 'authenticated':
-        // If we're authenticated but the page wanted something else (like setup), go to dashboard
-        return <Navigate to="/dashboard" replace />
-      default:
-        return <Navigate to="/auth/login" replace />
-    }
+  if (status === 'denied') {
+    return <Navigate to={denyTarget} state={{ from: location }} replace />
   }
 
   return <>{children}</>

@@ -1,10 +1,20 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
 import NotFoundPage, { DashboardNotFoundPage } from '@/pages/NotFoundPage'
-import LandingPage from '@/pages/LandingPage'
 import SolutionsPage from '@/pages/landing/SolutionsPage'
 import LandingNetworkPage from '@/pages/landing/NetworkPage'
 import CompliancePage from '@/pages/landing/CompliancePage'
 import SecurityPage from '@/pages/landing/SecurityPage'
+import DevelopersPage from '@/pages/landing/DevelopersPage'
+import PrivacyPage from '@/pages/landing/PrivacyPage'
+import TermsPage from '@/pages/landing/TermsPage'
+import LaunchPage from '@/pages/LaunchPage'
 import AuthInvitePage from '@/pages/auth/InvitePage'
 import AuthLoginPage from '@/pages/auth/LoginPage'
 import AuthVerifyEmailPage from '@/pages/auth/VerifyEmailPage'
@@ -59,12 +69,18 @@ function ComingSoonRoute({ children, title }: { children: React.ReactNode; title
 
 function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<LaunchPage />} />
       <Route path="/solutions" element={<SolutionsPage />} />
       <Route path="/network" element={<LandingNetworkPage />} />
       <Route path="/compliance" element={<CompliancePage />} />
       <Route path="/security" element={<SecurityPage />} />
+      <Route path="/developers" element={<DevelopersPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/landing" element={<LaunchPage />} />
 
       {/* Auth */}
       <Route path="/auth/invite" element={<AuthInvitePage />} />
@@ -116,6 +132,7 @@ function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   )
 }
 

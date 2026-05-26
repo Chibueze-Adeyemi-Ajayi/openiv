@@ -6,6 +6,7 @@ import {
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { beamApi, type BeamApiKey, type BeamRecord } from '@/api/beam'
 import { streamKycBeam, type KycStepEvent, type KycStreamResult } from '@/api/kyc'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
@@ -971,6 +972,14 @@ export default function DataBeamingPage() {
             </Typography>
           </Box>
           <Stack direction="row" gap={1.25} sx={{ mt: 0.75, flexShrink: 0 }}>
+            <Button
+              component={Link}
+              to="/developers"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ border: '1px solid #eef0f4', bgcolor: '#ffffff', color: '#475569', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' } }}>
+              Read docs
+            </Button>
             <Button
               startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
               onClick={() => setApiKeyOpen(true)}

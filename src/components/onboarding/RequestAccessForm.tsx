@@ -2,12 +2,14 @@ import {
   Alert,
   Box,
   Button,
+  Link,
   MenuItem,
   Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 import { colorPalette } from '@/theme'
 import { useState } from 'react'
 import FormLoadingOverlay from './FormLoadingOverlay'
@@ -164,6 +166,12 @@ export default function RequestAccessForm({
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
           Tell us about your institution. A compliance reviewer will follow up with an
           invitation if approved.
+        </Typography>
+        <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', mt: 1 }}>
+          Already have access?{' '}
+          <Link component={RouterLink} to="/auth/login" sx={{ color: colorPalette.primary, fontWeight: 600, textDecoration: 'none', '&:hover': { opacity: 0.75 } }}>
+            Sign in →
+          </Link>
         </Typography>
       </Box>
 

@@ -165,6 +165,12 @@ export default function LoginForm({
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
           Secure authorization required for data access.
         </Typography>
+        <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', mt: 1 }}>
+          No account?{' '}
+          <Link component={RouterLink} to="/request-access" sx={{ color: colorPalette.primary, fontWeight: 600, textDecoration: 'none', '&:hover': { opacity: 0.75 } }}>
+            Request access →
+          </Link>
+        </Typography>
       </Box>
 
       {headerHint && (
