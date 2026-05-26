@@ -242,6 +242,20 @@ function Hero() {
         <Container maxWidth="lg" sx={{ position: 'relative', py: { xs: 10, md: 14 } }}>
           <Grid container spacing={8} sx={{ alignItems: 'center' }}>
             <Grid size={{ xs: 12, lg: 6 }}>
+              {/* Brand name expansion — shown above the carousel */}
+              <Box sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 1.5, mb: 3,
+                animation: `${fadeUp} 0.6s ease both`,
+              }}>
+                <Box sx={{ width: 5, height: 5, bgcolor: '#d9f99d', borderRadius: '50%', flexShrink: 0 }} />
+                <Typography sx={{
+                  fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)',
+                  letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Jost',
+                }}>
+                  Open Intelligence &amp; Verification
+                </Typography>
+              </Box>
+
               <HeroCarousel />
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 5, animation: `${fadeUp} 0.7s 0.3s ease both` }}>
@@ -357,165 +371,115 @@ const RISK_DIMENSIONS = [
 ]
 
 function CustomerRiskProfile() {
-  const [activeIdx, setActiveIdx] = useState(0)
-  const [fading, setFading] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setFading(true)
-      setTimeout(() => {
-        setActiveIdx(i => (i + 1) % RISK_DIMENSIONS.length)
-        setFading(false)
-      }, 350)
-    }, 2800)
-    return () => clearInterval(t)
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { threshold: 0.08 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
   }, [])
 
-  const dim = RISK_DIMENSIONS[activeIdx]
-
   return (
-    // Gradient bridges the compliance bar (#001b5e) into the dark section
-    <Box sx={{
-      background: 'linear-gradient(to bottom, #001b5e 0%, #040e22 28%, #040e22 100%)',
-      py: { xs: 10, md: 14 }, position: 'relative', overflow: 'hidden',
+    <Box ref={ref} sx={{
+      bgcolor: '#070d1a', py: { xs: 10, md: 16 },
+      position: 'relative', overflow: 'hidden',
     }}>
-      {/* Subtle dot grid */}
-      <Box sx={{ position: 'absolute', inset: 0, opacity: 0.03,
-        backgroundImage: 'radial-gradient(circle, #d9f99d 1px, transparent 1px)',
-        backgroundSize: '40px 40px', pointerEvents: 'none' }} />
-      {/* Blue glow right */}
-      <Box sx={{ position: 'absolute', top: '15%', right: '-5%', width: 520, height: 520,
-        bgcolor: '#00288e', opacity: 0.14, borderRadius: '50%', filter: 'blur(110px)', pointerEvents: 'none' }} />
-      {/* Accent glow left */}
-      <Box sx={{ position: 'absolute', bottom: '5%', left: '-8%', width: 360, height: 360,
-        bgcolor: '#d9f99d', opacity: 0.04, borderRadius: '50%', filter: 'blur(90px)', pointerEvents: 'none' }} />
+      <Box sx={{
+        position: 'absolute', inset: 0, opacity: 0.022,
+        backgroundImage: 'linear-gradient(rgba(217,249,157,1) 1px, transparent 1px), linear-gradient(90deg, rgba(217,249,157,1) 1px, transparent 1px)',
+        backgroundSize: '56px 56px', pointerEvents: 'none',
+      }} />
+      <Box sx={{
+        position: 'absolute', top: '25%', left: '35%', width: 700, height: 380,
+        bgcolor: '#00288e', opacity: 0.11, borderRadius: '50%', filter: 'blur(130px)', pointerEvents: 'none',
+      }} />
 
       <Container maxWidth="lg" sx={{ position: 'relative' }}>
 
-        {/* ── Section header (full width) ── */}
-        <Box sx={{ mb: { xs: 7, md: 9 }, maxWidth: 640 }}>
+        <Box sx={{ textAlign: 'center', mb: { xs: 7, md: 10 } }}>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#d9f99d',
             textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-            Customer Intelligence
+            360° Risk Intelligence
           </Typography>
-          <Typography sx={{ fontSize: { xs: '2.25rem', md: '3rem' }, fontWeight: 900,
-            color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.1, mb: 2.5 }}>
-            A holistic, continuous<br />360° risk profile.
+          <Typography sx={{ fontSize: { xs: '2.125rem', md: '3rem' }, fontWeight: 900,
+            color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.08, mb: 2.5 }}>
+            Every signal.<br />One unified profile.
           </Typography>
-          <Typography sx={{ fontSize: '1rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.85, maxWidth: 560 }}>
+          <Typography sx={{ fontSize: '1.0625rem', color: 'rgba(255,255,255,0.5)',
+            lineHeight: 1.8, maxWidth: 560, mx: 'auto' }}>
             OpenIV doesn't score events in isolation. Every transaction, login, OTP request,
-            and location ping continuously updates a unified risk model for each customer —
-            so your team always knows the full picture, not just the last action.
+            and location ping continuously updates a unified risk model for each customer — so
+            your compliance team always works from the complete picture.
           </Typography>
         </Box>
 
-        <Grid container spacing={{ xs: 6, lg: 8 }} sx={{ alignItems: 'stretch' }}>
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
 
-          {/* ── Left: animated dimension spotlight ── */}
-          <Grid size={{ xs: 12, lg: 5 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
-
-              {/* Active dimension card */}
-              <Box sx={{
-                flex: 1, p: { xs: 4, md: 5 },
-                border: `1px solid ${dim.color}28`,
-                bgcolor: `${dim.color}08`,
-                position: 'relative', overflow: 'hidden',
-                transition: 'border-color 0.6s ease, background-color 0.6s ease',
-              }}>
-                {/* Colour wash behind icon */}
-                <Box sx={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160,
-                  bgcolor: dim.color, opacity: 0.06, borderRadius: '50%', filter: 'blur(40px)',
-                  transition: 'background-color 0.6s ease',
-                }} />
-
-                <Box sx={{
-                  opacity: fading ? 0 : 1,
-                  transform: fading ? 'translateY(14px)' : 'translateY(0)',
-                  transition: 'opacity 0.35s ease, transform 0.35s ease',
-                }}>
-                  <Box sx={{ width: 52, height: 52, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', mb: 3, border: `1px solid ${dim.color}40`,
-                    bgcolor: `${dim.color}12` }}>
-                    <dim.Icon sx={{ fontSize: '1.625rem', color: dim.color }} />
-                  </Box>
-
-                  <Typography sx={{ fontSize: { xs: '1.75rem', md: '2.25rem' }, fontWeight: 900,
-                    color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.1, mb: 1.5 }}>
-                    {dim.label}
-                  </Typography>
-
-                  <Typography sx={{ fontSize: '0.9375rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.75 }}>
-                    {dim.desc}
-                  </Typography>
-
-                  <Box sx={{ display: 'inline-flex', mt: 3, px: 1.5, py: 0.5,
-                    border: `1px solid ${dim.color}50`, bgcolor: `${dim.color}10` }}>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: dim.color,
-                      letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
-                      {`${activeIdx + 1} of ${RISK_DIMENSIONS.length}`}
+          {/* Signal grid */}
+          <Grid size={{ xs: 12, lg: 7 }}>
+            <Grid container spacing={1.5}>
+              {RISK_DIMENSIONS.map((d, i) => (
+                <Grid key={d.label} size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{
+                    p: 3, height: '100%',
+                    bgcolor: 'rgba(255,255,255,0.025)',
+                    borderTop: '1px solid rgba(255,255,255,0.07)',
+                    borderRight: '1px solid rgba(255,255,255,0.07)',
+                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                    borderLeft: `3px solid ${d.color}`,
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? 'translateY(0)' : 'translateY(22px)',
+                    transition: `opacity 0.55s ease ${i * 0.075}s, transform 0.55s ease ${i * 0.075}s`,
+                    '&:hover': { bgcolor: `${d.color}0c` },
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                      <Box sx={{ width: 30, height: 30, flexShrink: 0, bgcolor: `${d.color}18`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <d.Icon sx={{ fontSize: '1rem', color: d.color }} />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost' }}>
+                        {d.label}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.65, pl: '42px' }}>
+                      {d.desc}
                     </Typography>
                   </Box>
-                </Box>
-              </Box>
-
-              {/* Progress dots + all icon chips */}
-              <Box>
-                {/* Dot bar */}
-                <Box sx={{ display: 'flex', gap: 0.75, mb: 2.5 }}>
-                  {RISK_DIMENSIONS.map((_, i) => (
-                    <Box key={i} onClick={() => { if (!fading) { setFading(true); setTimeout(() => { setActiveIdx(i); setFading(false) }, 350) } }}
-                      sx={{
-                        height: 3, flex: i === activeIdx ? 2.5 : 1,
-                        bgcolor: i === activeIdx ? dim.color : 'rgba(255,255,255,0.18)',
-                        cursor: 'pointer', transition: 'all 0.4s ease',
-                        '&:hover': { bgcolor: i === activeIdx ? dim.color : 'rgba(255,255,255,0.35)' },
-                      }} />
-                  ))}
-                </Box>
-
-                {/* Mini icon grid */}
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {RISK_DIMENSIONS.map((d, i) => (
-                    <Box key={d.label} onClick={() => { if (!fading) { setFading(true); setTimeout(() => { setActiveIdx(i); setFading(false) }, 350) } }}
-                      sx={{
-                        width: 34, height: 34, display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', cursor: 'pointer',
-                        border: `1px solid ${i === activeIdx ? d.color + '80' : 'rgba(255,255,255,0.1)'}`,
-                        bgcolor: i === activeIdx ? `${d.color}18` : 'rgba(255,255,255,0.03)',
-                        transition: 'all 0.3s ease',
-                        '&:hover': { borderColor: d.color + '60', bgcolor: `${d.color}12` },
-                      }}>
-                      <d.Icon sx={{ fontSize: '0.875rem', color: i === activeIdx ? d.color : 'rgba(255,255,255,0.35)',
-                        transition: 'color 0.3s ease' }} />
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
+                </Grid>
+              ))}
+            </Grid>
           </Grid>
 
-          {/* ── Right: profile card visual ── */}
-          <Grid size={{ xs: 12, lg: 7 }}>
-            <Box sx={{ bgcolor: '#08121f', border: '1px solid rgba(255,255,255,0.09)',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.5)', height: '100%', display: 'flex', flexDirection: 'column' }}>
-
-              {/* Card header */}
+          {/* Profile card */}
+          <Grid size={{ xs: 12, lg: 5 }}>
+            <Box sx={{
+              bgcolor: '#0c1526', border: '1px solid rgba(255,255,255,0.09)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.5)',
+              height: '100%', display: 'flex', flexDirection: 'column',
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'translateY(0)' : 'translateY(28px)',
+              transition: 'opacity 0.7s ease 0.45s, transform 0.7s ease 0.45s',
+            }}>
               <Box sx={{ px: 3, py: 2, borderBottom: '1px solid rgba(255,255,255,0.07)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)',
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)',
                   letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
                   Customer Risk Profile
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#d9f99d',
                     animation: `${pulse} 1.8s ease-in-out infinite` }} />
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#d9f99d',
-                    letterSpacing: '0.12em', textTransform: 'uppercase' }}>Live</Typography>
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#d9f99d',
+                    letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live</Typography>
                 </Box>
               </Box>
 
-              {/* Customer identity row */}
               <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.07)',
                 display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                 <Box sx={{ width: 40, height: 40, bgcolor: '#00288e', display: 'flex',
@@ -526,73 +490,65 @@ function CustomerRiskProfile() {
                   <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.2 }}>
                     Adebayo Okonkwo
                   </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
+                  <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
                     CUS-00142 · updated 2s ago
                   </Typography>
                 </Box>
               </Box>
 
-              {/* Risk score */}
-              <Box sx={{ px: 3, py: 3, borderBottom: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.07)',
+                display: 'flex', alignItems: 'center', gap: 3.5, flexShrink: 0 }}>
                 <Box>
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)',
+                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)',
                     letterSpacing: '0.12em', textTransform: 'uppercase', mb: 0.5 }}>Composite Score</Typography>
-                  <Typography sx={{ fontSize: '3.5rem', fontWeight: 900, color: '#f87171',
-                    fontFamily: 'Jost', lineHeight: 1 }}>87</Typography>
+                  <Typography sx={{ fontSize: '3.25rem', fontWeight: 900, color: '#f87171', fontFamily: 'Jost', lineHeight: 1 }}>87</Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Box sx={{ mb: 1.5 }}>
+                  <Box sx={{ mb: 1.25 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.35)' }}>Risk Level</Typography>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#f87171' }}>HIGH</Typography>
+                      <Typography sx={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)' }}>Risk Level</Typography>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#f87171' }}>HIGH</Typography>
                     </Box>
-                    <Box sx={{ height: 4, bgcolor: 'rgba(255,255,255,0.08)' }}>
+                    <Box sx={{ height: 3, bgcolor: 'rgba(255,255,255,0.08)' }}>
                       <Box sx={{ height: '100%', width: '87%', bgcolor: '#f87171' }} />
                     </Box>
                   </Box>
-                  <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5,
+                  <Box sx={{ display: 'inline-flex', px: 1.25, py: 0.375,
                     bgcolor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: '#f87171',
+                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#f87171',
                       letterSpacing: '0.1em', textTransform: 'uppercase' }}>Manual Review</Typography>
                   </Box>
                 </Box>
               </Box>
 
-              {/* Dimension rows */}
               <Box sx={{ flex: 1 }}>
                 {RISK_DIMENSIONS.map((d, i) => (
                   <Box key={d.label} sx={{
-                    px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2,
+                    px: 3, py: 1.375, display: 'flex', alignItems: 'center', gap: 2,
                     borderBottom: i < RISK_DIMENSIONS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                    bgcolor: i === activeIdx ? `${d.color}08` : (!d.ok ? 'rgba(248,113,113,0.03)' : 'transparent'),
-                    transition: 'background-color 0.4s ease',
+                    bgcolor: !d.ok ? 'rgba(248,113,113,0.03)' : 'transparent',
                   }}>
-                    <d.Icon sx={{ fontSize: '0.875rem',
-                      color: i === activeIdx ? d.color : 'rgba(255,255,255,0.3)',
-                      flexShrink: 0, transition: 'color 0.4s ease' }} />
+                    <d.Icon sx={{ fontSize: '0.8125rem', color: d.color, flexShrink: 0 }} />
                     <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600,
-                      color: i === activeIdx ? '#ffffff' : 'rgba(255,255,255,0.5)',
-                      fontFamily: 'Jost', flex: 1, transition: 'color 0.4s ease' }}>{d.label}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      color: 'rgba(255,255,255,0.6)', fontFamily: 'Jost', flex: 1 }}>{d.label}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875 }}>
                       <Box sx={{ width: 5, height: 5, borderRadius: '50%',
                         bgcolor: d.ok ? '#34d399' : '#f87171', flexShrink: 0 }} />
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600,
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600,
                         color: d.ok ? '#34d399' : '#f87171', fontFamily: 'Jost' }}>{d.status}</Typography>
                     </Box>
                   </Box>
                 ))}
               </Box>
 
-              {/* Footer */}
-              <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0,
+              <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
+                <Typography sx={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
                   29 rules · 13.2ms · CBN aligned
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 0.75 }}>
+                <Box sx={{ display: 'flex', gap: 0.625 }}>
                   {['#f87171', '#fbbf24', '#34d399'].map((c, i) => (
-                    <Box key={i} sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c, opacity: 0.5 }} />
+                    <Box key={i} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: c, opacity: 0.5 }} />
                   ))}
                 </Box>
               </Box>
@@ -700,8 +656,21 @@ const FEATURES = [
 ]
 
 function Features() {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { threshold: 0.08 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
   return (
-    <Box sx={{ bgcolor: '#f8fafc', py: { xs: 10, md: 14 } }}>
+    <Box ref={ref} sx={{ bgcolor: '#f8fafc', py: { xs: 10, md: 14 }, borderTop: '1px solid #e2e8f0' }}>
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#00288e',
@@ -712,29 +681,35 @@ function Features() {
             color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.15, mb: 2 }}>
             Everything your compliance team needs.
           </Typography>
-          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 560, mx: 'auto', lineHeight: 1.7 }}>
+          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 520, mx: 'auto', lineHeight: 1.7 }}>
             One platform covering fraud detection, AML, KYC, identity verification, and regulatory reporting.
           </Typography>
         </Box>
 
         <Grid container spacing={2}>
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
             <Grid key={f.title} size={{ xs: 12, sm: 6, lg: 4 }}>
               <Box sx={{
-                p: 3.5, height: '100%', bgcolor: '#ffffff', border: '1px solid #e2e8f0',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
-                '&:hover': { borderColor: '#00288e', boxShadow: '0 4px 24px rgba(0,40,142,0.08)' },
+                p: 3.5, height: '100%', bgcolor: '#ffffff',
+                borderTop: `3px solid ${f.iconColor}`,
+                borderRight: '1px solid #e2e8f0',
+                borderBottom: '1px solid #e2e8f0',
+                borderLeft: '1px solid #e2e8f0',
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateY(0)' : 'translateY(18px)',
+                transition: `opacity 0.5s ease ${i * 0.07}s, transform 0.5s ease ${i * 0.07}s, box-shadow 0.2s`,
+                '&:hover': { boxShadow: '0 8px 32px rgba(0,40,142,0.09)' },
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                  <Box sx={{ width: 36, height: 36, bgcolor: f.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+                  <Box sx={{ width: 36, height: 36, bgcolor: f.iconBg,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <f.Icon sx={{ fontSize: '1.125rem', color: f.iconColor }} />
                   </Box>
-                  <Box sx={{ px: 1, py: 0.25, bgcolor: '#f0f4ff', color: '#00288e',
-                    fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.08em',
-                    textTransform: 'uppercase', fontFamily: 'Jost' }}>{f.tag}</Box>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: f.iconColor,
+                    textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Jost' }}>{f.tag}</Typography>
                 </Box>
                 <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>{f.title}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.65 }}>{f.body}</Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.7 }}>{f.body}</Typography>
               </Box>
             </Grid>
           ))}
@@ -761,25 +736,57 @@ function HowItWorks() {
             How it works
           </Typography>
           <Typography sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, fontWeight: 900,
-            color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.15 }}>
+            color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.12, mb: 2 }}>
             Up and running in one day.
           </Typography>
+          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 460, mx: 'auto', lineHeight: 1.7 }}>
+            No lengthy procurement, no complex onboarding. One approved request, one API key, full coverage.
+          </Typography>
         </Box>
-        <Grid container spacing={3}>
+
+        <Grid container spacing={3} sx={{ position: 'relative' }}>
+          {/* Connecting rule — desktop only */}
+          <Box sx={{
+            display: { xs: 'none', md: 'block' },
+            position: 'absolute', top: 28, left: '16%', right: '16%', height: '1px',
+            background: 'linear-gradient(to right, transparent, #00288e 30%, #00288e 70%, transparent)',
+            opacity: 0.2, zIndex: 0,
+          }} />
+
           {STEPS.map((s, i) => (
             <Grid key={s.n} size={{ xs: 12, md: 4 }}>
-              <Box sx={{ position: 'relative', p: 4, border: '1px solid #e2e8f0', height: '100%' }}>
-                {i < STEPS.length - 1 && (
-                  <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'absolute',
-                    top: '2.5rem', right: -17, width: 34, height: 1, bgcolor: '#e2e8f0', zIndex: 1 }} />
-                )}
-                <Typography sx={{ fontSize: '2.5rem', fontWeight: 900, color: '#e2e8f0', fontFamily: 'Jost', lineHeight: 1, mb: 2 }}>{s.n}</Typography>
-                <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1.25 }}>{s.title}</Typography>
-                <Typography sx={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.65 }}>{s.body}</Typography>
+              <Box sx={{ p: { xs: 3, md: 4 }, height: '100%', border: '1px solid #e2e8f0', position: 'relative',
+                '&:hover': { borderColor: '#00288e', boxShadow: '0 4px 20px rgba(0,40,142,0.07)' },
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}>
+                {/* Step badge */}
+                <Box sx={{
+                  width: 44, height: 44, mb: 3, zIndex: 1, position: 'relative',
+                  bgcolor: '#00288e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 900, color: '#d9f99d', fontFamily: 'Jost' }}>
+                    {s.n}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost', mb: 1.25 }}>{s.title}</Typography>
+                <Typography sx={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.7 }}>{s.body}</Typography>
               </Box>
             </Grid>
           ))}
         </Grid>
+
+        <Box sx={{ textAlign: 'center', mt: 7 }}>
+          <Box component={Link} to="/request-access" sx={{
+            display: 'inline-flex', alignItems: 'center', gap: 1,
+            textDecoration: 'none', px: 3.5, py: 1.5,
+            bgcolor: '#00288e', color: '#ffffff',
+            fontSize: '0.9375rem', fontWeight: 700, fontFamily: 'Jost',
+            '&:hover': { bgcolor: '#001f6e' },
+          }}>
+            Request access — takes 2 minutes →
+          </Box>
+        </Box>
       </Container>
     </Box>
   )
@@ -915,8 +922,8 @@ export default function LaunchPage() {
     <Box sx={{ fontFamily: 'Jost, Inter, sans-serif' }}>
       <Navbar />
       <Hero />
-      <CustomerRiskProfile />
       <FeatureSpotlight />
+      <CustomerRiskProfile />
       <Features />
       <HowItWorks />
       <ApiSection />

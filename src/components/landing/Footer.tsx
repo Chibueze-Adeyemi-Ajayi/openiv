@@ -9,7 +9,7 @@ export default function Footer() {
 
           {/* Brand */}
           <Grid size={{ xs: 12, md: 4 }}>
-            <Box component={Link} to="/landing" sx={{ textDecoration: 'none', display: 'inline-block', mb: 2 }}>
+            <Box component={Link} to="/landing" sx={{ textDecoration: 'none', display: 'inline-block', mb: 1 }}>
               <Box sx={{ position: 'relative' }}>
                 <Box sx={{ position: 'absolute', top: -4, left: 0, width: 22, height: '2px', bgcolor: '#ffffff', borderRadius: '1px' }} />
                 <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost', letterSpacing: '0.1em' }}>
@@ -17,7 +17,10 @@ export default function Footer() {
                 </Typography>
               </Box>
             </Box>
-            <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', lineHeight: 1.7, maxWidth: 280 }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', mb: 2 }}>
+              Open Intelligence &amp; Verification
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: '#fff', lineHeight: 1.7, maxWidth: 280 }}>
               Strategic AML/CFT intelligence and fraud detection for Nigerian financial institutions.
             </Typography>
           </Grid>
@@ -80,8 +83,8 @@ export default function Footer() {
         </Grid>
 
         <Box sx={{ mt: 6, pt: 4, borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>© 2026 OpenIV Technologies. All rights reserved.</Typography>
-          <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>Built for Nigeria's financial future.</Typography>
+          <Typography sx={{ fontSize: '0.8125rem', color: '#fff' }}>© 2026 OpenIV Technologies. All rights reserved.</Typography>
+          <Typography sx={{ fontSize: '0.8125rem', color: '#fff' }}>Built for Nigeria's financial future.</Typography>
         </Box>
       </Container>
     </Box>
