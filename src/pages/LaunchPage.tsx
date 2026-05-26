@@ -10,6 +10,8 @@ import RadarIcon from '@mui/icons-material/Radar'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
 import HubIcon from '@mui/icons-material/Hub'
 import BarChartIcon from '@mui/icons-material/BarChart'
+import LocationOnIcon from '@mui/icons-material/LocationOn'
+import DevicesIcon from '@mui/icons-material/Devices'
 
 // ── Keyframes (mirror of AuthLayout sign-in sidebar) ─────────────────────────
 const bounceIn = keyframes`
@@ -299,26 +301,38 @@ function Hero() {
 
 // ── Compliance ticker (horizontal scroll) ─────────────────────────────────────
 function ComplianceBar() {
-  const items = ['CBN AML/CFT Framework', 'NFIU Reporting Standards', 'NDPR Data Privacy', 'FATF Guidelines', 'Basel III Risk Controls']
+  const items = [
+    'CBN AML/CFT Framework',
+    'NFIU Reporting Standards',
+    'NDPR Data Privacy',
+    'FATF Guidelines',
+    'Basel III Risk Controls',
+    'KYC Identity Verification',
+    'PEP & Sanctions Screening',
+    'STR / CTR Reporting',
+    'Customer Due Diligence',
+    'Suspicious Activity Monitoring',
+  ]
+  // No gap on the container — padding is symmetric inside each item so -50% lands
+  // exactly at the start of the duplicate, giving a truly seamless infinite loop.
   return (
     <Box sx={{
       bgcolor: '#001b5e', py: 2.5, overflow: 'hidden', flexShrink: 0, position: 'relative',
       '&::before': {
-        content: '""', position: 'absolute', top: 0, left: 0, bottom: 0, width: 60,
+        content: '""', position: 'absolute', top: 0, left: 0, bottom: 0, width: 80,
         background: 'linear-gradient(to right, #001b5e, transparent)', zIndex: 1, pointerEvents: 'none',
       },
       '&::after': {
-        content: '""', position: 'absolute', top: 0, right: 0, bottom: 0, width: 60,
+        content: '""', position: 'absolute', top: 0, right: 0, bottom: 0, width: 80,
         background: 'linear-gradient(to left, #001b5e, transparent)', zIndex: 1, pointerEvents: 'none',
       },
     }}>
       <Box sx={{
-        display: 'flex', gap: 5, alignItems: 'center', width: 'max-content',
-        animation: `${scrollLeft} 18s linear infinite`,
-        '&:hover': { animationPlayState: 'paused' },
+        display: 'flex', alignItems: 'center', width: 'max-content',
+        animation: `${scrollLeft} 32s linear infinite`,
       }}>
         {[...items, ...items].map((item, i) => (
-          <Stack key={i} direction="row" sx={{ alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          <Stack key={i} direction="row" sx={{ alignItems: 'center', gap: 2, flexShrink: 0, px: 3.5 }}>
             <Box sx={{ width: 4, height: 4, bgcolor: '#d9f99d', borderRadius: '50%', flexShrink: 0 }} />
             <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
               {item}
@@ -326,6 +340,267 @@ function ComplianceBar() {
           </Stack>
         ))}
       </Box>
+    </Box>
+  )
+}
+
+// ── 360° Customer Risk Profile ────────────────────────────────────────────────
+const RISK_DIMENSIONS = [
+  { Icon: FingerprintIcon,  color: '#60a5fa',  label: 'Identity',     desc: 'BVN, NIN, liveness score, document OCR',        status: 'Verified',      ok: true  },
+  { Icon: ElectricBoltIcon, color: '#d9f99d',  label: 'Transactions', desc: 'Velocity, amount patterns, channel switching',   status: '3 anomalies',   ok: false },
+  { Icon: LocationOnIcon,   color: '#f472b6',  label: 'Location',     desc: 'GPS, IP-geo, impossible travel detection',       status: 'Lagos, NG',     ok: true  },
+  { Icon: ManageSearchIcon, color: '#a78bfa',  label: 'Behavior',     desc: 'Login cadence, session timing, OTP patterns',    status: 'OTP spike',     ok: false },
+  { Icon: HubIcon,          color: '#34d399',  label: 'Network',      desc: 'Shared devices, account clusters, transfer rings', status: 'No clusters', ok: true  },
+  { Icon: PolicyIcon,       color: '#fbbf24',  label: 'Compliance',   desc: 'PEP status, sanctions, STR/CTR history',         status: 'No PEP flags',  ok: true  },
+  { Icon: DevicesIcon,      color: '#fb923c',  label: 'Device',       desc: 'Fingerprint, browser, app version, IP reputation', status: 'Known device', ok: true },
+  { Icon: RadarIcon,        color: '#f87171',  label: 'Velocity',     desc: '29+ AML rules scored in parallel, sub-14ms',     status: 'Score: 87',    ok: false },
+]
+
+function CustomerRiskProfile() {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [fading, setFading] = useState(false)
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setFading(true)
+      setTimeout(() => {
+        setActiveIdx(i => (i + 1) % RISK_DIMENSIONS.length)
+        setFading(false)
+      }, 350)
+    }, 2800)
+    return () => clearInterval(t)
+  }, [])
+
+  const dim = RISK_DIMENSIONS[activeIdx]
+
+  return (
+    // Gradient bridges the compliance bar (#001b5e) into the dark section
+    <Box sx={{
+      background: 'linear-gradient(to bottom, #001b5e 0%, #040e22 28%, #040e22 100%)',
+      py: { xs: 10, md: 14 }, position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Subtle dot grid */}
+      <Box sx={{ position: 'absolute', inset: 0, opacity: 0.03,
+        backgroundImage: 'radial-gradient(circle, #d9f99d 1px, transparent 1px)',
+        backgroundSize: '40px 40px', pointerEvents: 'none' }} />
+      {/* Blue glow right */}
+      <Box sx={{ position: 'absolute', top: '15%', right: '-5%', width: 520, height: 520,
+        bgcolor: '#00288e', opacity: 0.14, borderRadius: '50%', filter: 'blur(110px)', pointerEvents: 'none' }} />
+      {/* Accent glow left */}
+      <Box sx={{ position: 'absolute', bottom: '5%', left: '-8%', width: 360, height: 360,
+        bgcolor: '#d9f99d', opacity: 0.04, borderRadius: '50%', filter: 'blur(90px)', pointerEvents: 'none' }} />
+
+      <Container maxWidth="lg" sx={{ position: 'relative' }}>
+
+        {/* ── Section header (full width) ── */}
+        <Box sx={{ mb: { xs: 7, md: 9 }, maxWidth: 640 }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#d9f99d',
+            textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
+            Customer Intelligence
+          </Typography>
+          <Typography sx={{ fontSize: { xs: '2.25rem', md: '3rem' }, fontWeight: 900,
+            color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.1, mb: 2.5 }}>
+            A holistic, continuous<br />360° risk profile.
+          </Typography>
+          <Typography sx={{ fontSize: '1rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.85, maxWidth: 560 }}>
+            OpenIV doesn't score events in isolation. Every transaction, login, OTP request,
+            and location ping continuously updates a unified risk model for each customer —
+            so your team always knows the full picture, not just the last action.
+          </Typography>
+        </Box>
+
+        <Grid container spacing={{ xs: 6, lg: 8 }} sx={{ alignItems: 'stretch' }}>
+
+          {/* ── Left: animated dimension spotlight ── */}
+          <Grid size={{ xs: 12, lg: 5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
+
+              {/* Active dimension card */}
+              <Box sx={{
+                flex: 1, p: { xs: 4, md: 5 },
+                border: `1px solid ${dim.color}28`,
+                bgcolor: `${dim.color}08`,
+                position: 'relative', overflow: 'hidden',
+                transition: 'border-color 0.6s ease, background-color 0.6s ease',
+              }}>
+                {/* Colour wash behind icon */}
+                <Box sx={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160,
+                  bgcolor: dim.color, opacity: 0.06, borderRadius: '50%', filter: 'blur(40px)',
+                  transition: 'background-color 0.6s ease',
+                }} />
+
+                <Box sx={{
+                  opacity: fading ? 0 : 1,
+                  transform: fading ? 'translateY(14px)' : 'translateY(0)',
+                  transition: 'opacity 0.35s ease, transform 0.35s ease',
+                }}>
+                  <Box sx={{ width: 52, height: 52, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', mb: 3, border: `1px solid ${dim.color}40`,
+                    bgcolor: `${dim.color}12` }}>
+                    <dim.Icon sx={{ fontSize: '1.625rem', color: dim.color }} />
+                  </Box>
+
+                  <Typography sx={{ fontSize: { xs: '1.75rem', md: '2.25rem' }, fontWeight: 900,
+                    color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.1, mb: 1.5 }}>
+                    {dim.label}
+                  </Typography>
+
+                  <Typography sx={{ fontSize: '0.9375rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.75 }}>
+                    {dim.desc}
+                  </Typography>
+
+                  <Box sx={{ display: 'inline-flex', mt: 3, px: 1.5, py: 0.5,
+                    border: `1px solid ${dim.color}50`, bgcolor: `${dim.color}10` }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: dim.color,
+                      letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
+                      {`${activeIdx + 1} of ${RISK_DIMENSIONS.length}`}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Progress dots + all icon chips */}
+              <Box>
+                {/* Dot bar */}
+                <Box sx={{ display: 'flex', gap: 0.75, mb: 2.5 }}>
+                  {RISK_DIMENSIONS.map((_, i) => (
+                    <Box key={i} onClick={() => { if (!fading) { setFading(true); setTimeout(() => { setActiveIdx(i); setFading(false) }, 350) } }}
+                      sx={{
+                        height: 3, flex: i === activeIdx ? 2.5 : 1,
+                        bgcolor: i === activeIdx ? dim.color : 'rgba(255,255,255,0.18)',
+                        cursor: 'pointer', transition: 'all 0.4s ease',
+                        '&:hover': { bgcolor: i === activeIdx ? dim.color : 'rgba(255,255,255,0.35)' },
+                      }} />
+                  ))}
+                </Box>
+
+                {/* Mini icon grid */}
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {RISK_DIMENSIONS.map((d, i) => (
+                    <Box key={d.label} onClick={() => { if (!fading) { setFading(true); setTimeout(() => { setActiveIdx(i); setFading(false) }, 350) } }}
+                      sx={{
+                        width: 34, height: 34, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', cursor: 'pointer',
+                        border: `1px solid ${i === activeIdx ? d.color + '80' : 'rgba(255,255,255,0.1)'}`,
+                        bgcolor: i === activeIdx ? `${d.color}18` : 'rgba(255,255,255,0.03)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': { borderColor: d.color + '60', bgcolor: `${d.color}12` },
+                      }}>
+                      <d.Icon sx={{ fontSize: '0.875rem', color: i === activeIdx ? d.color : 'rgba(255,255,255,0.35)',
+                        transition: 'color 0.3s ease' }} />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* ── Right: profile card visual ── */}
+          <Grid size={{ xs: 12, lg: 7 }}>
+            <Box sx={{ bgcolor: '#08121f', border: '1px solid rgba(255,255,255,0.09)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.5)', height: '100%', display: 'flex', flexDirection: 'column' }}>
+
+              {/* Card header */}
+              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid rgba(255,255,255,0.07)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)',
+                  letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
+                  Customer Risk Profile
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#d9f99d',
+                    animation: `${pulse} 1.8s ease-in-out infinite` }} />
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#d9f99d',
+                    letterSpacing: '0.12em', textTransform: 'uppercase' }}>Live</Typography>
+                </Box>
+              </Box>
+
+              {/* Customer identity row */}
+              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.07)',
+                display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                <Box sx={{ width: 40, height: 40, bgcolor: '#00288e', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 800, color: '#d9f99d', fontFamily: 'Jost' }}>AO</Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.2 }}>
+                    Adebayo Okonkwo
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
+                    CUS-00142 · updated 2s ago
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Risk score */}
+              <Box sx={{ px: 3, py: 3, borderBottom: '1px solid rgba(255,255,255,0.07)',
+                display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)',
+                    letterSpacing: '0.12em', textTransform: 'uppercase', mb: 0.5 }}>Composite Score</Typography>
+                  <Typography sx={{ fontSize: '3.5rem', fontWeight: 900, color: '#f87171',
+                    fontFamily: 'Jost', lineHeight: 1 }}>87</Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.35)' }}>Risk Level</Typography>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#f87171' }}>HIGH</Typography>
+                    </Box>
+                    <Box sx={{ height: 4, bgcolor: 'rgba(255,255,255,0.08)' }}>
+                      <Box sx={{ height: '100%', width: '87%', bgcolor: '#f87171' }} />
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5,
+                    bgcolor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: '#f87171',
+                      letterSpacing: '0.1em', textTransform: 'uppercase' }}>Manual Review</Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Dimension rows */}
+              <Box sx={{ flex: 1 }}>
+                {RISK_DIMENSIONS.map((d, i) => (
+                  <Box key={d.label} sx={{
+                    px: 3, py: 1.5, display: 'flex', alignItems: 'center', gap: 2,
+                    borderBottom: i < RISK_DIMENSIONS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    bgcolor: i === activeIdx ? `${d.color}08` : (!d.ok ? 'rgba(248,113,113,0.03)' : 'transparent'),
+                    transition: 'background-color 0.4s ease',
+                  }}>
+                    <d.Icon sx={{ fontSize: '0.875rem',
+                      color: i === activeIdx ? d.color : 'rgba(255,255,255,0.3)',
+                      flexShrink: 0, transition: 'color 0.4s ease' }} />
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600,
+                      color: i === activeIdx ? '#ffffff' : 'rgba(255,255,255,0.5)',
+                      fontFamily: 'Jost', flex: 1, transition: 'color 0.4s ease' }}>{d.label}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 5, height: 5, borderRadius: '50%',
+                        bgcolor: d.ok ? '#34d399' : '#f87171', flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600,
+                        color: d.ok ? '#34d399' : '#f87171', fontFamily: 'Jost' }}>{d.status}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Footer */}
+              <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
+                  29 rules · 13.2ms · CBN aligned
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75 }}>
+                  {['#f87171', '#fbbf24', '#34d399'].map((c, i) => (
+                    <Box key={i} sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c, opacity: 0.5 }} />
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+        </Grid>
+      </Container>
     </Box>
   )
 }
@@ -352,7 +627,7 @@ const SPOTLIGHTS = [
     border: '#bfdbfe',
     title: 'Behavioral KYC Pipeline',
     body: 'BVN lookup, NIN cross-check, phone registry match, liveness score, and global PEP/sanctions screening — all in a single pipeline, with a blended risk score out.',
-    detail: 'Dojah-powered · NIBSS · NIMC · NCC',
+    detail: 'NIBSS · NIMC · NCC · Liveness · PEP screening',
   },
   {
     Icon: PolicyIcon,
@@ -640,6 +915,7 @@ export default function LaunchPage() {
     <Box sx={{ fontFamily: 'Jost, Inter, sans-serif' }}>
       <Navbar />
       <Hero />
+      <CustomerRiskProfile />
       <FeatureSpotlight />
       <Features />
       <HowItWorks />
