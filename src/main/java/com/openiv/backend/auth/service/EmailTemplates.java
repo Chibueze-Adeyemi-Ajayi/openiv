@@ -168,6 +168,21 @@ public final class EmailTemplates {
         + p(small("Welcome aboard.")));
   }
 
+  public static String accessRequestConfirmation(String contactName, String institutionName) {
+    return wrap("Request Received — OpenIV", "Your access request has been received. Our compliance team will be in touch shortly.",
+        p("Hi <strong>" + esc(contactName) + "</strong>,")
+        + p("Thank you for your interest in OpenIV. We have received your access request for "
+            + "<strong>" + esc(institutionName) + "</strong> and it is now in our review queue.")
+        + alertBox("#f0fdf4", "#bbf7d0", "#166534", "What happens next",
+            "<p style=\"margin:6px 0 0;font-size:14px;color:#14532d;line-height:1.7;\">"
+            + "Our compliance team will review your request and reach out to you within <strong>one business day</strong>. "
+            + "If approved, you will receive a separate invitation email with your access credentials.</p>")
+        + p("In the meantime, if you have any questions please contact us at "
+            + "<a href=\"mailto:compliance@openiv.ng\" style=\"color:" + BRAND + ";\">compliance@openiv.ng</a>.")
+        + p(small("You submitted this request on behalf of <strong>" + esc(institutionName) + "</strong>. "
+            + "If this was not you, you can safely ignore this email.")));
+  }
+
   public static String waitlistNotification(String userName, String userEmail, String expectation) {
     return wrap("New Waitlist Signup", "A new user has joined the OpenIV waitlist.",
         p("A new user has signed up for early access to OpenIV.")

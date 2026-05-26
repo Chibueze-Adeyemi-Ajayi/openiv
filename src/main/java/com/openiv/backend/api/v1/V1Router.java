@@ -295,6 +295,14 @@ public final class V1Router {
     // Beam API key auth for ingest endpoints
     BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
     BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService, authService);
+
+    // Verification API — BVN, NIN, Phone, PEP (beam API key auth)
+    com.openiv.backend.verify.VerifyHandlers verifyHandlers =
+        new com.openiv.backend.verify.VerifyHandlers(kycService.dojaClient());
+    router.post("/verify/bvn").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyBvn());
+    router.post("/verify/nin").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyNin());
+    router.post("/verify/phone").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyPhone());
+    router.post("/verify/pep").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyPep());
     Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
 
     Handler<RoutingContext> integrationsView   = RoleAuthHandler.require(sharedUsers, Permission.INTEGRATIONS_VIEW);

@@ -56,6 +56,11 @@ public final class AccessRequestService {
               normalizedEmail,
               input.description() != null ? input.description().trim() : "N/A"
           );
+          emailSender.sendAccessRequestConfirmation(
+              normalizedEmail,
+              input.contactName().trim(),
+              input.institutionName().trim()
+          );
         });
     });
   }

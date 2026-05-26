@@ -157,6 +157,16 @@ public final class VertxEmailSender implements EmailSender {
     return send(toEmail, subject, text, html);
   }
 
+  @Override
+  public Future<Void> sendAccessRequestConfirmation(String toEmail, String contactName, String institutionName) {
+    return send(toEmail,
+        "OpenIV — We've Received Your Access Request",
+        "Hi " + contactName + ",\n\nThank you for requesting access to OpenIV for " + institutionName
+            + ".\n\nOur compliance team will review your request and reach out within one business day.\n\n"
+            + "Questions? Contact compliance@openiv.ng",
+        EmailTemplates.accessRequestConfirmation(contactName, institutionName));
+  }
+
   // -------------------------------------------------------------------------
 
   private Future<Void> send(String toEmail, String subject, String text, String html) {

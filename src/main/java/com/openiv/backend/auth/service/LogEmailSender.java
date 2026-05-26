@@ -95,4 +95,10 @@ public final class LogEmailSender implements EmailSender {
     log.warn("[DEV EMAIL] subscription-expiry-warning to {}: institution={} plan={}", toEmail, institutionName, planName);
     return Future.succeededFuture();
   }
+
+  @Override
+  public Future<Void> sendAccessRequestConfirmation(String toEmail, String contactName, String institutionName) {
+    log.warn("[DEV EMAIL] access-request-confirmation to {} ({}): institution={}", contactName, toEmail, institutionName);
+    return Future.succeededFuture();
+  }
 }

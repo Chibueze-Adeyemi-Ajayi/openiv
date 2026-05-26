@@ -42,4 +42,7 @@ public interface EmailSender {
 
   /** Sent as a 24h warning that the subscription is about to expire (no new discount). */
   Future<Void> sendSubscriptionExpired(String toEmail, String institutionName, String planName);
+
+  /** Sent to the applicant immediately after a self-service access request is submitted. */
+  Future<Void> sendAccessRequestConfirmation(String toEmail, String contactName, String institutionName);
 }

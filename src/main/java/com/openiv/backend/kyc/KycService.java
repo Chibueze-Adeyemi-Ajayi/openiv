@@ -36,7 +36,7 @@ public final class KycService {
   private final CaseService cases;
   private final NotificationService notifications;
   private final CustomerService customerService;
-  final DojaClient dojaClient;
+  private final DojaClient dojaClient;
   private final KycPipelineResultRepository pipelineResults;
   private final WebhookRepository webhookRepository;
 
@@ -71,6 +71,8 @@ public final class KycService {
     this.pipelineResults = pipelineResults;
     this.webhookRepository = webhookRepository;
   }
+
+  public DojaClient dojaClient() { return dojaClient; }
 
   // ── Config ────────────────────────────────────────────────────────────────
 
