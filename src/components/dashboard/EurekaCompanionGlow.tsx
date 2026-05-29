@@ -305,21 +305,21 @@ export default function EurekaCompanionGlow() {
             </Box>
 
             <Box sx={{ height: 380, display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ alignSelf: 'flex-start', maxWidth: '90%', bgcolor: '#fff', p: 1.5, border: '1px solid #e2e8f0' }}>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.6 }}>
+              <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: 'var(--section-bg)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ alignSelf: 'flex-start', maxWidth: '90%', bgcolor: 'var(--card-bg)', p: 1.5, border: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
                     Analyzing <strong>{targetLabel}</strong>. How can I assist you with this?
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ p: 2, borderTop: '1px solid #eef0f4', bgcolor: '#fff' }}>
+              <Box sx={{ p: 2, borderTop: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
                 <Box sx={{ position: 'relative' }}>
                   <Box
                     component="input"
                     autoFocus
                     placeholder="Ask Eureka..."
-                    sx={{ width: '100%', border: '1px solid #e2e8f0', px: 2, py: 1.25, fontSize: '0.875rem', fontFamily: 'Jost', outline: 'none', pr: 6, '&:focus': { borderColor: colorPalette.primary } }}
+                    sx={{ width: '100%', border: '1px solid var(--border-col)', px: 2, py: 1.25, fontSize: '0.875rem', fontFamily: 'Jost', outline: 'none', pr: 6, '&:focus': { borderColor: colorPalette.primary } }}
                   />
                   <IconButton size="small" sx={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: colorPalette.primary }}>
                     <SendRoundedIcon sx={{ fontSize: '1.1rem' }} />

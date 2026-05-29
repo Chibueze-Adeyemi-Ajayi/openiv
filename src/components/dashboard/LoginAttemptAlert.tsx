@@ -65,7 +65,7 @@ export default function LoginAttemptAlert({ event, onDismiss }: Props) {
   return (
     <Box sx={{
       position: 'fixed', bottom: 24, right: 24, width: 360,
-      bgcolor: '#ffffff', border: '1px solid #fef2f2',
+      bgcolor: 'var(--card-bg)', border: '1px solid #fef2f2',
       boxShadow: '0 16px 48px rgba(220,38,38,0.14)',
       zIndex: 1500,
       animation: 'alertSlideIn 0.3s cubic-bezier(0.34,1.56,0.64,1)',
@@ -82,7 +82,7 @@ export default function LoginAttemptAlert({ event, onDismiss }: Props) {
           <ShieldOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Login attempt detected
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
@@ -90,7 +90,7 @@ export default function LoginAttemptAlert({ event, onDismiss }: Props) {
           </Typography>
         </Box>
         <IconButton disableRipple size="small" onClick={onDismiss}
-          sx={{ color: '#94a3b8', borderRadius: 0, p: 0.25, '&:hover': { color: '#475569' } }}>
+          sx={{ color: '#94a3b8', borderRadius: 0, p: 0.25, '&:hover': { color: 'var(--on-surface-variant)' } }}>
           <CloseRoundedIcon sx={{ fontSize: '0.9375rem' }} />
         </IconButton>
       </Box>
@@ -141,7 +141,7 @@ export default function LoginAttemptAlert({ event, onDismiss }: Props) {
         <Box
           onClick={onDismiss}
           sx={{
-            px: 1.5, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+            px: 1.5, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
             display: 'flex', alignItems: 'center',
             transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8' },
           }}
@@ -168,7 +168,7 @@ function Detail({ label, value, mono = false }: { label: string; value: string; 
         textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 76, flexShrink: 0 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
+      <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
         fontWeight: mono ? 500 : 400, wordBreak: 'break-all' }}>
         {value}
       </Typography>

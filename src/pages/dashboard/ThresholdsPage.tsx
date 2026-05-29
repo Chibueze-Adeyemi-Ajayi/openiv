@@ -173,14 +173,14 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 0 } } }}>
       {/* Header */}
-      <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: '1px solid #eef0f4' }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: '1px solid var(--border-col)' }}>
         <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
           Detection Rule
         </Typography>
-        <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
           {lang?.friendlyName ?? rule.name}
         </Typography>
-        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
           {lang?.tagline ?? desc?.simple ?? rule.description}
         </Typography>
         {/* Per-direction limits */}
@@ -189,7 +189,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
             { label: 'Outward (money sent)', value: rule.thresholdOutward },
             { label: 'Inward (money received)', value: rule.thresholdInward },
           ].map(({ label, value: v }) => (
-            <Box key={label} sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, bgcolor: v !== null ? `${colorPalette.primary}0d` : '#f8fafc', border: `1px solid ${v !== null ? colorPalette.primary + '30' : '#e2e8f0'}` }}>
+            <Box key={label} sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.5, bgcolor: v !== null ? `${colorPalette.primary}0d` : 'var(--section-bg)', border: `1px solid ${v !== null ? colorPalette.primary + '30' : 'var(--border-col)'}` }}>
               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{label}:</Typography>
               <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: v !== null ? colorPalette.primary : '#cbd5e1', fontFamily: 'SF Mono, Monaco, monospace' }}>
                 {v !== null ? fmt(v) : 'Not monitored'}
@@ -204,18 +204,18 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
           {/* How the rule works */}
           {lang && (
             <Box>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.8 }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.8 }}>
                 {lang.howItWorksOverride
                   ? lang.howItWorksOverride
                   : <>When your customer transfers any amount above <strong>{fmt(exampleValue)}</strong>, our system receives it based on the rule you set — then we flag it. Your rule is the source of truth for the decision our AML engine makes.</>
                 }
               </Typography>
               {!lang.howItWorksOverride && (
-                <Box sx={{ mt: 1.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                <Box sx={{ mt: 1.5, p: 2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', borderRadius: '6px' }}>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>
                     Example
                   </Typography>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.75 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.75 }}>
                     A customer <strong>Adaeze</strong> transfers <strong>{fmt(Math.floor(exampleValue * 1.55))}</strong> which is above your system's limit of <strong>{fmt(exampleValue)}</strong>. Our AML engine would flag the transaction on your behalf.
                   </Typography>
                 </Box>
@@ -250,7 +250,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
                     Transaction A — Approved Instantly
                   </Typography>
                 </Box>
-                <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#334155', lineHeight: 1.8, bgcolor: '#ffffff', p: 1.5, border: '1px solid #dbeafe', borderRadius: '4px', mb: 1.5 }}>
+                <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.8, bgcolor: 'var(--card-bg)', p: 1.5, border: '1px solid #dbeafe', borderRadius: '4px', mb: 1.5 }}>
                   <div><strong>Customer:</strong> Aminu Bakara</div>
                   <div><strong>Transaction Type:</strong> Wire Transfer</div>
                   <div><strong>Amount:</strong> {fmt(Math.floor(exampleValue * 0.65))}</div>
@@ -273,7 +273,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
                     Transaction B — Flagged for Review
                   </Typography>
                 </Box>
-                <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#334155', lineHeight: 1.8, bgcolor: '#ffffff', p: 1.5, border: '1px solid #fecaca', borderRadius: '4px', mb: 1.5 }}>
+                <Box sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.8, bgcolor: 'var(--card-bg)', p: 1.5, border: '1px solid #fecaca', borderRadius: '4px', mb: 1.5 }}>
                   <div><strong>Customer:</strong> Chioma Okonkwo</div>
                   <div><strong>Transaction Type:</strong> Wire Transfer</div>
                   <div><strong>Amount:</strong> {fmt(Math.floor(exampleValue * 1.55))}</div>
@@ -321,7 +321,7 @@ function LearnMoreDialog({ state, open, onClose }: { state: { rule: ThresholdRul
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ p: 2.5, borderTop: '1px solid #eef0f4' }}>
+      <DialogActions sx={{ p: 2.5, borderTop: '1px solid var(--border-col)' }}>
         <Button onClick={onClose} sx={{ textTransform: 'none', fontFamily: 'Jost', fontSize: '0.875rem', fontWeight: 600, color: colorPalette.primary, bgcolor: `${colorPalette.primary}10`, px: 2.5, borderRadius: 0, '&:hover': { bgcolor: `${colorPalette.primary}18` } }}>
           Got it
         </Button>
@@ -353,7 +353,7 @@ function MadLibInput({ value, onChange, width = 60, type = 'number', readOnly = 
             fontFamily: 'SF Mono, Monaco, monospace',
           },
           '&:hover': { bgcolor: `${colorPalette.primary}20` },
-          '&:focus-within': { borderColor: colorPalette.primary, bgcolor: '#ffffff', boxShadow: `0 0 0 2px ${colorPalette.primary}20` },
+          '&:focus-within': { borderColor: colorPalette.primary, bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 2px ${colorPalette.primary}20` },
         }}
       />
     </Box>
@@ -600,36 +600,36 @@ export default function ThresholdsPage() {
     switch (rule.ruleId) {
       case 'pat-1':
         return (
-          <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
+          <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 2 }}>
             Flag when <MadLibInput value={params.ip_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'ip_count', v)} /> customer accounts — none with prior relationship — all initiate wire transfers from the same IP block within <MadLibInput value={params.timeframe_minutes} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_minutes', v)} /> minutes of each other.
           </Typography>
         )
       case 'pat-2':
         return (
-          <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
+          <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 2 }}>
             Flag when a customer logs in from distant locations physically impossible without supersonic travel, separated by at least <MadLibInput value={params.distance_km} width={80} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'distance_km', v)} /> km within <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       case 'pat-3':
         return (
-          <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
+          <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 2 }}>
             Flag when a single device fingerprint is authenticated as <MadLibInput value={params.user_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'user_count', v)} /> different customers in the past <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       case 'pat-4':
         return (
-          <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
+          <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 2 }}>
             Flag when more than <MadLibInput value={params.min_customers} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'min_customers', v)} /> customers transact outside their personal baseline of activity between <MadLibInput type="text" width={80} value={params.time_start} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'time_start', v)} /> and <MadLibInput type="text" width={80} value={params.time_end} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'time_end', v)} />.
           </Typography>
         )
       case 'pat-5':
         return (
-          <Typography sx={{ fontSize: '0.9375rem', color: '#334155', lineHeight: 2 }}>
+          <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 2 }}>
             Flag when <MadLibInput value={params.customer_count} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'customer_count', v)} /> different customers send funds to the same wallet within <MadLibInput value={params.timeframe_hours} readOnly={ro} onChange={v => handleBehParamChange(rule.id, 'timeframe_hours', v)} /> hours.
           </Typography>
         )
       default:
-        return <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>{rule.description}</Typography>
+        return <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>{rule.description}</Typography>
     }
   }
 
@@ -658,7 +658,7 @@ export default function ThresholdsPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Configure
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Detection Thresholds
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -672,7 +672,7 @@ export default function ThresholdsPage() {
         value={activeTab}
         onChange={(_, v) => setActiveTab(v)}
         sx={{
-          borderBottom: '1px solid #eef0f4', mb: 3, minHeight: 36,
+          borderBottom: '1px solid var(--border-col)', mb: 3, minHeight: 36,
           '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
           '& .MuiTab-root': {
             fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
@@ -688,7 +688,7 @@ export default function ThresholdsPage() {
       </Tabs>
 
       {!canModify && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, mb: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, mb: 2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
           <LockOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
           <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>
             You have <strong>view-only</strong> access to this page. Contact an admin or CCO to modify detection rules.
@@ -707,14 +707,14 @@ export default function ThresholdsPage() {
                 key={s.label}
                 data-ai-analyzable="true"
                 data-ai-description={`Rule Performance Metric: ${s.label}. value: ${s.value ?? 'N/A'}. status: ${s.sub}.`}
-                sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+                sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2 }}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75 }}>
                   {s.label}
                 </Typography>
                 {metricsLoading ? (
-                  <Box sx={{ height: 28, width: 56, bgcolor: '#f1f5f9', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                  <Box sx={{ height: 28, width: 56, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 ) : (
-                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.1 }}>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.1 }}>
                     {s.value ?? '—'}
                   </Typography>
                 )}
@@ -726,16 +726,16 @@ export default function ThresholdsPage() {
           {/* Transaction Detection Rules — section header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Transaction Detection Rules
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
                 Drag the slider to adjust a threshold, then save to apply
               </Typography>
             </Box>
-            <Box onClick={openAuditLog} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid #e5e7eb', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}>
-              <HistoryRoundedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>Audit Log</Typography>
+            <Box onClick={openAuditLog} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.75, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
+              <HistoryRoundedIcon sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }} />
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>Audit Log</Typography>
             </Box>
           </Box>
 
@@ -743,7 +743,7 @@ export default function ThresholdsPage() {
           {loading && (
             <Stack gap={2}>
               {[...Array(5)].map((_, i) => (
-                <Box key={i} sx={{ height: 160, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
+                <Box key={i} sx={{ height: 160, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
               ))}
             </Stack>
           )}
@@ -758,13 +758,13 @@ export default function ThresholdsPage() {
                 key={rule.id}
                 data-ai-analyzable="true"
                 data-ai-description={`Detection Rule: ${rule.name}. category: ${rule.tag}. current threshold: ${fmtThreshold(rule, rule.thresholdValue)}. fired: ${rule.firedCount} times. status: ${rule.isActive ? 'Active' : 'Paused'}.`}
-                sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0, opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s' }}>
+                sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0, opacity: rule.isActive ? 1 : 0.55, transition: 'opacity 0.18s' }}>
 
                 {/* Card header */}
-                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.625 }}>
-                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                         {lang?.friendlyName ?? rule.name}
                       </Typography>
                       <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${tagColor}10`, borderRadius: 0 }}>
@@ -776,7 +776,7 @@ export default function ThresholdsPage() {
                         · {rule.firedCount} alerts fired
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 1.125, lineHeight: 1.65 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', mb: 1.125, lineHeight: 1.65 }}>
                       {lang?.tagline ?? desc?.simple ?? rule.description}
                     </Typography>
                     <Button
@@ -832,7 +832,7 @@ export default function ThresholdsPage() {
                           {disabled ? (
                             <Typography sx={{ fontSize: '0.75rem', color: '#cbd5e1', fontStyle: 'italic' }}>Not monitored</Typography>
                           ) : (
-                            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                               {fmtThreshold(rule, displayVal)}
                             </Typography>
                           )}
@@ -853,7 +853,7 @@ export default function ThresholdsPage() {
                               '& .MuiSlider-rail': { height: 4, color: '#e5e7eb', opacity: 1 },
                               '& .MuiSlider-thumb': {
                                 width: 14, height: 14,
-                                bgcolor: '#ffffff', border: `2px solid ${colorPalette.primary}`,
+                                bgcolor: 'var(--card-bg)', border: `2px solid ${colorPalette.primary}`,
                                 '&:hover, &.Mui-focusVisible': { boxShadow: `0 0 0 6px ${colorPalette.primary}20` },
                               },
                             }}
@@ -881,7 +881,7 @@ export default function ThresholdsPage() {
                             ) : (
                               <Box
                                 onClick={() => setPendingSave({ rule, direction: dir, newValue: null })}
-                                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { borderColor: '#fca5a5', color: '#dc2626' } }}
+                                sx={{ px: 1.5, py: 0.5, border: '1px solid var(--border-col)', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', borderRadius: 0, '&:hover': { borderColor: '#fca5a5', color: '#dc2626' } }}
                               >
                                 Disable
                               </Box>
@@ -912,10 +912,10 @@ export default function ThresholdsPage() {
           <LearnMoreDialog state={learnMoreState} open={!!learnMoreState} onClose={() => setLearnMoreState(null)} />
 
           {/* Daily Transaction Limit */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Daily Transaction Limit
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -935,7 +935,7 @@ export default function ThresholdsPage() {
             </Box>
             <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Transactions per day
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -949,13 +949,13 @@ export default function ThresholdsPage() {
                     sx={{
                       width: 110,
                       '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f8fafc',
+                        bgcolor: 'var(--input-bg)',
                         borderRadius: 0,
-                        '& fieldset': { borderColor: '#e2e8f0' },
+                        '& fieldset': { borderColor: 'var(--border-col)' },
                         '&:hover fieldset': { borderColor: colorPalette.primary },
                         '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                       },
-                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: '#00288e' },
+                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: 'var(--heading-color)' },
                     }}
                   />
                   <Chip
@@ -971,8 +971,8 @@ export default function ThresholdsPage() {
                   />
                 </Box>
               </Box>
-              <Box sx={{ flex: 1, minWidth: 220, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', px: 2.5, py: 2 }}>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+              <Box sx={{ flex: 1, minWidth: 220, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 2 }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
                   How this rule works
                 </Typography>
                 <Typography sx={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6 }}>
@@ -1004,9 +1004,9 @@ export default function ThresholdsPage() {
           </Box>
 
           {/* Expected Daily Transaction Volume — baseline for the Surge Alert */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Expected Daily Transaction Volume
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1015,7 +1015,7 @@ export default function ThresholdsPage() {
             </Box>
             <Box sx={{ px: 3, py: 3, display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Transactions per day
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1029,12 +1029,12 @@ export default function ThresholdsPage() {
                     sx={{
                       width: 130,
                       '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f8fafc', borderRadius: 0,
-                        '& fieldset': { borderColor: '#e2e8f0' },
+                        bgcolor: 'var(--input-bg)', borderRadius: 0,
+                        '& fieldset': { borderColor: 'var(--border-col)' },
                         '&:hover fieldset': { borderColor: colorPalette.primary },
                         '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                       },
-                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: '#00288e' },
+                      '& .MuiOutlinedInput-input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '10px', px: '12px', color: 'var(--heading-color)' },
                     }}
                   />
                   {canModify && amlSettings && expectedTxnDraft !== amlSettings.expectedDailyTxnCount && (
@@ -1058,8 +1058,8 @@ export default function ThresholdsPage() {
                   )}
                 </Box>
               </Box>
-              <Box sx={{ flex: 1, minWidth: 220, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', px: 2.5, py: 2 }}>
-                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+              <Box sx={{ flex: 1, minWidth: 220, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 2 }}>
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
                   How this is used
                 </Typography>
                 <Typography sx={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6 }}>
@@ -1076,10 +1076,10 @@ export default function ThresholdsPage() {
           <Box sx={{ position: 'relative' }}>
           <ComingSoonOverlay title="Behavioral Pattern Rules" />
           {/* Behavioral Pattern Rules Config Card */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderRadius: 0 }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Behavioral Pattern Rules
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1091,7 +1091,7 @@ export default function ThresholdsPage() {
             {behLoading && (
               <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {[...Array(3)].map((_, i) => (
-                  <Box key={i} sx={{ height: 100, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
+                  <Box key={i} sx={{ height: 100, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 60}ms` }} />
                 ))}
               </Box>
             )}
@@ -1109,21 +1109,21 @@ export default function ThresholdsPage() {
                     data-ai-analyzable="true"
                     data-ai-description={`Behavioral Pattern Config: "${p.name}". Severity: ${p.severity}. Matched Typology: ${p.matchedTypology}. Active: ${p.isActive}.`}
                     sx={{
-                      borderBottom: '1px solid #eef0f4',
+                      borderBottom: '1px solid var(--border-col)',
                       overflow: 'hidden',
                       opacity: p.isActive ? 1 : 0.6,
                       '&:last-child': { borderBottom: 'none' }
                     }}
                   >
                     {/* Header */}
-                    <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f4f5f7', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flex: 1, mr: 2 }}>
                         <Box sx={{ width: 36, height: 36, borderRadius: 0, bgcolor: `${cat.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color, flexShrink: 0, mt: 0.25 }}>
                           {cat.icon}
                         </Box>
                         <Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
-                            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                               {p.name}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -1137,7 +1137,7 @@ export default function ThresholdsPage() {
                             </Box>
                           </Box>
                           {plang && (
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.65, maxWidth: 560 }}>
+                            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.65, maxWidth: 560 }}>
                               {plang.tagline}
                             </Typography>
                           )}
@@ -1168,7 +1168,7 @@ export default function ThresholdsPage() {
 
                     {/* Why this pattern exists */}
                     {plang && (
-                      <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #f4f5f7', bgcolor: '#fffbeb', display: 'flex', gap: 1.5 }}>
+                      <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', bgcolor: '#fffbeb', display: 'flex', gap: 1.5 }}>
                         <Box sx={{ width: 3, flexShrink: 0, bgcolor: '#f59e0b', borderRadius: '2px', alignSelf: 'stretch' }} />
                         <Box>
                           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.625 }}>
@@ -1199,7 +1199,7 @@ export default function ThresholdsPage() {
                                 return n
                               })
                             }}
-                            sx={{ color: '#475569', borderColor: '#cbd5e1', textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0 }}
+                            sx={{ color: 'var(--on-surface-variant)', borderColor: '#cbd5e1', textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0 }}
                           >
                             Discard
                           </Button>
@@ -1215,12 +1215,12 @@ export default function ThresholdsPage() {
                     </Box>
 
                     {/* Example + Recommendation */}
-                    <Box sx={{ borderTop: '1px solid #f4f5f7' }}>
-                      <Box sx={{ px: 3, py: 2, display: 'flex', gap: 1.5, borderBottom: plang ? '1px solid #f4f5f7' : 'none' }}>
+                    <Box sx={{ borderTop: '1px solid var(--border-col)' }}>
+                      <Box sx={{ px: 3, py: 2, display: 'flex', gap: 1.5, borderBottom: plang ? '1px solid var(--border-col)' : 'none' }}>
                         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mt: 0.25, width: 70, flexShrink: 0 }}>
                           Example
                         </Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace', lineHeight: 1.65 }}>
+                        <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace', lineHeight: 1.65 }}>
                           {p.example}
                         </Typography>
                       </Box>
@@ -1250,13 +1250,13 @@ export default function ThresholdsPage() {
           {((activeTab === 1 && isBuildOne) || (activeTab === 2 && !isBuildOne)) && (
             <Box sx={{ mt: 3 }}>
               {!amlSettings ? (
-                <Box sx={{ height: 200, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', borderRadius: '8px' }} />
+                <Box sx={{ height: 200, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', borderRadius: '8px' }} />
               ) : (
                 <Stack gap={5}>
                   
                   {/* Transaction Scoring Thresholds */}
                   <Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid var(--border-col)' }}>
                       Transaction Scoring
                     </Typography>
                     <Stack gap={3}>
@@ -1316,7 +1316,7 @@ export default function ThresholdsPage() {
                   {/* Behavioral Scoring Thresholds */}
                   {!isBuildOne && (
                     <Box sx={{ mt: 2 }}>
-                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                      <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid var(--border-col)' }}>
                         Behavioral Analysis Scoring
                       </Typography>
                       <Stack gap={3}>
@@ -1377,7 +1377,7 @@ export default function ThresholdsPage() {
 
                   {/* KYC Risk Profile Score */}
                   <Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: '#00288e', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid #eef0f4' }}>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 500, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 3, pb: 1, borderBottom: '1px solid var(--border-col)' }}>
                       Risk Profile Score
                     </Typography>
                     <Stack gap={3}>
@@ -1435,14 +1435,14 @@ export default function ThresholdsPage() {
                   </Box>
 
                   {(Object.keys(amlDrafts).length > 0) && canModify && (
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 4, mt: 2, borderTop: '1px solid #eef0f4' }}>
-                      <Button onClick={() => setAmlDrafts({})} sx={{ textTransform: 'none', color: '#475569', fontSize: '0.9375rem', fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 4, mt: 2, borderTop: '1px solid var(--border-col)' }}>
+                      <Button onClick={() => setAmlDrafts({})} sx={{ textTransform: 'none', color: 'var(--on-surface-variant)', fontSize: '0.9375rem', fontWeight: 600 }}>
                         Discard Changes
                       </Button>
                       <Button
                         variant="contained"
                         onClick={() => setAmlPendingSave(amlDrafts)}
-                        sx={{ textTransform: 'none', bgcolor: '#00288e', color: '#ffffff', fontSize: '0.9375rem', fontWeight: 600, px: 4, py: 1, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}
+                        sx={{ textTransform: 'none', bgcolor: 'var(--heading-color)', color: '#ffffff', fontSize: '0.9375rem', fontWeight: 600, px: 4, py: 1, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface)' } }}
                       >
                         Apply Thresholds
                       </Button>
@@ -1460,7 +1460,7 @@ export default function ThresholdsPage() {
       <Box ref={kycRef} sx={{ mt: 8, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
           <VerifiedOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.5rem' }} />
-          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             KYC Tier-Based Limits
           </Typography>
         </Box>
@@ -1474,14 +1474,14 @@ export default function ThresholdsPage() {
         <Grid container spacing={3}>
           {kycTiers.map((tier) => (
             <Grid key={tier.kycTier} size={{ xs: 12, md: 6 }}>
-              <Box sx={{ p: 2.5, border: '1px solid #eef0f4', bgcolor: '#fff', height: '100%' }}>
+              <Box sx={{ p: 2.5, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', height: '100%' }}>
                 {/* Card header */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Box>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
                       Tier {tier.kycTier}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       {tier.kycTier === 0 ? 'Unverified' : tier.kycTier === 1 ? 'Basic' : tier.kycTier === 2 ? 'Intermediate' : 'Full KYC'}
                     </Typography>
                   </Box>
@@ -1493,7 +1493,7 @@ export default function ThresholdsPage() {
                 </Box>
 
                 {/* Daily limits table */}
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>
                   Daily Limits (₦)
                 </Typography>
                 {/* Column headers */}
@@ -1511,10 +1511,10 @@ export default function ThresholdsPage() {
                     { label: 'Other',  inField: 'daily_limit_other_inward',   outField: 'daily_limit_other_outward',   inVal: tier.dailyLimitOtherInward   ?? tier.dailyLimitOther,  outVal: tier.dailyLimitOtherOutward   ?? 0 },
                   ] as const).map(({ label, inField, outField, inVal, outVal }) => (
                     <Box key={label} sx={{ display: 'grid', gridTemplateColumns: '72px 1fr 1fr', gap: 0.5, alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>{label}</Typography>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>{label}</Typography>
                       {([{ field: inField, val: inVal }, { field: outField, val: outVal }] as const).map(({ field, val }) => (
-                        <Box key={field} sx={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', bgcolor: '#fafbfc', '&:focus-within': { borderColor: colorPalette.primary, bgcolor: '#fff' } }}>
-                          <Typography sx={{ px: 0.75, fontSize: '0.625rem', color: '#94a3b8', borderRight: '1px solid #e2e8f0', flexShrink: 0, lineHeight: '26px' }}>₦</Typography>
+                        <Box key={field} sx={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-col)', bgcolor: 'var(--input-bg)', '&:focus-within': { borderColor: colorPalette.primary, bgcolor: 'var(--card-bg)' } }}>
+                          <Typography sx={{ px: 0.75, fontSize: '0.625rem', color: '#94a3b8', borderRight: '1px solid var(--border-col)', flexShrink: 0, lineHeight: '26px' }}>₦</Typography>
                           <Box
                             component="input"
                             type="number"
@@ -1526,7 +1526,7 @@ export default function ThresholdsPage() {
                             sx={{
                               flex: 1, border: 'none', outline: 'none', px: 0.75, py: 0.375,
                               fontSize: '0.6875rem', fontFamily: 'SF Mono, Monaco, monospace',
-                              color: '#00288e', bgcolor: 'transparent', width: 0,
+                              color: 'var(--heading-color)', bgcolor: 'transparent', width: 0,
                               opacity: canModify ? 1 : 0.6,
                               '&::-webkit-inner-spin-button, &::-webkit-outer-spin-button': { WebkitAppearance: 'none' },
                             }}
@@ -1539,7 +1539,7 @@ export default function ThresholdsPage() {
 
                 {/* Risk Score Boost */}
                 <Box sx={{ mt: 2 }}>
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>Risk Score Boost</Typography>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.75 }}>Risk Score Boost</Typography>
                   <Slider
                     value={tier.riskScoreBoost}
                     disabled={!canModify}
@@ -1672,12 +1672,12 @@ export default function ThresholdsPage() {
 
       {/* Audit Log Dialog */}
       <Dialog open={auditOpen} onClose={() => setAuditOpen(false)} maxWidth="lg" fullWidth slotProps={{ paper: { sx: { borderRadius: 0, height: '80vh', display: 'flex', flexDirection: 'column' } } }}>
-        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 800, fontSize: '1.125rem', color: '#00288e', borderBottom: '1px solid #eef0f4', pb: 2, flexShrink: 0 }}>
+        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 800, fontSize: '1.125rem', color: 'var(--heading-color)', borderBottom: '1px solid var(--border-col)', pb: 2, flexShrink: 0 }}>
           Threshold Change Log
         </DialogTitle>
 
         {/* Filter toolbar */}
-        <Box sx={{ px: 3, py: 1.75, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', bgcolor: '#fafbfc', flexShrink: 0 }}>
+        <Box sx={{ px: 3, py: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', bgcolor: 'var(--card-bg)', flexShrink: 0 }}>
           <TextField
             size="small"
             placeholder="Filter by rule or field…"
@@ -1714,7 +1714,7 @@ export default function ThresholdsPage() {
           {auditLoading ? (
             <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {[...Array(5)].map((_, i) => (
-                <Box key={i} sx={{ height: 48, bgcolor: '#f8fafc', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                <Box key={i} sx={{ height: 48, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
               ))}
             </Box>
           ) : filteredAuditChanges.length === 0 ? (
@@ -1726,9 +1726,9 @@ export default function ThresholdsPage() {
           ) : (
             <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
               <Box component="thead" sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                <Box component="tr" sx={{ bgcolor: '#f8fafc' }}>
+                <Box component="tr" sx={{ bgcolor: 'var(--card-bg)' }}>
                   {['Rule', 'Field', 'From', 'To', 'Changed by', 'When'].map(h => (
-                    <Box component="th" key={h} sx={{ px: 2, py: 1.25, textAlign: 'left', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid #eef0f4' }}>
+                    <Box component="th" key={h} sx={{ px: 2, py: 1.25, textAlign: 'left', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid var(--border-col)' }}>
                       {h}
                     </Box>
                   ))}
@@ -1736,12 +1736,12 @@ export default function ThresholdsPage() {
               </Box>
               <Box component="tbody">
                 {pagedAuditChanges.map(c => (
-                  <Box component="tr" key={c.id} sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' }, '&:hover': { bgcolor: '#fafbfc' } }}>
-                    <Box component="td" sx={{ px: 2, py: 1.25, fontWeight: 600, color: '#00288e' }}>{c.ruleName ?? '—'}</Box>
-                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem' }}>{c.field}</Box>
+                  <Box component="tr" key={c.id} sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' }, '&:hover': { bgcolor: 'var(--section-bg)' } }}>
+                    <Box component="td" sx={{ px: 2, py: 1.25, fontWeight: 600, color: 'var(--heading-color)' }}>{c.ruleName ?? '—'}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem' }}>{c.field}</Box>
                     <Box component="td" sx={{ px: 2, py: 1.25, color: '#64748b' }}>{c.oldValue ?? '—'}</Box>
                     <Box component="td" sx={{ px: 2, py: 1.25, color: '#10b981', fontWeight: 600 }}>{c.newValue}</Box>
-                    <Box component="td" sx={{ px: 2, py: 1.25, color: '#475569' }}>{c.changedByName}</Box>
+                    <Box component="td" sx={{ px: 2, py: 1.25, color: 'var(--on-surface-variant)' }}>{c.changedByName}</Box>
                     <Box component="td" sx={{ px: 2, py: 1.25, color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(c.createdAt).toLocaleString()}</Box>
                   </Box>
                 ))}
@@ -1752,20 +1752,20 @@ export default function ThresholdsPage() {
 
         {/* Pagination */}
         {!auditLoading && filteredAuditChanges.length > AUDIT_PAGE_SIZE && (
-          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
               Showing {auditPage * AUDIT_PAGE_SIZE + 1}–{Math.min((auditPage + 1) * AUDIT_PAGE_SIZE, filteredAuditChanges.length)} of {filteredAuditChanges.length}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Box
                 onClick={() => { if (auditPage > 0) setAuditPage(p => p - 1) }}
-                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 600, color: auditPage === 0 ? '#cbd5e1' : '#475569', cursor: auditPage === 0 ? 'default' : 'pointer', borderRadius: 0, '&:hover': auditPage === 0 ? {} : { bgcolor: '#f8fafc' } }}
+                sx={{ px: 1.5, py: 0.5, border: '1px solid var(--border-col)', fontSize: '0.75rem', fontWeight: 600, color: auditPage === 0 ? '#cbd5e1' : '#475569', cursor: auditPage === 0 ? 'default' : 'pointer', borderRadius: 0, '&:hover': auditPage === 0 ? {} : { bgcolor: 'var(--section-bg)' } }}
               >
                 Previous
               </Box>
               <Box
                 onClick={() => { if ((auditPage + 1) * AUDIT_PAGE_SIZE < filteredAuditChanges.length) setAuditPage(p => p + 1) }}
-                sx={{ px: 1.5, py: 0.5, border: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 600, color: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? '#cbd5e1' : '#475569', cursor: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? 'default' : 'pointer', borderRadius: 0, '&:hover': (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? {} : { bgcolor: '#f8fafc' } }}
+                sx={{ px: 1.5, py: 0.5, border: '1px solid var(--border-col)', fontSize: '0.75rem', fontWeight: 600, color: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? '#cbd5e1' : '#475569', cursor: (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? 'default' : 'pointer', borderRadius: 0, '&:hover': (auditPage + 1) * AUDIT_PAGE_SIZE >= filteredAuditChanges.length ? {} : { bgcolor: 'var(--section-bg)' } }}
               >
                 Next
               </Box>

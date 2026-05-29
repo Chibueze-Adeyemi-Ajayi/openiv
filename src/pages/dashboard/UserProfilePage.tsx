@@ -80,7 +80,7 @@ function determineStatus(record: BeamRecord) {
 }
 
 const PageBtn = ({ label, disabled, onClick, active }: { label: string | number; disabled?: boolean; onClick: () => void; active: boolean }) => (
-  <Button disabled={disabled} onClick={onClick} sx={{ minWidth: typeof label === 'number' ? 32 : 'auto', px: typeof label === 'number' ? 0 : 1.5, height: 32, bgcolor: active ? '#f1f5f9' : 'transparent', color: active ? '#00288e' : '#64748b', fontSize: '0.8125rem', fontWeight: active ? 700 : 600, fontFamily: 'Jost', borderRadius: 1, textTransform: 'none', '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' } }}>
+  <Button disabled={disabled} onClick={onClick} sx={{ minWidth: typeof label === 'number' ? 32 : 'auto', px: typeof label === 'number' ? 0 : 1.5, height: 32, bgcolor: active ? '#f1f5f9' : 'transparent', color: active ? '#00288e' : '#64748b', fontSize: '0.8125rem', fontWeight: active ? 700 : 600, fontFamily: 'Jost', borderRadius: 1, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)', color: 'var(--heading-color)' } }}>
     {label}
   </Button>
 )
@@ -98,10 +98,10 @@ function StepRow({ label, status, score, detail, state = 'done' }: {
 }) {
   if (state === 'running') {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid #f4f5f7' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)' }}>
         <Box sx={{ flexShrink: 0, display: 'flex' }}><CircularProgress size={14} thickness={4} sx={{ color: colorPalette.primary }} /></Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e' }}>{label}</Typography>
+          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)' }}>{label}</Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>Verifying…</Typography>
         </Box>
       </Box>
@@ -109,7 +109,7 @@ function StepRow({ label, status, score, detail, state = 'done' }: {
   }
   if (state === 'pending') {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid #f4f5f7', opacity: 0.35 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)', opacity: 0.35 }}>
         <Box sx={{ color: '#94a3b8', flexShrink: 0 }}><HelpOutlineRoundedIcon sx={{ fontSize: '1rem' }} /></Box>
         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b' }}>{label}</Typography>
       </Box>
@@ -124,11 +124,11 @@ function StepRow({ label, status, score, detail, state = 'done' }: {
   }
   const c = cfg[s] ?? cfg.unverified
   return (
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25, borderBottom: '1px solid #f4f5f7' }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)' }}>
       <Box sx={{ color: c.color, mt: 0.125, flexShrink: 0 }}>{c.icon}</Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 0.25 }}>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e' }}>{label}</Typography>
+          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)' }}>{label}</Typography>
           {score != null && <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: c.color, fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0 }}>{score}</Typography>}
         </Box>
         {detail && <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>{detail}</Typography>}
@@ -358,16 +358,16 @@ export default function UserProfilePage() {
         )}
 
         {!loading && !customer && transactions.length === 0 && beams.length === 0 && !kyc ? (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', py: 12, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: '#f1f5f9', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}><SearchOffRoundedIcon sx={{ fontSize: '2.5rem' }} /></Box>
-            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>Customer Not Found</Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: '#64748b', maxWidth: 400, mb: 4 }}>No records found for <Typography component="span" sx={{ fontWeight: 700, color: '#00288e' }}>"{id}"</Typography>.</Typography>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', py: 12, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: 'var(--section-bg)', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}><SearchOffRoundedIcon sx={{ fontSize: '2.5rem' }} /></Box>
+            <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>Customer Not Found</Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: '#64748b', maxWidth: 400, mb: 4 }}>No records found for <Typography component="span" sx={{ fontWeight: 700, color: 'var(--heading-color)' }}>"{id}"</Typography>.</Typography>
             <Button variant="contained" onClick={() => navigate(-1)} sx={{ bgcolor: colorPalette.primary, borderRadius: 0, px: 4, py: 1.25, fontWeight: 700, fontFamily: 'Jost', '&:hover': { bgcolor: colorPalette.primary, opacity: 0.9 } }}>GO BACK</Button>
           </Box>
         ) : (
           <>
             {/* ── Header ── */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3, p: 3, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3, p: 3, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
               <Box sx={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', bgcolor: colorPalette.primary, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {photo
                   ? <Box component="img" src={photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -376,7 +376,7 @@ export default function UserProfilePage() {
               </Box>
               <Box sx={{ flex: 1, minWidth: 280 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>{displayName}</Typography>
+                  <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>{displayName}</Typography>
                   {kyc?.overallStatus && (
                     <Chip
                       icon={<VerifiedOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
@@ -397,7 +397,7 @@ export default function UserProfilePage() {
                   ].map(d => (
                     <Box key={d.label}>
                       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>{d.label}</Typography>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
                     </Box>
                   ))}
                   {/* KYC Tier — always visible, shows tier bars + status */}
@@ -428,7 +428,7 @@ export default function UserProfilePage() {
                   <Button
                     onClick={() => setCaseOpen(true)}
                     startIcon={<GavelOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                    sx={{ bgcolor: colorPalette.primary, color: '#ffffff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, '&:hover': { bgcolor: '#1e293b' } }}
+                    sx={{ bgcolor: colorPalette.primary, color: '#ffffff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, '&:hover': { bgcolor: 'var(--on-surface)' } }}
                   >
                     Open Case
                   </Button>
@@ -449,7 +449,7 @@ export default function UserProfilePage() {
                 </Stack>
               </Box>
               {overallRisk != null && (
-                <Box sx={{ px: 3, py: 1, borderLeft: '1px solid #eef0f4', textAlign: 'center', minWidth: 120 }}>
+                <Box sx={{ px: 3, py: 1, borderLeft: '1px solid var(--border-col)', textAlign: 'center', minWidth: 120 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mb: 0.75 }}>
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                       Risk Score
@@ -467,13 +467,13 @@ export default function UserProfilePage() {
                     transformOrigin={{ vertical: 'top', horizontal: 'center' }}
                     PaperProps={{ sx: { p: 2.5, maxWidth: 360, borderRadius: 1, boxShadow: '0 4px 24px rgba(0,0,0,0.10)' } }}
                   >
-                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>
                       How is this score calculated?
                     </Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.75, mb: 1.5 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.75, mb: 1.5 }}>
                       This score (0–100) blends three signals to give a complete picture of this customer's risk:
                     </Typography>
-                    <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', p: 1.5, mb: 1.5 }}>
+                    <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', p: 1.5, mb: 1.5 }}>
                       {[
                         {
                           label: 'KYC Score', weight: '20%', value: customer?.riskScore,
@@ -490,7 +490,7 @@ export default function UserProfilePage() {
                       ].map((row, i, arr) => (
                         <Box key={row.label} sx={{ mb: i < arr.length - 1 ? 1.5 : 0 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                               {row.label}{' '}
                               <Typography component="span" sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>({row.weight})</Typography>
                             </Typography>
@@ -500,8 +500,8 @@ export default function UserProfilePage() {
                         </Box>
                       ))}
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1, borderTop: '1px solid #e2e8f0' }}>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1, borderTop: '1px solid var(--border-col)' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>
                         Combined score <Typography component="span" sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>(20% + 55% + 25%)</Typography>
                       </Typography>
                       <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: riskColor, fontFamily: 'Jost' }}>{overallRisk}</Typography>
@@ -512,11 +512,11 @@ export default function UserProfilePage() {
             </Box>
 
             {/* ── KYC Identity ── */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3, p: 3 }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3, p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <FilterCenterFocusOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.25rem' }} />
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>KYC Identity</Typography>
-                {kyc && <Chip label={`Score: ${kyc.overallRiskScore}`} size="small" sx={{ ml: 1, bgcolor: '#f1f5f9', color: riskColor, fontWeight: 700, fontSize: '0.6875rem', borderRadius: 0, height: 22 }} />}
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>KYC Identity</Typography>
+                {kyc && <Chip label={`Score: ${kyc.overallRiskScore}`} size="small" sx={{ ml: 1, bgcolor: 'var(--section-bg)', color: riskColor, fontWeight: 700, fontSize: '0.6875rem', borderRadius: 0, height: 22 }} />}
                 <Box sx={{ flex: 1 }} />
                 <Button
                   onClick={handleRunVerification}
@@ -534,7 +534,7 @@ export default function UserProfilePage() {
 
               {/* Pipeline Results — unified: live during streaming, stored otherwise */}
               {(kyc || isLiveMode) ? (
-                <Box sx={{ border: '1px solid #eef0f4', bgcolor: '#f8fafc', p: 2 }}>
+                <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)', p: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: streamError ? 0.75 : 1.5 }}>
                     {streaming
                       ? <CircularProgress size={14} thickness={4} sx={{ color: colorPalette.primary }} />
@@ -542,7 +542,7 @@ export default function UserProfilePage() {
                       ? <CancelOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />
                       : <AssignmentIndOutlinedIcon sx={{ color: '#10b981', fontSize: '1rem' }} />
                     }
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline Results</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline Results</Typography>
                     {streamError && (
                       <Button size="small" onClick={() => { setStreamSteps([]); setStreamError(null) }} sx={{ ml: 'auto', fontSize: '0.6875rem', color: '#94a3b8', textTransform: 'none', minWidth: 0, p: 0.5 }}>
                         Clear
@@ -569,7 +569,7 @@ export default function UserProfilePage() {
                   })}
                 </Box>
               ) : (
-                <Box sx={{ border: '1px solid #eef0f4', bgcolor: '#f8fafc', p: 3, textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+                <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)', p: 3, textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
                   No KYC verification has been run for this customer yet.
                 </Box>
               )}
@@ -578,10 +578,10 @@ export default function UserProfilePage() {
 
             {/* ── Transaction Heatmap ── */}
             {tHeatmap && (
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Transaction Heatmap</Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Transaction Heatmap</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>When does this customer move money? ({heatmapRange})</Typography>
                   </Box>
                   <Stack direction="row" gap={0.5}>
@@ -599,7 +599,7 @@ export default function UserProfilePage() {
                     </Box>
                     {days.map((d, di) => (
                       <Box key={d} sx={{ display: 'grid', gridTemplateColumns: '40px repeat(24, 1fr)', gap: 0.375, mb: 0.375 }}>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center' }}>{d}</Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', display: 'flex', alignItems: 'center' }}>{d}</Typography>
                         {hours.map(h => {
                           const val = tHeatmap[di]?.[h] ?? 0
                           const hourStr = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
@@ -617,7 +617,7 @@ export default function UserProfilePage() {
             )}
 
             {/* ── Activity tabs ── */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
               <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={activeTab} onChange={(_e, v) => setActiveTab(v)} sx={{ px: 2, minHeight: 48, '& .MuiTab-root': { minHeight: 48, textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', fontSize: '0.875rem', color: '#64748b' }, '& .Mui-selected': { color: `${colorPalette.primary} !important` }, '& .MuiTabs-indicator': { backgroundColor: colorPalette.primary } }}>
                   <Tab label="Unified Timeline" />
@@ -632,11 +632,11 @@ export default function UserProfilePage() {
                     {timeline.length === 0
                       ? <Box sx={{ p: 4, textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>No activity recorded yet.</Box>
                       : timeline.map((e, i, arr) => (
-                          <Box key={i} onClick={() => e.type === 'beam' ? setDetailBeam(e.raw) : setDetailTx(e.raw)} sx={{ px: 3, py: 1.75, display: 'flex', gap: 1.5, borderBottom: i === arr.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' }, cursor: 'pointer' }}>
-                            <Box sx={{ minWidth: 100 }}><Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(e.time)}</Typography></Box>
+                          <Box key={i} onClick={() => e.type === 'beam' ? setDetailBeam(e.raw) : setDetailTx(e.raw)} sx={{ px: 3, py: 1.75, display: 'flex', gap: 1.5, borderBottom: i === arr.length - 1 ? 'none' : '1px solid var(--border-col)', '&:hover': { bgcolor: 'var(--section-bg)' }, cursor: 'pointer' }}>
+                            <Box sx={{ minWidth: 100 }}><Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(e.time)}</Typography></Box>
                             <Box sx={{ width: 32, height: 32, bgcolor: `${e.color}15`, color: e.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, '& > svg': { fontSize: '1rem' } }}>{e.icon}</Box>
                             <Box sx={{ flex: 1 }}>
-                              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25, textTransform: 'capitalize' }}>{e.title}</Typography>
+                              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25, textTransform: 'capitalize' }}>{e.title}</Typography>
                               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{e.detail}</Typography>
                             </Box>
                           </Box>
@@ -646,16 +646,16 @@ export default function UserProfilePage() {
                 )}
                 {activeTab === 1 && (
                   <Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.5, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                       {['Time', 'Risk', 'Amount', 'Counterparty', 'Status'].map(h => <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{h}</Typography>)}
                     </Box>
                     {transactions.map(t => (
-                      <Box key={t.id} onClick={() => setDetailTx(t)} sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', cursor: 'pointer', '&:hover': { bgcolor: '#fafbfc' } }}>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(t.occurredAt || new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
+                      <Box key={t.id} onClick={() => setDetailTx(t)} sx={{ display: 'grid', gridTemplateColumns: '120px 100px 140px 1fr 100px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid var(--border-col)', cursor: 'pointer', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(t.occurredAt || new Date()).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }}>{t.risk}</Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e' }}>₦{t.amount.toLocaleString()}</Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.recipientName || t.counterparty}</Typography>
-                        <Box><Chip label={t.status.toUpperCase()} size="small" sx={{ bgcolor: t.status === 'successful' ? '#f0fdf4' : t.status === 'failed' ? '#fef2f2' : '#f8fafc', color: t.status === 'successful' ? '#16a34a' : t.status === 'failed' ? '#dc2626' : '#64748b', fontWeight: 700, fontSize: '0.625rem', height: 20, borderRadius: 0 }} /></Box>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)' }}>₦{t.amount.toLocaleString()}</Typography>
+                        <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.recipientName || t.counterparty}</Typography>
+                        <Box><Chip label={t.status.toUpperCase()} size="small" sx={{ bgcolor: t.status === 'successful' ? '#f0fdf4' : t.status === 'failed' ? '#fef2f2' : 'var(--section-bg)', color: t.status === 'successful' ? '#16a34a' : t.status === 'failed' ? '#dc2626' : '#64748b', fontWeight: 700, fontSize: '0.625rem', height: 20, borderRadius: 0 }} /></Box>
                       </Box>
                     ))}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5 }}>
@@ -669,7 +669,7 @@ export default function UserProfilePage() {
                 )}
                 {activeTab === 2 && (
                   <Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 1fr 110px', gap: 2, px: 3, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 1fr 110px', gap: 2, px: 3, py: 1.5, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                       {['Date & Time', 'Assessment', 'Category', 'What Happened', 'IP Address'].map(h => <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{h}</Typography>)}
                     </Box>
                     {beams.length === 0
@@ -686,15 +686,15 @@ export default function UserProfilePage() {
                             }
                             const category = streamLabel[b.stream] ?? b.stream.replace(/_/g, ' ')
                             return (
-                              <Box key={b.id} onClick={() => setDetailBeam(b)} sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 1fr 110px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', cursor: 'pointer', alignItems: 'center', '&:hover': { bgcolor: '#fafbfc' } }}>
+                              <Box key={b.id} onClick={() => setDetailBeam(b)} sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 1fr 110px', gap: 2, px: 3, py: 1.75, borderBottom: '1px solid var(--border-col)', cursor: 'pointer', alignItems: 'center', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                                 <Box>
-                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(b.receivedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
+                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>{new Date(b.receivedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Typography>
                                 </Box>
                                 <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: st.bg }}>
                                   <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: st.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{st.label}</Typography>
                                 </Box>
-                                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', textTransform: 'capitalize' }}>{category}</Typography>
-                                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{action}</Typography>
+                                <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', textTransform: 'capitalize' }}>{category}</Typography>
+                                <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{action}</Typography>
                                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.ip || '—'}</Typography>
                               </Box>
                             )
@@ -717,12 +717,12 @@ export default function UserProfilePage() {
                     ) : cases.length === 0 ? (
                       <Box sx={{ py: 8, textAlign: 'center' }}>
                         <GavelOutlinedIcon sx={{ fontSize: '2.25rem', color: '#cbd5e1', mb: 1.5 }} />
-                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#00288e', mb: 0.5 }}>No Investigation Cases</Typography>
+                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--heading-color)', mb: 0.5 }}>No Investigation Cases</Typography>
                         <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>No AML/fraud cases have been opened for this customer yet.</Typography>
                       </Box>
                     ) : (
                       <>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 90px 1fr 110px 130px', gap: 2, px: 3, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4' }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 90px 1fr 110px 130px', gap: 2, px: 3, py: 1.5, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                           {['Opened On', 'Status', 'Priority', 'Case Title', 'Risk Score', 'Assigned To'].map(h => (
                             <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{h}</Typography>
                           ))}
@@ -748,9 +748,9 @@ export default function UserProfilePage() {
                             <Box
                               key={c.id}
                               onClick={() => navigate(`/dashboard/cases/${c.id}`)}
-                              sx={{ display: 'grid', gridTemplateColumns: '130px 110px 90px 1fr 110px 130px', gap: 2, px: 3, py: 1.75, borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none', cursor: 'pointer', alignItems: 'center', '&:hover': { bgcolor: '#fafbfc' } }}
+                              sx={{ display: 'grid', gridTemplateColumns: '130px 110px 90px 1fr 110px 130px', gap: 2, px: 3, py: 1.75, borderBottom: i < cases.length - 1 ? '1px solid var(--border-col)' : 'none', cursor: 'pointer', alignItems: 'center', '&:hover': { bgcolor: 'var(--section-bg)' } }}
                             >
-                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                                 {new Date(c.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                               </Typography>
                               <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: sc.bg }}>
@@ -758,17 +758,17 @@ export default function UserProfilePage() {
                               </Box>
                               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: pc.color, textTransform: 'uppercase' }}>{c.priority}</Typography>
                               <Box sx={{ minWidth: 0 }}>
-                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</Typography>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</Typography>
                                 {c.typology && <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{c.typology.replace(/_/g, ' ')}</Typography>}
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                <Box sx={{ flex: 1, height: 4, bgcolor: '#f1f5f9', position: 'relative' }}>
+                                <Box sx={{ flex: 1, height: 4, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                                   <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${c.riskScore}%`, bgcolor: rc }} />
                                 </Box>
                                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: rc, flexShrink: 0 }}>{c.riskScore}</Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography sx={{ fontSize: '0.75rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.assigneeName ?? 'Unassigned'}</Typography>
+                                <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.assigneeName ?? 'Unassigned'}</Typography>
                                 <OpenInNewRoundedIcon sx={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0 }} />
                               </Box>
                             </Box>
@@ -805,12 +805,12 @@ export default function UserProfilePage() {
         onClose={() => setRulesDrawerOpen(false)}
         PaperProps={{ sx: { width: { xs: '100%', sm: 540 }, p: 0 } }}
       >
-        <Box sx={{ p: 3, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ p: 3, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.25 }}>
               Customer Limits
             </Typography>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Impose Transaction Limits
             </Typography>
           </Box>

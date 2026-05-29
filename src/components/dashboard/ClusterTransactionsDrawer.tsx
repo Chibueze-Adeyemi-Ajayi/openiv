@@ -193,7 +193,7 @@ function AiFlagDialog({
       <Box sx={{
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 480, bgcolor: '#ffffff', zIndex: 1501,
+        width: 480, bgcolor: 'var(--card-bg)', zIndex: 1501,
         boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
         animation: 'aiFlagIn 0.2s ease',
         '@keyframes aiFlagIn': {
@@ -204,9 +204,9 @@ function AiFlagDialog({
         {/* Header */}
         <Box sx={{
           px: 2.5, pt: 2.25, pb: 1.75,
-          borderBottom: '1px solid #eef0f4',
+          borderBottom: '1px solid var(--border-col)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          bgcolor: '#fafbfc',
+          bgcolor: 'var(--card-bg)',
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{
@@ -217,7 +217,7 @@ function AiFlagDialog({
               <AutoAwesomeOutlinedIcon sx={{ color: '#fff', fontSize: '1rem' }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 AI Risk Analysis
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
@@ -227,7 +227,7 @@ function AiFlagDialog({
           </Box>
           <Box
             onClick={onClose}
-            sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, display: 'flex', '&:hover': { color: '#475569' } }}
+            sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, display: 'flex', '&:hover': { color: 'var(--on-surface-variant)' } }}
           >
             <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
           </Box>
@@ -278,7 +278,7 @@ function AiFlagDialog({
 
             {analysing ? (
               <Box sx={{
-                minHeight: 88, border: '1px solid #e2e8f0', bgcolor: '#f8fafc',
+                minHeight: 88, border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
               }}>
                 <CircularProgress size={16} sx={{ color: colorPalette.primary }} />
@@ -294,9 +294,9 @@ function AiFlagDialog({
                 rows={5}
                 sx={{
                   width: '100%', boxSizing: 'border-box', display: 'block', resize: 'vertical',
-                  border: '1px solid #e2e8f0', px: 1.25, py: 0.875,
+                  border: '1px solid var(--border-col)', px: 1.25, py: 0.875,
                   fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif',
-                  color: '#00288e', bgcolor: '#fafbfc', outline: 'none', lineHeight: 1.65,
+                  color: 'var(--heading-color)', bgcolor: 'var(--card-bg)', outline: 'none', lineHeight: 1.65,
                   '&:focus': { borderColor: colorPalette.primary, bgcolor: '#fff' },
                 }}
               />
@@ -312,9 +312,9 @@ function AiFlagDialog({
           <Box
             onClick={onClose}
             sx={{
-              px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+              px: 2, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
               color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-              transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' },
+              transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' },
             }}
           >
             Cancel
@@ -355,10 +355,10 @@ function TxnRow({
       onClick={() => onView(txn)}
       sx={{
         px: 2.5, py: 1.75, cursor: 'pointer',
-        borderBottom: '1px solid #f4f5f7',
+        borderBottom: '1px solid var(--border-col)',
         display: 'flex', alignItems: 'flex-start', gap: 1.5,
         transition: 'background 0.15s',
-        '&:hover': { bgcolor: '#fafbfc' },
+        '&:hover': { bgcolor: 'var(--card-bg)' },
         '&:last-child': { borderBottom: 'none' },
       }}
     >
@@ -381,10 +381,10 @@ function TxnRow({
       {/* Content */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {txn.customer || txn.customerId}
           </Typography>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0, ml: 1 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0, ml: 1 }}>
             {fmtAmt(txn.amount)}
           </Typography>
         </Box>
@@ -455,7 +455,7 @@ function TxnDetail({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={onBack}>
           <ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem', color: '#64748b', transform: 'rotate(180deg)' }} />
           <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', fontFamily: 'Jost' }}>
@@ -494,11 +494,11 @@ function TxnDetail({
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {rows.map(({ label, value }) => (
-            <Box key={label} sx={{ display: 'flex', py: 1, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+            <Box key={label} sx={{ display: 'flex', py: 1, borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
               <Typography sx={{ width: 140, flexShrink: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
                 {label}
               </Typography>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', wordBreak: 'break-all', fontFamily: label === 'Transaction ID' || label === 'Device ID' || label.includes('Account') ? 'SF Mono, Monaco, monospace' : 'inherit' }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', wordBreak: 'break-all', fontFamily: label === 'Transaction ID' || label === 'Device ID' || label.includes('Account') ? 'SF Mono, Monaco, monospace' : 'inherit' }}>
                 {String(value)}
               </Typography>
             </Box>
@@ -507,7 +507,7 @@ function TxnDetail({
       </Box>
 
       {/* Actions */}
-      <Box sx={{ px: 3, py: 2.25, borderTop: '1px solid #eef0f4', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+      <Box sx={{ px: 3, py: 2.25, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
         <Button
           size="small"
           startIcon={<FlagOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
@@ -529,8 +529,8 @@ function TxnDetail({
           size="small"
           onClick={() => navigate(`/dashboard/transactions?q=${txn.id}`)}
           sx={{
-            bgcolor: '#f8fafc', color: '#475569',
-            border: '1px solid #e5e7eb', borderRadius: 0,
+            bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)',
+            border: '1px solid var(--border-col)', borderRadius: 0,
             textTransform: 'none', fontFamily: 'Jost',
             fontSize: '0.8125rem', fontWeight: 600, px: 2,
             '&:hover': { bgcolor: '#f1f5f9' },
@@ -628,7 +628,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
         paper: {
           sx: {
             width: { xs: '100%', sm: 480 },
-            borderLeft: '1px solid #eef0f4',
+            borderLeft: '1px solid var(--border-col)',
             borderRadius: 0,
             boxShadow: '-8px 0 40px rgba(15,23,42,0.1)',
           },
@@ -645,13 +645,13 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Header */}
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 {source?.type === 'cluster'
                   ? <LocationOnOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
                   : <CalendarTodayOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />}
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   {drawerTitle}
                 </Typography>
               </Box>
@@ -664,7 +664,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
 
           {/* Cluster risk summary + sort toggle */}
           {source?.type === 'cluster' && (
-            <Box sx={{ px: 3, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box sx={{ px: 3, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 3 }}>
               <Box>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.25 }}>
                   Avg Risk
@@ -701,7 +701,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
                   size="small"
                   sx={{
                     '& .MuiToggleButton-root': {
-                      borderRadius: 0, border: '1px solid #e5e7eb',
+                      borderRadius: 0, border: '1px solid var(--border-col)',
                       px: 1, py: 0.375,
                       fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost',
                       color: '#64748b', textTransform: 'none',
@@ -733,7 +733,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
               </Box>
             ) : sortedTxns.length === 0 ? (
               <Box sx={{ py: 8, textAlign: 'center', px: 3 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#475569', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost', mb: 0.5 }}>
                   No transactions found
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
@@ -748,7 +748,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
           </Box>
 
           {/* Footer — hint + view all */}
-          <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
             <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
               {sortedTxns.length > 0 ? 'Click a transaction to view details and take action' : ''}
             </Typography>
@@ -762,7 +762,7 @@ export default function ClusterTransactionsDrawer({ source, onClose }: Props) {
                 borderRadius: 0, textTransform: 'none',
                 fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 700,
                 px: 2, py: 0.875, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
+                '&:hover': { bgcolor: 'var(--on-surface)', boxShadow: 'none' },
               }}
             >
               View All Transactions

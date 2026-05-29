@@ -49,7 +49,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
         {title}
       </Typography>
-      <Box sx={{ border: '1px solid #eef0f4', p: 1.5, borderRadius: 0 }}>{children}</Box>
+      <Box sx={{ border: '1px solid var(--border-col)', p: 1.5, borderRadius: 0 }}>{children}</Box>
     </Box>
   )
 }
@@ -106,20 +106,20 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
       <Box onClick={onClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.3)', zIndex: 1200 }} />
       <Box sx={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 440, bgcolor: '#ffffff', zIndex: 1201,
+        width: 440, bgcolor: 'var(--card-bg)', zIndex: 1201,
         boxShadow: '-8px 0 40px rgba(15,23,42,0.14)',
         display: 'flex', flexDirection: 'column',
         animation: 'slideInPanel 0.24s cubic-bezier(0.4,0,0.2,1)',
         '@keyframes slideInPanel': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } },
       }}>
         {/* Sticky header */}
-        <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid var(--border-col)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2.5, pt: 2.5, pb: 1.25 }}>
             <Box sx={{ flex: 1 }}>
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                 Interaction Beam
               </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
                 {beam.id}
               </Typography>
             </Box>
@@ -149,7 +149,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
             >
               View Profile
             </Button>
-            <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+            <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
               <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
             </IconButton>
           </Box>
@@ -159,7 +159,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
           {/* Risk score — hidden for KYC beams (score is always 0/unscored there) */}
           {beam.stream !== 'kyc' && (
-            <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid #eef0f4', bgcolor: `${rc}04` }}>
+            <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid var(--border-col)', bgcolor: `${rc}04` }}>
               <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
                 <Typography sx={{ fontSize: '2.25rem', fontWeight: 800, color: rc, fontFamily: 'Jost', lineHeight: 1 }}>
                   {risk}
@@ -169,7 +169,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
               </Box>
-              <Box sx={{ height: 6, bgcolor: '#f1f5f9', position: 'relative' }}>
+              <Box sx={{ height: 6, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                 <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${risk}%`, bgcolor: rc, transition: 'width 0.6s ease' }} />
               </Box>
             </Box>
@@ -204,7 +204,7 @@ export default function InteractionDetailPanel({ beam, open, onClose }: Props) {
                         {k.replace(/_/g, ' ')}
                       </Typography>
                       <Box component="img" src={imgSrc} alt={k}
-                        sx={{ width: '100%', maxHeight: 200, objectFit: 'contain', bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'block' }} />
+                        sx={{ width: '100%', maxHeight: 200, objectFit: 'contain', bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', display: 'block' }} />
                     </Box>
                   )
                 }

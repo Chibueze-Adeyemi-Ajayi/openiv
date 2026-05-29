@@ -21,11 +21,11 @@ const riskBg = (score: number) =>
 const headSx = {
   fontFamily: 'Jost', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
   textTransform: 'uppercase' as const, letterSpacing: '0.07em',
-  borderBottom: '1px solid #e2e8f0', py: 1.25, px: 2, bgcolor: '#fafbfc',
+  borderBottom: '1px solid var(--border-col)', py: 1.25, px: 2, bgcolor: 'var(--card-bg)',
 }
 const cellSx = {
-  fontFamily: 'Jost', fontSize: '0.8125rem', color: '#1e293b',
-  borderBottom: '1px solid #f1f5f9', py: 1.5, px: 2,
+  fontFamily: 'Jost', fontSize: '0.8125rem', color: 'var(--on-surface)',
+  borderBottom: '1px solid var(--border-col)', py: 1.5, px: 2,
 }
 
 export default function SurgeInvestigationPage() {
@@ -65,7 +65,7 @@ export default function SurgeInvestigationPage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-        <CircularProgress size={28} sx={{ color: '#00288e' }} />
+        <CircularProgress size={28} sx={{ color: 'var(--heading-color)' }} />
       </Box>
     )
   }
@@ -85,7 +85,7 @@ export default function SurgeInvestigationPage() {
       {/* Back */}
       <Box
         onClick={() => navigate('/dashboard/notifications')}
-        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mb: 3, cursor: 'pointer', color: '#64748b', '&:hover': { color: '#00288e' } }}
+        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mb: 3, cursor: 'pointer', color: '#64748b', '&:hover': { color: 'var(--heading-color)' } }}
       >
         <ArrowBackRoundedIcon sx={{ fontSize: '1rem' }} />
         <Typography sx={{ fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600 }}>Back to Notifications</Typography>
@@ -95,7 +95,7 @@ export default function SurgeInvestigationPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
-            <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1.5rem', color: '#00288e', letterSpacing: '-0.02em' }}>
+            <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1.5rem', color: 'var(--heading-color)', letterSpacing: '-0.02em' }}>
               {alert.title}
             </Typography>
             <Chip
@@ -136,7 +136,7 @@ export default function SurgeInvestigationPage() {
           { label: 'Expected Baseline', value: expectedCount.toLocaleString(), color: '#64748b' },
           { label: 'Surge Above Baseline', value: `+${surgePct}%`, color: '#d97706' },
         ].map(({ label, value, color }) => (
-          <Box key={label} sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0', px: 3, py: 2, flex: 1, minWidth: 160 }}>
+          <Box key={label} sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', px: 3, py: 2, flex: 1, minWidth: 160 }}>
             <Typography sx={{ fontFamily: 'Jost', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               {label}
             </Typography>
@@ -163,9 +163,9 @@ export default function SurgeInvestigationPage() {
       </Box>
 
       {/* Suspects table */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #e2e8f0' }}>
-          <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1rem', color: '#00288e' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1rem', color: 'var(--heading-color)' }}>
             Suspicious Customers — Last 24 Hours
           </Typography>
           <Typography sx={{ fontFamily: 'Jost', fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -199,10 +199,10 @@ export default function SurgeInvestigationPage() {
                     key={s.customerId}
                     hover
                     onClick={() => navigate(`/dashboard/users/${s.customerId}`)}
-                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' } }}
+                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'var(--section-bg)' } }}
                   >
                     <TableCell sx={cellSx}>
-                      <Typography sx={{ fontWeight: 600, fontFamily: 'Jost', fontSize: '0.8125rem', color: '#0f172a' }}>
+                      <Typography sx={{ fontWeight: 600, fontFamily: 'Jost', fontSize: '0.8125rem', color: 'var(--on-surface)' }}>
                         {s.customerName || `Customer #${s.customerId}`}
                       </Typography>
                       <Typography sx={{ fontFamily: 'monospace', fontSize: '0.6875rem', color: '#94a3b8' }}>
@@ -210,10 +210,10 @@ export default function SurgeInvestigationPage() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={cellSx} align="right">
-                      <Typography sx={{ fontFamily: 'Jost', fontWeight: 600, color: '#1e293b' }}>{s.txnCount}</Typography>
+                      <Typography sx={{ fontFamily: 'Jost', fontWeight: 600, color: 'var(--on-surface)' }}>{s.txnCount}</Typography>
                     </TableCell>
                     <TableCell sx={cellSx} align="right">
-                      <Typography sx={{ fontFamily: 'Jost', fontSize: '0.8125rem', color: '#475569' }}>
+                      <Typography sx={{ fontFamily: 'Jost', fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>
                         {fmtAmount(s.totalAmount)}
                       </Typography>
                     </TableCell>

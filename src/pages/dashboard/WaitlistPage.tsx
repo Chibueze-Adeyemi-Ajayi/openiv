@@ -89,7 +89,7 @@ export default function WaitlistPage() {
             <TableHead>
               <TableRow sx={{ bgcolor: '#F8FAFC' }}>
                 {['#', 'Name', 'Email', 'Interests / Use Case', 'Joined'].map(h => (
-                  <TableCell key={h} sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#475569', py: 1.5 }}>
+                  <TableCell key={h} sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--on-surface-variant)', py: 1.5 }}>
                     {h}
                   </TableCell>
                 ))}
@@ -111,10 +111,10 @@ export default function WaitlistPage() {
                   <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#1A1B22' }}>
                     {entry.name}
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.82rem', color: '#334155' }}>
+                  <TableCell sx={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
                     {entry.email}
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.82rem', color: '#334155', maxWidth: 340 }}>
+                  <TableCell sx={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)', maxWidth: 340 }}>
                     {entry.description
                       ? <Typography sx={{ fontSize: '0.82rem', lineHeight: 1.4 }}>{entry.description}</Typography>
                       : <Typography sx={{ color: '#CBD5E1', fontSize: '0.8rem' }}>—</Typography>}

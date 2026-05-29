@@ -97,7 +97,7 @@ export default function DateRangeFilter({
           display: 'inline-flex',
           alignItems: 'stretch',
           border: '1px solid #e5e7eb',
-          bgcolor: '#ffffff',
+          bgcolor: 'var(--card-bg)',
           height: compact ? 30 : 34,
         }}
       >
@@ -119,7 +119,7 @@ export default function DateRangeFilter({
                 color: isActive ? '#ffffff' : '#475569',
                 bgcolor: isActive ? colorPalette.primary : 'transparent',
                 cursor: 'pointer',
-                borderLeft: i === 0 ? 'none' : '1px solid #eef0f4',
+                borderLeft: i === 0 ? 'none' : '1px solid var(--border-col)',
                 transition: 'all 0.15s ease',
                 userSelect: 'none',
                 '&:hover': {
@@ -149,15 +149,15 @@ export default function DateRangeFilter({
               mt: 1,
               p: 0,
               borderRadius: 0,
-              border: '1px solid #eef0f4',
+              border: '1px solid var(--border-col)',
               boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
               minWidth: 320,
             },
           },
         }}
       >
-        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Custom date range
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>
@@ -168,7 +168,7 @@ export default function DateRangeFilter({
         <Box sx={{ px: 2.5, py: 2.5 }}>
           <Stack gap={2}>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875, fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875, fontFamily: 'Jost' }}>
                 From
               </Typography>
               <Box
@@ -179,22 +179,22 @@ export default function DateRangeFilter({
                 onChange={(e: any) => setDraftFrom(e.target.value)}
                 sx={{
                   width: '100%',
-                  bgcolor: '#f5f3fb',
+                  bgcolor: 'var(--section-bg)',
                   border: '1px solid transparent',
                   py: '12px',
                   px: '14px',
                   fontSize: '0.875rem',
                   fontFamily: 'Jost',
-                  color: '#00288e',
+                  color: 'var(--heading-color)',
                   outline: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.18s',
-                  '&:focus': { bgcolor: '#ffffff', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                  '&:focus': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                 }}
               />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875, fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875, fontFamily: 'Jost' }}>
                 To
               </Typography>
               <Box
@@ -206,17 +206,17 @@ export default function DateRangeFilter({
                 onChange={(e: any) => setDraftTo(e.target.value)}
                 sx={{
                   width: '100%',
-                  bgcolor: '#f5f3fb',
+                  bgcolor: 'var(--section-bg)',
                   border: '1px solid transparent',
                   py: '12px',
                   px: '14px',
                   fontSize: '0.875rem',
                   fontFamily: 'Jost',
-                  color: '#00288e',
+                  color: 'var(--heading-color)',
                   outline: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.18s',
-                  '&:focus': { bgcolor: '#ffffff', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                  '&:focus': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                 }}
               />
             </Box>
@@ -244,7 +244,7 @@ export default function DateRangeFilter({
                       py: 0.5,
                       fontSize: '0.6875rem',
                       fontWeight: 600,
-                      color: '#475569',
+                      color: 'var(--on-surface-variant)',
                       border: '1px solid #e5e7eb',
                       cursor: 'pointer',
                       fontFamily: 'Jost',
@@ -260,7 +260,7 @@ export default function DateRangeFilter({
           </Stack>
         </Box>
 
-        <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
           <Button
             onClick={clear}
             sx={{
@@ -279,8 +279,8 @@ export default function DateRangeFilter({
             <Button
               onClick={() => setAnchor(null)}
               sx={{
-                bgcolor: '#ffffff',
-                color: '#475569',
+                bgcolor: 'var(--card-bg)',
+                color: 'var(--on-surface-variant)',
                 border: '1px solid #e5e7eb',
                 px: 2,
                 py: 0.75,
@@ -289,7 +289,7 @@ export default function DateRangeFilter({
                 fontFamily: 'Jost',
                 borderRadius: 0,
                 textTransform: 'none',
-                '&:hover': { bgcolor: '#f8fafc' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Cancel
@@ -308,7 +308,7 @@ export default function DateRangeFilter({
                 borderRadius: 0,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
+                '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)' },
                 '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >

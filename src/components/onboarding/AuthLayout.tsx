@@ -1,5 +1,4 @@
 import { Box, Container, Typography } from '@mui/material'
-import { colorPalette } from '@/theme'
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import FingerprintOutlinedIcon from '@mui/icons-material/FingerprintOutlined'

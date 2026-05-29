@@ -23,9 +23,9 @@ const inputSx = {
     borderRadius: 0,
     fontFamily: 'Jost',
     fontSize: '0.9375rem',
-    color: '#000000',
+    color: 'var(--on-surface)',
     '& fieldset': {
-      borderColor: '#e2e8f0',
+      borderColor: 'var(--border-col)',
       transition: 'all 0.2s ease',
     },
     '&:hover fieldset': {
@@ -52,7 +52,7 @@ const inputSx = {
 const labelSx = {
   fontSize: '0.875rem',
   fontWeight: 600,
-  color: '#475569',
+  color: 'var(--on-surface-variant)',
   mb: 1,
   fontFamily: 'Jost',
 }
@@ -155,14 +155,14 @@ export default function LoginForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#00288e',
+            color: 'var(--heading-color)',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
         >
           Initialize Terminal
         </Typography>
-        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
           Secure authorization required for data access.
         </Typography>
         <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', mt: 1 }}>
@@ -290,7 +290,7 @@ export default function LoginForm({
           component="span"
           onClick={() => { setTermsType('security'); setTermsModalOpen(true); }}
           sx={{
-            color: '#475569',
+            color: 'var(--on-surface-variant)',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'color 0.2s ease',
@@ -303,7 +303,7 @@ export default function LoginForm({
           component="span"
           onClick={() => { setTermsType('privacy'); setTermsModalOpen(true); }}
           sx={{
-            color: '#475569',
+            color: 'var(--on-surface-variant)',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'color 0.2s ease',
@@ -317,7 +317,7 @@ export default function LoginForm({
           component="span"
           onClick={() => { setTermsType('ip'); setTermsModalOpen(true); }}
           sx={{
-            color: '#475569',
+            color: 'var(--on-surface-variant)',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'color 0.2s ease',

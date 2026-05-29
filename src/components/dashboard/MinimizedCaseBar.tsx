@@ -36,8 +36,8 @@ export default function MinimizedCaseBar() {
         right: 28,
         width: 308,
         zIndex: 1200,
-        bgcolor: '#ffffff',
-        border: '1px solid #e2e8f0',
+        bgcolor: 'var(--card-bg)',
+        border: '1px solid var(--border-col)',
         boxShadow: '0 12px 40px rgba(15,23,42,0.18)',
         display: 'flex',
         flexDirection: 'column',
@@ -97,7 +97,7 @@ export default function MinimizedCaseBar() {
           px: 1.5, py: 0.875,
           display: 'flex', alignItems: 'center', gap: 1.25,
           cursor: 'pointer',
-          '&:hover': { bgcolor: '#f8fafc' },
+          '&:hover': { bgcolor: 'var(--section-bg)' },
           transition: 'background 0.15s',
         }}
       >
@@ -108,7 +108,7 @@ export default function MinimizedCaseBar() {
             boxShadow: `0 0 0 2px ${priorityColor}30`,
           }}
         />
-        <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'Jost', fontWeight: 500, flex: 1 }}>
+        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost', fontWeight: 500, flex: 1 }}>
           {caseSnap.priority.charAt(0).toUpperCase() + caseSnap.priority.slice(1)} priority &middot; {statusLabel}
         </Typography>
         <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${colorPalette.primary}0f`, border: `1px solid ${colorPalette.primary}20` }}>

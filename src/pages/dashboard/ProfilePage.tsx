@@ -58,11 +58,11 @@ const ROLE_LABELS: Record<string, string> = {
 const inputSx = {
   '& .MuiOutlinedInput-root': {
     borderRadius: 0, fontSize: '0.875rem', fontFamily: 'Jost',
-    '& fieldset': { borderColor: '#e2e8f0' },
+    '& fieldset': { borderColor: 'var(--border-col)' },
     '&:hover fieldset': { borderColor: '#cbd5e1' },
     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-    '&.Mui-disabled': { bgcolor: '#fafbfc' },
-    '&.Mui-disabled fieldset': { borderColor: '#f1f5f9' },
+    '&.Mui-disabled': { bgcolor: 'var(--section-bg)' },
+    '&.Mui-disabled fieldset': { borderColor: 'var(--border-col)' },
   },
   '& .MuiInputLabel-root': { fontFamily: 'Jost', fontSize: '0.875rem' },
   '& .MuiInputLabel-root.Mui-focused': { color: colorPalette.primary },
@@ -87,7 +87,7 @@ function MetaItem({ icon, label, value }: { icon: React.ReactNode; label: string
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
       <Box sx={{ color: '#94a3b8', display: 'flex' }}>{icon}</Box>
       <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'Jost' }}>
-        <Box component="span" sx={{ fontWeight: 600, color: '#475569' }}>{label}:</Box> {value}
+        <Box component="span" sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{label}:</Box> {value}
       </Typography>
     </Box>
   )
@@ -174,10 +174,10 @@ export default function ProfilePage() {
   const roleLabel        = ROLE_LABELS[profile?.role ?? ''] ?? (profile?.role ?? '—')
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100%' }}>
+    <Box sx={{ bgcolor: 'var(--app-bg)', minHeight: '100%' }}>
 
       {/* ── Profile header card ───────────────────────────────────────────── */}
-      <Box sx={{ bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
         {/* Accent stripe */}
         <Box sx={{ height: 4, bgcolor: colorPalette.primary }} />
 
@@ -192,7 +192,7 @@ export default function ProfilePage() {
               style={{ display: 'none' }}
               onChange={handleAvatarChange}
             />
-            <Box sx={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '3px solid #eef0f4', bgcolor: '#f1f5f9' }}>
+            <Box sx={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
               {displayAvatarUrl ? (
                 <Box component="img" src={displayAvatarUrl} alt={profile?.fullName ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover', opacity: avatarUploading ? 0.5 : 1, transition: 'opacity 0.2s' }} />
               ) : (
@@ -225,7 +225,7 @@ export default function ProfilePage() {
 
           {/* Name / title / email */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
               {profile?.fullName ?? profile?.email ?? '—'}
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mt: 0.25 }}>
@@ -247,8 +247,8 @@ export default function ProfilePage() {
                   {roleLabel}
                 </Typography>
               </Box>
-              <Box sx={{ px: 1.5, py: 0.375, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <Box sx={{ px: 1.5, py: 0.375, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   {profile?.accountType ?? '—'}
                 </Typography>
               </Box>
@@ -261,7 +261,7 @@ export default function ProfilePage() {
         </Box>
 
         {/* Status strip */}
-        <Box sx={{ px: 4, py: 1.25, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ px: 4, py: 1.25, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {[
             { ok: true,               label: 'Email Verified' },
             { ok: !!profile?.passwordUpdatedAt, label: profile?.passwordUpdatedAt ? 'Password Set' : 'Default Password Active' },
@@ -282,13 +282,13 @@ export default function ProfilePage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, maxWidth: 1100 }}>
 
           {/* ── Personal Information ──────────────────────────────────── */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <Box sx={{ width: 30, height: 30, bgcolor: `${colorPalette.primary}0d`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colorPalette.primary, flexShrink: 0 }}>
                 <PersonOutlineRoundedIcon sx={{ fontSize: '1rem' }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Personal Information</Typography>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>Personal Information</Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>Your display name and title shown across the platform</Typography>
               </Box>
             </Box>
@@ -309,12 +309,12 @@ export default function ProfilePage() {
                   { label: 'System Role',   value: roleLabel,                icon: <ShieldOutlinedIcon sx={{ fontSize: '0.875rem', color: '#94a3b8' }} /> },
                   { label: 'Account Type',  value: profile?.accountType ?? '—', icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '0.875rem', color: '#94a3b8' }} /> },
                 ].map(item => (
-                  <Box key={item.label} sx={{ border: '1px solid #f1f5f9', p: 1.5, bgcolor: '#fafbfc' }}>
+                  <Box key={item.label} sx={{ border: '1px solid var(--border-col)', p: 1.5, bgcolor: 'var(--section-bg)' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.375 }}>
                       {item.icon}
                       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{item.label}</Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>{item.value}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{item.value}</Typography>
                   </Box>
                 ))}
               </Box>
@@ -331,23 +331,23 @@ export default function ProfilePage() {
           </Box>
 
           {/* ── Account Security ──────────────────────────────────────── */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <Box sx={{ width: 30, height: 30, bgcolor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>
                 <SecurityOutlinedIcon sx={{ fontSize: '1rem' }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>Account Security</Typography>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>Account Security</Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>Update your password — CBN AML complexity requirements apply</Typography>
               </Box>
             </Box>
             <Box sx={{ px: 3, py: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 
               {/* Last change info */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
                 <LockResetOutlinedIcon sx={{ fontSize: '1rem', color: '#64748b', flexShrink: 0 }} />
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>Last password change</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>Last password change</Typography>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
                     {profile?.passwordUpdatedAt ? fmtDate(profile.passwordUpdatedAt) : 'Never changed — update recommended'}
                   </Typography>
@@ -355,12 +355,12 @@ export default function ProfilePage() {
               </Box>
 
               <TextField label="Current Password" type={showCurrent ? 'text' : 'password'} value={current} onChange={e => setCurrent(e.target.value)} fullWidth size="small"
-                InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowCurrent(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>{showCurrent ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
+                InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowCurrent(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>{showCurrent ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
                 sx={inputSx} />
 
               <Box>
                 <TextField label="New Password" type={showNext ? 'text' : 'password'} value={next} onChange={e => setNext(e.target.value)} fullWidth size="small"
-                  InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowNext(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>{showNext ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
+                  InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowNext(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>{showNext ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
                   sx={inputSx} />
                 {next && (
                   <Box sx={{ mt: 1 }}>
@@ -377,12 +377,12 @@ export default function ProfilePage() {
 
               <TextField label="Confirm New Password" type={showConfirm ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
                 error={pwMismatch} helperText={pwMismatch ? 'Passwords do not match' : pwMatch ? '✓ Passwords match' : ''} fullWidth size="small"
-                InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowConfirm(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>{showConfirm ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
+                InputProps={{ endAdornment: <InputAdornment position="end"><IconButton size="small" disableRipple onClick={() => setShowConfirm(v => !v)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>{showConfirm ? <VisibilityOffOutlinedIcon sx={{ fontSize: '1rem' }} /> : <VisibilityOutlinedIcon sx={{ fontSize: '1rem' }} />}</IconButton></InputAdornment> }}
                 sx={{ ...inputSx, '& .MuiFormHelperText-root': { fontFamily: 'Jost', fontSize: '0.6875rem', color: pwMismatch ? '#dc2626' : pwMatch ? '#16a34a' : undefined } }} />
 
               {/* Requirements */}
               {next && (
-                <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', p: 1.75 }}>
+                <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 1.75 }}>
                   <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.875 }}>Requirements</Typography>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     {[
@@ -405,8 +405,8 @@ export default function ProfilePage() {
               {pwMsg && <Feedback ok={pwMsg.ok} text={pwMsg.text} />}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button onClick={handleChangePassword} disabled={!current || !next || !confirm || pwMismatch || pwSaving}
-                  sx={{ bgcolor: '#0f172a', color: '#fff', py: 1, px: 2.5, borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', boxShadow: 'none', minWidth: 140,
-                    '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' }, '&:disabled': { bgcolor: '#94a3b8', color: '#fff' } }}>
+                  sx={{ bgcolor: 'var(--on-surface)', color: '#fff', py: 1, px: 2.5, borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', boxShadow: 'none', minWidth: 140,
+                    '&:hover': { bgcolor: 'var(--on-surface)', boxShadow: 'none' }, '&:disabled': { bgcolor: '#94a3b8', color: '#fff' } }}>
                   {pwSaving ? 'Updating…' : 'Update Password'}
                 </Button>
               </Box>

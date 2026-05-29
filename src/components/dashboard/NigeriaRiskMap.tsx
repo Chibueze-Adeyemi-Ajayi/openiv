@@ -169,12 +169,12 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
     <Box
       data-ai-analyzable="true"
       data-ai-description={`Geographic risk distribution across Nigeria. Currently monitoring ${highDots.length} high-risk clusters and ${mediumDots.length} suspicious areas.`}
-      sx={{ position: 'relative', bgcolor: '#ffffff', border: '1px solid #eef0f4', overflow: 'hidden' }}
+      sx={{ position: 'relative', bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', overflow: 'hidden' }}
     >
       {/* Header */}
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Risk Map · Nigeria
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -196,7 +196,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
         {/* SVG area */}
         <Box sx={{ flex: 1, position: 'relative', p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         {loading && (
-          <Box sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.9)', px: 1.5, py: 0.75, border: '1px solid #eef0f4' }}>
+          <Box sx={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.9)', px: 1.5, py: 0.75, border: '1px solid var(--border-col)' }}>
             <CircularProgress size={12} thickness={5} sx={{ color: colorPalette.primary }} />
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontWeight: 600 }}>Updating…</Typography>
           </Box>
@@ -297,7 +297,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
               top: mousePos.y > 300 ? mousePos.y - 280 : mousePos.y + 12, 
               left: mousePos.x > 500 ? mousePos.x - 270 : mousePos.x + 12,
               width: 260,
-              bgcolor: '#ffffff', border: '1px solid #eef0f4',
+              bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)',
               boxShadow: '0 20px 50px rgba(15,23,42,0.15)', p: 2.5,
               zIndex: 20,
               animation: 'popIn 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -330,7 +330,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                   Transactions
                 </Typography>
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', lineHeight: 1, fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', lineHeight: 1, fontFamily: 'Jost' }}>
                   {selected.point.count.toLocaleString()}
                 </Typography>
               </Box>
@@ -349,7 +349,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
             {selected.point.avgRisk != null && (
               <Box sx={{ bgcolor: `${colorPalette.primary}06`, border: `1px solid ${colorPalette.primary}15`, p: 1.5, display: 'flex', gap: 1, mb: 1.5 }}>
                 <AutoAwesomeOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary, mt: 0.125, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: '0.75rem', color: '#334155', lineHeight: 1.55 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.55 }}>
                   Average risk score: <strong>{selected.point.avgRisk.toFixed(1)}</strong>
                   {selected.point.hasFlag ? ' · Contains flagged transactions.' : ' · No flagged transactions.'}
                 </Typography>
@@ -380,7 +380,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
         <Box sx={{
           width: 156,
           flexShrink: 0,
-          borderLeft: '1px solid #eef0f4',
+          borderLeft: '1px solid var(--border-col)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -407,7 +407,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 boxShadow: level === 'high' ? `0 0 0 3px ${riskColors.high.fill}22` : 'none',
               }} />
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', lineHeight: 1.2 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', lineHeight: 1.2 }}>
                   {riskColors[level].label}
                 </Typography>
                 <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25, lineHeight: 1.4 }}>
@@ -420,7 +420,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
       </Box>{/* /map flex row */}
 
       {/* Summary footer */}
-      <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid #eef0f4', display: 'flex', gap: 4, bgcolor: '#fafbfc' }}>
+      <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 4, bgcolor: 'var(--card-bg)' }}>
         {[
           { level: 'high' as RiskLevel,   count: highDots.length },
           { level: 'medium' as RiskLevel, count: mediumDots.length },
@@ -434,7 +434,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
                 {riskColors[level].label}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               {(count ?? 0).toLocaleString()}
             </Typography>
           </Box>
@@ -443,7 +443,7 @@ export default function NigeriaRiskMap({ onFenceSelect }: NigeriaRiskMapProps) {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
             Total clusters
           </Typography>
-          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {txnDots.length.toLocaleString()}
           </Typography>
         </Box>

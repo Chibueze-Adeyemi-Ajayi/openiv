@@ -123,8 +123,8 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 0, border: '1px solid #eef0f4' } }}>
-      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#00288e', pb: 1.5, borderBottom: '1px solid #eef0f4' }}>
+      PaperProps={{ sx: { borderRadius: 0, border: '1px solid var(--border-col)' } }}>
+      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: 'var(--heading-color)', pb: 1.5, borderBottom: '1px solid var(--border-col)' }}>
         Add payment card
       </DialogTitle>
 
@@ -132,7 +132,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
         {step === 'done' ? (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
               Card added!
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
@@ -155,7 +155,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
               </Typography>
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 {challengeType === 'pin' ? 'Card PIN' : 'One-time password'}
               </Typography>
               <TextField
@@ -257,7 +257,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
               </Box>
             </Box>
 
-            <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', p: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', p: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
               <Typography sx={{ fontSize: '0.875rem' }}>🔒</Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.55 }}>
                 A <strong>₦100</strong> verification charge is added to your wallet balance. Your card details are processed securely by Paystack — we never store raw card data.
@@ -269,7 +269,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', gap: 1 }}>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', gap: 1 }}>
         {step === 'done' ? (
           <Button fullWidth onClick={handleClose} sx={primaryBtn}>Done</Button>
         ) : step === 'form' ? (
@@ -294,7 +294,7 @@ export default function AddCardDialog({ open, onClose, onCardAdded }: Props) {
 
 // ── styles ────────────────────────────────────────────────────────────────────
 
-const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
+const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem', fontWeight: 600 } }
-const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
-const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: '#f8fafc' } }
+const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: 'var(--on-surface)' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
+const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: 'var(--section-bg)' } }

@@ -235,7 +235,7 @@ export default function Sidebar() {
         height: '100vh',
         position: 'sticky',
         top: 0,
-        bgcolor: '#00288e',
+        bgcolor: 'var(--heading-color)',
         borderRight: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         flexDirection: 'column',
@@ -253,7 +253,7 @@ export default function Sidebar() {
                 left: 0,
                 width: 24,
                 height: '2px',
-                bgcolor: '#ffffff',
+                bgcolor: 'var(--card-bg)',
                 borderRadius: '1px',
               }}
             />
@@ -408,7 +408,7 @@ export default function Sidebar() {
                           label={badgeValue}
                           size="small"
                           sx={{
-                            bgcolor: badgeValue === 'ADMIN' ? '#f1f5f9' : '#dc2626',
+                            bgcolor: badgeValue === 'ADMIN' ? 'var(--section-bg)' : '#dc2626',
                             color: badgeValue === 'ADMIN' ? '#64748b' : '#ffffff',
                             fontWeight: 700,
                             fontSize: '0.5625rem',
@@ -470,7 +470,7 @@ export default function Sidebar() {
             {resolveMediaUrl(profile?.avatarUrl) ? (
               <Box component="img" src={resolveMediaUrl(profile?.avatarUrl)!} alt={profile?.fullName ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <Box sx={{ width: '100%', height: '100%', bgcolor: '#d9f99d', color: '#00288e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>
+              <Box sx={{ width: '100%', height: '100%', bgcolor: '#d9f99d', color: 'var(--heading-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>
                 {getInitials(profile?.fullName, profile?.email)}
               </Box>
             )}
@@ -531,7 +531,7 @@ export default function Sidebar() {
               textTransform: 'none',
               color: '#64748b',
               fontWeight: 600,
-              '&:hover': { bgcolor: '#f8fafc' }
+              '&:hover': { bgcolor: 'var(--section-bg)' }
             }}
           >
             Cancel
@@ -547,7 +547,7 @@ export default function Sidebar() {
               fontWeight: 600,
               px: 3,
               borderRadius: 0,
-              '&:hover': { bgcolor: '#1e293b' }
+              '&:hover': { bgcolor: 'var(--on-surface)' }
             }}
           >
             Sign Out

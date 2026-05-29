@@ -11,7 +11,7 @@ import InvestigationWorkspace from './InvestigationWorkspace'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
 import { EurekaProvider, useEureka } from '@/contexts/EurekaContext'
 import { SessionSocketProvider } from '@/contexts/SessionSocketContext'
-import { ProfileProvider } from '@/contexts/ProfileContext'
+import { ProfileProvider, useProfile } from '@/contexts/ProfileContext'
 import { RbacProvider } from '@/contexts/RbacContext'
 import { ActiveCaseProvider, useActiveCase } from '@/contexts/ActiveCaseContext'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
@@ -23,6 +23,18 @@ import GeoAccessNotification from './GeoAccessNotification'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { PlanProvider } from '@/contexts/PlanContext'
 import UpgradeModal from './UpgradeModal'
+import { useThemeMode } from './ThemeContext'
+
+function ThemeSyncer() {
+  const { profile } = useProfile()
+  const { setMode } = useThemeMode()
+  useEffect(() => {
+    if (profile?.theme === 'light' || profile?.theme === 'dark') {
+      setMode(profile.theme)
+    }
+  }, [profile?.theme, setMode])
+  return null
+}
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
@@ -96,6 +108,7 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
 
   return (
     <>
+      <ThemeSyncer />
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'var(--app-bg)' }}>
         <Sidebar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -177,7 +190,7 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
               data-ai-description="Eureka AI Companion: Click to open the full chat assistant for deep investigation and system analysis."
               sx={{
                 position: 'fixed', bottom: 28, right: 28, width: 60, height: 60,
-                borderRadius: '50%', bgcolor: '#d9f99d', color: '#00288e',
+                borderRadius: '50%', bgcolor: '#d9f99d', color: 'var(--heading-color)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', zIndex: 1100,
                 boxShadow: `0 12px 28px rgba(217, 249, 157, 0.45)`,

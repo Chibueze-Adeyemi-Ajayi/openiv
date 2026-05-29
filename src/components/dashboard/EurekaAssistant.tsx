@@ -90,8 +90,8 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
           right: 0,
           bottom: 0,
           width: { xs: '100%', sm: 440 },
-          bgcolor: '#ffffff',
-          borderLeft: '1px solid #eef0f4',
+          bgcolor: 'var(--card-bg)',
+          borderLeft: '1px solid var(--border-col)',
           boxShadow: '-12px 0 40px rgba(15,23,42,0.08)',
           zIndex: 1200,
           transform: open ? 'translateX(0)' : 'translateX(100%)',
@@ -105,7 +105,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
           sx={{
             px: 3,
             py: 2.5,
-            borderBottom: '1px solid #eef0f4',
+            borderBottom: '1px solid var(--border-col)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -125,7 +125,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
               <AutoAwesomeOutlinedIcon sx={{ color: '#ffffff', fontSize: '1.125rem' }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Eureka
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -149,7 +149,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
             sx={{
               color: '#64748b',
               borderRadius: 0,
-              '&:hover': { bgcolor: '#f8fafc', color: colorPalette.primary },
+              '&:hover': { bgcolor: 'var(--section-bg)', color: colorPalette.primary },
             }}
           >
             <CloseRoundedIcon sx={{ fontSize: '1.25rem' }} />
@@ -229,8 +229,8 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                 </Box>
                 <Box
                   sx={{
-                    bgcolor: '#f5f3fb',
-                    color: '#00288e',
+                    bgcolor: 'var(--section-bg)',
+                    color: 'var(--heading-color)',
                     px: 1.75,
                     py: 1.5,
                     fontSize: '0.875rem',
@@ -246,7 +246,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
 
             {/* Typing Indicator */}
             {isTyping && !streamingText && (
-              <Box sx={{ alignSelf: 'flex-start', display: 'flex', gap: 1, p: 2, bgcolor: '#f5f3fb' }}>
+              <Box sx={{ alignSelf: 'flex-start', display: 'flex', gap: 1, p: 2, bgcolor: 'var(--section-bg)' }}>
                 {[0, 1, 2].map(i => (
                   <Box key={i} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: colorPalette.primary, animation: 'typing 1.4s infinite', animationDelay: `${i * 0.2}s`, '@keyframes typing': { '0%, 100%': { transform: 'translateY(0)', opacity: 0.3 }, '50%': { transform: 'translateY(-4px)', opacity: 1 } } }} />
                 ))}
@@ -279,8 +279,8 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                     px: 1.75,
                     py: 1.25,
                     fontSize: '0.8125rem',
-                    color: '#475569',
-                    border: '1px solid #eef0f4',
+                    color: 'var(--on-surface-variant)',
+                    border: '1px solid var(--border-col)',
                     cursor: 'pointer',
                     transition: 'all 0.18s',
                     '&:hover': {
@@ -298,18 +298,18 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
         </Box>
 
         {/* Input */}
-        <Box sx={{ p: 2, borderTop: '1px solid #eef0f4' }}>
+        <Box sx={{ p: 2, borderTop: '1px solid var(--border-col)' }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'flex-end',
               gap: 1,
-              bgcolor: '#f5f3fb',
+              bgcolor: 'var(--section-bg)',
               p: 1.25,
               border: '1px solid transparent',
               transition: 'all 0.18s',
               '&:focus-within': {
-                bgcolor: '#ffffff',
+                bgcolor: 'var(--card-bg)',
                 borderColor: colorPalette.primary,
                 boxShadow: `0 0 0 3px ${colorPalette.primary}14`,
               },
@@ -332,7 +332,7 @@ export default function EurekaAssistant({ open, onClose }: EurekaAssistantProps)
                 flex: 1,
                 fontSize: '0.875rem',
                 fontFamily: 'Jost',
-                color: '#00288e',
+                color: 'var(--heading-color)',
                 '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
               }}
             />

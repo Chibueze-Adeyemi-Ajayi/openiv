@@ -181,8 +181,8 @@ export default function ComingSoonOverlay({
     }}>
 
       <Box sx={{
-        bgcolor: '#ffffff',
-        border: '1px solid #e2e8f0',
+        bgcolor: 'var(--card-bg)',
+        border: '1px solid var(--border-col)',
         boxShadow: '0 12px 56px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.06)',
         px: { xs: 3.5, sm: 5.5 }, pt: 4, pb: 4.5,
         textAlign: 'center', width: '100%', maxWidth: 480, mx: 2,
@@ -212,7 +212,7 @@ export default function ComingSoonOverlay({
 
         {/* ── Title ── */}
         <Typography sx={{
-          fontSize: '1.25rem', fontWeight: 700, color: '#00288e',
+          fontSize: '1.25rem', fontWeight: 700, color: 'var(--heading-color)',
           fontFamily: 'Jost', letterSpacing: '-0.01em', mb: 3.5,
         }}>
           {title}
@@ -235,7 +235,7 @@ export default function ComingSoonOverlay({
         {/* ── Expected release ── */}
         <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', letterSpacing: '0.01em', mb: 3.5 }}>
           Expected release —{' '}
-          <Box component="span" sx={{ color: '#334155', fontWeight: 600 }}>
+          <Box component="span" sx={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>
             30 June 2026
           </Box>
         </Typography>
@@ -254,7 +254,7 @@ export default function ComingSoonOverlay({
             fontWeight: 700,
             py: 1.25,
             boxShadow: 'none',
-            '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
+            '&:hover': { bgcolor: 'var(--on-surface)', boxShadow: 'none' },
           }}
         >
           Continue to Dashboard

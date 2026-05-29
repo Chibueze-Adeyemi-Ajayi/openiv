@@ -153,7 +153,7 @@ export default function CBNCompliancePage() {
               Regulatory Filing
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             CBN Implementation Plan · June 10, 2026
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', maxWidth: 760 }}>
@@ -228,9 +228,9 @@ export default function CBNCompliancePage() {
         </Box>
 
         {/* 5 Pillars */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
+          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               The five pillars
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -246,7 +246,7 @@ export default function CBNCompliancePage() {
                 sx={{
                   px: 3,
                   py: 3,
-                  borderBottom: i === pillars.length - 1 ? 'none' : '1px solid #f4f5f7',
+                  borderBottom: i === pillars.length - 1 ? 'none' : '1px solid var(--border-col)',
                   display: 'grid',
                   gridTemplateColumns: '60px 1fr 1fr 130px',
                   gap: 3,
@@ -276,10 +276,10 @@ export default function CBNCompliancePage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
                     CBN requires
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.875 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.875 }}>
                     {p.title}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
                     {p.cbnRequirement}
                   </Typography>
                 </Box>
@@ -291,7 +291,7 @@ export default function CBNCompliancePage() {
                       OpenIV provides
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1, lineHeight: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1, lineHeight: 1.5 }}>
                     {p.openIVCapability}
                   </Typography>
 
@@ -300,13 +300,13 @@ export default function CBNCompliancePage() {
                     {p.evidence.map((e, ei) => (
                       <Box key={ei} sx={{ display: 'flex', gap: 0.875, alignItems: 'flex-start' }}>
                         <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#10b981', mt: 0.25, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{e}</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{e}</Typography>
                       </Box>
                     ))}
                     {p.gaps?.map((g, gi) => (
                       <Box key={gi} sx={{ display: 'flex', gap: 0.875, alignItems: 'flex-start' }}>
                         <WarningAmberRoundedIcon sx={{ fontSize: '0.875rem', color: '#f59e0b', mt: 0.25, flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{g}</Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{g}</Typography>
                       </Box>
                     ))}
                   </Stack>
@@ -341,7 +341,7 @@ export default function CBNCompliancePage() {
           sx={{
             bgcolor: planGenerated ? '#ffffff' : colorPalette.primary,
             color: planGenerated ? '#00288e' : '#ffffff',
-            border: planGenerated ? '1px solid #eef0f4' : 'none',
+            border: planGenerated ? '1px solid var(--border-col)' : 'none',
             p: 3,
             position: 'relative',
             overflow: 'hidden',
@@ -386,8 +386,8 @@ export default function CBNCompliancePage() {
                 <>
                   <Button
                     sx={{
-                      bgcolor: '#ffffff',
-                      color: '#475569',
+                      bgcolor: 'var(--card-bg)',
+                      color: 'var(--on-surface-variant)',
                       border: '1px solid #e5e7eb',
                       px: 2.25,
                       py: 1.25,
@@ -396,7 +396,7 @@ export default function CBNCompliancePage() {
                       fontFamily: 'Jost',
                       borderRadius: 0,
                       textTransform: 'none',
-                      '&:hover': { bgcolor: '#f8fafc' },
+                      '&:hover': { bgcolor: 'var(--section-bg)' },
                     }}
                   >
                     Edit Sections
@@ -414,7 +414,7 @@ export default function CBNCompliancePage() {
                       borderRadius: 0,
                       textTransform: 'none',
                       boxShadow: 'none',
-                      '&:hover': { bgcolor: '#1e293b' },
+                      '&:hover': { bgcolor: 'var(--on-surface)' },
                     }}
                   >
                     Download PDF
@@ -444,7 +444,7 @@ export default function CBNCompliancePage() {
                   onClick={() => setPlanGenerated(true)}
                   startIcon={<AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
                   sx={{
-                    bgcolor: '#ffffff',
+                    bgcolor: 'var(--card-bg)',
                     color: colorPalette.primary,
                     px: 2.5,
                     py: 1.25,
@@ -453,7 +453,7 @@ export default function CBNCompliancePage() {
                     fontFamily: 'Jost',
                     borderRadius: 0,
                     textTransform: 'none',
-                    '&:hover': { bgcolor: '#f8fafc' },
+                    '&:hover': { bgcolor: 'var(--section-bg)' },
                   }}
                 >
                   Generate Plan with Eureka
@@ -467,7 +467,7 @@ export default function CBNCompliancePage() {
               sx={{
                 mt: 2.5,
                 pt: 2.5,
-                borderTop: '1px solid #eef0f4',
+                borderTop: '1px solid var(--border-col)',
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: 2,
@@ -483,7 +483,7 @@ export default function CBNCompliancePage() {
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.5 }}>
                     {s.label}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     {s.value}
                   </Typography>
                 </Box>

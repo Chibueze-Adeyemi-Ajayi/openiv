@@ -251,16 +251,16 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen
-      PaperProps={{ sx: { bgcolor: '#f8fafc', borderRadius: 0 } }}>
+      PaperProps={{ sx: { bgcolor: 'var(--app-bg)', borderRadius: 0 } }}>
 
       {/* ── Header ── */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        px: 3, py: 2, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4',
+        px: 3, py: 2, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)',
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Geographical Access Fence
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -277,13 +277,13 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                 bgcolor: colorPalette.primary, color: '#fff', borderRadius: 0,
                 textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
                 fontSize: '0.8125rem', px: 2, py: 1, boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e293b' },
+                '&:hover': { bgcolor: 'var(--on-surface)' },
               }}
             >
               Save Changes
             </Button>
           )}
-          <IconButton onClick={onClose} size="small" sx={{ color: '#475569' }}>
+          <IconButton onClick={onClose} size="small" sx={{ color: 'var(--on-surface-variant)' }}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
@@ -378,12 +378,12 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                 <Box
                   onClick={acquireGps}
                   sx={{
-                    width: 34, height: 34, bgcolor: '#ffffff',
-                    border: '1px solid #e2e8f0', display: 'flex',
+                    width: 34, height: 34, bgcolor: 'var(--card-bg)',
+                    border: '1px solid var(--border-col)', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', borderRadius: '4px',
                     boxShadow: '0 1px 4px rgba(0,0,0,.12)',
-                    '&:hover': { bgcolor: '#f1f5f9' },
+                    '&:hover': { bgcolor: 'var(--section-bg)' },
                   }}
                 >
                   {locating
@@ -399,8 +399,8 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                   }}
                   sx={{
                     width: 34, height: 34,
-                    bgcolor: drawing ? colorPalette.primary : '#ffffff',
-                    border: `1px solid ${drawing ? colorPalette.primary : '#e2e8f0'}`,
+                    bgcolor: drawing ? colorPalette.primary : 'var(--card-bg)',
+                    border: `1px solid ${drawing ? colorPalette.primary : 'var(--border-col)'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', borderRadius: '4px',
                     boxShadow: '0 1px 4px rgba(0,0,0,.12)',
@@ -416,8 +416,8 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                   <Box
                     onClick={() => { setPolygon([]); setDrawing(false) }}
                     sx={{
-                      width: 34, height: 34, bgcolor: '#ffffff',
-                      border: '1px solid #e2e8f0', display: 'flex',
+                      width: 34, height: 34, bgcolor: 'var(--card-bg)',
+                      border: '1px solid var(--border-col)', display: 'flex',
                       alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', borderRadius: '4px',
                       boxShadow: '0 1px 4px rgba(0,0,0,.12)',
@@ -434,7 +434,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             {drawing && (
               <Box sx={{
                 position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-                bgcolor: '#00288e', color: '#fff', px: 2, py: 0.75, borderRadius: '4px',
+                bgcolor: 'var(--heading-color)', color: '#fff', px: 2, py: 0.75, borderRadius: '4px',
                 fontSize: '0.75rem', fontFamily: 'Jost', zIndex: 1000,
                 pointerEvents: 'none',
               }}>
@@ -459,14 +459,14 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
 
           {/* ── Right panel ── */}
           <Box sx={{
-            width: 340, bgcolor: '#ffffff', borderLeft: '1px solid #eef0f4',
+            width: 340, bgcolor: 'var(--card-bg)', borderLeft: '1px solid var(--border-col)',
             overflowY: 'auto', flexShrink: 0,
           }}>
 
             {/* Enable toggle */}
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Enable Geo-Fence
                 </Typography>
                 <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>
@@ -485,10 +485,10 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             </Box>
 
             {/* GPS / Calibration */}
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <TuneIcon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   GPS Calibration
                 </Typography>
               </Stack>
@@ -522,10 +522,10 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             </Box>
 
             {/* Polygon summary */}
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <PolylineOutlinedIcon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Boundary
                 </Typography>
               </Stack>
@@ -550,7 +550,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             <Box sx={{ px: 3, pt: 2.25, pb: 1 }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <PersonAddAlt1Icon sx={{ fontSize: '0.9rem', color: colorPalette.primary }} />
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Fenced Users
                 </Typography>
                 <Chip
@@ -571,8 +571,8 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                 sx={{
                   mb: 1.5,
                   '& .MuiOutlinedInput-root': {
-                    bgcolor: '#f8fafc', borderRadius: '4px', fontSize: '0.8125rem',
-                    '& fieldset': { border: '1px solid #e2e8f0' },
+                    bgcolor: 'var(--input-bg)', borderRadius: '4px', fontSize: '0.8125rem',
+                    '& fieldset': { border: '1px solid var(--border-col)' },
                   },
                 }}
               />
@@ -597,7 +597,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
                       {m.initials}
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.name}
                       </Typography>
                       <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -637,9 +637,9 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
 
       {/* ── TOTP confirmation dialog ── */}
       <Dialog open={totpOpen} onClose={() => setTotpOpen(false)}
-        PaperProps={{ sx: { bgcolor: '#ffffff', borderRadius: 0, width: 380, p: 0 } }}>
-        <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+        PaperProps={{ sx: { bgcolor: 'var(--card-bg)', borderRadius: 0, width: 380, p: 0 } }}>
+        <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Confirm with Authenticator
           </Typography>
           <IconButton size="small" onClick={() => setTotpOpen(false)} sx={{ color: '#64748b' }}>
@@ -647,7 +647,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
           </IconButton>
         </Box>
         <Box sx={{ px: 3, py: 2.5 }}>
-          <Typography sx={{ fontSize: '0.8125rem', color: '#475569', mb: 2.5, lineHeight: 1.6 }}>
+          <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', mb: 2.5, lineHeight: 1.6 }}>
             Saving the geo-fence boundary requires step-up authentication. Enter the 6-digit code from your authenticator app.
           </Typography>
           <TextField
@@ -663,8 +663,8 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
             sx={{
               mb: 2,
               '& .MuiOutlinedInput-root': {
-                borderRadius: '4px', bgcolor: '#f8fafc',
-                '& fieldset': { border: '1px solid #e2e8f0' },
+                borderRadius: '4px', bgcolor: 'var(--input-bg)',
+                '& fieldset': { border: '1px solid var(--border-col)' },
                 '&.Mui-focused fieldset': { borderColor: colorPalette.primary },
               },
             }}
@@ -680,7 +680,7 @@ export default function GeoFenceDialog({ open, onClose }: Props) {
               bgcolor: colorPalette.primary, color: '#fff', borderRadius: 0,
               textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
               fontSize: '0.875rem', py: 1.25, boxShadow: 'none',
-              '&:hover': { bgcolor: '#1e293b' },
+              '&:hover': { bgcolor: 'var(--on-surface)' },
               '&.Mui-disabled': { bgcolor: '#c7d2fe', color: '#fff' },
             }}
           >

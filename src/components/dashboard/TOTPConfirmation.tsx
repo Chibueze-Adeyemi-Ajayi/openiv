@@ -167,7 +167,7 @@ export default function TOTPConfirmation({
           transform: 'translate(-50%, -50%)',
           width: '100%',
           maxWidth: 460,
-          bgcolor: '#ffffff',
+          bgcolor: 'var(--card-bg)',
           zIndex: 1301,
           boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
           animation: 'modalIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -182,7 +182,7 @@ export default function TOTPConfirmation({
           sx={{
             px: 3,
             py: 2.5,
-            borderBottom: '1px solid #eef0f4',
+            borderBottom: '1px solid var(--border-col)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -206,7 +206,7 @@ export default function TOTPConfirmation({
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                 Authentication required · {cfg.label}
               </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                 {title}
               </Typography>
             </Box>
@@ -247,7 +247,7 @@ export default function TOTPConfirmation({
               >
                 <WarningAmberRoundedIcon sx={{ fontSize: '1.875rem', color: '#dc2626' }} />
               </Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Session terminated
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
@@ -275,7 +275,7 @@ export default function TOTPConfirmation({
               >
                 <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1.875rem', color: '#10b981' }} />
               </Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Identity verified
               </Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -284,7 +284,7 @@ export default function TOTPConfirmation({
             </Stack>
           ) : (
             <>
-              <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2 }}>
+              <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, mb: 2 }}>
                 {description}
               </Typography>
 
@@ -292,8 +292,8 @@ export default function TOTPConfirmation({
               {resourceName && (
                 <Box
                   sx={{
-                    bgcolor: '#fafbfc',
-                    border: '1px solid #eef0f4',
+                    bgcolor: 'var(--card-bg)',
+                    border: '1px solid var(--border-col)',
                     p: 1.5,
                     mb: 2,
                     display: 'flex',
@@ -320,7 +320,7 @@ export default function TOTPConfirmation({
                         {resourceType}
                       </Typography>
                     )}
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                       {resourceName}
                     </Typography>
                   </Box>
@@ -336,7 +336,7 @@ export default function TOTPConfirmation({
                   <Stack gap={0.75}>
                     {changes.map((c, i) => (
                       <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, alignItems: 'center', fontSize: '0.75rem' }}>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                           {c.field}
                         </Typography>
                         <Box sx={{ bgcolor: '#fef2f2', color: '#7f1d1d', px: 1, py: 0.5, fontFamily: 'SF Mono, Monaco, monospace', textDecoration: 'line-through', fontSize: '0.6875rem', textAlign: 'center' }}>
@@ -380,7 +380,7 @@ export default function TOTPConfirmation({
               {/* TOTP code input */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Enter the 6-digit code from Google Authenticator
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -416,7 +416,7 @@ export default function TOTPConfirmation({
                       sx={{
                         flex: 1,
                         '& .MuiOutlinedInput-root': {
-                          bgcolor: error ? '#fef2f2' : digit ? '#ffffff' : '#f5f3fb',
+                          bgcolor: error ? '#fef2f2' : digit ? 'var(--card-bg)' : 'var(--section-bg)',
                           borderRadius: 0,
                           transition: 'all 0.18s ease',
                           '& fieldset': {
@@ -429,7 +429,7 @@ export default function TOTPConfirmation({
                           '&:hover fieldset': { borderColor: error ? '#dc2626' : digit ? colorPalette.primary : '#e4dff2' },
                           '&.Mui-focused fieldset': { borderColor: error ? '#dc2626' : colorPalette.primary, borderWidth: '1px' },
                           '&.Mui-focused': {
-                            bgcolor: '#ffffff',
+                            bgcolor: 'var(--card-bg)',
                             boxShadow: error ? '0 0 0 3px rgba(220, 38, 38, 0.12)' : `0 0 0 3px ${colorPalette.primary}14`,
                           },
                         },
@@ -473,7 +473,7 @@ export default function TOTPConfirmation({
 
         {/* Footer */}
         {!verified && !lockedOut && (
-          <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
             <Typography
               sx={{
                 fontSize: '0.6875rem',
@@ -491,8 +491,8 @@ export default function TOTPConfirmation({
                 onClick={onClose}
                 disabled={verifying}
                 sx={{
-                  bgcolor: '#ffffff',
-                  color: '#475569',
+                  bgcolor: 'var(--card-bg)',
+                  color: 'var(--on-surface-variant)',
                   border: '1px solid #e5e7eb',
                   px: 2.25,
                   py: 1,
@@ -501,7 +501,7 @@ export default function TOTPConfirmation({
                   fontFamily: 'Jost',
                   borderRadius: 0,
                   textTransform: 'none',
-                  '&:hover': { bgcolor: '#f8fafc' },
+                  '&:hover': { bgcolor: 'var(--section-bg)' },
                 }}
               >
                 Cancel

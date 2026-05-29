@@ -98,12 +98,12 @@ function UsageRow({ icon, label, used, max, color, unit = '' }: UsageRowProps) {
   const remaining = unlimited ? null : max - used
 
   return (
-    <Box sx={{ py: 2.5, borderBottom: '1px solid #f1f5f9', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ py: 2.5, borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <Box sx={{ color: unlimited ? '#94a3b8' : color, mt: '1px' }}>{icon}</Box>
           <Box>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.25 }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost', lineHeight: 1.25 }}>
               {label}
             </Typography>
             {unlimited ? (
@@ -125,7 +125,7 @@ function UsageRow({ icon, label, used, max, color, unit = '' }: UsageRowProps) {
         </Box>
       </Box>
       {!unlimited && (
-        <Box sx={{ width: '100%', height: 5, bgcolor: '#f1f5f9', overflow: 'hidden' }}>
+        <Box sx={{ width: '100%', height: 5, bgcolor: 'var(--section-bg)', overflow: 'hidden' }}>
           <Box sx={{ width: `${p}%`, height: '100%', bgcolor: barColor, transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
         </Box>
       )}
@@ -155,7 +155,7 @@ export default function BillingPage() {
 
       {/* ── Header ── */}
       <Box sx={{ mb: 4 }}>
-        <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: '#00288e',
+        <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--heading-color)',
           fontFamily: 'Jost', letterSpacing: '-0.01em' }}>
           Billing & Subscription
         </Typography>
@@ -223,7 +223,7 @@ export default function BillingPage() {
               ].map(line => (
                 <Box key={line} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CheckCircleOutlinedIcon sx={{ fontSize: '0.875rem', color: accent, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: '0.875rem', color: '#334155', fontFamily: 'Jost' }}>{line}</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>{line}</Typography>
                 </Box>
               ))}
             </Box>
@@ -260,7 +260,7 @@ export default function BillingPage() {
         </Box>
 
         {/* Billing period card */}
-        <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box>
             <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
               letterSpacing: '0.12em', textTransform: 'uppercase', mb: 1 }}>
@@ -275,7 +275,7 @@ export default function BillingPage() {
                 </Typography>
               </Box>
             ) : (
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
                 Renews {renewsAt
                   ? new Date(renewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
                   : '—'}
@@ -283,14 +283,14 @@ export default function BillingPage() {
             )}
           </Box>
 
-          <Box sx={{ width: '100%', height: '1px', bgcolor: '#f1f5f9' }} />
+          <Box sx={{ width: '100%', height: '1px', bgcolor: 'var(--border-col)' }} />
 
           <Box>
             <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
               letterSpacing: '0.12em', textTransform: 'uppercase', mb: 1 }}>
               Usage Window
             </Typography>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost', mb: 0.5 }}>
               {plan.usagePeriodStart
                 ? new Date(plan.usagePeriodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
                 : '—'}{' '}
@@ -309,7 +309,7 @@ export default function BillingPage() {
             </Box>
           </Box>
 
-          <Box sx={{ width: '100%', height: '1px', bgcolor: '#f1f5f9' }} />
+          <Box sx={{ width: '100%', height: '1px', bgcolor: 'var(--border-col)' }} />
 
           <Box>
             <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8',
@@ -333,11 +333,11 @@ export default function BillingPage() {
       </Box>
 
       {/* ── Usage this period ── */}
-      <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', mb: 2.5 }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9',
+      <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', mb: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Usage This Period
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -348,9 +348,9 @@ export default function BillingPage() {
           </Box>
           {resetDays != null && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75,
-              px: 1.5, py: 0.625, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              px: 1.5, py: 0.625, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
               <AccessTimeOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>
                 Resets in {resetDays} day{resetDays === 1 ? '' : 's'}
               </Typography>
             </Box>
@@ -378,9 +378,9 @@ export default function BillingPage() {
       </Box>
 
       {/* ── Plan limits summary ── */}
-      <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#fff', mb: 2.5 }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+      <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', mb: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Plan Limits
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -404,8 +404,8 @@ export default function BillingPage() {
                 key={label}
                 sx={{
                   px: 3, py: 2.25,
-                  borderRight: (i + 1) % 3 === 0 || isLast ? 'none' : '1px solid #f1f5f9',
-                  borderBottom: i < arr.length - 3 ? '1px solid #f1f5f9' : 'none',
+                  borderRight: (i + 1) % 3 === 0 || isLast ? 'none' : '1px solid var(--border-col)',
+                  borderBottom: i < arr.length - 3 ? '1px solid var(--border-col)' : 'none',
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: isDisabled ? '#cbd5e1' : '#64748b', mb: 0.75 }}>

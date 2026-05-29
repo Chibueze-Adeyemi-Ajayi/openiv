@@ -160,7 +160,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
       <DialogTitle
         sx={{
           p: 0,
-          borderBottom: '1px solid #eef0f4',
+          borderBottom: '1px solid var(--border-col)',
           flexShrink: 0,
         }}
       >
@@ -185,7 +185,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
             }} />
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.2 }}>
               Eureka Companion
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'Jost' }}>
@@ -196,7 +196,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
             onClick={onClose}
             size="small"
             disableRipple
-            sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: '#00288e', bgcolor: '#f8fafc' } }}
+            sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: 'var(--heading-color)', bgcolor: 'var(--section-bg)' } }}
           >
             <CloseRoundedIcon sx={{ fontSize: '1.1rem' }} />
           </IconButton>
@@ -207,7 +207,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
       <DialogContent sx={{ flex: 1, overflowY: 'auto', p: 0, minHeight: 0 }}>
         {/* Streamed introduction */}
         <Box sx={{ p: 2.5, pb: showSuggestions ? 0 : 2.5 }}>
-          <Typography sx={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.75, fontFamily: 'Jost', whiteSpace: 'pre-wrap' }}>
+          <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.75, fontFamily: 'Jost', whiteSpace: 'pre-wrap' }}>
             {displayedText}
             {phase === 'streaming' && (
               <Box
@@ -248,8 +248,8 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
                     px: 1.75,
                     py: 1,
                     fontSize: '0.8125rem',
-                    color: '#475569',
-                    border: '1px solid #eef0f4',
+                    color: 'var(--on-surface-variant)',
+                    border: '1px solid var(--border-col)',
                     cursor: 'pointer',
                     fontFamily: 'Jost',
                     lineHeight: 1.5,
@@ -295,7 +295,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
                 <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <Box sx={{
                     maxWidth: '88%', px: 1.75, py: 1.125,
-                    bgcolor: '#f5f3fb', color: '#334155',
+                    bgcolor: 'var(--section-bg)', color: 'var(--on-surface)',
                     fontSize: '0.8125rem', lineHeight: 1.65, fontFamily: 'Jost', minWidth: 60,
                   }}>
                     {!streamingAI ? (
@@ -342,18 +342,18 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
       </DialogContent>
 
       {/* Chat input */}
-      <Box sx={{ p: 1.75, borderTop: '1px solid #eef0f4', flexShrink: 0 }}>
+      <Box sx={{ p: 1.75, borderTop: '1px solid var(--border-col)', flexShrink: 0 }}>
         <Box
           sx={{
             display: 'flex',
             alignItems: 'flex-end',
             gap: 1,
-            bgcolor: '#f5f3fb',
+            bgcolor: 'var(--section-bg)',
             p: 1.25,
             border: '1px solid transparent',
             transition: 'all 0.18s',
             '&:focus-within': {
-              bgcolor: '#ffffff',
+              bgcolor: 'var(--card-bg)',
               borderColor: colorPalette.primary,
               boxShadow: `0 0 0 2px ${colorPalette.primary}18`,
             },
@@ -376,7 +376,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
               flex: 1,
               fontSize: '0.8125rem',
               fontFamily: 'Jost',
-              color: '#00288e',
+              color: 'var(--heading-color)',
               '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
             }}
           />
@@ -397,7 +397,7 @@ export default function EurekaLearnMoreModal({ open, onClose }: Props) {
                 ? '#ffffff'
                 : '#94a3b8',
               transition: 'all 0.18s',
-              '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
+              '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)' },
             }}
           >
             <SendRoundedIcon sx={{ fontSize: '1rem' }} />

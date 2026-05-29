@@ -31,124 +31,6 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import { useSandbox } from '@/contexts/SandboxContext'
 
-// ── Syntax highlighting ───────────────────────────────────────────────────────
-
-type Token = { text: string; color: string; italic?: boolean }
-
-const C = {
-  keyword: '#c792ea',
-  string: '#c3e88d',
-  number: '#f78c6c',
-  comment: '#546e7a',
-  func: '#82aaff',
-  env: '#ffcb6b',
-  url: '#80cbc4',
-  punct: '#89ddff',
-  plain: '#e2e8f0',
-  operator: '#89ddff',
-}
-
-const KW_RE = new RegExp(
-  `^(?:${[
-    'curl', 'const', 'let', 'var', 'import', 'from', 'require', 'async', 'await',
-    'function', 'return', 'if', 'else', 'try', 'catch', 'throw', 'new', 'class',
-    'export', 'default', 'def', 'for', 'in', 'with', 'pass', 'raise', 'as', 'elif',
-    'True', 'False', 'None', 'func', 'package', 'type', 'struct', 'interface',
-    'public', 'private', 'protected', 'static', 'void', 'final', 'this',
-    'print', 'println', 'true', 'false', 'null', 'undefined', 'nil',
-    'bytes', 'json', 'http', 'time', 'net', 'os', 'fmt', 'uuid',
-    'POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'HEAD',
-  ].join('|')})(?=[^a-zA-Z_0-9]|$)`,
-)
-
-const PATTERNS: Array<{ re: RegExp; color: string; italic?: boolean }> = [
-  { re: /^#[^\n]*/, color: C.comment, italic: true },
-  { re: /^\/\/[^\n]*/, color: C.comment, italic: true },
-  { re: /^"(?:[^"\\]|\\.)*"/, color: C.string },
-  { re: /^'(?:[^'\\]|\\.)*'/, color: C.string },
-  { re: /^`(?:[^`\\]|\\.)*`/, color: C.string },
-  { re: /^\$\{[^}]+\}/, color: C.env },
-  { re: /^\$[A-Z_][A-Z_0-9]*/, color: C.env },
-  { re: /^https?:\/\/[^\s'"\\),`]+/, color: C.url },
-  { re: KW_RE, color: C.keyword },
-  { re: /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, color: C.number },
-  { re: /^[{}[\]();,]/, color: C.punct },
-  { re: /^[:=<>+\-*/|&^~%!]/, color: C.operator },
-  { re: /^[\\]/, color: C.punct },
-  { re: /^[a-zA-Z_][a-zA-Z_0-9]*(?=\()/, color: C.func },
-]
-
-function tokenize(code: string): Token[] {
-  const tokens: Token[] = []
-  let remaining = code
-  while (remaining.length > 0) {
-    let matched = false
-    for (const { re, color, italic } of PATTERNS) {
-      const m = re.exec(remaining)
-      if (m) {
-        tokens.push({ text: m[0], color, italic })
-        remaining = remaining.slice(m[0].length)
-        matched = true
-        break
-      }
-    }
-    if (!matched) {
-      const last = tokens[tokens.length - 1]
-      if (last && last.color === C.plain && !last.italic) last.text += remaining[0]
-      else tokens.push({ text: remaining[0], color: C.plain })
-      remaining = remaining.slice(1)
-    }
-  }
-  return tokens
-}
-
-function SyntaxCode({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false)
-  const tokens = useMemo(() => tokenize(code), [code])
-
-  const copy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1800)
-  }
-
-  return (
-    <Box sx={{ position: 'relative' }}>
-      <Box sx={{
-        bgcolor: '#0d1117', p: 2.5, overflowX: 'auto',
-        fontFamily: 'SF Mono, Monaco, Consolas, monospace',
-        fontSize: '0.75rem', lineHeight: 1.75,
-        maxHeight: 380, overflowY: 'auto',
-      }}>
-        {tokens.map((t, i) => (
-          <Box key={i} component="span" sx={{ color: t.color, fontStyle: t.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}>
-            {t.text}
-          </Box>
-        ))}
-      </Box>
-      <Button
-        size="small"
-        startIcon={
-          copied
-            ? <CheckRoundedIcon sx={{ fontSize: '0.75rem !important', color: '#10b981' }} />
-            : <ContentCopyOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />
-        }
-        onClick={copy}
-        sx={{
-          position: 'absolute', top: 8, right: 8,
-          fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
-          color: copied ? '#10b981' : '#64748b', textTransform: 'none',
-          px: 1, py: 0.375, borderRadius: 0, bgcolor: '#0d1117',
-          '&:hover': { bgcolor: '#1e293b' },
-          '& .MuiButton-startIcon': { mr: 0.375 },
-        }}
-      >
-        {copied ? 'Copied' : 'Copy'}
-      </Button>
-    </Box>
-  )
-}
-
 // ── Stream data ────────────────────────────────────────────────────────────────
 
 type StreamId = 'transactions' | 'logins' | 'activity' | 'location' | 'devices' | 'otps' | 'kyc'
@@ -327,122 +209,6 @@ const statusConfig: Record<Stream['status'], { color: string; bg: string; label:
   disconnected: { color: '#dc2626', bg: '#fef2f2', label: 'Not connected' },
 }
 
-// ── Code samples ──────────────────────────────────────────────────────────────
-
-type Lang = 'cURL' | 'Node.js' | 'Python' | 'Go'
-
-function schemaFields(s: Stream) {
-  // KYC and transactions show all fields — transactions has important optional fields
-  // (direction, category) that change how the payload is processed.
-  // All other streams show only required fields to keep samples concise.
-  return (s.id === 'kyc' || s.id === 'transactions') ? s.schema : s.schema.filter(f => f.required)
-}
-
-function buildCurl(s: Stream) {
-  const fields = schemaFields(s)
-    .map(f => {
-      const val = f.type === 'number' || f.type === 'boolean' ? f.example : `"${f.example}"`
-      const comment = !f.required ? '  # optional' : ''
-      return `    "${f.field}": ${val}${comment}`
-    })
-    .join(',\n')
-  return `curl -X POST https://api.openiv.ng/api/v1/beam/${s.id} \\
-  -H "Authorization: Bearer $API_KEY" \\
-  -H "X-Idempotency-Key: $(uuidgen)" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-${fields}
-  }'`
-}
-
-function buildNode(s: Stream) {
-  const fields = schemaFields(s)
-    .map(f => {
-      const val = f.type === 'number' || f.type === 'boolean' ? f.example : `'${f.example}'`
-      const comment = !f.required ? '  // optional' : ''
-      return `    ${f.field}: ${val},${comment}`
-    })
-    .join('\n')
-  const fn = s.title.replace(/\s+/g, '')
-  return `const axios = require('axios')
-const { v4: uuid } = require('uuid')
-
-const client = axios.create({
-  baseURL: 'https://api.openiv.ng/api/v1/beam',
-  headers: { 'Authorization': \`Bearer \${process.env.OPENIV_BEAM_KEY}\` },
-})
-
-async function beam${fn}(data) {
-  const response = await client.post('/${s.id}', {
-${fields}
-  }, { headers: { 'X-Idempotency-Key': uuid() } })
-  return response.data  // { ok: true, record_id: ... }
-}`
-}
-
-function buildPython(s: Stream) {
-  const fields = schemaFields(s)
-    .map(f => {
-      const val = f.type === 'number' ? f.example : f.type === 'boolean' ? f.example.charAt(0).toUpperCase() + f.example.slice(1) : `'${f.example}'`
-      const comment = !f.required ? '  # optional' : ''
-      return `        '${f.field}': ${val},${comment}`
-    })
-    .join('\n')
-  return `import httpx, uuid, os
-
-client = httpx.Client(
-    base_url='https://api.openiv.ng/api/v1/beam',
-    headers={'Authorization': f'Bearer {os.environ["OPENIV_BEAM_KEY"]}'},
-)
-
-def beam_${s.id}(data: dict) -> dict:
-    response = client.post('/${s.id}',
-        json={
-${fields}
-        },
-        headers={'X-Idempotency-Key': str(uuid.uuid4())},
-    )
-    response.raise_for_status()
-    return response.json()  # {'ok': True, 'record_id': ...}`
-}
-
-function buildGo(s: Stream) {
-  const fn = s.title.split(/\s+/).map(w => w[0].toUpperCase() + w.slice(1)).join('')
-  const fields = schemaFields(s)
-    .map(f => {
-      const val = f.type === 'number' ? f.example : `"${f.example}"`
-      const comment = !f.required ? ' // optional' : ''
-      return `        "${f.field}": ${val},${comment}`
-    })
-    .join('\n')
-  return `package beam
-
-import (
-    "bytes"; "encoding/json"; "fmt"
-    "net/http"; "os"
-    "github.com/google/uuid"
-)
-
-func Beam${fn}(data map[string]any) error {
-    payload, _ := json.Marshal(map[string]any{
-${fields}
-    })
-    req, _ := http.NewRequest("POST",
-        "https://api.openiv.ng/api/v1/beam/${s.id}",
-        bytes.NewReader(payload))
-    req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENIV_BEAM_KEY"))
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("X-Idempotency-Key", uuid.New().String())
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil { return fmt.Errorf("beam: %w", err) }
-    defer resp.Body.Close()
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("rejected: HTTP %d", resp.StatusCode)
-    }
-    return nil
-}`
-}
-
 // ── Beam log helpers ──────────────────────────────────────────────────────────
 
 const STREAM_LABELS: Record<string, string> = {
@@ -454,7 +220,7 @@ const STREAM_COLORS: Record<string, { bg: string; color: string }> = {
   logins: { bg: '#f0fdf4', color: '#16a34a' },
   activity: { bg: '#fdf4ff', color: '#9333ea' },
   location: { bg: '#fff7ed', color: '#ea580c' },
-  devices: { bg: '#f8fafc', color: '#475569' },
+  devices: { bg: '#f8fafc', color: 'var(--on-surface-variant)' },
   otps: { bg: '#fef2f2', color: '#dc2626' },
   kyc: { bg: '#f0f9ff', color: '#0284c7' },
 }
@@ -480,7 +246,7 @@ function CopyText({ text }: { text: string }) {
       startIcon={done
         ? <CheckRoundedIcon sx={{ fontSize: '0.75rem !important', color: '#10b981' }} />
         : <ContentCopyOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />}
-      sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: done ? '#10b981' : '#64748b', textTransform: 'none', px: 1, py: 0.375, borderRadius: 0, '&:hover': { bgcolor: '#f8fafc' }, '& .MuiButton-startIcon': { mr: 0.375 } }}>
+      sx={{ fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600, color: done ? '#10b981' : '#64748b', textTransform: 'none', px: 1, py: 0.375, borderRadius: 0, '&:hover': { bgcolor: 'var(--section-bg)' }, '& .MuiButton-startIcon': { mr: 0.375 } }}>
       {done ? 'Copied' : 'Copy'}
     </Button>
   )
@@ -489,7 +255,7 @@ function CopyText({ text }: { text: string }) {
 function RecordRow({ record }: { record: BeamRecord }) {
   const [expanded, setExpanded] = useState(false)
   const pretty = useMemo(() => prettyJson(record.payload), [record.payload])
-  const cfg = STREAM_COLORS[record.stream] ?? { bg: '#f8fafc', color: '#475569' }
+  const cfg = STREAM_COLORS[record.stream] ?? { bg: '#f8fafc', color: 'var(--on-surface-variant)' }
 
   let preview = ''
   try {
@@ -500,19 +266,19 @@ function RecordRow({ record }: { record: BeamRecord }) {
   } catch { preview = record.payload.slice(0, 80) }
 
   return (
-    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
         data-ai-analyzable="true"
         data-ai-description={`Live Beam Record: ${record.stream.toUpperCase()}. received: ${fmtRelative(record.receivedAt)}. payload: ${preview}`}
-        sx={{ px: 3, py: 1.5, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: '#f8fafc' }, transition: 'background 0.15s' }}
+        sx={{ px: 3, py: 1.5, display: 'grid', gridTemplateColumns: '110px 1fr 80px 80px 28px', gap: 1.5, alignItems: 'center', cursor: 'pointer', '&:hover': { bgcolor: 'var(--section-bg)' }, transition: 'background 0.15s' }}
       >
         <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: cfg.bg }}>
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', color: cfg.color }}>
             {(STREAM_LABELS[record.stream] ?? record.stream).toUpperCase()}
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {'{ ' + preview + ' }'}
         </Typography>
         <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: '#f0fdf4' }}>
@@ -525,7 +291,7 @@ function RecordRow({ record }: { record: BeamRecord }) {
       </Box>
 
       <Collapse in={expanded}>
-        <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #eef0f4', p: 2.5 }}>
+        <Box sx={{ bgcolor: 'var(--section-bg)', borderTop: '1px solid var(--border-col)', p: 2.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
             {[
               ['Record ID', String(record.id)],
@@ -536,11 +302,11 @@ function RecordRow({ record }: { record: BeamRecord }) {
             ].map(([label, value]) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>{label}</Typography>
-                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>{value}</Typography>
+                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)' }}>{value}</Typography>
               </Box>
             ))}
           </Box>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>PAYLOAD</Typography>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>PAYLOAD</Typography>
           <Box sx={{ position: 'relative' }}>
             <Box sx={{ bgcolor: '#0d1117', color: '#e2e8f0', p: 2, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto', maxHeight: 280, overflowY: 'auto' }}>
               {pretty}
@@ -599,15 +365,15 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
       {/* disableEnforceFocus lets the TOTP overlay steal focus from this Dialog */}
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth disableEnforceFocus={anyTotpOpen}
         PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' } }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <VpnKeyOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
             <Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Beam API Key</Typography>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Beam API Key</Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.125 }}>Authenticate your server when beaming data to OpenIV</Typography>
             </Box>
           </Box>
-          <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+          <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
             <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
           </IconButton>
         </Box>
@@ -617,16 +383,16 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
             <Stack gap={2}><Skeleton height={60} /><Skeleton height={40} /></Stack>
           ) : (
             <Stack gap={2.5}>
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+              <Box sx={{ p: 2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>Current key</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Current key</Typography>
                   <Box sx={{ px: 1, py: 0.375, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.1em', bgcolor: keyInfo ? '#f0fdf4' : '#f8fafc', color: keyInfo ? '#10b981' : '#94a3b8' }}>
                     {keyInfo ? 'ACTIVE' : 'NOT SET'}
                   </Box>
                 </Box>
                 {keyInfo ? (
                   <>
-                    <Typography sx={{ fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', mb: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)', mb: 0.5 }}>
                       {keyInfo.prefix}••••••••••••••••••
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
@@ -646,7 +412,7 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
                     YOUR KEY — COPY NOW, SHOWN ONLY ONCE
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all' }}>{newKey}</Typography>
+                    <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: 'var(--heading-color)', wordBreak: 'break-all' }}>{newKey}</Typography>
                     <Button
                       onClick={copyKey}
                       startIcon={keyCopied
@@ -679,7 +445,7 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
                     <Button
                       onClick={() => setGenTotpOpen(true)}
                       startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
-                      sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1e293b' } }}
+                      sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: 'var(--on-surface)' } }}
                     >
                       <Box component="span" sx={{ color: '#ffffff' }}>Regenerate key</Box>
                     </Button>
@@ -696,7 +462,7 @@ function ApiKeyModal({ open, onClose, keyInfo, onKeyUpdated }: ApiKeyModalProps)
                   <Button
                     onClick={() => setGenTotpOpen(true)}
                     startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '0.875rem !important', color: '#ffffff' }} />}
-                    sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: '#1e293b' } }}
+                    sx={{ flex: 1, bgcolor: colorPalette.primary, color: '#ffffff', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '& .MuiButton-startIcon': { color: '#ffffff' }, '&:hover': { bgcolor: 'var(--on-surface)' } }}
                   >
                     <Box component="span" sx={{ color: '#ffffff' }}>Generate key</Box>
                   </Button>
@@ -768,7 +534,6 @@ export default function DataBeamingPage() {
 
   const streamsWithTimestamps = useMemo(() => generateStreamsWithCurrentTimestamps(), [])
   const [activeStream, setActiveStream] = useState<StreamId>('transactions')
-  const [activeLang, setActiveLang] = useState<Lang>('cURL')
   const [apiKeyOpen, setApiKeyOpen] = useState(false)
   const [testResponse, setTestResponse] = useState<any>(null)
   const { sandboxEnabled, setSandboxEnabled } = useSandbox()
@@ -776,7 +541,6 @@ export default function DataBeamingPage() {
   const [testSuccess, setTestSuccess] = useState(false)
   const [editablePayload, setEditablePayload] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
-  const [expectedStatus, setExpectedStatus] = useState<200 | 400 | 401>(200)
 
   // KYC SSE streaming state
   const [kycStreaming, setKycStreaming] = useState(false)
@@ -934,13 +698,6 @@ export default function DataBeamingPage() {
   )
 
   const stream = streamsWithTimestamps.find(s => s.id === activeStream)!
-  const langs: Lang[] = ['cURL', 'Node.js', 'Python', 'Go']
-  const codeByLang: Record<Lang, string> = {
-    'cURL': buildCurl(stream),
-    'Node.js': buildNode(stream),
-    'Python': buildPython(stream),
-    'Go': buildGo(stream),
-  }
 
   const connected = streamsWithTimestamps.filter(s => (liveStreamStats[s.id]?.count ?? 0) > 0).length
   const totalRecords = allRecords.length
@@ -966,7 +723,7 @@ export default function DataBeamingPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, gap: 2, flexWrap: 'wrap' }}>
           <Box>
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>Configure</Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>Beam to OpenIV</Typography>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>Beam to OpenIV</Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', maxWidth: 720 }}>
               Stream the signals that power real-time fraud defense.
             </Typography>
@@ -977,13 +734,13 @@ export default function DataBeamingPage() {
               to="/developers"
               target="_blank"
               rel="noopener noreferrer"
-              sx={{ border: '1px solid #eef0f4', bgcolor: '#ffffff', color: '#475569', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' } }}>
+              sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)', borderColor: '#cbd5e1' } }}>
               Read docs
             </Button>
             <Button
               startIcon={<VpnKeyOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
               onClick={() => setApiKeyOpen(true)}
-              sx={{ border: '1px solid #eef0f4', bgcolor: '#ffffff', color: '#475569', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' } }}>
+              sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)', px: 2, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)', borderColor: '#cbd5e1' } }}>
               API Key
             </Button>
           </Stack>
@@ -1001,9 +758,9 @@ export default function DataBeamingPage() {
               key={s.label}
               data-ai-analyzable="true"
               data-ai-description={`Ingestion KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
-              sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+              sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.25 }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.625 }}>{s.label}</Typography>
-              <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
+              <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>{s.value}</Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
             </Box>
           ))}
@@ -1028,9 +785,9 @@ export default function DataBeamingPage() {
                   data-ai-analyzable="true"
                   data-ai-description={`Data Stream: ${s.title}. status: ${isSoon ? 'COMING SOON' : statusConfig[s.status].label.toUpperCase()}. records today: ${liveCount.toLocaleString()}. description: ${s.desc}.`}
                   sx={{
-                    bgcolor: isSoon ? '#f8fafc' : '#ffffff',
+                    bgcolor: isSoon ? 'var(--section-bg)' : 'var(--card-bg)',
                     border: '1px solid',
-                    borderColor: isActive ? colorPalette.primary : '#eef0f4',
+                    borderColor: isActive ? colorPalette.primary : 'var(--border-col)',
                     p: 2, position: 'relative', transition: 'all 0.18s',
                     cursor: isSoon ? 'default' : 'pointer',
                     overflow: 'hidden',
@@ -1044,7 +801,7 @@ export default function DataBeamingPage() {
                       <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.icon}</Box>
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor }} />
                     </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>{s.title}</Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
                       {countLabel}
                     </Typography>
@@ -1078,7 +835,7 @@ export default function DataBeamingPage() {
         </Box>
 
         {/* Detail panel */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, minWidth: 0 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3, minWidth: 0 }}>
           <Stack gap={3} sx={{ minWidth: 0, overflow: 'hidden' }}>
             {/* Why box */}
             <Box
@@ -1097,38 +854,12 @@ export default function DataBeamingPage() {
             </Box>
 
 
-            {/* Schema */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Schema · {stream.title}</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{stream.schema.filter(f => f.required).length} required · {stream.schema.length} total fields</Typography>
-                </Box>
-                <Chip label={statusConfig[stream.status].label.toUpperCase()} size="small" sx={{ bgcolor: statusConfig[stream.status].bg, color: statusConfig[stream.status].color, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22 }} />
-              </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-                {['Field & example', 'Type', 'Required'].map(h => (
-                  <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
-                ))}
-              </Box>
-              {stream.schema.map((f, i) => (
-                <Box key={f.field} sx={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px', px: 3, py: 1.5, alignItems: 'center', borderBottom: i === stream.schema.length - 1 ? 'none' : '1px solid #f4f5f7', '&:hover': { bgcolor: '#fafbfc' }, minWidth: 0 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>{f.field}</Typography>
-                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>e.g. {f.example}</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'SF Mono, Monaco, monospace', fontWeight: 600 }}>{f.type}</Typography>
-                  {f.required ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} /> : <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>optional</Typography>}
-                </Box>
-              ))}
-            </Box>
-
             {/* Simulation Box - Beam Test Transaction */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <PlayCircleOutlineIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Beam Test Transaction</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Beam Test Transaction</Typography>
                 </Box>
                 {sandboxEnabled && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.375, bgcolor: '#fff7ed', border: '1px solid #ffedd5' }}>
@@ -1161,7 +892,7 @@ export default function DataBeamingPage() {
                             value={kycForm[key]}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
                             sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
-                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              bgcolor: 'var(--input-bg)', border: '1px solid var(--border-col)', outline: 'none', boxSizing: 'border-box',
                               '&:focus': { borderColor: colorPalette.primary } }}
                           />
                         </Box>
@@ -1182,7 +913,7 @@ export default function DataBeamingPage() {
                             value={kycForm[key]}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
                             sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
-                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              bgcolor: 'var(--input-bg)', border: '1px solid var(--border-col)', outline: 'none', boxSizing: 'border-box',
                               '&:focus': { borderColor: colorPalette.primary } }}
                           />
                         </Box>
@@ -1194,7 +925,7 @@ export default function DataBeamingPage() {
                         <Box
                           onClick={() => kycPhotoInputRef.current?.click()}
                           sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.625,
-                            border: '1px dashed #cbd5e1', cursor: 'pointer', bgcolor: '#f8fafc',
+                            border: '1px dashed #cbd5e1', cursor: 'pointer', bgcolor: 'var(--input-bg)',
                             '&:hover': { borderColor: colorPalette.primary, bgcolor: '#f0f4ff' } }}>
                           {kycPhotoPreview ? (
                             <Box component="img" src={kycPhotoPreview}
@@ -1242,7 +973,7 @@ export default function DataBeamingPage() {
                             value={kycForm[key]}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKycForm(f => ({ ...f, [key]: e.target.value }))}
                             sx={{ width: '100%', px: 1, py: 0.625, fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
-                              bgcolor: '#f8fafc', border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box',
+                              bgcolor: 'var(--input-bg)', border: '1px solid var(--border-col)', outline: 'none', boxSizing: 'border-box',
                               '&:focus': { borderColor: colorPalette.primary } }}
                           />
                         </Box>
@@ -1258,8 +989,8 @@ export default function DataBeamingPage() {
                             onChange={e => setKycTierForm(e.target.value as '1' | '2' | '3')}
                             sx={{
                               fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace',
-                              bgcolor: '#f8fafc', borderRadius: 0, height: 30,
-                              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                              bgcolor: 'var(--input-bg)', borderRadius: 0, height: 30,
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-col)' },
                               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                               '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary },
                             }}
@@ -1297,9 +1028,9 @@ export default function DataBeamingPage() {
                             sx={{
                               fontSize: '0.75rem',
                               fontFamily: 'SF Mono, Monaco, monospace',
-                              bgcolor: '#f8fafc',
+                              bgcolor: 'var(--input-bg)',
                               borderRadius: 0,
-                              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-col)' },
                               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                               '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary },
                             }}
@@ -1330,9 +1061,9 @@ export default function DataBeamingPage() {
                         '& .MuiInputBase-root': {
                           fontSize: '0.75rem',
                           fontFamily: 'SF Mono, Monaco, monospace',
-                          bgcolor: '#f8fafc',
+                          bgcolor: 'var(--input-bg)',
                           borderRadius: 0,
-                          '& fieldset': { borderColor: '#e2e8f0' },
+                          '& fieldset': { borderColor: 'var(--border-col)' },
                           '&:hover fieldset': { borderColor: '#cbd5e1' },
                         }
                       }}
@@ -1382,9 +1113,9 @@ export default function DataBeamingPage() {
 
               {/* KYC SSE pipeline live viewer */}
               {activeStream === 'kyc' && (kycStreaming || kycSteps.length > 0 || kycResult !== null || kycStreamError !== null) && (
-                <Box sx={{ mt: 3, border: '1px solid #eef0f4', bgcolor: '#fafbff' }}>
-                  <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <Box sx={{ mt: 3, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
+                  <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       KYC Pipeline
                     </Typography>
                     {kycStreaming && (
@@ -1412,7 +1143,7 @@ export default function DataBeamingPage() {
                         : step!.status === 'fail' ? '#dc2626' : '#d97706'
 
                       return (
-                        <Box key={stepId} sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #f4f5f7' }}>
+                        <Box key={stepId} sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid var(--border-col)' }}>
                           <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: dotBg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             {isRunning
                               ? <Box sx={{ width: 8, height: 8, borderRadius: '50%', border: `2px solid ${dotColor}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } }} />
@@ -1450,7 +1181,7 @@ export default function DataBeamingPage() {
                   </Stack>
 
                   {kycResult && (
-                    <Box sx={{ px: 2, py: 1.75, borderTop: '2px solid #eef0f4' }}>
+                    <Box sx={{ px: 2, py: 1.75, borderTop: '2px solid var(--border-col)' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: (kycResult.institutionKycTier != null || kycResult.knowledgeLevel) ? 1.5 : 0 }}>
                         <Box>
                           <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
@@ -1468,7 +1199,7 @@ export default function DataBeamingPage() {
                           <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
                             Action
                           </Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{kycResult.actionDetail}</Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{kycResult.actionDetail}</Typography>
                         </Box>
                         <Box sx={{ flexShrink: 0, px: 1.5, py: 0.625, border: '1px solid',
                           bgcolor: kycResult.action === 'clear' ? '#dcfce7' : kycResult.action === 'flagged' ? '#fffbeb' : '#fee2e2',
@@ -1516,7 +1247,7 @@ export default function DataBeamingPage() {
               )}
 
               {testResponse && activeStream !== 'kyc' && (
-                <Box sx={{ mt: 3, p: 2, bgcolor: '#00288e', border: '1px solid #1e293b' }}>
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'var(--heading-color)', border: '1px solid #1e293b' }}>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 1.5, textTransform: 'uppercase' }}>
                     Standard Response (developer insight)
                   </Typography>
@@ -1576,10 +1307,10 @@ export default function DataBeamingPage() {
             </Box>
 
             {/* Recent payloads (Moved here) */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Recent payloads</Typography>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Recent payloads</Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Last events received on this stream</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
@@ -1603,7 +1334,7 @@ export default function DataBeamingPage() {
               <Stack>
                 {recordsLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
-                    <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+                    <Box key={i} sx={{ px: 3, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 2 }}>
                       <Skeleton variant="rectangular" width={90} height={18} />
                       <Skeleton variant="rectangular" width="60%" height={18} />
                       <Skeleton variant="rectangular" width={60} height={18} />
@@ -1612,9 +1343,9 @@ export default function DataBeamingPage() {
                 ) : activeStreamRecords.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: 'center' }}>
                     <ErrorOutlineRoundedIcon sx={{ fontSize: '2rem', color: '#94a3b8', mb: 1 }} />
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>No payloads on this stream yet</Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.5 }}>No payloads on this stream yet</Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320, mx: 'auto', mb: 2 }}>Generate an API key and instrument your core to start beaming.</Typography>
-                    <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
+                    <Button onClick={() => setApiKeyOpen(true)} sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface)' } }}>
                       Get API Key
                     </Button>
                   </Box>
@@ -1623,401 +1354,6 @@ export default function DataBeamingPage() {
                 )}
               </Stack>
             </Box>
-          </Stack>
-
-          <Stack gap={3} sx={{ minWidth: 0 }}>
-            {/* Code sample */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>How to beam</Typography>
-                <Box sx={{ display: 'flex' }}>
-                  {langs.map(lang => (
-                    <Box key={lang} onClick={() => setActiveLang(lang)} sx={{ px: 1.5, py: 0.75, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', transition: 'all 0.15s', color: activeLang === lang ? colorPalette.primary : '#64748b', bgcolor: activeLang === lang ? `${colorPalette.primary}08` : 'transparent', borderBottom: activeLang === lang ? `2px solid ${colorPalette.primary}` : '2px solid transparent', '&:hover': { color: colorPalette.primary } }}>
-                      {lang}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-              <SyntaxCode code={codeByLang[activeLang]} />
-            </Box>
-
-            {/* Expected Result Documentation */}
-            {(() => {
-              const expectedResultConfig: Record<StreamId, {
-                intro: string
-                fields: { label: string; desc: string }[]
-                label: string
-                json: string
-              }> = {
-                transactions: {
-                  intro: 'OpenIV runs a multi-factor analysis pipeline on every transaction and returns a synchronous risk decision. KYC status is checked first — if no record exists for the customer, the transaction is immediately flagged with kyc_required: true. For verified customers, the blended risk score is computed as 60% transaction signals + 40% KYC risk profile. Sender account conflicts add a +20 point bump to the final score.',
-                  fields: [
-                    { label: 'stream', desc: 'Always "transactions" — echoes the stream back for client-side routing.' },
-                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
-                    { label: 'risk_score', desc: 'Final blended score 0–100: 60% from transaction signals, 40% from the customer KYC risk profile. Sender account conflicts add +20. Use this as the primary decision signal.' },
-                    { label: 'transaction_risk_score', desc: 'The raw transaction-only risk score before KYC blending. Useful for diagnosing which component is driving the risk — compare with kyc_risk_score to see the split.' },
-                    { label: 'kyc_risk_score', desc: 'The customer\'s KYC risk score at the time of the transaction. High values significantly boost the blended risk score.' },
-                    { label: 'risk_level', desc: 'Categorical threat level: LOW (<30), MEDIUM (30–59), HIGH (60–74), or CRITICAL (≥75).' },
-                    { label: 'recommended_action', desc: 'Automated decision based on your configured thresholds: ALLOW, HOLD, DECLINE, or KYC_REQUIRED (when no KYC is on file).' },
-                    { label: 'case_id', desc: 'ID of the compliance case auto-created for your team to review. Null if no case was opened.' },
-                    { label: 'priority', desc: 'Case priority when a case is opened: LOW, MEDIUM, HIGH, or CRITICAL. Null when no case was created.' },
-                    { label: 'direction', desc: 'Echoed from your payload: "outward" (money leaving the customer) or "inward" (money arriving). Determines which directional tier limit is evaluated for the transaction.' },
-                    { label: 'account_conflict', desc: 'True when the sender account number is already linked to a different customer ID — a strong indicator of account sharing or fraudulent reuse.' },
-                    { label: 'conflicting_customer_id', desc: 'The other customer ID that the sender account is registered under. Present only when account_conflict is true.' },
-                    { label: 'kyc_required', desc: 'Present and true only when no KYC record exists for the customer. Transaction is held at risk score 75 (90 if account conflict also detected). Complete KYC via the /kyc stream before retrying.' },
-                    { label: 'notification_id', desc: 'Present only in the kyc_required path — ID of the notification raised for the flagged transaction.' },
-                    { label: 'message', desc: 'Present only in the kyc_required path — plain-English reason why the transaction was held.' },
-                    { label: 'processed_at', desc: 'ISO 8601 timestamp at which the analysis completed, in your institution\'s local time zone.' },
-                  ],
-                  label: 'Transaction response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 104829,\n  "stream": "transactions",\n  "status": "received",\n  "analysis": {\n    "transaction_id": "beam-104829",\n    "risk_score": 82,\n    "transaction_risk_score": 68,\n    "kyc_risk_score": 71,\n    "risk_level": "CRITICAL",\n    "recommended_action": "DECLINE",\n    "case_id": "CASE-9201",\n    "priority": "HIGH",\n    "direction": "outward",\n    "account_conflict": false,\n    "processed_at": "2026-05-16T10:42:00+01:00"\n  }\n}`,
-                },
-                logins: {
-                  intro: 'Login signals are ingested asynchronously and used to build account-takeover risk profiles. OpenIV returns an acknowledgment, a session-level risk indicator, and a fraud risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload was accepted and validated against the login schema.' },
-                    { label: 'record_id', desc: 'Unique ID assigned to this login event in the OpenIV system.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 quantifying the account-takeover probability for this login attempt. Used to decide whether to challenge the user.' },
-                    { label: 'session_risk', desc: 'Categorical label derived from risk_score: NORMAL, SUSPICIOUS, or BLOCKED.' },
-                    { label: 'status', desc: 'Always "received" for successful ingestions.' },
-                  ],
-                  label: 'Login event response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 204512,\n  "stream": "logins",\n  "risk_score": 57,\n  "session_risk": "SUSPICIOUS",\n  "status": "received"\n}`,
-                },
-                activity: {
-                  intro: 'In-app behaviour is a direct input to the fraud prediction engine. OpenIV processes every session event against the user\'s baseline and returns a behavioural risk score you can act on immediately.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload passed schema validation.' },
-                    { label: 'record_id', desc: 'Unique ID of this activity record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 representing the predicted fraud probability derived from behavioural pattern matching. Higher means more anomalous.' },
-                    { label: 'recommended_action', desc: 'Automated guidance: ALLOW, MONITOR, HOLD, or FLAG. Use this to decide whether to let the session continue or challenge the user.' },
-                    { label: 'profile_updated', desc: 'True if this event updated the user\'s long-term behavioural baseline.' },
-                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
-                  ],
-                  label: 'In-app activity response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 305871,\n  "stream": "activity",\n  "risk_score": 68,\n  "recommended_action": "HOLD",\n  "profile_updated": true,\n  "status": "received"\n}`,
-                },
-                location: {
-                  intro: 'Location signals are matched against the customer\'s recent geo-footprint in real time. OpenIV returns an acknowledgment, a geo-anomaly flag, and a location-derived risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the payload was accepted.' },
-                    { label: 'record_id', desc: 'Unique ID of this location ping.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the impossibility of the travel path. A score above 70 typically indicates a SIM-swap or account takeover.' },
-                    { label: 'geo_anomaly', desc: 'True if this location is impossible given the customer\'s previous ping — potential SIM-swap or account takeover indicator.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'Location signal response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 406230,\n  "stream": "location",\n  "risk_score": 82,\n  "geo_anomaly": true,\n  "status": "received"\n}`,
-                },
-                devices: {
-                  intro: 'Device fingerprints are checked against the customer\'s device-of-record history. OpenIV returns an acknowledgment, a new-device flag, and a device-context risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the fingerprint payload was accepted.' },
-                    { label: 'record_id', desc: 'Unique ID of this device fingerprint record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 based on device novelty, jailbreak status, and historical device patterns for this account.' },
-                    { label: 'new_device', desc: 'True if this device has never been seen on this account — a key SIM-swap and account-takeover signal.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'Device fingerprint response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 507441,\n  "stream": "devices",\n  "risk_score": 63,\n  "new_device": true,\n  "status": "received"\n}`,
-                },
-                otps: {
-                  intro: 'OTP events are processed in real time to detect SIM-swap patterns. OpenIV returns an acknowledgment, hold status, and an OTP-pattern risk score.',
-                  fields: [
-                    { label: 'ok', desc: 'True if the OTP event was accepted and processed.' },
-                    { label: 'record_id', desc: 'Unique ID of this OTP event record.' },
-                    { label: 'risk_score', desc: 'A value from 0–100 reflecting the suspicion level of the OTP pattern — high retry counts and cross-device OTPs score near 100.' },
-                    { label: 'transaction_held', desc: 'True if an associated transaction was automatically held pending OTP verification outcome.' },
-                    { label: 'retry_alert', desc: 'True if retry count exceeded your configured threshold, triggering a real-time alert.' },
-                    { label: 'status', desc: 'Always "received" on success.' },
-                  ],
-                  label: 'OTP event response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 608992,\n  "stream": "otps",\n  "risk_score": 91,\n  "transaction_held": true,\n  "retry_alert": true,\n  "status": "received"\n}`,
-                },
-                kyc: {
-                  intro: 'KYC records are processed synchronously through a multi-step identity pipeline (BVN/NIN verification, phone match, liveness check, PEP screening). OpenIV updates the customer\'s identity profile and KYC tier immediately — the next transaction beam for this customer reflects the new tier in its blended risk score. At least one of bvn, nin, or photo must be present for a meaningful verification.',
-                  fields: [
-                    { label: 'stream', desc: 'Always "kyc" — echoes the stream back for client-side routing.' },
-                    { label: 'status', desc: 'Always "received" for accepted payloads.' },
-                    { label: 'customer_id', desc: 'The external customer ID you passed in the payload — echoed back for confirmation.' },
-                    { label: 'kyc_status', desc: '"verified" when both BVN and NIN are on file. "partial" when only one identifier is present. "unverified" if only a name or photo was submitted.' },
-                    { label: 'kyc_tier', desc: 'The KYC tier assigned after pipeline completion: 0 (Unverified), 1 (Basic), 2 (Intermediate), or 3 (Full KYC). Determines transaction limits and risk score adjustments for future transactions.' },
-                    { label: 'risk_score', desc: 'The customer\'s overall KYC risk score 0–100 as computed by the identity pipeline. This score is blended into every future transaction risk score at 40% weight.' },
-                    { label: 'bvn_received', desc: 'True if a BVN (11-digit Bank Verification Number) was included in the payload and stored. A kyc.verified or kyc.partial webhook fires immediately after.' },
-                    { label: 'nin_received', desc: 'True if a NIN (11-digit National Identification Number) was included and stored.' },
-                    { label: 'photo_received', desc: 'True if a base64-encoded biometric photo was included and stored for future face-match checks.' },
-                    { label: 'monthly_inflow', desc: 'Optional. Total amount (in the smallest currency unit, e.g. kobo) received by the customer in the current month. Used to build a financial profile for velocity and AML rules.' },
-                    { label: 'monthly_outflow', desc: 'Optional. Total amount (in the smallest currency unit) sent by the customer in the current month. Tracked alongside inflow to detect unusual net cash-flow patterns.' },
-                    { label: 'pipeline_ms', desc: 'Total time in milliseconds for the identity pipeline to complete all steps. Useful for monitoring your KYC processing SLA.' },
-                    { label: 'processed_at', desc: 'ISO 8601 timestamp at which the customer profile was updated. Use this for audit logging on your side.' },
-                  ],
-                  label: 'KYC beam response body (JSON)',
-                  json: `{\n  "ok": true,\n  "record_id": 709123,\n  "stream": "kyc",\n  "status": "received",\n  "analysis": {\n    "customer_id": "CUST-001",\n    "kyc_status": "verified",\n    "kyc_tier": 2,\n    "risk_score": 18,\n    "bvn_received": true,\n    "nin_received": true,\n    "photo_received": false,\n    "pipeline_ms": 1240,\n    "processed_at": "2026-05-14T10:00:01Z"\n  }\n}`,
-                },
-              }
-
-              // Parse risk_score from the example json for the visual bar
-              const cfg = expectedResultConfig[activeStream]
-              let riskScore: number | null = null
-              try {
-                const parsed = JSON.parse(cfg.json)
-                const score = parsed?.risk_score ?? parsed?.analysis?.risk_score
-                if (typeof score === 'number') riskScore = score
-              } catch { /* ignore */ }
-
-              const riskColor = riskScore == null ? '#94a3b8'
-                : riskScore >= 75 ? '#dc2626'
-                  : riskScore >= 50 ? '#f59e0b'
-                    : '#10b981'
-
-              const riskLabel = riskScore == null ? '—'
-                : riskScore >= 75 ? 'HIGH RISK'
-                  : riskScore >= 50 ? 'MODERATE'
-                    : 'LOW RISK'
-
-              // Error response configs (apply to all streams)
-              const errorConfig = {
-                400: {
-                  title: 'Bad Request',
-                  color: '#dc2626',
-                  bg: '#fef2f2',
-                  border: '#fecaca',
-                  intro: 'OpenIV returns 400 when a beam payload is rejected by validation or by a critical security rule. Your client should surface the error and not retry without fixing the cause.',
-                  fields: [
-                    { label: 'error', desc: 'Machine-readable error code prefixed with the rule name (e.g., "MICRO_TIMING_ANOMALY: ...") or a short reason for malformed payloads.' },
-                  ],
-                  scenarios: [
-                    {
-                      name: 'Micro-Timing Anomaly',
-                      desc: 'occurred_at is within ±5 seconds of institution-local time — suggests the timestamp was set programmatically to "right now" rather than reflecting the actual transaction moment. Use a timestamp at least 6 s in the past. The default test payload uses 2 minutes ago, which is always safe.',
-                      json: `{\n  "error": "MICRO_TIMING_ANOMALY: occurred_at is within \\u00b15 s of institution time — possible automated injection or clock manipulation. Case opened: CASE-12384"\n}`,
-                    },
-                    {
-                      name: 'Malformed Payload',
-                      desc: 'Required fields missing or wrong type. Action: validate against the stream schema before beaming.',
-                      json: `{\n  "error": "amount must be a positive number"\n}`,
-                    },
-                  ],
-                  label: 'Error response body (JSON)',
-                },
-                401: {
-                  title: 'Unauthorized',
-                  color: '#f59e0b',
-                  bg: '#fffbeb',
-                  border: '#fde68a',
-                  intro: 'OpenIV returns 401 when the API key is missing, malformed, revoked, or the session cookie is invalid. Your client must regenerate the key from the dashboard or re-authenticate.',
-                  fields: [
-                    { label: 'error', desc: 'One of: "missing_api_key_or_session", "invalid_api_key_or_session", or "invalid_session_cookie".' },
-                  ],
-                  scenarios: [
-                    {
-                      name: 'Missing API Key',
-                      desc: 'No Authorization header and no session cookie. Action: include "Authorization: Bearer <key>" or sign in via cookie.',
-                      json: `{\n  "error": "missing_api_key_or_session"\n}`,
-                    },
-                    {
-                      name: 'Invalid / Revoked API Key',
-                      desc: 'Key was revoked or never existed. Action: regenerate from Data Beaming → API Key.',
-                      json: `{\n  "error": "invalid_api_key_or_session"\n}`,
-                    },
-                    {
-                      name: 'Expired Session Cookie',
-                      desc: 'Session expired or was logged out. Action: re-authenticate via /auth/login.',
-                      json: `{\n  "error": "invalid_session_cookie"\n}`,
-                    },
-                  ],
-                  label: 'Error response body (JSON)',
-                },
-              }
-
-              const tabs: Array<{ status: 200 | 400 | 401; label: string; color: string }> = [
-                { status: 200, label: '200 OK', color: '#10b981' },
-                { status: 400, label: '400 Bad Request', color: '#dc2626' },
-                { status: 401, label: '401 Unauthorized', color: '#f59e0b' },
-              ]
-
-              return (
-                <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                  <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                      <Box sx={{ width: 32, height: 32, bgcolor: `${colorPalette.primary}10`, color: colorPalette.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />
-                      </Box>
-                      <Box>
-                        <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Expected Result</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>Response shapes your server should handle for {stream.title.toLowerCase()} beams</Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  {/* Status tabs */}
-                  <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4' }}>
-                    {tabs.map(({ status, label, color }) => {
-                      const active = expectedStatus === status
-                      return (
-                        <Box
-                          key={status}
-                          onClick={() => setExpectedStatus(status)}
-                          sx={{
-                            flex: 1,
-                            px: 2.5,
-                            py: 1.5,
-                            cursor: 'pointer',
-                            borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
-                            bgcolor: active ? `${color}08` : 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            transition: 'background 0.15s',
-                            '&:hover': { bgcolor: `${color}05` },
-                          }}
-                        >
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-                          <Typography sx={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: active ? color : '#64748b',
-                            fontFamily: 'Jost',
-                            letterSpacing: '0.02em',
-                          }}>
-                            {label}
-                          </Typography>
-                        </Box>
-                      )
-                    })}
-                  </Box>
-
-                  <Box sx={{ p: 3 }}>
-                    {expectedStatus === 200 ? (
-                      <>
-                        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
-                          {cfg.intro}
-                        </Typography>
-
-                        {/* Risk score percentage visual */}
-                        {riskScore !== null && (
-                          <Box sx={{ mb: 3, p: 2, border: `1px solid ${riskColor}22`, bgcolor: `${riskColor}06` }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                Example risk_score
-                              </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{ px: 1, py: 0.25, bgcolor: `${riskColor}14`, border: `1px solid ${riskColor}35` }}>
-                                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: riskColor, letterSpacing: '0.1em' }}>
-                                    {riskLabel}
-                                  </Typography>
-                                </Box>
-                                <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: riskColor, fontFamily: 'Jost', lineHeight: 1 }}>
-                                  {riskScore}<Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 600, color: riskColor }}>%</Typography>
-                                </Typography>
-                              </Box>
-                            </Box>
-                            <Box sx={{ height: 7, bgcolor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                              <Box sx={{
-                                position: 'absolute', inset: 0, width: `${riskScore}%`,
-                                background: riskScore >= 75
-                                  ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #dc2626 100%)'
-                                  : riskScore >= 50
-                                    ? 'linear-gradient(90deg, #10b981 0%, #f59e0b 100%)'
-                                    : '#10b981',
-                                borderRadius: '4px',
-                                transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                              }} />
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.625 }}>
-                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>0 — Safe</Typography>
-                              <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8' }}>100 — Critical</Typography>
-                            </Box>
-                          </Box>
-                        )}
-
-                        <Stack gap={2}>
-                          {cfg.fields.map(item => (
-                            <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
-                                {item.label}
-                              </Typography>
-                              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                                {item.desc}
-                              </Typography>
-                            </Box>
-                          ))}
-                        </Stack>
-                        <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', mb: 1, fontFamily: 'Jost' }}>
-                            {cfg.label}
-                          </Typography>
-                          <Box sx={{ bgcolor: '#0d1117', p: 1.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#c3e88d', whiteSpace: 'pre', overflowX: 'auto' }}>
-                            {cfg.json}
-                          </Box>
-                        </Box>
-                      </>
-                    ) : (
-                      <>
-                        {(() => {
-                          const errCfg = errorConfig[expectedStatus]
-                          return (
-                            <>
-                              <Box sx={{ mb: 2.5, p: 2, bgcolor: errCfg.bg, border: `1px solid ${errCfg.border}` }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '0.04em' }}>
-                                    HTTP {expectedStatus}
-                                  </Typography>
-                                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'Jost' }}>
-                                    {errCfg.title}
-                                  </Typography>
-                                </Box>
-                                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55 }}>
-                                  {errCfg.intro}
-                                </Typography>
-                              </Box>
-
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
-                                Response Fields
-                              </Typography>
-                              <Stack gap={2} sx={{ mb: 3 }}>
-                                {errCfg.fields.map(item => (
-                                  <Box key={item.label} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: errCfg.color, fontFamily: 'SF Mono, Monaco, monospace', minWidth: 140 }}>
-                                      {item.label}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                                      {item.desc}
-                                    </Typography>
-                                  </Box>
-                                ))}
-                              </Stack>
-
-                              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>
-                                Common Scenarios
-                              </Typography>
-                              <Stack gap={1.5}>
-                                {errCfg.scenarios.map((sc, idx) => (
-                                  <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
-                                      {sc.name}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 1 }}>
-                                      {sc.desc}
-                                    </Typography>
-                                    <Box sx={{ bgcolor: '#0d1117', p: 1.25, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#ff7b72', whiteSpace: 'pre', overflowX: 'auto', maxWidth: '100%' }}>
-                                      {sc.json}
-                                    </Box>
-                                  </Box>
-                                ))}
-                              </Stack>
-                            </>
-                          )
-                        })()}
-                      </>
-                    )}
-                  </Box>
-                </Box>
-              )
-            })()}
-
-
           </Stack>
         </Box>
       </Box>

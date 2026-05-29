@@ -41,8 +41,8 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
 
   if (loading) {
     return (
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%' }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', height: '100%' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
           <Skeleton width={200} height={24} />
           <Skeleton width={280} height={16} sx={{ mt: 0.5 }} />
         </Box>
@@ -72,11 +72,11 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
     <Box
       data-ai-analyzable="true"
       data-ai-description="Hourly transaction volume chart over the last 24 hours, visualizing total system throughput alongside flagged and blocked suspicious activity."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%' }}
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', height: '100%' }}
     >
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {title}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -91,7 +91,7 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
           ].map(s => (
             <Box key={s.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
               <Box sx={{ width: 10, height: 2, bgcolor: s.color, borderRadius: '2px' }} />
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>{s.label}</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>{s.label}</Typography>
             </Box>
           ))}
         </Stack>
@@ -156,7 +156,7 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
           )}
         </Box>
 
-        <Box sx={{ mt: 1, position: 'relative', height: 52, bgcolor: '#f8fafc', overflow: 'hidden' }}>
+        <Box sx={{ mt: 1, position: 'relative', height: 52, bgcolor: 'var(--section-bg)', overflow: 'hidden' }}>
           {/* Idle placeholder — fades out when hovering */}
           <Box sx={{
             position: 'absolute', inset: 0, px: 1.5,
@@ -180,11 +180,11 @@ export default function TransactionFlowChart({ title = '24h Transaction Flow' }:
           }}>
             {hover !== null && (
               <>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', width: 44, flexShrink: 0 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', width: 44, flexShrink: 0 }}>
                   {data[hover].h}:00
                 </Typography>
                 {[
-                  { label: 'Total',   value: data[hover].total.toLocaleString(),   color: '#00288e' },
+                  { label: 'Total',   value: data[hover].total.toLocaleString(),   color: 'var(--heading-color)' },
                   { label: 'Flagged', value: data[hover].flagged.toLocaleString(), color: '#f59e0b' },
                   { label: 'Blocked', value: data[hover].blocked.toLocaleString(), color: '#dc2626' },
                 ].map(col => (

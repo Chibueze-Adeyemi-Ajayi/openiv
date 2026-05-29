@@ -57,7 +57,7 @@ function StepCard({ label, status, score }: { label: string; status: string | nu
   const c = score == null ? { bg: '#f1f5f9', fg: '#94a3b8' } : scoreColor(score)
   const statusColor = status === 'pass' ? '#15803d' : status === 'fail' ? '#b91c1c' : '#94a3b8'
   return (
-    <Box sx={{ flex: 1, p: 1.25, border: '1px solid #eef0f4', borderRadius: 1.5, textAlign: 'center' }}>
+    <Box sx={{ flex: 1, p: 1.25, border: '1px solid var(--border-col)', borderRadius: 1.5, textAlign: 'center' }}>
       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>
         {label}
       </Typography>
@@ -140,10 +140,10 @@ function CustomerProfileDialog({ customer, open, onClose }: {
           </Box>
           <Box>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mb: 0.5 }}>
-              <Box sx={{ px: 1, py: 0.25, bgcolor: '#f1f5f9', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>
+              <Box sx={{ px: 1, py: 0.25, bgcolor: 'var(--section-bg)', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                 {KL_LABELS[customer.knowledgeLevel ?? ''] ?? customer.knowledgeLevel ?? '—'}
               </Box>
-              <Box sx={{ px: 1, py: 0.25, bgcolor: '#f1f5f9', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: '#475569' }}>
+              <Box sx={{ px: 1, py: 0.25, bgcolor: 'var(--section-bg)', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                 {customer.overallStatus}
               </Box>
             </Stack>
@@ -200,10 +200,10 @@ function CustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNaviga
         display: 'grid',
         gridTemplateColumns: GRID_COLS,
         gap: 2, px: 3, py: 2, alignItems: 'center',
-        borderBottom: '1px solid #f4f5f7',
+        borderBottom: '1px solid var(--border-col)',
         cursor: 'pointer',
         transition: 'background 0.12s',
-        '&:hover': { bgcolor: '#f8fafc' },
+        '&:hover': { bgcolor: 'var(--section-bg)' },
         '&:last-child': { borderBottom: 'none' },
       }}
     >
@@ -260,7 +260,7 @@ function CustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNaviga
           </Typography>
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'capitalize' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'capitalize' }}>
             {customer.overallStatus}
           </Typography>
           <TierBars level={customer.knowledgeLevel} />
@@ -344,9 +344,9 @@ function CustomersView() {
           { label: 'Partial',         value: stats.partial,  sub: 'incomplete checks' },
           { label: 'Flagged',         value: stats.flagged,  sub: 'require review' },
         ].map((s) => (
-          <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+          <Box key={s.label} sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.25 }}>
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75 }}>{s.label}</Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.1, mb: 0.5 }}>
               {loading ? '—' : s.value.toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{s.sub}</Typography>
@@ -355,11 +355,11 @@ function CustomersView() {
       </Box>
 
       {/* Customer list */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
         {/* Header */}
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               KYC Customers
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -369,7 +369,7 @@ function CustomersView() {
         </Box>
 
         {/* Filters + search */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2 }}>
           <Stack direction="row" gap={0.5}>
             {STATUS_FILTERS.map((f) => (
               <Box key={f} onClick={() => setFilter(f)} sx={{
@@ -384,19 +384,19 @@ function CustomersView() {
           </Stack>
           <Box sx={{ flex: 1 }} />
           <Box sx={{
-            display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f8fafc',
+            display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'var(--section-bg)',
             px: 1.5, height: 32, minWidth: 260, border: '1px solid transparent',
-            transition: 'all 0.18s', '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary },
+            transition: 'all 0.18s', '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary },
           }}>
             <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
             <InputBase value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name or customer ID…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }} />
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }} />
           </Box>
         </Box>
 
         {/* Column headers */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: GRID_COLS, gap: 2, px: 3, py: 1.375, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: GRID_COLS, gap: 2, px: 3, py: 1.375, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
           {['Customer · Account', 'Risk score', 'Action', 'Step scores'].map((h) => (
             <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
           ))}
@@ -412,7 +412,7 @@ function CustomersView() {
             {customers.length === 0 ? (
               <>
                 <FingerprintOutlinedIcon sx={{ fontSize: 36, color: '#cbd5e1', mb: 1.5 }} />
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#00288e', mb: 0.75 }}>No KYC records yet</Typography>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--heading-color)', mb: 0.75 }}>No KYC records yet</Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
                   Beam customer data (BVN, NIN, photo) via the <strong>kyc</strong> stream to get started.
                 </Typography>
@@ -454,9 +454,9 @@ function PEPScreeningView() {
 
   return (
     <Box>
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-        <Box sx={{ p: 3, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
+        <Box sx={{ p: 3, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
             PEP & Sanctions Screening
           </Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -465,26 +465,26 @@ function PEPScreeningView() {
         </Box>
         <Box sx={{ p: 3, display: 'flex', gap: 2 }}>
           <Box sx={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: '#f8fafc',
-            px: 2, height: 44, border: '1px solid #eef0f4',
-            transition: 'all 0.18s', '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary }
+            flex: 1, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'var(--card-bg)',
+            px: 2, height: 44, border: '1px solid var(--border-col)',
+            transition: 'all 0.18s', '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary }
           }}>
             <SearchOutlinedIcon sx={{ fontSize: '1.25rem', color: '#94a3b8' }} />
             <InputBase value={query} onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Enter full name (e.g. Bola Tinubu)..."
-              sx={{ flex: 1, fontSize: '0.9375rem', fontFamily: 'Jost', color: '#00288e' }} />
+              sx={{ flex: 1, fontSize: '0.9375rem', fontFamily: 'Jost', color: 'var(--heading-color)' }} />
           </Box>
           <Button variant="contained" disableElevation onClick={handleSearch} disabled={loading}
-            sx={{ borderRadius: 0, px: 4, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, bgcolor: colorPalette.primary, '&:hover': { bgcolor: '#1e293b' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#ffffff' } }}>
+            sx={{ borderRadius: 0, px: 4, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, bgcolor: colorPalette.primary, '&:hover': { bgcolor: 'var(--on-surface)' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#ffffff' } }}>
             {loading ? 'Searching...' : 'Run Screening'}
           </Button>
         </Box>
       </Box>
 
       {searched && (
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-          <Box sx={{ px: 3, py: 2, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+          <Box sx={{ px: 3, py: 2, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
             <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {loading ? 'Screening AML database...' : `Search Results (${results.length})`}
             </Typography>
@@ -496,25 +496,25 @@ function PEPScreeningView() {
           ) : results.length === 0 ? (
             <Box sx={{ py: 8, textAlign: 'center' }}>
               <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 2, opacity: 0.5 }} />
-              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: '#00288e', mb: 0.5 }}>No Direct PEP Matches Found</Typography>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'var(--heading-color)', mb: 0.5 }}>No Direct PEP Matches Found</Typography>
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
                 No PEP or sanctions matches found for "{query}".
               </Typography>
             </Box>
           ) : (
             results.map((person, i) => (
-              <Box key={person.id} sx={{ p: 3, display: 'flex', alignItems: 'flex-start', gap: 3, borderBottom: i === results.length - 1 ? 'none' : '1px solid #f4f5f7' }}>
+              <Box key={person.id} sx={{ p: 3, display: 'flex', alignItems: 'flex-start', gap: 3, borderBottom: i === results.length - 1 ? 'none' : '1px solid var(--border-col)' }}>
                 <Box sx={{ width: 48, height: 48, bgcolor: person.riskLevel === 'High' ? '#fef2f2' : '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <PublicOutlinedIcon sx={{ color: person.riskLevel === 'High' ? '#dc2626' : '#f59e0b' }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
-                    <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>{person.name}</Typography>
+                    <Typography sx={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{person.name}</Typography>
                     <Box sx={{ px: 1, py: 0.25, bgcolor: person.riskLevel === 'High' ? '#dc2626' : '#f59e0b', color: '#ffffff', fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.05em' }}>
                       {person.riskLevel.toUpperCase()} RISK
                     </Box>
                   </Box>
-                  <Typography sx={{ fontSize: '0.875rem', color: '#475569', fontWeight: 500 }}>{person.position} at {person.organization}</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', fontWeight: 500 }}>{person.position} at {person.organization}</Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 1 }}>Location: {person.country} • ID: {person.id} • Verified: {person.lastUpdated}</Typography>
                 </Box>
                 <Button variant="outlined" size="small"
@@ -528,7 +528,7 @@ function PEPScreeningView() {
       )}
 
       {!searched && (
-        <Box sx={{ bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', p: 8, textAlign: 'center' }}>
+        <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px dashed #cbd5e1', p: 8, textAlign: 'center' }}>
           <WarningAmberRoundedIcon sx={{ fontSize: '2.5rem', color: '#94a3b8', mb: 2 }} />
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
             Enter a customer's name above to cross-reference against the PEP database.
@@ -559,7 +559,7 @@ const BLOCK_DEFS: Record<string, FlowBlockDef> = {
     description: 'Verify customer identity against the CBN BVN registry and NIMC NIN database',
     tag: 'doja.io',
     icon: <FingerprintOutlinedIcon sx={{ fontSize: '1.25rem' }} />,
-    color: '#00288e',
+    color: 'var(--heading-color)',
     bg: '#eff6ff',
     required: true,
   },
@@ -638,12 +638,12 @@ function KycFlowBuilderView() {
       {/* Header */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        bgcolor: '#ffffff', border: '1px solid #dde3ee', borderBottom: 'none',
+        bgcolor: 'var(--card-bg)', border: '1px solid #dde3ee', borderBottom: 'none',
         px: 3, py: 1.75,
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Verification Pipeline
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.125 }}>
@@ -682,14 +682,14 @@ function KycFlowBuilderView() {
           {/* START terminal */}
           <Box sx={{
             display: 'flex', alignItems: 'center', gap: 1.25, px: 3, py: 1,
-            bgcolor: '#ffffff', border: '1.5px solid #c8d0df', borderRadius: '100px',
+            bgcolor: 'var(--card-bg)', border: '1.5px solid #c8d0df', borderRadius: '100px',
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           }}>
             <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#10b981', boxShadow: '0 0 0 2px #d1fae580' }} />
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>
               Customer Beam
             </Typography>
-            <Box sx={{ px: 0.75, py: 0.2, bgcolor: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: '0.4375rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.12em', fontFamily: 'monospace' }}>
+            <Box sx={{ px: 0.75, py: 0.2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', fontSize: '0.4375rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.12em', fontFamily: 'monospace' }}>
               INPUT
             </Box>
           </Box>
@@ -707,7 +707,7 @@ function KycFlowBuilderView() {
                   data-ai-description={`KYC Pipeline Step ${i + 1}: ${def.label}. ${def.description}.`}
                   sx={{
                     width: 340,
-                    bgcolor: '#ffffff',
+                    bgcolor: 'var(--card-bg)',
                     border: '1px solid #dde3ee',
                     borderTop: `2.5px solid ${def.color}`,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 3px 10px rgba(0,0,0,0.04)',
@@ -720,7 +720,7 @@ function KycFlowBuilderView() {
                   <Box sx={{ p: 0.75, bgcolor: def.bg, color: def.color, display: 'flex', flexShrink: 0 }}>
                     {def.icon}
                   </Box>
-                  <Typography sx={{ fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', fontSize: '0.875rem', flex: 1, lineHeight: 1.2 }}>
+                  <Typography sx={{ fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost', fontSize: '0.875rem', flex: 1, lineHeight: 1.2 }}>
                     {def.label}
                   </Typography>
                   {isRequired && (
@@ -762,9 +762,9 @@ function KycFlowBuilderView() {
         </Box>
 
         {/* Process Library sidebar */}
-        <Box sx={{ borderLeft: '1px solid #dde3ee', bgcolor: '#ffffff', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #f1f5f9' }}>
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#334155', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        <Box sx={{ borderLeft: '1px solid #dde3ee', bgcolor: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid var(--border-col)' }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Process Library
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
@@ -772,7 +772,7 @@ function KycFlowBuilderView() {
             </Typography>
           </Box>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center' }}>
-            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 }}>
+            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'var(--section-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5 }}>
               <Box sx={{ width: 10, height: 2, bgcolor: '#cbd5e1', borderRadius: '1px' }} />
             </Box>
             <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', fontFamily: 'Jost' }}>
@@ -782,7 +782,7 @@ function KycFlowBuilderView() {
               Custom process blocks will appear here
             </Typography>
           </Box>
-          <Box sx={{ p: 2, borderTop: '1px solid #f1f5f9', bgcolor: `${colorPalette.primary}04` }}>
+          <Box sx={{ p: 2, borderTop: '1px solid var(--border-col)', bgcolor: `${colorPalette.primary}04` }}>
             <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.12em', mb: 0.75 }}>
               HOW IT WORKS
             </Typography>
@@ -800,7 +800,7 @@ function KycFlowBuilderView() {
         onClose={() => setLearnMore(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { mt: 0.75, p: 2.5, maxWidth: 300, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', borderRadius: 0, border: '1px solid #eef0f4' } } }}
+        slotProps={{ paper: { sx: { mt: 0.75, p: 2.5, maxWidth: 300, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', borderRadius: 0, border: '1px solid var(--border-col)' } } }}
       >
         {learnMore && (() => {
           const def = BLOCK_DEFS[learnMore.id]
@@ -810,11 +810,11 @@ function KycFlowBuilderView() {
                 <Box sx={{ p: 0.75, bgcolor: def.bg, color: def.color, display: 'flex' }}>
                   {def.icon}
                 </Box>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
                   {def.label}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.65 }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.65 }}>
                 {def.description}
               </Typography>
             </Box>
@@ -836,7 +836,7 @@ export default function KYCPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Customer Due Diligence
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           KYC
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -848,7 +848,7 @@ export default function KYCPage() {
         value={tabValue}
         onChange={(_, v) => setTabValue(v)}
         sx={{
-          borderBottom: '1px solid #eef0f4', mb: 3, minHeight: 36,
+          borderBottom: '1px solid var(--border-col)', mb: 3, minHeight: 36,
           '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
           '& .MuiTab-root': {
             fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,

@@ -8,6 +8,7 @@ export interface UserProfile {
   role: string
   accountType: string
   avatarUrl: string | null
+  theme?: 'light' | 'dark'
   passwordUpdatedAt: string | null
   createdAt: string
   institutionName: string | null
@@ -41,6 +42,11 @@ export const profileApi = {
     apiRequest<{ ok: boolean; fullName: string | null; jobTitle: string | null; avatarUrl: string | null }>(
       '/api/v1/auth/profile',
       { method: 'PUT', body: data }
+    ),
+  updateTheme: (theme: 'light' | 'dark') =>
+    apiRequest<{ ok: boolean; theme: string }>(
+      '/api/v1/auth/profile/theme',
+      { method: 'PATCH', body: { theme } }
     ),
   changePassword: (current: string, next: string) =>
     apiRequest<{ ok: boolean }>('/api/v1/auth/password/change', {

@@ -54,13 +54,13 @@ function AlertRow({ alert, selected, onClick }: {
         borderLeft: selected ? `3px solid ${colorPalette.primary}` : '3px solid transparent',
         transition: 'all 0.15s',
         '&:hover': { bgcolor: selected ? `${colorPalette.primary}0a` : '#fafbfc' },
-        borderBottom: '1px solid #f4f5f7',
+        borderBottom: '1px solid var(--border-col)',
         '&:last-child': { borderBottom: 'none' },
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.75 }}>
         <Box>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {alert.customerName ?? alert.customerId ?? 'Unknown customer'}
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace' }}>
@@ -69,7 +69,7 @@ function AlertRow({ alert, selected, onClick }: {
         </Box>
         <Box sx={{ textAlign: 'right' }}>
           {alert.amount != null && (
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
               ₦{(alert.amount / 1_000_000).toFixed(1)}M
             </Typography>
           )}
@@ -82,7 +82,7 @@ function AlertRow({ alert, selected, onClick }: {
       </Box>
       <Stack direction="row" gap={0.75} alignItems="center">
         <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: severityColor(alert.severity, alert.riskScore) }} />
-        <Typography sx={{ fontSize: '0.6875rem', color: '#475569', fontWeight: 600 }}>
+        <Typography sx={{ fontSize: '0.6875rem', color: 'var(--on-surface-variant)', fontWeight: 600 }}>
           Risk {alert.riskScore}
           {alert.distanceKm != null ? ` · ${alert.distanceKm} km gap` : ''}
         </Typography>
@@ -97,7 +97,7 @@ function StatusChip({ status }: { status: OtpAlertItem['status'] }) {
     pending: { bg: '#fef2f2', color: '#dc2626', label: 'Pending' },
     held: { bg: '#fff7ed', color: '#ea580c', label: 'Held' },
     released: { bg: '#f0fdf4', color: '#16a34a', label: 'Released' },
-    declined: { bg: '#f8fafc', color: '#475569', label: 'Declined' },
+    declined: { bg: '#f8fafc', color: 'var(--on-surface-variant)', label: 'Declined' },
   }
   const c = cfg[status] ?? cfg.pending
   return (
@@ -151,7 +151,7 @@ function DetailTtlBanner({ alert }: { alert: OtpAlertItem }) {
         <LockOutlinedIcon />
       </Box>
       <Box sx={{ flex: 1 }}>
-        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
           Transaction held — call customer to verify
         </Typography>
         <Typography sx={{ fontSize: '0.8125rem', color: '#7f1d1d' }}>
@@ -234,14 +234,14 @@ export default function OTPAlertsPage() {
                 {connected ? 'Live OTP Defense' : 'Connecting…'}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Real-time OTP Alerts
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
               Suspicious OTPs that withhold transactions until your team verifies the customer by call
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5, px: 1.5, py: 0.875, border: '1px solid #eef0f4', bgcolor: '#ffffff' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5, px: 1.5, py: 0.875, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
             {connected
               ? <WifiTetheringRoundedIcon sx={{ fontSize: '1rem', color: '#10b981' }} />
               : <WifiTetheringOffRoundedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />}
@@ -259,14 +259,14 @@ export default function OTPAlertsPage() {
             { label: 'Confirmed fraud', value: String(confirmedFraud), color: colorPalette.primary },
             { label: 'Customer release rate', value: `${releaseRate}%`, color: '#10b981' },
           ].map(s => (
-            <Box key={s.label} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+            <Box key={s.label} sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, mb: 0.625 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: s.color }} />
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                   {s.label}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 {s.value}
               </Typography>
             </Box>
@@ -274,9 +274,9 @@ export default function OTPAlertsPage() {
         </Box>
 
         {alertsWithStatus.length === 0 ? (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 6, textAlign: 'center' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 6, textAlign: 'center' }}>
             <LockOpenOutlinedIcon sx={{ fontSize: '2.5rem', color: '#94a3b8', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#475569', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost', mb: 0.5 }}>
               No OTP alerts
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
@@ -286,9 +286,9 @@ export default function OTPAlertsPage() {
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 3 }}>
             {/* Alert queue */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', alignSelf: 'start' }}>
-              <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Alert queue</Typography>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', alignSelf: 'start' }}>
+              <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Alert queue</Typography>
                 <Chip label={`${pendingCount} pending`} size="small" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.08em', borderRadius: 0, height: 20 }} />
               </Box>
               {alertsWithStatus.map(a => (
@@ -303,9 +303,9 @@ export default function OTPAlertsPage() {
 
                 {/* Location mismatch */}
                 {(selected.txnLat != null || selected.distanceKm != null) && (
-                  <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                    <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Location mismatch</Typography>
+                  <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                    <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Location mismatch</Typography>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
                         Where the customer usually transacts vs where this OTP was triggered
                       </Typography>
@@ -318,7 +318,7 @@ export default function OTPAlertsPage() {
                             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Usual location</Typography>
                           </Box>
                           {selected.customerLat != null
-                            ? <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>{selected.customerLat.toFixed(4)}°N, {selected.customerLng?.toFixed(4)}°E</Typography>
+                            ? <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)' }}>{selected.customerLat.toFixed(4)}°N, {selected.customerLng?.toFixed(4)}°E</Typography>
                             : <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No history</Typography>}
                         </Box>
                         <Box sx={{ textAlign: 'center', px: 2 }}>
@@ -334,9 +334,9 @@ export default function OTPAlertsPage() {
                             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.1em' }}>OTP triggered from</Typography>
                           </Box>
                           {selected.txnLat != null
-                            ? <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>{selected.txnLat.toFixed(4)}°N, {selected.txnLng?.toFixed(4)}°E</Typography>
+                            ? <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)' }}>{selected.txnLat.toFixed(4)}°N, {selected.txnLng?.toFixed(4)}°E</Typography>
                             : <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No coordinates</Typography>}
-                          {selected.ip && <Typography sx={{ fontSize: '0.75rem', color: '#475569', mt: 0.375 }}>IP: {selected.ip}</Typography>}
+                          {selected.ip && <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', mt: 0.375 }}>IP: {selected.ip}</Typography>}
                         </Box>
                       </Box>
                     </Box>
@@ -345,8 +345,8 @@ export default function OTPAlertsPage() {
 
                 {/* Transaction details + reasons */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-                  <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
-                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 2 }}>Transaction details</Typography>
+                  <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.5 }}>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 2 }}>Transaction details</Typography>
                     <Stack gap={0}>
                       {[
                         ['Customer', selected.customerName ?? selected.customerId ?? '—'],
@@ -358,17 +358,17 @@ export default function OTPAlertsPage() {
                         ['OTP type', selected.otpType ?? '—'],
                         ['Alert fired', new Date(selected.firedAt).toLocaleTimeString()],
                       ].map(([label, value]) => (
-                        <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.875, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+                        <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.875, borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
                           <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{label}</Typography>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontWeight: 600, fontFamily: 'Jost' }}>{value}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontWeight: 600, fontFamily: 'Jost' }}>{value}</Typography>
                         </Box>
                       ))}
                     </Stack>
                   </Box>
 
-                  <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5 }}>
+                  <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.5 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Why this was flagged</Typography>
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Why this was flagged</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: severityColor(selected.severity, selected.riskScore), fontFamily: 'Jost', lineHeight: 1 }}>
                           {selected.riskScore}
@@ -378,17 +378,17 @@ export default function OTPAlertsPage() {
                     </Box>
                     <Stack gap={0}>
                       {(selected.reasons.length > 0 ? selected.reasons : [selected.detail]).map((r, i) => (
-                        <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', py: 0.875, borderBottom: i === (selected.reasons.length || 1) - 1 ? 'none' : '1px solid #f4f5f7' }}>
+                        <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', py: 0.875, borderBottom: i === (selected.reasons.length || 1) - 1 ? 'none' : '1px solid var(--border-col)' }}>
                           <Box sx={{ width: 16, height: 16, bgcolor: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.125 }}>
                             <Typography sx={{ fontSize: '0.625rem', color: '#ffffff', fontWeight: 700 }}>{i + 1}</Typography>
                           </Box>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5 }}>{r}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5 }}>{r}</Typography>
                         </Box>
                       ))}
                     </Stack>
                     <Box sx={{ mt: 2, bgcolor: `${colorPalette.primary}06`, border: `1px solid ${colorPalette.primary}15`, p: 1.5, display: 'flex', gap: 1 }}>
                       <AutoAwesomeOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary, mt: 0.125, flexShrink: 0 }} />
-                      <Typography sx={{ fontSize: '0.75rem', color: '#334155', lineHeight: 1.55 }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.55 }}>
                         <strong style={{ color: colorPalette.primary }}>Eureka:</strong>{' '}
                         {eurekaSummary(selected)}
                       </Typography>
@@ -398,16 +398,16 @@ export default function OTPAlertsPage() {
 
                 {/* Action bar */}
                 {(selected.status === 'pending' || selected.status === 'held') && (
-                  <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5, display: 'flex', gap: 1.5 }}>
+                  <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.5, display: 'flex', gap: 1.5 }}>
                     <Box sx={{ flex: 1 }}>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>Verification result</Typography>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>Verification result</Typography>
                       <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                         Once you've spoken with the customer on their registered line, choose an outcome below.
                       </Typography>
                     </Box>
                     <Stack direction="row" gap={1}>
                       <Button startIcon={<SmsOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
-                        sx={{ bgcolor: '#ffffff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
+                        sx={{ bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                         SMS Customer
                       </Button>
                       <Button startIcon={<CloseRoundedIcon sx={{ fontSize: '1rem !important' }} />}
@@ -417,7 +417,7 @@ export default function OTPAlertsPage() {
                       </Button>
                       <Button startIcon={<LockOpenOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
                         onClick={() => setPendingAction({ id: selected.id, status: 'released' })}
-                        sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
+                        sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface)' } }}>
                         Release Transaction
                       </Button>
                     </Stack>

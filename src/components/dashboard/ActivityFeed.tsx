@@ -58,12 +58,12 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
     <Box
       data-ai-analyzable="true"
       data-ai-description="Live activity stream monitoring real-time transaction flags, compliance alerts, and automated investigator actions."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', minHeight: 400, display: 'flex', flexDirection: 'column' }}
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', height: '100%', minHeight: 400, display: 'flex', flexDirection: 'column' }}
     >
       {/* Header */}
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Live Activity
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -87,7 +87,7 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
         {/* Skeleton while first load */}
         {events.length === 0 && !connected && (
           Array.from({ length: 5 }).map((_, i) => (
-            <Box key={i} sx={{ px: 3, py: 1.75, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 1.5 }}>
+            <Box key={i} sx={{ px: 3, py: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 1.5 }}>
               <Skeleton variant="rectangular" width={32} height={32} />
               <Box sx={{ flex: 1 }}>
                 <Skeleton width="70%" height={18} sx={{ mb: 0.5 }} />
@@ -108,11 +108,11 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
               data-ai-description={`Compliance Event: ${e.title}. ${e.detail ? `Details: ${e.detail}. ` : ''}Severity: ${e.severity}. Action by: ${e.actor}.`}
               sx={{
                 px: 3, py: 1.75,
-                borderBottom: '1px solid #f4f5f7',
+                borderBottom: '1px solid var(--border-col)',
                 display: 'flex', gap: 1.5,
                 cursor: navigable ? 'pointer' : 'default',
                 transition: 'background 0.15s',
-                '&:hover': { bgcolor: navigable ? '#fafbfc' : 'transparent' },
+                '&:hover': { bgcolor: navigable ? 'var(--section-bg)' : 'transparent' },
                 '&:last-child': { borderBottom: 'none' },
                 animation: 'fadeIn 0.3s ease',
                 '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(-4px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
@@ -123,7 +123,7 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {e.title}
                   </Typography>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', flexShrink: 0, fontWeight: 500 }}>

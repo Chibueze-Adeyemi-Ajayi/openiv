@@ -81,7 +81,7 @@ function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
         fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
         color: copied ? '#10b981' : '#64748b', textTransform: 'none',
         px: 1, py: 0.375, borderRadius: 0,
-        '&:hover': { bgcolor: '#f8fafc' },
+        '&:hover': { bgcolor: 'var(--section-bg)' },
         '& .MuiButton-startIcon': { mr: 0.375 },
       }}
     >
@@ -202,12 +202,12 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
   const respBody = prettyJson(d.responseBody)
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #eef0f4' }}>
+    <Box sx={{ bgcolor: 'var(--section-bg)', borderTop: '1px solid var(--border-col)' }}>
       <Tabs
         value={tab}
         onChange={(_, v) => setTab(v)}
         sx={{
-          borderBottom: '1px solid #eef0f4', minHeight: 36,
+          borderBottom: '1px solid var(--border-col)', minHeight: 36,
           '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
           '& .MuiTab-root': {
             fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
@@ -226,13 +226,13 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
         {tab === 0 && (
           <Stack gap={2}>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>
                 HEADERS
               </Typography>
               <CodeBlock content={d.requestHeaders ?? ''} copyLabel="Copy headers" />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>
                 BODY
               </Typography>
               <CodeBlock content={reqBody} copyLabel="Copy payload" />
@@ -251,13 +251,13 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
               </Box>
             )}
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>
                 HEADERS
               </Typography>
               <CodeBlock content={d.responseHeaders ?? '(no response headers)'} copyLabel="Copy headers" />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>
                 BODY
               </Typography>
               <CodeBlock content={respBody || '(no response body)'} copyLabel="Copy body" />
@@ -282,7 +282,7 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
                   {label}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', wordBreak: 'break-all' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)', wordBreak: 'break-all' }}>
                     {value}
                   </Typography>
                   {label === 'Delivery ID' && d.deliveryId && (
@@ -304,7 +304,7 @@ function DeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: stri
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
         sx={{
@@ -313,22 +313,22 @@ function DeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: stri
           gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
           gap: 1.5, alignItems: 'center',
           cursor: 'pointer',
-          '&:hover': { bgcolor: '#f8fafc' },
+          '&:hover': { bgcolor: 'var(--section-bg)' },
           transition: 'background 0.15s',
         }}
       >
         {/* Delivery ID */}
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)' }}>
           {shortId(d.deliveryId)}
         </Typography>
 
         {/* Endpoint URL */}
-        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {endpointUrl}
         </Typography>
 
         {/* Event type */}
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)' }}>
           {d.eventType}
         </Typography>
 
@@ -374,7 +374,7 @@ function DeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: stri
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
+    <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2, flex: 1, minWidth: 0 }}>
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
@@ -766,8 +766,8 @@ export default function WebhookBeamLogPage() {
 
   const selectSx = {
     height: 36, fontSize: '0.8125rem', fontFamily: 'Jost',
-    borderRadius: 0, bgcolor: '#ffffff',
-    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #eef0f4' },
+    borderRadius: 0, bgcolor: 'var(--card-bg)',
+    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid var(--border-col)' },
     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
     '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary, borderWidth: '1px' },
   }
@@ -790,7 +790,7 @@ export default function WebhookBeamLogPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Developer Console
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           Beam Log
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -802,7 +802,7 @@ export default function WebhookBeamLogPage() {
       <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+            <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2 }}>
               <Skeleton height={16} width="60%" />
               <Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
             </Box>
@@ -858,8 +858,8 @@ export default function WebhookBeamLogPage() {
           disabled={loading}
           sx={{
             borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600,
-            fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff',
-            px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' },
+            fontSize: '0.8125rem', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)',
+            px: 2, py: 0.875, '&:hover': { bgcolor: 'var(--section-bg)' },
           }}
         >
           Refresh
@@ -867,15 +867,15 @@ export default function WebhookBeamLogPage() {
       </Box>
 
       {/* Delivery table */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 4 }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 4 }}>
         {/* Column headers */}
         <Box sx={{
           px: 3, py: 1.25,
           display: 'grid',
           gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
           gap: 1.5,
-          borderBottom: '1px solid #eef0f4',
-          bgcolor: '#fafafa',
+          borderBottom: '1px solid var(--border-col)',
+          bgcolor: 'var(--section-bg)',
         }}>
           {['DELIVERY ID', 'ENDPOINT', 'EVENT TYPE', 'STATUS', 'CODE', 'DURATION', 'TIME', ''].map((h, i) => (
             <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>
@@ -887,7 +887,7 @@ export default function WebhookBeamLogPage() {
         {loading ? (
           <Stack>
             {Array.from({ length: 6 }).map((_, i) => (
-              <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+              <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 2 }}>
                 <Skeleton variant="rectangular" width={100} height={16} />
                 <Skeleton variant="rectangular" width="30%" height={16} />
                 <Skeleton variant="rectangular" width={80} height={16} />
@@ -909,9 +909,9 @@ export default function WebhookBeamLogPage() {
       </Box>
 
       {/* Integration guide */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Integration Guide
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -920,8 +920,8 @@ export default function WebhookBeamLogPage() {
         </Box>
 
         {/* Key headers reference */}
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 1.5 }}>
             REQUEST HEADERS
           </Typography>
           <Stack gap={0.75}>
@@ -945,7 +945,7 @@ export default function WebhookBeamLogPage() {
 
         {/* Language tabs */}
         <Box>
-          <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
+          <Box sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
             {langs.map((lang, i) => (
               <Box
                 key={lang}
@@ -972,8 +972,8 @@ export default function WebhookBeamLogPage() {
         </Box>
 
         {/* Payload structure */}
-        <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 1.5 }}>
+        <Box sx={{ px: 3, py: 2.5, borderTop: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 1.5 }}>
             ENVELOPE STRUCTURE
           </Typography>
           <CodeBlock highlight content={`{

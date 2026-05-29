@@ -69,7 +69,7 @@ const ResultRow = forwardRef<HTMLDivElement, {
     <Box sx={{ flexShrink: 0 }}>{icon}</Box>
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography sx={{
-        fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost',
+        fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.35,
       }}>
         {primary}
@@ -110,7 +110,7 @@ function SectionHeader({ label }: { label: string }) {
       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', whiteSpace: 'nowrap' }}>
         {label}
       </Typography>
-      <Box sx={{ flex: 1, height: '1px', bgcolor: '#f1f5f9' }} />
+      <Box sx={{ flex: 1, height: '1px', bgcolor: 'var(--border-col)' }} />
     </Box>
   )
 }
@@ -119,7 +119,7 @@ function KbdHint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
       {keys.map(k => (
-        <Box key={k} sx={{ px: 0.625, py: 0.2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.625rem', fontWeight: 600, color: '#64748b', lineHeight: 1.6 }}>
+        <Box key={k} sx={{ px: 0.625, py: 0.2, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: '4px', fontSize: '0.625rem', fontWeight: 600, color: '#64748b', lineHeight: 1.6 }}>
           {k}
         </Box>
       ))}
@@ -242,7 +242,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
         onClick={e => e.stopPropagation()}
         sx={{
           width: '100%', maxWidth: 620, mx: 2,
-          bgcolor: '#ffffff',
+          bgcolor: 'var(--card-bg)',
           boxShadow: '0 8px 16px rgba(15,23,42,0.08), 0 32px 80px rgba(15,23,42,0.2)',
           overflow: 'hidden',
           animation: 'paletteIn 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
@@ -253,7 +253,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
         }}
       >
         {/* ── Search input row ───────────────────────────────────────────── */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, height: 60, borderBottom: '1px solid #f1f5f9' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, height: 60, borderBottom: '1px solid var(--border-col)' }}>
           <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22 }}>
             {loading
               ? <CircularProgress size={16} thickness={4.5} sx={{ color: colorPalette.primary }} />
@@ -270,7 +270,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
               flex: 1,
               fontSize: '0.9375rem',
               fontFamily: 'Jost',
-              color: '#0f172a',
+              color: 'var(--on-surface)',
               '& input::placeholder': { color: '#94a3b8', opacity: 1 },
             }}
           />
@@ -278,12 +278,12 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
           {query ? (
             <Box
               onClick={() => { setQuery(''); setResults(null); setLoading(false); inputRef.current?.focus() }}
-              sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', bgcolor: '#f1f5f9', cursor: 'pointer', transition: 'background 0.12s', '&:hover': { bgcolor: '#e2e8f0' } }}
+              sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', bgcolor: 'var(--section-bg)', cursor: 'pointer', transition: 'background 0.12s', '&:hover': { bgcolor: 'var(--border-col)' } }}
             >
               <CloseRoundedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
             </Box>
           ) : (
-            <Box sx={{ flexShrink: 0, px: 0.875, py: 0.375, border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+            <Box sx={{ flexShrink: 0, px: 0.875, py: 0.375, border: '1px solid var(--border-col)', borderRadius: '4px' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8' }}>⌘K</Typography>
             </Box>
           )}
@@ -427,7 +427,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
         </Box>
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
-        <Box sx={{ px: 2.5, py: 1.25, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 2.5, bgcolor: '#fafbfc' }}>
+        <Box sx={{ px: 2.5, py: 1.25, borderTop: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2.5, bgcolor: 'var(--section-bg)' }}>
           <KbdHint keys={['↑', '↓']} label="navigate" />
           <KbdHint keys={['↵']}       label="open" />
           <KbdHint keys={['Esc']}     label="dismiss" />

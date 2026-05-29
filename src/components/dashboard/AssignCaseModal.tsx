@@ -47,15 +47,15 @@ function MemberRow({ m, selected, currentUser, onSelect, hasInterest = false }: 
         cursor: 'pointer',
         bgcolor: isSelected ? `${colorPalette.primary}08` : 'transparent',
         borderLeft: isSelected ? `3px solid ${colorPalette.primary}` : hasInterest ? '3px solid #ea580c' : '3px solid transparent',
-        borderBottom: '1px solid #f8fafc',
+        borderBottom: '1px solid var(--border-col)',
         transition: 'all 0.12s',
-        '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : hasInterest ? '#fff7ed' : '#fafbfc' },
+        '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : hasInterest ? '#fff7ed' : 'var(--section-bg)' },
       }}
     >
       <MemberAvatar name={m.name} avatarUrl={m.avatarUrl} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost',
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {m.name}
           </Typography>
@@ -135,7 +135,7 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
       <Box sx={{
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 440, bgcolor: '#ffffff', zIndex: 1451,
+        width: 440, bgcolor: 'var(--card-bg)', zIndex: 1451,
         boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
         animation: 'assignFadeIn 0.2s ease',
         '@keyframes assignFadeIn': {
@@ -144,7 +144,7 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
         },
       }}>
         {/* Header */}
-        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid #eef0f4',
+        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid var(--border-col)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <Box sx={{ width: 34, height: 34, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -154,12 +154,12 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                 Assign Case
               </Typography>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                 Select Team Member
               </Typography>
             </Box>
           </Box>
-          <Box onClick={onClose} sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, '&:hover': { color: '#475569' }, display: 'flex' }}>
+          <Box onClick={onClose} sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, '&:hover': { color: 'var(--on-surface-variant)' }, display: 'flex' }}>
             <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
           </Box>
         </Box>
@@ -176,20 +176,20 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
 
         {/* Search */}
         <Box sx={{ px: 2.5, pt: 1.5, pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, border: '1px solid #e2e8f0', px: 1.25, py: 0.75,
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, border: '1px solid var(--border-col)', px: 1.25, py: 0.75,
             '&:focus-within': { borderColor: colorPalette.primary } }}>
             <SearchOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#94a3b8', flexShrink: 0 }} />
             <InputBase
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, email or role…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
             />
           </Box>
         </Box>
 
         {/* Member list */}
-        <Box sx={{ maxHeight: 320, overflowY: 'auto', borderTop: '1px solid #f1f5f9' }}>
+        <Box sx={{ maxHeight: 320, overflowY: 'auto', borderTop: '1px solid var(--border-col)' }}>
           {loading ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={20} sx={{ color: colorPalette.primary }} />
@@ -211,7 +211,7 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
                   </Box>
                   {interestedMembers.map(m => <MemberRow key={m.id} m={m} selected={selected} currentUser={currentUser} onSelect={setSelected} hasInterest />)}
                   {otherMembers.length > 0 && (
-                    <Box sx={{ px: 2.5, py: 0.875, bgcolor: '#f8fafc', borderBottom: '1px solid #f1f5f9', borderTop: '1px solid #f1f5f9' }}>
+                    <Box sx={{ px: 2.5, py: 0.875, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', borderTop: '1px solid var(--border-col)' }}>
                       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         All Team Members
                       </Typography>
@@ -225,11 +225,11 @@ export default function AssignCaseModal({ open, caseId, interests = [], onClose,
         </Box>
 
         {/* Footer */}
-        <Box sx={{ px: 2.5, py: 1.75, borderTop: '1px solid #eef0f4', display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+        <Box sx={{ px: 2.5, py: 1.75, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <Box onClick={onClose} sx={{
-            px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+            px: 2, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
             color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-            transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' },
+            transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' },
           }}>
             Cancel
           </Box>

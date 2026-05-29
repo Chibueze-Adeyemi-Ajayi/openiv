@@ -100,7 +100,7 @@ function AssigneeAvatar({ name }: { name?: string }) {
       <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: AVATAR_COLORS[idx], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>{initials}</Typography>
       </Box>
-      <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {name.split(' ')[0]}
       </Typography>
     </Box>
@@ -287,7 +287,7 @@ export default function AMLPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Investigations
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             AML &amp; Cases
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -299,8 +299,8 @@ export default function AMLPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: isElevated ? 'repeat(2, 1fr)' : '1fr', gap: 2, mb: 3 }}>
           {/* Active Investigations */}
           <Box onClick={() => { setAppliedHasInterest(false); setPage(1) }} sx={{
-            bgcolor: appliedHasInterest ? '#ffffff' : '#f0f9ff',
-            border: appliedHasInterest ? '1px solid #eef0f4' : `2px solid ${colorPalette.primary}`,
+            bgcolor: appliedHasInterest ? 'var(--card-bg)' : '#f0f9ff',
+            border: appliedHasInterest ? '1px solid var(--border-col)' : `2px solid ${colorPalette.primary}`,
             p: 2.5, cursor: 'pointer', transition: 'all 0.2s',
             '&:hover': { bgcolor: '#f0f9ff', borderColor: colorPalette.primary },
           }}>
@@ -309,9 +309,9 @@ export default function AMLPage() {
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
                   Active Investigations
                 </Typography>
-                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
                   {allCasesCount == null
-                    ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                    ? <Box sx={{ width: 56, height: 40, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                     : (allCasesCount > 0 ? allCasesCount : '—')}
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -327,8 +327,8 @@ export default function AMLPage() {
           {/* Interest Requests — admin/CCO only */}
           {isElevated && (
             <Box onClick={() => { setAppliedHasInterest(true); setPage(1) }} sx={{
-              bgcolor: !appliedHasInterest ? '#ffffff' : '#fff7ed',
-              border: !appliedHasInterest ? '1px solid #eef0f4' : '2px solid #ea580c',
+              bgcolor: !appliedHasInterest ? 'var(--card-bg)' : '#fff7ed',
+              border: !appliedHasInterest ? '1px solid var(--border-col)' : '2px solid #ea580c',
               p: 2.5, cursor: 'pointer', transition: 'all 0.2s',
               '&:hover': { bgcolor: '#fff7ed', borderColor: '#ea580c' },
             }}>
@@ -337,9 +337,9 @@ export default function AMLPage() {
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
                     Interest Requests
                   </Typography>
-                  <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+                  <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
                     {interestCaseCount == null
-                      ? <Box sx={{ width: 56, height: 40, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                      ? <Box sx={{ width: 56, height: 40, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                       : (interestCaseCount > 0 ? interestCaseCount : '—')}
                   </Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -358,27 +358,27 @@ export default function AMLPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
           {metricCards.map(s => (
             <Box key={s.label} data-ai-analyzable="true" data-ai-description={`AML Performance Metric: ${s.label} currently at ${s.value}.`}
-              sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.25 }}>
+              sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.25 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: s.color }} />
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{s.label}</Typography>
               </Box>
               {metricsLoading ? (
-                <Box sx={{ height: 28, width: 56, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                <Box sx={{ height: 28, width: 56, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
               ) : (
-                <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>{s.value ?? '—'}</Typography>
+                <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{s.value ?? '—'}</Typography>
               )}
             </Box>
           ))}
         </Box>
 
         {/* Cases table */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
 
           {/* Table toolbar */}
-          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 {appliedHasInterest ? 'Interest Requests Queue' : 'Active Case Queue'}
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -398,7 +398,7 @@ export default function AMLPage() {
           </Box>
 
           {/* Filter bar */}
-          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2 }}>
             <Stack direction="row" gap={0.5}>
               {STATUS_TABS.map(tab => (
                 <Box key={tab.value} onClick={() => { setStatusFilter(tab.value); setPage(1) }} sx={{
@@ -406,7 +406,7 @@ export default function AMLPage() {
                   color: statusFilter === tab.value ? colorPalette.primary : '#64748b',
                   bgcolor: statusFilter === tab.value ? `${colorPalette.primary}0a` : 'transparent',
                   transition: 'all 0.15s',
-                  '&:hover': { bgcolor: statusFilter === tab.value ? `${colorPalette.primary}0f` : '#f8fafc' },
+                  '&:hover': { bgcolor: statusFilter === tab.value ? `${colorPalette.primary}0f` : 'var(--section-bg)' },
                 }}>
                   {tab.label}
                 </Box>
@@ -418,19 +418,19 @@ export default function AMLPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
               <Box sx={{
                 display: 'flex', alignItems: 'center', gap: 1,
-                bgcolor: '#f8fafc', px: 1.5, height: 32, minWidth: 220,
+                bgcolor: 'var(--card-bg)', px: 1.5, height: 32, minWidth: 220,
                 border: '1px solid transparent', borderRight: 'none', transition: 'all 0.18s',
-                '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary },
+                '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary },
               }}>
                 <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
                 <InputBase
                   value={draftSearch}
                   onChange={e => handleSearchChange(e.target.value)}
                   placeholder="Search by case ID or title…"
-                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
                 />
               </Box>
-              <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0, height: 32, bgcolor: '#f8fafc', border: '1px solid transparent', alignItems: 'center' }}>
+              <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0, height: 32, bgcolor: 'var(--card-bg)', border: '1px solid transparent', alignItems: 'center' }}>
                 <IconButton ref={filterBtnRef} disableRipple onClick={openCaseFilter}
                   sx={{ borderRadius: 0, height: 32, width: 36, color: caseFilterCount > 0 ? colorPalette.primary : '#64748b', '&:hover': { color: colorPalette.primary } }}>
                   <FilterListRoundedIcon sx={{ fontSize: '1.125rem' }} />
@@ -444,7 +444,7 @@ export default function AMLPage() {
 
           {/* Active filter chips */}
           {caseFilterCount > 0 && (
-            <Box sx={{ bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ bgcolor: 'var(--section-bg)', borderBottom: '1px solid var(--border-col)', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', mr: 0.5 }}>Filters:</Typography>
               {priorityFilter && (
                 <Chip label={`Priority: ${priorityFilter}`} size="small" onDelete={() => { setPriorityFilter(''); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
@@ -468,14 +468,14 @@ export default function AMLPage() {
               )}
               <Box sx={{ flex: 1 }} />
               <Box onClick={() => { setPriorityFilter(''); setAppliedRisk('any'); setAppliedSort('recent'); setAssignFilter('all'); setAppliedHasInterest(false); setPage(1) }}
-                sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+                sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: 'var(--on-surface-variant)' } }}>
                 Clear all
               </Box>
             </Box>
           )}
 
           {/* Column headers */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '16px 130px 1fr 78px 82px 90px 100px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '16px 130px 1fr 78px 82px 90px 100px 110px 82px', gap: 2, px: 3, py: 1.25, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
             <Box />
             {['Case ID', 'Title / Typology', 'Risk', 'Priority', 'SLA', 'Opened', 'Assignee', 'Status'].map(h => (
               <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -521,11 +521,11 @@ export default function AMLPage() {
                   display: 'grid',
                   gridTemplateColumns: '16px 130px 1fr 78px 82px 90px 100px 110px 82px',
                   gap: 2, px: 3, py: 1.75,
-                  borderBottom: i < cases.length - 1 ? '1px solid #f4f5f7' : 'none',
+                  borderBottom: i < cases.length - 1 ? '1px solid var(--border-col)' : 'none',
                   borderLeft: !c.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent',
                   bgcolor: !c.seen ? `${colorPalette.primary}03` : 'transparent',
                   cursor: 'pointer', transition: 'background 0.15s',
-                  '&:hover': { bgcolor: !c.seen ? `${colorPalette.primary}0a` : '#fafbfc' },
+                  '&:hover': { bgcolor: !c.seen ? `${colorPalette.primary}0a` : 'var(--section-bg)' },
                   alignItems: 'center',
                 }}
               >
@@ -540,7 +540,7 @@ export default function AMLPage() {
 
                 <Box sx={{ overflow: 'hidden', minWidth: 0 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, overflow: 'hidden' }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>
                       {c.title}
                     </Typography>
                     {isElevated && c.hasPendingInterest && (
@@ -556,10 +556,10 @@ export default function AMLPage() {
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-                  <Box sx={{ width: 28, height: 4, bgcolor: '#f1f5f9', position: 'relative', flexShrink: 0 }}>
+                  <Box sx={{ width: 28, height: 4, bgcolor: 'var(--section-bg)', position: 'relative', flexShrink: 0 }}>
                     <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${c.riskScore}%`, bgcolor: c.riskScore >= 70 ? '#dc2626' : c.riskScore >= 40 ? '#f59e0b' : '#10b981' }} />
                   </Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e' }}>{c.riskScore}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)' }}>{c.riskScore}</Typography>
                 </Box>
 
                 <Box sx={{ px: 0.875, py: 0.375, bgcolor: pCfg.bg, border: `1px solid ${pCfg.color}30`, width: 'fit-content' }}>
@@ -594,20 +594,20 @@ export default function AMLPage() {
 
           {/* Pagination */}
           {!casesLoading && total > PAGE_SIZE && (
-            <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ px: 3, py: 1.75, borderTop: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                 Page {page} of {totalPages} · {total} total
               </Typography>
               <Stack direction="row" gap={0.5}>
                 {[
-                  { icon: <ChevronLeftRoundedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />, active: page > 1, onClick: () => setPage(p => p - 1) },
-                  { icon: <ChevronRightRoundedIcon sx={{ fontSize: '1.125rem', color: '#475569' }} />, active: page < totalPages, onClick: () => setPage(p => p + 1) },
+                  { icon: <ChevronLeftRoundedIcon sx={{ fontSize: '1.125rem', color: 'var(--on-surface-variant)' }} />, active: page > 1, onClick: () => setPage(p => p - 1) },
+                  { icon: <ChevronRightRoundedIcon sx={{ fontSize: '1.125rem', color: 'var(--on-surface-variant)' }} />, active: page < totalPages, onClick: () => setPage(p => p + 1) },
                 ].map((btn, i) => (
                   <Box key={i} onClick={btn.active ? btn.onClick : undefined} sx={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 32, height: 32, border: '1px solid #e2e8f0',
+                    width: 32, height: 32, border: '1px solid var(--border-col)',
                     cursor: btn.active ? 'pointer' : 'not-allowed', opacity: btn.active ? 1 : 0.4,
-                    '&:hover': btn.active ? { bgcolor: '#f8fafc' } : {},
+                    '&:hover': btn.active ? { bgcolor: 'var(--section-bg)' } : {},
                   }}>
                     {btn.icon}
                   </Box>
@@ -628,12 +628,12 @@ export default function AMLPage() {
         onClose={() => setFilterOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid #e2e8f0', width: 264 } } }}
+        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid var(--border-col)', width: 264 } } }}
       >
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Filter</Typography>
-            <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' }, mr: -0.5 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Filter</Typography>
+            <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' }, mr: -0.5 }}>
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
             </IconButton>
           </Box>
@@ -708,7 +708,7 @@ export default function AMLPage() {
             </>
           )}
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid var(--border-col)' }}>
             <Button disableRipple onClick={clearCaseFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
             <Button disableRipple onClick={applyCaseFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
           </Box>

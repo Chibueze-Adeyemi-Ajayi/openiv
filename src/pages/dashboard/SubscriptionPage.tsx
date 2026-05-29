@@ -1,25 +1,15 @@
 import { Box, Typography, Chip, CircularProgress, Button, Divider } from '@mui/material'
 import { useState, useEffect, useCallback } from 'react'
 
-// Paystack inline popup — loaded via index.html script tag
-declare const PaystackPop: {
-  // Server-side initialized (access_code from /transaction/initialize)
+// Paystack inline popup v2 — loaded via index.html script tag
+// v2: PaystackPop is a class; call new PaystackPop() then .newTransaction()
+declare const PaystackPop: new () => {
   newTransaction: (opts: {
     key: string
     accessCode: string
     onSuccess: (tx: { reference: string }) => void
-    onClose: () => void
+    onCancel: () => void
   }) => void
-  // Client-side initialized (public key + amount + ref)
-  setup: (opts: {
-    key: string
-    email: string
-    amount: number   // kobo
-    ref: string
-    currency?: string
-    onSuccess: (tx: { reference: string }) => void
-    onClose: () => void
-  }) => { openIframe: () => void }
 }
 import { colorPalette } from '@/theme'
 import { subscriptionApi, type SubscriptionPlan, type InstitutionSubscription, type ActiveDiscount } from '@/api/billing'
@@ -105,7 +95,7 @@ function PlanCard({
       minWidth: 260,
       maxWidth: 360,
       border: isCurrent ? `2px solid ${accent}` : '2px solid #e2e8f0',
-      bgcolor: isCurrent ? bg : '#ffffff',
+      bgcolor: isCurrent ? bg : 'var(--card-bg)',
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
@@ -125,13 +115,13 @@ function PlanCard({
       )}
 
       {/* Header */}
-      <Box sx={{ p: 3, pb: 2, borderBottom: '1px solid #f1f5f9' }}>
+      <Box sx={{ p: 3, pb: 2, borderBottom: '1px solid var(--border-col)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Box sx={{ width: 32, height: 32, bgcolor: `${accent}14`, display: 'flex',
             alignItems: 'center', justifyContent: 'center' }}>
             <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1rem', color: accent }} />
           </Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
             {plan.name}
           </Typography>
           {plan.aiFeaturesEnabled && (
@@ -185,7 +175,7 @@ function PlanCard({
         {plan.features.map((f) => (
           <Box key={f} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
             <CheckCircleOutlinedIcon sx={{ fontSize: '0.9rem', color: accent, mt: '2px', flexShrink: 0 }} />
-            <Typography sx={{ fontSize: '0.8125rem', color: '#334155', fontFamily: 'Jost', lineHeight: 1.5 }}>{f}</Typography>
+            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost', lineHeight: 1.5 }}>{f}</Typography>
           </Box>
         ))}
       </Box>
@@ -212,7 +202,7 @@ function PlanCard({
             </Typography>
           </Box>
         ) : isEnterprise ? (
-          <Button fullWidth variant="outlined" href="mailto:sales@openiv.com"
+          <Button fullWidth variant="outlined" href="mailto:hello@openiv.ng"
             sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 700,
               borderColor: accent, color: accent, py: 1.125, fontSize: '0.875rem',
               '&:hover': { bgcolor: `${accent}08`, borderColor: accent } }}>
@@ -273,17 +263,22 @@ export default function SubscriptionPage() {
   }, [])
 
   const handleVerify = useCallback(async (reference: string) => {
+    console.log('[Subscription] verifying payment, reference:', reference)
     setVerifying(true)
     try {
-      await subscriptionApi.verifyPayment(reference)
+      const result = await subscriptionApi.verifyPayment(reference)
+      console.log('[Subscription] verify success:', result)
       setDevPayment(null)
       setActiveDiscount(null)
-      // Refresh subscription data and profile in-place — no page reload
       refreshProfile()
       await load()
       setUpgradeMsg({ type: 'success', text: 'Payment confirmed! Your plan has been updated.' })
-    } catch {
-      setUpgradeMsg({ type: 'error', text: 'Payment not confirmed yet. Please wait a moment and try again.' })
+    } catch (err) {
+      console.error('[Subscription] verify failed for reference', reference, err)
+      setUpgradeMsg({
+        type: 'error',
+        text: 'Payment received by Paystack but plan not yet updated. Wait 60 seconds and refresh — or contact hello@openiv.ng with your payment reference: ' + reference,
+      })
     } finally {
       setVerifying(false)
     }
@@ -291,41 +286,55 @@ export default function SubscriptionPage() {
 
   const handleSelectPlan = useCallback(async (plan: SubscriptionPlan) => {
     if (plan.slug === 'enterprise') return
+    console.log('[Subscription] initiating payment for plan:', plan.id, plan.name)
     setUpgrading(plan.id)
     setUpgradeMsg(null)
     setDevPayment(null)
     try {
       const result = await subscriptionApi.initiatePayment(plan.id, activeDiscount?.couponCode)
+      console.log('[Subscription] initiate result:', {
+        invoiceId: result.invoiceId,
+        reference: result.reference,
+        accessCode: result.accessCode ? 'present' : 'null (backend dev mode)',
+        amountNgn: result.amountNgn,
+        discountedAmountNgn: result.discountedAmountNgn,
+        invoiceType: result.invoiceType,
+      })
       setUpgrading(null)
 
       const popupAvailable = typeof PaystackPop !== 'undefined'
-      const onSuccess = (tx: { reference: string }) => handleVerify(tx.reference)
-      const onClose   = () => setUpgradeMsg({ type: 'error', text: 'Payment cancelled. You can try again when ready.' })
+      console.log('[Subscription] popup check — paystackKey:', paystackKey ? 'set' : 'not set',
+        '| popupAvailable:', popupAvailable, '| accessCode:', result.accessCode ? 'present' : 'null (backend not configured)')
 
       if (paystackKey && popupAvailable && result.accessCode) {
-        // Preferred: server-initialized session (access_code from Paystack)
-        PaystackPop.newTransaction({ key: paystackKey, accessCode: result.accessCode, onSuccess, onClose })
-      } else if (paystackKey && popupAvailable) {
-        // Fallback: client-side initialization using reference + amount (no backend secret needed)
-        PaystackPop.setup({
+        // Only open popup when backend issued a real Paystack access_code — this
+        // guarantees the invoice reference matches what Paystack returns in onSuccess.
+        console.log('[Subscription] opening PaystackPop.newTransaction (server-initialized)')
+        new PaystackPop().newTransaction({
           key: paystackKey,
-          email: profile?.email ?? '',
-          amount: Math.round(result.discountedAmountNgn * 100),  // NGN → kobo
-          ref: result.reference,
-          currency: 'NGN',
-          onSuccess,
-          onClose,
-        }).openIframe()
+          accessCode: result.accessCode,
+          onSuccess: (tx) => {
+            console.log('[Subscription] Paystack onSuccess, reference:', tx.reference)
+            handleVerify(tx.reference)
+          },
+          onCancel: () => {
+            console.log('[Subscription] Paystack popup cancelled by user')
+            setUpgradeMsg({ type: 'error', text: 'Payment cancelled. You can try again when ready.' })
+          },
+        })
       } else {
-        // Dev/local: no Paystack key configured at all — show simulate button
+        // accessCode is null → backend is not connected to Paystack (PAYSTACK_SECRET_KEY
+        // not configured). Show the dev simulation panel so the flow can still be tested.
+        console.log('[Subscription] accessCode null — backend Paystack not configured, showing dev simulation panel')
         setDevPayment({ reference: result.reference })
       }
     } catch (err: any) {
-      const body = err?.body
-      if (body?.error === 'downgrade_window_closed') {
+      console.error('[Subscription] initiatePayment failed:', { code: err?.code, detail: err?.detail, status: err?.status, err })
+      if (err?.code === 'downgrade_window_closed') {
         setUpgradeMsg({ type: 'error', text: 'Downgrade is only available within 3 days of your plan renewal date.' })
       } else {
-        setUpgradeMsg({ type: 'error', text: 'Failed to initiate payment. Please try again.' })
+        const detail = err?.detail ?? err?.message ?? 'Unknown error'
+        setUpgradeMsg({ type: 'error', text: `Failed to initiate payment: ${detail}. Please try again or contact hello@openiv.ng.` })
       }
       setUpgrading(null)
     }
@@ -340,7 +349,7 @@ export default function SubscriptionPage() {
 
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: '#00288e',
+        <Typography sx={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--heading-color)',
           fontFamily: 'Jost', letterSpacing: '-0.01em' }}>
           Subscription
         </Typography>
@@ -363,7 +372,7 @@ export default function SubscriptionPage() {
                 textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Current Plan
               </Typography>
-              <Typography sx={{ fontSize: '1.0625rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
                 {sub.plan.name}
               </Typography>
             </Box>
@@ -387,7 +396,7 @@ export default function SubscriptionPage() {
             <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'Jost' }}>
               {isTrial ? 'Trial ends' : 'Renews'}
             </Typography>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
               {new Date(isTrial ? sub.trialEndsAt! : sub.renewsAt!).toLocaleDateString('en-GB',
                 { day: 'numeric', month: 'short', year: 'numeric' })}
             </Typography>
@@ -437,10 +446,11 @@ export default function SubscriptionPage() {
         {devPayment && (
           <Box sx={{ border: '1px solid #fde68a', bgcolor: '#fef9c3', p: 2.5, mt: 2.5 }}>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#92400e', mb: 0.5, fontFamily: 'Jost' }}>
-              Dev mode — Paystack not configured
+              Backend not connected to Paystack
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#92400e', mb: 2 }}>
-              No live Paystack key detected. Click below to simulate a successful payment.
+              Set <strong>PAYSTACK_SECRET_KEY</strong> on the backend to enable live payments.
+              Click below to simulate a successful payment for testing.
             </Typography>
             <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Button
@@ -466,8 +476,8 @@ export default function SubscriptionPage() {
 
       {/* Usage limits callout */}
       {sub && (
-        <Box sx={{ p: 3, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a',
+        <Box sx={{ p: 3, border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--on-surface)',
             fontFamily: 'Jost', mb: 2 }}>
             Your plan limits
           </Typography>
@@ -487,7 +497,7 @@ export default function SubscriptionPage() {
                     textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
                     {label}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
                     {val}
                   </Typography>
                 </Box>
@@ -498,14 +508,14 @@ export default function SubscriptionPage() {
       )}
 
       {/* Footer note */}
-      <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #f1f5f9' }}>
+      <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid var(--border-col)' }}>
         <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontFamily: 'Jost' }}>
           Plans are billed monthly. Overages on transactions and cases are charged at pay-as-you-go rates from your wallet balance.
           For custom enterprise contracts or volume pricing, contact{' '}
-          <Box component="a" href="mailto:sales@openiv.com"
+          <Box component="a" href="mailto:hello@openiv.ng"
             sx={{ color: colorPalette.primary, textDecoration: 'none', fontWeight: 600,
               '&:hover': { textDecoration: 'underline' } }}>
-            sales@openiv.com
+            hello@openiv.ng
           </Box>.
         </Typography>
       </Box>
@@ -516,7 +526,7 @@ export default function SubscriptionPage() {
           <Chip
             label={profile.institutionName}
             size="small"
-            sx={{ bgcolor: '#f1f5f9', color: '#64748b', fontFamily: 'Jost', fontSize: '0.75rem',
+            sx={{ bgcolor: 'var(--section-bg)', color: '#64748b', fontFamily: 'Jost', fontSize: '0.75rem',
               fontWeight: 600, borderRadius: '4px', height: 22 }}
           />
         </Box>

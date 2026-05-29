@@ -23,13 +23,12 @@ export default function MetricCard({ label, value, trend, trendLabel, invertTren
       data-ai-analyzable="true"
       data-ai-description={`${label} metric: currently ${value}${trend !== undefined ? ` with a ${trend}% ${trendLabel}` : ''}.`}
       sx={{
-        bgcolor: '#ffffff',
-        border: '1px solid #eef0f4',
+        bgcolor: 'var(--card-bg)',
+        border: '1px solid var(--card-border-col)',
         p: 2.5,
         transition: 'all 0.2s ease',
         '&:hover': {
-          borderColor: '#dbe1ea',
-          boxShadow: '0 4px 12px rgba(15,23,42,0.04)',
+          boxShadow: '0 4px 12px rgba(15,23,42,0.06)',
         },
       }}
     >
@@ -66,7 +65,7 @@ export default function MetricCard({ label, value, trend, trendLabel, invertTren
         sx={{
           fontSize: '1.875rem',
           fontWeight: 700,
-          color: '#00288e',
+          color: 'var(--on-surface)',
           lineHeight: 1.1,
           fontFamily: 'Jost',
           letterSpacing: '-0.02em',

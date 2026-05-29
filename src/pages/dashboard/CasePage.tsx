@@ -326,7 +326,7 @@ export default function CasePage() {
         <NavigationBreadcrumb currentLabel="Loading case…" />
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 3, maxWidth: 600 }}>
           {[280, 180, 320, 240].map((w, i) => (
-            <Box key={i} sx={{ height: 14, width: w, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 80}ms` }} />
+            <Box key={i} sx={{ height: 14, width: w, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } }, animationDelay: `${i * 80}ms` }} />
           ))}
         </Box>
       </Box>
@@ -377,7 +377,7 @@ export default function CasePage() {
             <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Cases</Typography>
           </Box>
           <Box sx={{ width: 1, height: 12, bgcolor: '#e2e8f0' }} />
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
             {cas?.id}
           </Typography>
           <Box sx={{ px: 0.875, py: 0.25, bgcolor: pCfg.bg, border: `1px solid ${pCfg.color}30` }}>
@@ -389,7 +389,7 @@ export default function CasePage() {
         </Box>
 
         {/* Title + typology */}
-        <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.375, lineHeight: 1.25 }}>
+        <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.375, lineHeight: 1.25 }}>
           {cas?.title}
         </Typography>
         <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mb: 1.75 }}>
@@ -403,7 +403,7 @@ export default function CasePage() {
               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>SLA Deadline</Typography>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: sla.color }}>{sla.label}</Typography>
             </Box>
-            <Box sx={{ height: 4, bgcolor: '#f1f5f9', position: 'relative' }}>
+            <Box sx={{ height: 4, bgcolor: 'var(--section-bg)', position: 'relative' }}>
               <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${sla.pct}%`, bgcolor: sla.color, transition: 'width 0.4s' }} />
             </Box>
           </Box>
@@ -478,9 +478,9 @@ export default function CasePage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 
           {/* Overview card */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f4f5f7' }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Case Overview</Typography>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Case Overview</Typography>
             </Box>
             <Box sx={{ p: 2.5, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
               <MetaRow label="Opened by"   value={cas?.createdByName ?? '—'} />
@@ -494,8 +494,8 @@ export default function CasePage() {
             {cas?.notes && (
               <Box sx={{ px: 2.5, pb: 2 }}>
                 <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75 }}>Notes</Typography>
-                <Box sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cas.notes}</Typography>
+                <Box sx={{ p: 1.5, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cas.notes}</Typography>
                 </Box>
               </Box>
             )}
@@ -503,7 +503,7 @@ export default function CasePage() {
 
           {/* Restricted-view notice for non-privileged, non-assigned users */}
           {!canSeeFullCase && (
-            <Box sx={{ bgcolor: '#fafbfc', border: '1px solid #eef0f4', px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f59e0b', flexShrink: 0 }} />
               <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', lineHeight: 1.5 }}>
                 This case is assigned to another investigator. You can view the overview only. Accept the case or contact your admin to gain full access.
@@ -512,9 +512,9 @@ export default function CasePage() {
           )}
 
           {/* Linked transactions */}
-          {canSeeFullCase && <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f4f5f7' }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          {canSeeFullCase && <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Linked Transactions <Typography component="span" sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400, ml: 0.75 }}>({data?.transactions?.length ?? 0})</Typography>
               </Typography>
             </Box>
@@ -524,17 +524,17 @@ export default function CasePage() {
               </Box>
             ) : (
               <>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 72px 120px', gap: 2, px: 2.5, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #f4f5f7' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 72px 120px', gap: 2, px: 2.5, py: 1, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                   {['Transaction ID', 'Amount', 'Risk', 'Channel', 'Date'].map(h => (
                     <Typography key={h} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
                   ))}
                 </Box>
                 {data.transactions.map((t, i) => (
-                  <Box key={t.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 72px 120px', gap: 2, px: 2.5, py: 1.5, borderBottom: i < (data.transactions.length - 1) ? '1px solid #f4f5f7' : 'none', alignItems: 'center' }}>
+                  <Box key={t.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 72px 120px', gap: 2, px: 2.5, py: 1.5, borderBottom: i < (data.transactions.length - 1) ? '1px solid var(--border-col)' : 'none', alignItems: 'center' }}>
                     <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.id}</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{t.amount.toLocaleString()}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{t.amount.toLocaleString()}</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 24, height: 4, bgcolor: '#f1f5f9', position: 'relative', flexShrink: 0 }}>
+                      <Box sx={{ width: 24, height: 4, bgcolor: 'var(--section-bg)', position: 'relative', flexShrink: 0 }}>
                         <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${t.risk}%`, bgcolor: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }} />
                       </Box>
                       <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }}>{t.risk}</Typography>
@@ -548,9 +548,9 @@ export default function CasePage() {
           </Box>}
 
           {/* Evidence locker */}
-          {canSeeFullCase && <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f4f5f7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          {canSeeFullCase && <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Evidence Locker <Typography component="span" sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400, ml: 0.75 }}>({data?.evidence?.length ?? 0})</Typography>
               </Typography>
               {cas && currentStatus !== 'closed' && (
@@ -578,12 +578,12 @@ export default function CasePage() {
                         <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{cfg.label}</Typography>
                       </Box>
                       {items.map(e => (
-                        <Box key={e.id} sx={{ ml: 1.75, mb: 1, p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', '&:last-child': { mb: 0 } }}>
+                        <Box key={e.id} sx={{ ml: 1.75, mb: 1, p: 1.5, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', '&:last-child': { mb: 0 } }}>
                           <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 0.25 }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>{e.title}</Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{e.title}</Typography>
                             <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', ml: 1, flexShrink: 0 }}>{fmtDateShort(e.createdAt)}</Typography>
                           </Box>
-                          {e.detail && <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.5, mt: 0.25 }}>{e.detail}</Typography>}
+                          {e.detail && <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.5, mt: 0.25 }}>{e.detail}</Typography>}
                           {e.refId && <Typography sx={{ fontSize: '0.625rem', color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>ref: {e.refId}</Typography>}
                           <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', mt: 0.5 }}>Added by {e.addedByName}</Typography>
                         </Box>
@@ -596,10 +596,10 @@ export default function CasePage() {
           </Box>}
 
           {/* Activity timeline */}
-          {canSeeFullCase && <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f4f5f7' }}>
+          {canSeeFullCase && <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Activity Timeline</Typography>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Activity Timeline</Typography>
               </Box>
               <Stack direction="row" gap={0.5} mt={1.25} flexWrap="wrap">
                 {[
@@ -636,13 +636,13 @@ export default function CasePage() {
                       <Avatar name={a.actorName} size={32} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>{a.actorName}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{a.actorName}</Typography>
                           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{ACTION_LABELS[a.action] ?? a.action}</Typography>
                           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>{fmtDate(a.createdAt)}</Typography>
                         </Box>
                         {a.detail && (
-                          <Box sx={{ mt: 0.5, p: 1, bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{a.detail}</Typography>
+                          <Box sx={{ mt: 0.5, p: 1, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{a.detail}</Typography>
                           </Box>
                         )}
                       </Box>
@@ -653,14 +653,14 @@ export default function CasePage() {
 
               {/* Add note */}
               {cas && currentStatus !== 'closed' && (
-                <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #eef0f4' }}>
+                <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid var(--border-col)' }}>
                   <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 1 }}>Add Note</Typography>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-                    <Box sx={{ flex: 1, border: '1px solid #e2e8f0', px: 1.25, py: 0.875, minHeight: 64, display: 'flex', alignItems: 'flex-start', '&:focus-within': { borderColor: colorPalette.primary } }}>
+                    <Box sx={{ flex: 1, border: '1px solid var(--border-col)', px: 1.25, py: 0.875, minHeight: 64, display: 'flex', alignItems: 'flex-start', '&:focus-within': { borderColor: colorPalette.primary } }}>
                       <InputBase multiline minRows={2} value={note} onChange={e => setNote(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNote() }}
                         placeholder="Add an investigation note…"
-                        sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', '& textarea': { resize: 'none' } }} />
+                        sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)', '& textarea': { resize: 'none' } }} />
                     </Box>
                     <Box onClick={submitNote} sx={{
                       px: 1.75, py: 0.875, bgcolor: note.trim() && !submittingNote ? colorPalette.primary : '#e2e8f0',
@@ -682,8 +682,8 @@ export default function CasePage() {
 
           {/* Customer panel */}
           {cas?.customerId && (
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #f4f5f7' }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)' }}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Customer</Typography>
               </Box>
               <Box sx={{ p: 2 }}>
@@ -697,7 +697,7 @@ export default function CasePage() {
                     </Box>
                   )}
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {cas.customerName ?? 'Unknown Customer'}
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -714,8 +714,8 @@ export default function CasePage() {
           )}
 
           {/* Assignment panel */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #f4f5f7' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Assignment</Typography>
             </Box>
             <Box sx={{ p: 2 }}>
@@ -723,7 +723,7 @@ export default function CasePage() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.25 }}>
                   <Avatar name={cas.assigneeName} size={36} />
                   <Box>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>{cas.assigneeName}</Typography>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{cas.assigneeName}</Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Assigned investigator</Typography>
                   </Box>
                 </Box>
@@ -747,7 +747,7 @@ export default function CasePage() {
 
               {/* Express interest — visible only to confirmed non-privileged, non-assigned users */}
               {cas && currentStatus !== 'closed' && currentUser != null && !canAssignOrReassign && !isAssignedToMe && (
-                <Box sx={{ mt: cas?.assignedTo ? 1.5 : 0, pt: cas?.assignedTo ? 1.5 : 0, borderTop: cas?.assignedTo ? '1px solid #f1f5f9' : 'none' }}>
+                <Box sx={{ mt: cas?.assignedTo ? 1.5 : 0, pt: cas?.assignedTo ? 1.5 : 0, borderTop: cas?.assignedTo ? '1px solid var(--border-col)' : 'none' }}>
                   {myInterest == null ? (
                     <Box
                       onClick={async () => {
@@ -764,7 +764,7 @@ export default function CasePage() {
                       }}
                       sx={{
                         px: 1.5, py: 0.625,
-                        border: '1px solid #e2e8f0', color: '#475569',
+                        border: '1px solid var(--border-col)', color: 'var(--on-surface-variant)',
                         cursor: interestLoading ? 'not-allowed' : 'pointer',
                         opacity: interestLoading ? 0.6 : 1,
                         fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
@@ -793,7 +793,7 @@ export default function CasePage() {
 
               {/* Interest requests — visible to confirmed privileged users */}
               {cas && currentStatus !== 'closed' && currentUser != null && isPrivileged && caseInterests.length > 0 && (
-                <Box sx={{ mt: 1.75, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+                <Box sx={{ mt: 1.75, pt: 1.5, borderTop: '1px solid var(--border-col)' }}>
                   <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 1 }}>
                     Interest Requests ({caseInterests.filter(i => i.status === 'pending').length})
                   </Typography>
@@ -802,7 +802,7 @@ export default function CasePage() {
                       <Box key={interest.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar name={interest.userName} size={26} />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {interest.userName}
                           </Typography>
                           {interest.status === 'accepted' && (
@@ -865,8 +865,8 @@ export default function CasePage() {
           )}
 
           {/* Case metadata */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #f4f5f7' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Metadata</Typography>
             </Box>
             <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -956,16 +956,16 @@ function ClosePickerMenu({ onSelect, onClose }: {
   onClose: () => void
 }) {
   return (
-    <Box sx={{ position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260 }}>
+    <Box sx={{ position: 'absolute', top: '110%', left: 0, bgcolor: 'var(--card-bg)', zIndex: 10, border: '1px solid var(--border-col)', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260 }}>
       <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
         Resolution
       </Typography>
       {RESOLUTION_OPTIONS.map(r => (
         <Box key={r.key} onClick={() => { onClose(); onSelect(r.key, r.label, r.color) }}
-          sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: '#f8fafc' } }}>
+          sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'var(--section-bg)' } }}>
           <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
           <Box>
-            <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
+            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
             {r.key === 'referred' && <Typography sx={{ fontSize: '0.625rem', color: '#f59e0b' }}>Customer will be watchlisted</Typography>}
           </Box>
         </Box>
@@ -987,7 +987,7 @@ function SidebarMetaRow({ label, value }: { label: string; value: string }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: 1 }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.6875rem', color: '#475569' }}>{value}</Typography>
+      <Typography sx={{ fontSize: '0.6875rem', color: 'var(--on-surface-variant)' }}>{value}</Typography>
     </Box>
   )
 }

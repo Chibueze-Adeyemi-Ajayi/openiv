@@ -229,20 +229,20 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
           <Box onClick={onClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.35)', zIndex: 1299 }} />
           <Box sx={{
             position: 'fixed', top: 0, right: 0, bottom: 0, width: 560,
-            bgcolor: '#ffffff', zIndex: 1300,
+            bgcolor: 'var(--card-bg)', zIndex: 1300,
             boxShadow: '-12px 0 48px rgba(15,23,42,0.16)',
             display: 'flex', flexDirection: 'column',
             animation: 'slideIntake 0.24s cubic-bezier(0.4,0,0.2,1)',
             '@keyframes slideIntake': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } },
           }}>
             {/* Header */}
-            <Box sx={{ flexShrink: 0, px: 3, pt: 2.5, pb: 2, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ flexShrink: 0, px: 3, pt: 2.5, pb: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <GavelOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Open Investigation Case</Typography>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Open Investigation Case</Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.125 }}>Select what you are investigating and fill the case details below</Typography>
               </Box>
-              <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, cursor: 'pointer', color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+              <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, cursor: 'pointer', color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
                 <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
               </Box>
             </Box>
@@ -278,7 +278,7 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
               </Box>
 
               {/* Subject detail form — changes based on type */}
-              <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+              <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
                   {ACTIVITY_TYPES.find(a => a.value === activityType)?.label} Details
                 </Typography>
@@ -290,7 +290,7 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
                       <TxnCard txn={initialTransaction} selected />
                     ) : (
                       <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#ffffff', border: '1px solid #e2e8f0', px: 1.25, py: 0.875, mb: 1, '&:focus-within': { borderColor: colorPalette.primary } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', px: 1.25, py: 0.875, mb: 1, '&:focus-within': { borderColor: colorPalette.primary } }}>
                           <SearchOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#94a3b8' }} />
                           <InputBase value={subject.txnSearch} onChange={e => searchTxns(e.target.value)} placeholder="Search by reference, customer or amount…" sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost' }} />
                         </Box>
@@ -371,13 +371,13 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
               {/* Title */}
               <Box sx={{ mb: 1.75 }}>
                 <FieldLabel>Case Title</FieldLabel>
-                <Box sx={{ px: 1.25, py: 0.875, border: '1px solid #e2e8f0', '&:focus-within': { borderColor: colorPalette.primary } }}>
+                <Box sx={{ px: 1.25, py: 0.875, border: '1px solid var(--border-col)', '&:focus-within': { borderColor: colorPalette.primary } }}>
                   <InputBase
                     value={caseTitle}
                     onChange={e => { setCaseTitle(e.target.value); setTitleTouched(true) }}
                     placeholder="Auto-filled from subject above"
                     fullWidth
-                    sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+                    sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
                   />
                 </Box>
               </Box>
@@ -429,7 +429,7 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
                 </Box>
                 <Box>
                   <FieldLabel>Risk Score (0–100)</FieldLabel>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.875, border: '1px solid #e2e8f0', '&:focus-within': { borderColor: colorPalette.primary } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.25, py: 0.875, border: '1px solid var(--border-col)', '&:focus-within': { borderColor: colorPalette.primary } }}>
                     <InputBase
                       type="number"
                       value={riskScore}
@@ -447,13 +447,13 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
                 <FieldLabel>Investigation Notes (optional)</FieldLabel>
                 <Box component="textarea" value={caseNotes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCaseNotes(e.target.value)}
                   placeholder="Initial context or background for the investigating analyst…" rows={3}
-                  sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid #e2e8f0', px: 1.25, py: 0.875, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: '#00288e', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
+                  sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid var(--border-col)', px: 1.25, py: 0.875, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: 'var(--heading-color)', bgcolor: 'var(--card-bg)', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
                 />
               </Box>
             </Box>
 
             {/* Footer */}
-            <Box sx={{ flexShrink: 0, px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ flexShrink: 0, px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {!canSubmit && (
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {!evidence ? 'Select an investigation subject above' : 'Enter a case title to continue'}
@@ -461,7 +461,7 @@ export default function CaseIntakeDrawer({ open, onClose, onSubmit, initialTrans
               )}
               {canSubmit && <Box />}
               <Stack direction="row" gap={1}>
-                <Box onClick={onClose} sx={{ px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#475569' } }}>
+                <Box onClick={onClose} sx={{ px: 2, py: 0.875, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', color: '#64748b', border: '1px solid var(--border-col)', cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' } }}>
                   Cancel
                 </Box>
                 <Box onClick={handleSubmit} sx={{
@@ -515,12 +515,12 @@ function TxnCard({ txn, selected, onClick }: { txn: Transaction; selected: boole
       '&:hover': onClick ? { borderColor: colorPalette.primary } : {},
     }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.375 }}>
-        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{txn.id}</Typography>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{txn.id}</Typography>
         <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: riskColor(txn.risk ?? 0) }}>Risk {txn.risk}</Typography>
       </Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Typography sx={{ fontSize: '0.6875rem', color: '#475569' }}>{txn.customer} · {txn.channel}</Typography>
-        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{fmtAmount(txn.amount, txn.currency)}</Typography>
+        <Typography sx={{ fontSize: '0.6875rem', color: 'var(--on-surface-variant)' }}>{txn.customer} · {txn.channel}</Typography>
+        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{fmtAmount(txn.amount, txn.currency)}</Typography>
       </Box>
     </Box>
   )
@@ -548,11 +548,11 @@ function FormInput({ label, value, onChange, placeholder, textarea = false, mono
       <FieldLabel>{label}</FieldLabel>
       {textarea ? (
         <Box component="textarea" value={value} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)} placeholder={placeholder} rows={3}
-          sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid #e2e8f0', px: 1.25, py: 0.875, fontSize: '0.8125rem', fontFamily: baseFont, color: '#00288e', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
+          sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid var(--border-col)', px: 1.25, py: 0.875, fontSize: '0.8125rem', fontFamily: baseFont, color: 'var(--heading-color)', bgcolor: 'var(--card-bg)', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
         />
       ) : (
-        <Box sx={{ px: 1.25, py: 0.875, border: '1px solid #e2e8f0', bgcolor: '#ffffff', '&:focus-within': { borderColor: colorPalette.primary } }}>
-          <InputBase value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} fullWidth sx={{ fontSize: '0.8125rem', fontFamily: baseFont, color: '#00288e' }} />
+        <Box sx={{ px: 1.25, py: 0.875, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', '&:focus-within': { borderColor: colorPalette.primary } }}>
+          <InputBase value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} fullWidth sx={{ fontSize: '0.8125rem', fontFamily: baseFont, color: 'var(--heading-color)' }} />
         </Box>
       )}
     </Box>

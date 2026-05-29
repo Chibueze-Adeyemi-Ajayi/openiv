@@ -286,7 +286,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
 
       <Box sx={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 500,
-        bgcolor: '#ffffff', zIndex: 1201,
+        bgcolor: 'var(--card-bg)', zIndex: 1201,
         boxShadow: '-8px 0 40px rgba(15,23,42,0.14)',
         display: 'flex', flexDirection: 'column',
         animation: 'slidePanel 0.24s cubic-bezier(0.4,0,0.2,1)',
@@ -294,7 +294,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
       }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid var(--border-col)' }}>
 
           {/* Row 1: ID + badges + close */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2.5, pt: 2.25, pb: 1 }}>
@@ -302,7 +302,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                 Case
               </Typography>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                 {loading ? '—' : (cas?.id ?? '—')}
               </Typography>
             </Box>
@@ -316,14 +316,14 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                 {sCfg.label}
               </Typography>
             </Box>
-            <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+            <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
               <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
             </IconButton>
           </Box>
 
           {/* Row 2: Title + typology */}
           <Box sx={{ px: 2.5, pb: 1.25 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.3 }}>
               {loading ? '—' : (cas?.title ?? '—')}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -338,7 +338,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>SLA</Typography>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: sla.color }}>{sla.label}</Typography>
               </Box>
-              <Box sx={{ height: 4, bgcolor: '#f1f5f9', position: 'relative' }}>
+              <Box sx={{ height: 4, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                 <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${sla.pct}%`, bgcolor: sla.color, transition: 'width 0.4s' }} />
               </Box>
             </Box>
@@ -369,8 +369,8 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                           onClick={() => setClosePickerOpen(v => !v)} />
                         {closePickerOpen && (
                           <Box sx={{
-                            position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10,
-                            border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
+                            position: 'absolute', top: '110%', left: 0, bgcolor: 'var(--card-bg)', zIndex: 10,
+                            border: '1px solid var(--border-col)', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
                           }}>
                             <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                               Resolution
@@ -379,10 +379,10 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                               <Box key={r.key}
                                 onClick={() => requestTransition('closed', r.key, r.label, r.color)}
                                 sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                                  '&:hover': { bgcolor: '#f8fafc' } }}>
+                                  '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
                                 <Box>
-                                  <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
+                                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
                                   {r.key === 'referred' && <Typography sx={{ fontSize: '0.625rem', color: '#f59e0b' }}>Customer will be watchlisted</Typography>}
                                 </Box>
                               </Box>
@@ -420,8 +420,8 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         onClick={() => setClosePickerOpen(v => !v)} />
                       {closePickerOpen && (
                         <Box sx={{
-                          position: 'absolute', top: '110%', left: 0, bgcolor: '#ffffff', zIndex: 10,
-                          border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
+                          position: 'absolute', top: '110%', left: 0, bgcolor: 'var(--card-bg)', zIndex: 10,
+                          border: '1px solid var(--border-col)', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', width: 260,
                         }}>
                           <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Resolution
@@ -430,10 +430,10 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                             <Box key={r.key}
                               onClick={() => requestTransition('closed', r.key, r.label, r.color)}
                               sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                                '&:hover': { bgcolor: '#f8fafc' } }}>
+                                '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
                               <Box>
-                                <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
+                                <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'Jost', fontWeight: 600 }}>{r.label}</Typography>
                                 {r.key === 'referred' && <Typography sx={{ fontSize: '0.625rem', color: '#f59e0b' }}>Customer will be watchlisted</Typography>}
                               </Box>
                             </Box>
@@ -480,7 +480,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
         )}
 
         {/* ── Tab header ──────────────────────────────────────────────────── */}
-        <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid var(--border-col)' }}>
           <Tabs
             value={tabIndex}
             onChange={(_, v) => setTabIndex(v)}
@@ -547,8 +547,8 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                   <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
                     Notes
                   </Typography>
-                  <Box sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderRadius: 0.5 }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <Box sx={{ p: 1.5, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                       {cas.notes}
                     </Typography>
                   </Box>
@@ -579,7 +579,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         </Typography>
                       )}
                     </Box>
-                    <Box sx={{ border: '1px solid #eef0f4' }}>
+                    <Box sx={{ border: '1px solid var(--border-col)' }}>
                       {allTxns.length === 0 ? (
                         <Box sx={{ p: 2, textAlign: 'center' }}>
                           <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>No transactions linked yet</Typography>
@@ -594,13 +594,13 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         return (
                           <Box key={t.id} sx={{
                             display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 1, alignItems: 'center',
-                            px: 1.5, py: 1.25, borderBottom: i < visible.length - 1 ? '1px solid #f4f5f7' : 'none',
+                            px: 1.5, py: 1.25, borderBottom: i < visible.length - 1 ? '1px solid var(--border-col)' : 'none',
                             opacity: isDismissed ? 0.45 : 1,
                             transition: 'opacity 0.15s',
                           }}>
                             <Box sx={{ overflow: 'hidden', cursor: onTransactionClick ? 'pointer' : 'default', '&:hover': onTransactionClick ? { opacity: 0.8 } : {} }}
                               onClick={() => onTransactionClick?.(t)}>
-                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {t.id}
                               </Typography>
                               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
@@ -608,7 +608,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                               </Typography>
                             </Box>
                             <Box sx={{ textAlign: 'right', flexShrink: 0, cursor: onTransactionClick ? 'pointer' : 'default' }} onClick={() => onTransactionClick?.(t)}>
-                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                                 {t.amount.toLocaleString()}
                               </Typography>
                               <Typography sx={{ fontSize: '0.625rem', color: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981', fontWeight: 700, mt: 0.25 }}>
@@ -649,7 +649,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                         <Avatar name={a.actorName} size={28} />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                               {a.actorName}
                             </Typography>
                             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -660,8 +660,8 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                             </Typography>
                           </Box>
                           {a.detail && (
-                            <Box sx={{ mt: 0.5, p: 1, bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                            <Box sx={{ mt: 0.5, p: 1, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                 {a.detail}
                               </Typography>
                             </Box>
@@ -678,10 +678,10 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
 
         {/* ── Add note footer ──────────────────────────────────────────────── */}
         {cas && !loading && tabIndex === 0 && (
-          <Box sx={{ flexShrink: 0, borderTop: '1px solid #eef0f4', p: 2 }}>
+          <Box sx={{ flexShrink: 0, borderTop: '1px solid var(--border-col)', p: 2 }}>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
               <Box sx={{
-                flex: 1, border: '1px solid #e2e8f0', px: 1.25, py: 0.875, minHeight: 60,
+                flex: 1, border: '1px solid var(--border-col)', px: 1.25, py: 0.875, minHeight: 60,
                 display: 'flex', alignItems: 'flex-start',
                 '&:focus-within': { borderColor: colorPalette.primary },
               }}>
@@ -691,7 +691,7 @@ export default function CaseDetailPanel({ caseId, open, onClose, onUpdated, onTr
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   placeholder="Add a note for the audit trail…"
-                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', '& textarea': { resize: 'none' } }}
+                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)', '& textarea': { resize: 'none' } }}
                 />
               </Box>
               <Box onClick={submitNote} sx={{
@@ -744,7 +744,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
         {title}
       </Typography>
-      <Box sx={{ border: '1px solid #eef0f4', p: 1.5 }}>{children}</Box>
+      <Box sx={{ border: '1px solid var(--border-col)', p: 1.5 }}>{children}</Box>
     </Box>
   )
 }
@@ -753,7 +753,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '112px 1fr', gap: 1, mb: 0.875, '&:last-child': { mb: 0 } }}>
       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, lineHeight: 1.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost', lineHeight: 1.4 }}>{value}</Typography>
+      <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.4 }}>{value}</Typography>
     </Box>
   )
 }
