@@ -112,7 +112,8 @@ public final class V1Router {
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig) {
+      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig,
+      AppConfig.BillingConfig billingConfig) {
     Router router = Router.router(vertx);
 
     // Shared user repo used by session auth and role checks throughout this router.
@@ -155,8 +156,8 @@ public final class V1Router {
 
     // Billing — instantiated first; referenced by Transactions, Cases, Beam, KYC,
     // Dashboard
-    String paystackSecret = System.getenv().getOrDefault("PAYSTACK_SECRET_KEY", "sk_test_placeholder");
-    String paystackPublic = System.getenv().getOrDefault("PAYSTACK_PUBLIC_KEY", "pk_test_placeholder");
+    String paystackSecret = billingConfig.paystackSecretKey();
+    String paystackPublic = billingConfig.paystackPublicKey();
     String billingEncKey = System.getenv("BILLING_ENCRYPTION_KEY"); // null → dev fallback inside service
     BillingService billingService = new BillingService(
         new BillingRepository(dbPool), new UserRepository(dbPool),
@@ -189,7 +190,9 @@ public final class V1Router {
     SubscriptionBlockGuard blockGuard = new SubscriptionBlockGuard(
         subscriptionRepository, sharedUsers, authService);
     Handler<RoutingContext> subAuth   = SessionAuthHandler.authenticated(authService);
+    String paystackWebhookSecret = billingConfig.paystackWebhookSecret();
     router.get("/subscription/plans").handler(subHandlers.listPlans());
+    router.post("/webhooks/paystack").handler(subHandlers.paystackWebhook(paystackWebhookSecret));
     router.get("/subscription/current").handler(subAuth).handler(billingView).handler(blockGuard).handler(subHandlers.getCurrent());
     router.post("/subscription/upgrade").handler(subAuth).handler(billingManage).handler(subHandlers.upgrade());
     router.post("/subscription/initiate").handler(subAuth).handler(billingManage).handler(subHandlers.initiatePayment());
@@ -302,6 +305,8 @@ public final class V1Router {
     router.post("/verify/bvn").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyBvn());
     router.post("/verify/nin").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyNin());
     router.post("/verify/phone").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyPhone());
+    router.post("/verify/phone-fraud").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.screenPhoneFraud());
+    router.post("/verify/nuban").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyNuban());
     router.post("/verify/pep").handler(beamApiKeyHandler.resolve()).handler(verifyHandlers.verifyPep());
     Handler<RoutingContext> beamSessionAuth = SessionAuthHandler.authenticated(authService);
 

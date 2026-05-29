@@ -7,6 +7,10 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+
 public final class SubscriptionHandlers {
 
   private final SubscriptionRepository      repo;
@@ -162,7 +166,67 @@ public final class SubscriptionHandlers {
     };
   }
 
+  // POST /webhooks/paystack  (public — no session auth, HMAC-validated)
+  public Handler<RoutingContext> paystackWebhook(String webhookSecret) {
+    return ctx -> {
+      String sig  = ctx.request().getHeader("x-paystack-signature");
+      String body = ctx.body().asString();
+
+      if (body == null || body.isBlank()) {
+        ctx.response().setStatusCode(400).end();
+        return;
+      }
+
+      // Validate HMAC-SHA512 if a secret is configured
+      if (!webhookSecret.isBlank()) {
+        if (sig == null || !hmacSha512Matches(body, webhookSecret, sig)) {
+          ctx.response().setStatusCode(401).end();
+          return;
+        }
+      }
+
+      JsonObject event;
+      try { event = new JsonObject(body); } catch (Exception e) {
+        ctx.response().setStatusCode(400).end();
+        return;
+      }
+
+      // Only process charge.success; acknowledge everything else immediately
+      if (!"charge.success".equals(event.getString("event"))) {
+        ctx.response().setStatusCode(200).end("ok");
+        return;
+      }
+
+      JsonObject data = event.getJsonObject("data");
+      String reference = data != null ? data.getString("reference") : null;
+      if (reference == null || reference.isBlank()) {
+        ctx.response().setStatusCode(200).end("ok");
+        return;
+      }
+
+      lifecycle.applyWebhookPayment(reference)
+          .onComplete(ar -> ctx.response().setStatusCode(200).end("ok"));
+    };
+  }
+
   // ── helpers ────────────────────────────────────────────────────────────────
+
+  private static boolean hmacSha512Matches(String body, String secret, String expected) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA512");
+      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
+      byte[] hash = mac.doFinal(body.getBytes(StandardCharsets.UTF_8));
+      StringBuilder hex = new StringBuilder(128);
+      for (byte b : hash) {
+        String h = Integer.toHexString(0xff & b);
+        if (h.length() == 1) hex.append('0');
+        hex.append(h);
+      }
+      return hex.toString().equals(expected);
+    } catch (Exception e) {
+      return false;
+    }
+  }
 
   /** Safely parse body as JsonObject regardless of Content-Type parsing quirks. */
   private static JsonObject parseBody(RoutingContext ctx) {

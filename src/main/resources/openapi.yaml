@@ -17,6 +17,8 @@ tags:
   - name: Auth — Session
   - name: Onboarding — Access Requests
   - name: Team Management
+  - name: Verification
+  - name: Intelligence
 
 paths:
   /healthz:
@@ -376,6 +378,337 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/TeamRole' }
 
+  # ── Verification (individual Dojah lookups, beam API-key auth) ──────────────
+
+  /api/v1/verify/bvn:
+    post:
+      tags: [Verification]
+      summary: BVN lookup
+      description: |
+        Resolves a Bank Verification Number to the holder's full identity profile
+        (name, date of birth, phone number, photo).
+        Authenticated with a **beam API key** (`Authorization: Bearer <key>`).
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bvn]
+              properties:
+                bvn:          { type: string, example: '22123456789' }
+                customer_ref: { type: string, example: 'CUS-001', description: Optional reference echoed back in response }
+      responses:
+        '200':
+          description: BVN resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyIdentityResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/verify/nin:
+    post:
+      tags: [Verification]
+      summary: NIN lookup
+      description: |
+        Resolves a National Identification Number to the holder's full identity profile.
+        Authenticated with a **beam API key**.
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nin]
+              properties:
+                nin:          { type: string, example: '12345678901' }
+                customer_ref: { type: string, example: 'CUS-001' }
+      responses:
+        '200':
+          description: NIN resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyIdentityResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/verify/nuban:
+    post:
+      tags: [Verification]
+      summary: NUBAN (bank account) lookup
+      description: |
+        Resolves a Nigerian bank account number to the account holder's name, date of birth,
+        and masked BVN/phone. Use this to confirm a payee's identity before a transfer.
+        Authenticated with a **beam API key**.
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_number, bank_code]
+              properties:
+                account_number: { type: string, example: '0123456789' }
+                bank_code:      { type: string, example: '033', description: NIBSS bank code }
+      responses:
+        '200':
+          description: Account resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyNubanResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/verify/phone:
+    post:
+      tags: [Verification]
+      summary: Phone number basic lookup
+      description: |
+        Returns carrier, subscriber name, and basic line information for a phone number.
+        For fraud risk signals (leaked, spammer, risk score) use `/verify/phone-fraud` instead.
+        Authenticated with a **beam API key**.
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:        { type: string, example: '+2348031234567' }
+                customer_ref: { type: string, example: 'CUS-001' }
+      responses:
+        '200':
+          description: Phone resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyIdentityResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/verify/phone-fraud:
+    post:
+      tags: [Verification]
+      summary: Phone number fraud screening
+      description: |
+        Screens a phone number for fraud risk signals: carrier, line type, risk score (0–100),
+        data leak exposure, spam reports, disposable number detection, and recent abuse flags.
+        Use this before onboarding or approving high-value actions.
+        Authenticated with a **beam API key**.
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: '2348101234567', description: International format without + prefix }
+      responses:
+        '200':
+          description: Phone fraud profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyPhoneFraudResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/verify/pep:
+    post:
+      tags: [Verification]
+      summary: PEP / sanctions screening
+      description: |
+        Screens a person's name (and optional date of birth) against PEP lists,
+        global sanctions databases, and watchlists.
+        Authenticated with a **beam API key**.
+      security:
+        - beamApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: 'John Doe' }
+                dob:  { type: string, example: '1980-01-15', description: 'Optional. Format: YYYY-MM-DD' }
+      responses:
+        '200':
+          description: Screening result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyPepResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  # ── Intelligence ────────────────────────────────────────────────────────────
+
+  /api/v1/intelligence/account-risk:
+    post:
+      tags: [Intelligence]
+      summary: Account risk intelligence lookup
+      description: |
+        Screens a bank account number before authorising a transfer.
+        Runs a fully automated pipeline — only the account number and bank code are required:
+
+        1. **NUBAN lookup** — resolves account number → account name + linked BVN + linked phone
+        2. **BVN verification** — uses the BVN returned by NUBAN to fetch full identity; cross-checks
+           the BVN-registered name against the NUBAN account name
+        3. **PEP / sanctions screening** — screens the resolved name + DOB against global PEP and
+           sanctions databases
+        4. **Phone fraud screening** — screens the phone number from the BVN record for carrier,
+           leak, spam, and abuse signals. If NUBAN's linked phone differs from the BVN record's
+           phone, **both numbers are screened independently** and both results are returned
+        5. **Internal fraud registry** — matches account number against confirmed fraud accounts
+           raised by your institution
+
+        Each step degrades gracefully: a timeout on one step returns `null` for that section and
+        the recommendation is derived from whatever steps succeeded.
+
+        **Billing:** each call is metered as a `risk_query` event against your plan.
+        Available on Growth and Enterprise plans only.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountNumber, bankCode]
+              properties:
+                accountNumber:
+                  type: string
+                  example: '0123456789'
+                bankCode:
+                  type: string
+                  example: '033'
+                  description: 3-digit CBN bank code (e.g. 033 for UBA, 058 for GTBank)
+      responses:
+        '200':
+          description: Risk profile returned (even if account is clean)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountRiskResult' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '402':
+          description: Plan limit reached — upgrade required
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorBody' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/intelligence/cautions:
+    get:
+      tags: [Intelligence]
+      summary: List fraud caution flags raised by your institution
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Paginated list of active caution flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cautions:
+                    type: array
+                    items: { $ref: '#/components/schemas/AccountCaution' }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+    post:
+      tags: [Intelligence]
+      summary: Raise a caution flag on an account number
+      description: |
+        Flags an account number as suspicious or confirmed fraud within your institution.
+        The flag is included in future `account-risk` lookups for this account.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RaiseCautionRequest' }
+      responses:
+        '201':
+          description: Caution raised
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountCaution' }
+        '400': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/intelligence/cautions/{id}:
+    delete:
+      tags: [Intelligence]
+      summary: Resolve (remove) a caution flag
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Caution resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '404': { $ref: '#/components/responses/AuthError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+
+  /api/v1/intelligence/history:
+    get:
+      tags: [Intelligence]
+      summary: Audit log of past account risk queries
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Paginated query history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queries:
+                    type: array
+                    items: { $ref: '#/components/schemas/RiskQueryRecord' }
+                  total: { type: integer }
+        '401': { $ref: '#/components/responses/AuthError' }
+
 components:
   securitySchemes:
     # Primary: HttpOnly session cookie set on /auth/login.
@@ -383,8 +716,18 @@ components:
       type: apiKey
       in: cookie
       name: openiv_sid
+    # Alias used by dashboard endpoints.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: openiv_sid
     # Fallback: Bearer token — used by Swagger "Try it" / CLI / mobile clients.
     bearerAuth:
+      type: http
+      scheme: bearer
+    # Beam API key — issued per institution for server-to-server calls.
+    # Pass as:  Authorization: Bearer <key>
+    beamApiKey:
       type: http
       scheme: bearer
 
@@ -571,3 +914,221 @@ components:
         error: { type: string, example: invalid }
         detail: { type: string, example: code }
         correlationId: { type: string, format: uuid }
+
+    # ── Verification schemas ─────────────────────────────────────────────────
+
+    VerifyIdentityResult:
+      type: object
+      properties:
+        verified:      { type: boolean }
+        type:          { type: string, example: bvn }
+        reference:     { type: string }
+        first_name:    { type: string }
+        last_name:     { type: string }
+        middle_name:   { type: string, nullable: true }
+        date_of_birth: { type: string, example: '1982-06-10' }
+        phone:         { type: string, nullable: true }
+        face_match:    { type: boolean }
+        match_score:   { type: number, nullable: true, description: '0–100 selfie confidence; null if no selfie submitted' }
+        customer_ref:  { type: string, nullable: true }
+
+    VerifyNubanResult:
+      type: object
+      properties:
+        resolved:      { type: boolean, description: false if account not found or Dojah unavailable }
+        account_name:  { type: string, example: 'JOHN DOE MUSA' }
+        first_name:    { type: string }
+        last_name:     { type: string }
+        other_names:   { type: string, nullable: true }
+        dob:           { type: string, example: '10/06/1982', description: DD/MM/YYYY }
+        masked_phone:  { type: string, example: '2348****77844', description: Masked — not usable for downstream lookups }
+        masked_bvn:    { type: string, example: '222******556', description: Masked — confirms BVN is linked }
+        identity_type: { type: string, example: BVN }
+        city:          { type: string, nullable: true }
+        state:         { type: string, nullable: true }
+
+    VerifyPhoneFraudResult:
+      type: object
+      properties:
+        resolved:     { type: boolean }
+        phone:        { type: string }
+        valid:        { type: boolean }
+        carrier:      { type: string, example: 'MTN Nigeria' }
+        line_type:    { type: string, example: Wireless, description: 'Wireless | Landline | VoIP' }
+        country:      { type: string, example: NG }
+        risk_score:   { type: integer, minimum: 0, maximum: 100, description: '0 = clean, 100 = highest risk' }
+        leaked:       { type: boolean, description: Appeared in known data leaks }
+        spammer:      { type: boolean, description: Reported as spam source }
+        disposable:   { type: boolean, description: Disposable or virtual number }
+        suspicious:   { type: boolean, description: Flagged by combined risk signals }
+        recent_abuse: { type: boolean, description: Associated with recent abusive activity }
+        active:       { type: boolean }
+
+    VerifyPepResult:
+      type: object
+      properties:
+        name:          { type: string }
+        dob:           { type: string, nullable: true }
+        is_pep:        { type: boolean }
+        total_matches: { type: integer }
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              name:       { type: string }
+              risk_level: { type: string }
+              positions:  { type: array, items: { type: string } }
+              countries:  { type: array, items: { type: string } }
+
+    # ── Intelligence schemas ──────────────────────────────────────────────────
+
+    AccountRiskResult:
+      type: object
+      properties:
+        accountNumber: { type: string, example: '0123456789' }
+        bankCode:       { type: string, example: '033' }
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        recommendation:
+          type: string
+          enum: [PROCEED, REVIEW, BLOCK]
+        signals:
+          type: array
+          items: { $ref: '#/components/schemas/RiskSignal' }
+        nuban:
+          description: Account identity resolved from NUBAN lookup. Null if lookup failed.
+          nullable: true
+          type: object
+          properties:
+            accountName:  { type: string, example: 'JOHN DOE MUSA' }
+            firstName:    { type: string }
+            lastName:     { type: string }
+            dob:          { type: string, example: '10/06/1982' }
+            maskedPhone:  { type: string, example: '2348****77844' }
+            maskedBvn:    { type: string, example: '222******556' }
+            bvnLinked:    { type: boolean }
+            city:         { type: string }
+            state:        { type: string }
+        nameMatch:
+          nullable: true
+          type: object
+          properties:
+            expectedName: { type: string }
+            resolvedName: { type: string }
+            matched:      { type: boolean }
+        bvnVerification:
+          description: BVN lookup result and name cross-check. Null if no BVN was provided.
+          nullable: true
+          type: object
+          properties:
+            verified:    { type: boolean }
+            firstName:   { type: string }
+            lastName:    { type: string }
+            middleName:  { type: string, nullable: true }
+            dateOfBirth: { type: string }
+            nameMatch:   { type: boolean, description: 'True if BVN registered name matches NUBAN resolved name' }
+        phoneScreening:
+          description: |
+            Phone fraud screening results. Contains one entry for the BVN-linked phone.
+            If NUBAN's linked phone differs from the BVN phone, a second entry is added
+            with source "nuban_record". Null if no phone could be resolved from either lookup.
+          nullable: true
+          type: array
+          items:
+            type: object
+            properties:
+              phone:       { type: string }
+              source:      { type: string, enum: [bvn_record, nuban_record], description: 'Which lookup this phone came from' }
+              valid:       { type: boolean }
+              carrier:     { type: string, example: 'MTN Nigeria' }
+              lineType:    { type: string, example: 'Wireless' }
+              riskScore:   { type: integer, minimum: 0, maximum: 100 }
+              leaked:      { type: boolean }
+              spammer:     { type: boolean }
+              disposable:  { type: boolean }
+              suspicious:  { type: boolean }
+              recentAbuse: { type: boolean }
+              active:      { type: boolean }
+        pepScreening:
+          nullable: true
+          type: object
+          properties:
+            isPep:         { type: boolean }
+            isSanctioned:  { type: boolean }
+            matches:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:     { type: string }
+                  category: { type: string }
+                  score:    { type: number }
+        fraudRegistry:
+          type: object
+          properties:
+            hit:         { type: boolean }
+            cautionId:   { type: string, format: uuid, nullable: true }
+            severity:    { type: string, nullable: true }
+            reason:      { type: string, nullable: true }
+            flaggedAt:   { type: string, format: date-time, nullable: true }
+        queriedAt: { type: string, format: date-time }
+
+    RiskSignal:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [nuban_unresolved, name_mismatch, pep_match, sanctions_match,
+                 phone_fraud_signal, phone_leaked, phone_spammer, phone_disposable,
+                 fraud_registry_hit, caution_flag]
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        detail: { type: string }
+
+    AccountCaution:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        accountNumber: { type: string }
+        bankCode:      { type: string, nullable: true }
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        reason:        { type: string }
+        raisedAt:      { type: string, format: date-time }
+        expiresAt:     { type: string, format: date-time, nullable: true }
+        resolvedAt:    { type: string, format: date-time, nullable: true }
+        notes:         { type: string, nullable: true }
+
+    RaiseCautionRequest:
+      type: object
+      required: [accountNumber, severity, reason]
+      properties:
+        accountNumber: { type: string, example: '0123456789' }
+        bankCode:      { type: string, example: '033', description: Optional but recommended }
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        reason:        { type: string, example: 'Suspected money mule — multiple structured deposits' }
+        expiresAt:     { type: string, format: date-time, nullable: true, description: Leave null for permanent flag }
+        notes:         { type: string, nullable: true }
+
+    RiskQueryRecord:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        accountNumber: { type: string }
+        bankCode:      { type: string, nullable: true }
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        recommendation:
+          type: string
+          enum: [PROCEED, REVIEW, BLOCK]
+        signals:
+          type: array
+          items: { $ref: '#/components/schemas/RiskSignal' }
+        queriedAt:     { type: string, format: date-time }

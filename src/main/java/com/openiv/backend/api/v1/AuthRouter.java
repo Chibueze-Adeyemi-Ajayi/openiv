@@ -59,6 +59,8 @@ public final class AuthRouter {
         .handler(handlers.getProfile());
     router.put("/profile").handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.updateProfile());
+    router.patch("/profile/theme").handler(SessionAuthHandler.authenticated(authService))
+        .handler(handlers.updateTheme());
     router.post("/profile/avatar")
         .handler(SessionAuthHandler.authenticated(authService))
         .handler(handlers.uploadAvatar());

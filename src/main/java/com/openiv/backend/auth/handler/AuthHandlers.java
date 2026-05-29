@@ -228,6 +228,7 @@ public final class AuthHandlers {
                     .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
                     .put("createdAt",         u.createdAt().toString())
                     .put("avatarUrl",         u.avatarUrl())
+                    .put("theme",             u.theme())
                     .put("institutionName",   instName)
                     .put("monthlyTxnUsed",    usageSummary.monthlyTxnUsed())
                     .put("monthlyKycUsed",    usageSummary.monthlyKycUsed())
@@ -274,6 +275,21 @@ public final class AuthHandlers {
               .put("fullName", u.fullName())
               .put("jobTitle", u.jobTitle())
               .put("avatarUrl", u.avatarUrl()))
+          .onSuccess(json -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json")
+              .end(json.encode()))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  public Handler<RoutingContext> updateTheme() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      JsonObject body = ctx.body().asJsonObject();
+      if (body == null) { ctx.fail(400); return; }
+      String theme = body.getString("theme");
+      auth.updateTheme(session, theme)
+          .map(v -> new JsonObject().put("ok", true).put("theme", theme))
           .onSuccess(json -> ctx.response().setStatusCode(200)
               .putHeader("Content-Type", "application/json")
               .end(json.encode()))

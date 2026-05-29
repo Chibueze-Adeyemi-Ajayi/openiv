@@ -16,13 +16,13 @@ public final class UserRepository {
       "id, email::text, full_name, email_verified, password_hash, password_updated_at, "
       + "must_change_password, status, role, account_type, institution_id, "
       + "failed_login_attempts, locked_until, created_at, updated_at, eureka_companion_enabled"
-      + ", job_title, avatar_url";
+      + ", job_title, avatar_url, theme";
 
   private static final String SELECT_COLS_JOINED =
       "u.id, u.email::text, u.full_name, u.email_verified, u.password_hash, u.password_updated_at, "
       + "u.must_change_password, u.status, u.role, u.account_type, u.institution_id, "
       + "u.failed_login_attempts, u.locked_until, u.created_at, u.updated_at, u.eureka_companion_enabled, a.timezone"
-      + ", u.job_title, u.avatar_url";
+      + ", u.job_title, u.avatar_url, u.theme";
 
   private final Pool pool;
 
@@ -185,7 +185,8 @@ public final class UserRepository {
         r.getBoolean("eureka_companion_enabled"),
         r.getString("timezone"),
         r.getString("job_title"),
-        r.getString("avatar_url"));
+        r.getString("avatar_url"),
+        r.getString("theme"));
   }
 
   private static User mapBase(Row r) {
@@ -208,7 +209,8 @@ public final class UserRepository {
         r.getBoolean("eureka_companion_enabled"),
         "Africa/Lagos", // Default for new user/institution
         r.getString("job_title"),
-        r.getString("avatar_url"));
+        r.getString("avatar_url"),
+        r.getString("theme"));
   }
 
   public Future<User> updateProfile(long userId, String fullName, String jobTitle) {
@@ -226,5 +228,12 @@ public final class UserRepository {
             + " WHERE id = $2 RETURNING " + BASE_SELECT_COLS)
         .execute(Tuple.of(avatarUrl, userId, documentId))
         .map(rs -> mapBase(rs.iterator().next()));
+  }
+
+  public Future<Void> updateTheme(long userId, String theme) {
+    return pool.preparedQuery(
+            "UPDATE users SET theme = $1, updated_at = now() WHERE id = $2")
+        .execute(Tuple.of(theme, userId))
+        .mapEmpty();
   }
 }

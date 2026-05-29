@@ -245,7 +245,7 @@ public final class Main {
               scheduleWebhookAutoRotation(vertx, webhookService);
               scheduleNightlyRiskReport(vertx, riskReportService);
               String appBaseUrl = System.getenv().getOrDefault("APP_BASE_URL", "https://app.openiv.ng");
-              scheduleRenewalReminders(vertx, pool, emailSender, appBaseUrl);
+              scheduleRenewalReminders(vertx, pool, emailSender, appBaseUrl, config.billing());
             });
       });
     });
@@ -294,13 +294,13 @@ public final class Main {
     return java.time.Duration.between(now, midnight).toMillis();
   }
 
-  private static void scheduleRenewalReminders(Vertx vertx, Pool pool, EmailSender emailSender, String appBaseUrl) {
-    String paystackSecret = System.getenv().getOrDefault("PAYSTACK_SECRET_KEY", "sk_test_placeholder");
+  private static void scheduleRenewalReminders(Vertx vertx, Pool pool, EmailSender emailSender,
+      String appBaseUrl, AppConfig.BillingConfig billingConfig) {
     WebClient webClient = WebClient.create(vertx,
         new WebClientOptions().setSsl(true).setTrustAll(false));
     var invoiceRepo = new com.openiv.backend.billing.InvoiceRepository(pool);
     var subRepo = new com.openiv.backend.billing.SubscriptionRepository(pool);
-    var paystackClient = new com.openiv.backend.billing.PaystackClient(webClient, paystackSecret);
+    var paystackClient = new com.openiv.backend.billing.PaystackClient(webClient, billingConfig.paystackSecretKey());
     new com.openiv.backend.billing.RenewalReminderScheduler(vertx, invoiceRepo, subRepo, emailSender, paystackClient, appBaseUrl).start();
   }
 
