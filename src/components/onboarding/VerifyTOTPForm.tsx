@@ -136,13 +136,12 @@ export default function VerifyTOTPForm({
                       bgcolor: 'transparent',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: digit ? '#00288e' : '#cbd5e1',
-                        borderWidth: '1px',
+                      '& fieldset': {
+                        border: `1px solid ${digit ? '#00288e' : '#cbd5e1'} !important`,
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#00288e', borderWidth: '1px' },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#00288e', borderWidth: '1px' },
+                      '&:hover fieldset': { border: '1px solid #00288e !important' },
+                      '&.Mui-focused fieldset': { border: '1px solid #00288e !important' },
                       '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(0, 40, 142, 0.08)' },
                     },
                   }}

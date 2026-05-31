@@ -99,7 +99,7 @@ export interface BillingUsageSummary {
 
 // ── Subscription ─────────────────────────────────────────────────────────────
 
-export type PlanSlug = 'starter' | 'growth' | 'enterprise'
+export type PlanSlug = 'starter' | 'growth' | 'scale' | 'enterprise'
 
 export interface SubscriptionPlan {
   id: string
@@ -109,12 +109,19 @@ export interface SubscriptionPlan {
   maxUsers: number                   // -1 = unlimited
   maxMonthlyTransactions: number     // -1 = unlimited
   maxActiveCases: number             // -1 = unlimited
-  aiFeaturesEnabled: boolean
   apiRateLimitPerMin: number
   includedTransactionUnits: number
   features: string[]
   sortOrder: number
+  featureKycEnabled: boolean
+  featureWebhooksEnabled: boolean
+  featureNetworkEnabled: boolean
+  featureBehavioralEnabled: boolean
+  featureReportsExport: boolean
+  maxAmlRules: number
   maxMonthlyKycLookups: number        // -1 = unlimited
+  maxMonthlyNfiuFilings: number       // -1 = unlimited
+  maxMonthlyCases: number             // -1 = unlimited
 }
 
 export interface InstitutionSubscription {

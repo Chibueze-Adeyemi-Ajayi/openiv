@@ -420,14 +420,10 @@ export default function TOTPConfirmation({
                           borderRadius: 0,
                           transition: 'all 0.18s ease',
                           '& fieldset': {
-                            border: error
-                              ? '1px solid #dc2626'
-                              : digit
-                              ? `1px solid ${colorPalette.primary}`
-                              : '1px solid transparent',
+                            border: `1px solid ${error ? '#dc2626' : digit ? colorPalette.primary : 'var(--border-col)'} !important`,
                           },
-                          '&:hover fieldset': { borderColor: error ? '#dc2626' : digit ? colorPalette.primary : '#e4dff2' },
-                          '&.Mui-focused fieldset': { borderColor: error ? '#dc2626' : colorPalette.primary, borderWidth: '1px' },
+                          '&:hover fieldset': { border: `1px solid ${error ? '#dc2626' : colorPalette.primary} !important` },
+                          '&.Mui-focused fieldset': { border: `1px solid ${error ? '#dc2626' : colorPalette.primary} !important` },
                           '&.Mui-focused': {
                             bgcolor: 'var(--card-bg)',
                             boxShadow: error ? '0 0 0 3px rgba(220, 38, 38, 0.12)' : `0 0 0 3px ${colorPalette.primary}14`,

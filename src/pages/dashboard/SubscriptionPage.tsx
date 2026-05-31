@@ -16,7 +16,6 @@ import { subscriptionApi, type SubscriptionPlan, type InstitutionSubscription, t
 import { useProfile } from '@/contexts/ProfileContext'
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined'
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined'
@@ -25,12 +24,14 @@ import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 const PLAN_ACCENT: Record<string, string> = {
   starter:    '#3b82f6',
   growth:     colorPalette.primary,
+  scale:      '#0ea5e9',
   enterprise: '#7c3aed',
 }
 
 const PLAN_BG: Record<string, string> = {
   starter:    '#eff6ff',
   growth:     `${colorPalette.primary}08`,
+  scale:      '#f0f9ff',
   enterprise: '#f5f3ff',
 }
 
@@ -84,7 +85,7 @@ function PlanCard({
   const accent     = PLAN_ACCENT[plan.slug] ?? colorPalette.primary
   const bg         = PLAN_BG[plan.slug] ?? '#f8fafc'
   const isEnterprise = plan.slug === 'enterprise'
-  const slugRank: Record<string, number> = { starter: 0, growth: 1, enterprise: 2 }
+  const slugRank: Record<string, number> = { starter: 0, growth: 1, scale: 2, enterprise: 3 }
   const currentRank = current ? (slugRank[current.plan.slug] ?? 0) : 0
   const thisRank    = slugRank[plan.slug] ?? 0
   const isDowngrade = thisRank < currentRank
@@ -124,25 +125,29 @@ function PlanCard({
           <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
             {plan.name}
           </Typography>
-          {plan.aiFeaturesEnabled && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.375,
-              px: 0.875, py: 0.25, bgcolor: '#fdf4ff', border: '1px solid #e879f91a' }}>
-              <AutoAwesomeOutlinedIcon sx={{ fontSize: '0.7rem', color: '#9333ea' }} />
-              <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#9333ea',
-                letterSpacing: '0.06em', fontFamily: 'Jost' }}>
-                AI
-              </Typography>
-            </Box>
-          )}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-          <Typography sx={{ fontSize: '1.875rem', fontWeight: 800, color: accent, fontFamily: 'Jost', lineHeight: 1 }}>
-            {isEnterprise ? 'Custom' : fmtNgn(plan.monthlyPriceNgn)}
-          </Typography>
-          {!isEnterprise && (
-            <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontFamily: 'Jost' }}>
-              / month
-            </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, flexWrap: 'wrap' }}>
+          {isEnterprise ? (
+            <>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, mr: 0.5 }}>
+                from
+              </Typography>
+              <Typography sx={{ fontSize: '1.875rem', fontWeight: 800, color: accent, fontFamily: 'Jost', lineHeight: 1 }}>
+                {fmtNgn(plan.monthlyPriceNgn)}
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontFamily: 'Jost' }}>
+                / month
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography sx={{ fontSize: '1.875rem', fontWeight: 800, color: accent, fontFamily: 'Jost', lineHeight: 1 }}>
+                {fmtNgn(plan.monthlyPriceNgn)}
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontFamily: 'Jost' }}>
+                / month
+              </Typography>
+            </>
           )}
         </Box>
       </Box>
@@ -152,8 +157,9 @@ function PlanCard({
         {[
           { icon: <GroupsOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'Team members',      val: fmtLimit(plan.maxUsers) },
           { icon: <SwapVertOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'Transactions / mo', val: fmtLimit(plan.maxMonthlyTransactions) },
-          { icon: <GavelOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'Active cases',       val: fmtLimit(plan.maxActiveCases) },
-          { icon: <AccessTimeOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'KYC lookups / mo', val: fmtLimit(plan.maxMonthlyKycLookups ?? -1) },
+          { icon: <GavelOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'Cases / mo',          val: fmtLimit(plan.maxMonthlyCases) },
+          { icon: <AccessTimeOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'KYC steps / mo', val: plan.featureKycEnabled ? fmtLimit(plan.maxMonthlyKycLookups ?? -1) : '—' },
+          { icon: <AccessTimeOutlinedIcon sx={{ fontSize: '0.9rem' }} />, label: 'NFIU filings / mo', val: fmtLimit(plan.maxMonthlyNfiuFilings) },
         ].map(({ icon, label, val }) => (
           <Box key={label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             py: 0.875, borderBottom: '1px solid #f8fafc' }}>
@@ -485,10 +491,9 @@ export default function SubscriptionPage() {
             {[
               { label: 'Team members',      val: fmtLimit(sub.plan.maxUsers),                icon: <GroupsOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
               { label: 'Transactions / mo', val: fmtLimit(sub.plan.maxMonthlyTransactions),  icon: <SwapVertOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
-              { label: 'Active cases',       val: fmtLimit(sub.plan.maxActiveCases),          icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
-              { label: 'API rate limit',     val: `${sub.plan.apiRateLimitPerMin} req/min`,   icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
-              { label: 'Eureka AI',          val: sub.plan.aiFeaturesEnabled ? 'Enabled' : 'Not included',
-                icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem', color: sub.plan.aiFeaturesEnabled ? '#9333ea' : '#94a3b8' }} /> },
+              { label: 'Cases / mo',         val: fmtLimit(sub.plan.maxMonthlyCases),         icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
+              { label: 'NFIU filings / mo',  val: fmtLimit(sub.plan.maxMonthlyNfiuFilings),   icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
+              { label: 'API rate limit',     val: `${sub.plan.apiRateLimitPerMin} req/min`,   icon: <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: accent }} /> },
             ].map(({ label, val, icon }) => (
               <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 180 }}>
                 {icon}

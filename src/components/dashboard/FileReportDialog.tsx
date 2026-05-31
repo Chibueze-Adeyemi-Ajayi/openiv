@@ -40,10 +40,10 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 interface ReportTypeMeta {
   id: ReportType; label: string; short: string
   icon: React.ReactNode; color: string; requiresSubject: boolean
-  minPlan: 'starter' | 'growth' | 'enterprise'
+  minPlan: 'starter' | 'growth' | 'scale' | 'enterprise'
 }
 
-const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, enterprise: 2 }
+const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, scale: 2, enterprise: 3 }
 
 const REPORT_TYPES: ReportTypeMeta[] = [
   { id: 'STR',       label: 'Suspicious Transaction Report', short: 'STR', icon: <DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />,       color: '#dc2626', requiresSubject: true,  minPlan: 'starter' },

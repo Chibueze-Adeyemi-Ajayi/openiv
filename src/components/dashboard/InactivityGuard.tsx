@@ -100,9 +100,9 @@ function TotpInput({
               bgcolor: digit ? 'var(--card-bg)' : 'var(--section-bg)',
               borderRadius: 0,
               '& fieldset': {
-                border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                border: `1px solid ${digit ? colorPalette.primary : 'var(--border-col)'} !important`,
               },
-              '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+              '&.Mui-focused fieldset': { border: `1px solid ${colorPalette.primary} !important` },
               '&.Mui-focused': { bgcolor: 'var(--card-bg)' },
             },
           }}

@@ -136,12 +136,12 @@ export default function VerifyEmailForm({
                       bgcolor: 'transparent',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        border: digit ? `1px solid ${colorPalette.primary}` : '1px solid #cbd5e1',
+                      '& fieldset': {
+                        border: `1px solid ${digit ? colorPalette.primary : '#cbd5e1'} !important`,
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { border: `1px solid ${colorPalette.primary}` },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: `1px solid ${colorPalette.primary}` },
+                      '&:hover fieldset': { border: `1px solid ${colorPalette.primary} !important` },
+                      '&.Mui-focused fieldset': { border: `1px solid ${colorPalette.primary} !important` },
                       '&.Mui-focused': { boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                     },
                   }}

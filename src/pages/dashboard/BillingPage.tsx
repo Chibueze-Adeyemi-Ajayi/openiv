@@ -9,7 +9,6 @@ import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined'
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined'
@@ -52,9 +51,35 @@ function daysUntil(iso: string | null | undefined): number | null {
   return Math.max(0, Math.ceil(ms / 86_400_000))
 }
 
+function upgradeCopy(slug: string | null): { title: string; subtitle: string; cta: string } {
+  switch (slug) {
+    case 'starter':
+      return {
+        title:    'Upgrade to Growth — unlock KYC, webhooks, and the full 29-rule engine',
+        subtitle: '250k transactions · 2,500 KYC steps · network logs · behavioral analytics',
+        cta:      'Upgrade to Growth',
+      }
+    case 'growth':
+      return {
+        title:    'Move up to Scale — 4× the headroom for fast-growing institutions',
+        subtitle: '1M transactions · 10,000 KYC steps · 200 NFIU filings · 50 seats',
+        cta:      'Upgrade to Scale',
+      }
+    case 'scale':
+      return {
+        title:    'Enterprise — unlimited everything with custom integrations',
+        subtitle: 'Unlimited transactions, KYC, cases · dedicated support · from ₦3M / month',
+        cta:      'Contact Enterprise',
+      }
+    default:
+      return { title: 'View available plans', subtitle: '', cta: 'View Plans' }
+  }
+}
+
 const PLAN_ACCENT: Record<string, string> = {
   starter:    '#3b82f6',
   growth:     colorPalette.primary,
+  scale:      '#0ea5e9',
   enterprise: '#7c3aed',
 }
 
@@ -192,7 +217,7 @@ export default function BillingPage() {
             {/* Price */}
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.5 }}>
               <Typography sx={{ fontSize: '2rem', fontWeight: 800, color: accent, fontFamily: 'Jost', lineHeight: 1 }}>
-                {plan.slug ? fmtNgn(plan.slug === 'starter' ? 500000 : plan.slug === 'growth' ? 750000 : 0) : '—'}
+                {plan.monthlyPriceNgn != null ? fmtNgn(plan.monthlyPriceNgn) : '—'}
               </Typography>
               {!isEnterprise && (
                 <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', fontFamily: 'Jost' }}> / month</Typography>
@@ -216,8 +241,11 @@ export default function BillingPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 3 }}>
               {[
                 `${plan.maxMonthlyTransactions === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyTransactions)} transactions / month`,
-                `${plan.maxMonthlyKycLookups === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyKycLookups)} KYC lookups / month`,
-                `${plan.maxActiveCases === -1 ? 'Unlimited' : fmtNum(plan.maxActiveCases)} concurrent active cases`,
+                plan.canUse('kyc')
+                  ? `${plan.maxMonthlyKycLookups === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyKycLookups)} KYC steps / month`
+                  : 'KYC verification not included',
+                `${plan.maxMonthlyCases === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyCases)} cases / month`,
+                `${plan.maxMonthlyNfiuFilings === -1 ? 'Unlimited' : fmtNum(plan.maxMonthlyNfiuFilings)} NFIU filings / month`,
                 `${plan.maxUsers === -1 ? 'Unlimited' : plan.maxUsers} team members`,
                 plan.maxAmlRules === 29 ? '29-rule AML engine' : `${plan.maxAmlRules}-rule AML engine`,
               ].map(line => (
@@ -366,13 +394,31 @@ export default function BillingPage() {
             color={colorPalette.primary}
             unit=" transactions"
           />
+          {plan.canUse('kyc') && (
+            <UsageRow
+              icon={<BadgeOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+              label="KYC Steps"
+              used={plan.monthlyKycUsed}
+              max={plan.maxMonthlyKycLookups}
+              color="#7c3aed"
+              unit=" steps"
+            />
+          )}
           <UsageRow
-            icon={<BadgeOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
-            label="KYC Lookups"
-            used={plan.monthlyKycUsed}
-            max={plan.maxMonthlyKycLookups}
-            color="#7c3aed"
-            unit=" lookups"
+            icon={<GavelOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+            label="Cases Opened"
+            used={plan.monthlyCasesUsed}
+            max={plan.maxMonthlyCases}
+            color="#f97316"
+            unit=" cases"
+          />
+          <UsageRow
+            icon={<PolicyOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+            label="NFIU Filings"
+            used={plan.monthlyNfiuUsed}
+            max={plan.maxMonthlyNfiuFilings}
+            color="#10b981"
+            unit=" filings"
           />
         </Box>
       </Box>
@@ -393,7 +439,6 @@ export default function BillingPage() {
             { icon: <GavelOutlinedIcon sx={{ fontSize: '1rem' }} />,         label: 'Active Cases',    value: plan.maxActiveCases === -1 ? 'Unlimited' : fmtNum(plan.maxActiveCases),   sub: 'concurrent open cases' },
             { icon: <GroupsOutlinedIcon sx={{ fontSize: '1rem' }} />,        label: 'Team Members',   value: plan.maxUsers === -1 ? 'Unlimited' : String(plan.maxUsers),                sub: 'seats included' },
             { icon: <PolicyOutlinedIcon sx={{ fontSize: '1rem' }} />,        label: 'AML Rules',      value: String(plan.maxAmlRules),                                                  sub: 'detection rules active' },
-            { icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} />,   label: 'Eureka AI',      value: plan.canUse('ai') ? 'Enabled' : 'Not included',                            sub: plan.canUse('ai') ? 'AI investigation assistant' : 'Upgrade to unlock' },
             { icon: <LockOutlinedIcon sx={{ fontSize: '1rem' }} />,          label: 'Behavioral Rules', value: plan.canUse('behavioral') ? 'Enabled' : 'Not included',                 sub: plan.canUse('behavioral') ? 'Anomaly detection active' : 'Upgrade to unlock' },
             { icon: <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1rem' }} />, label: 'KYC Pipeline', value: plan.canUse('kyc') ? 'Enabled' : 'Not included',                         sub: plan.canUse('kyc') ? 'BVN, NIN, PEP checks' : 'Upgrade to unlock' },
           ].map(({ icon, label, value, sub }, i, arr) => {
@@ -435,40 +480,24 @@ export default function BillingPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#1e40af', fontFamily: 'Jost', mb: 0.375 }}>
-              {plan.slug === 'starter' ? 'Unlock Growth — more capacity, KYC, webhooks, and AI' : 'Enterprise — unlimited everything, dedicated SLA'}
+              {upgradeCopy(plan.slug).title}
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#3b82f6' }}>
-              {plan.slug === 'starter'
-                ? '500k transactions/mo · 5k KYC lookups · full 29-rule AML engine'
-                : 'Unlimited transactions, lookups, and cases · white-label option available'}
+              {upgradeCopy(plan.slug).subtitle}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-            {plan.slug === 'starter' ? (
-              <Button
-                onClick={() => navigate('/dashboard/subscription')}
-                endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                sx={{
-                  bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',
-                  fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
-                  boxShadow: 'none', '&:hover': { bgcolor: '#1e3a8a', boxShadow: 'none' },
-                }}
-              >
-                Upgrade to Growth
-              </Button>
-            ) : (
-              <Button
-                href="mailto:sales@openiv.com"
-                startIcon={<MailOutlineRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                sx={{
-                  bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',
-                  fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
-                  boxShadow: 'none', '&:hover': { bgcolor: '#1e3a8a', boxShadow: 'none' },
-                }}
-              >
-                Contact Enterprise Sales
-              </Button>
-            )}
+            <Button
+              onClick={() => navigate('/dashboard/subscription')}
+              endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+              sx={{
+                bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',
+                fontFamily: 'Jost', fontWeight: 700, px: 2.5, py: 1, fontSize: '0.875rem',
+                boxShadow: 'none', '&:hover': { bgcolor: '#1e3a8a', boxShadow: 'none' },
+              }}
+            >
+              {upgradeCopy(plan.slug).cta}
+            </Button>
           </Box>
         </Box>
       )}

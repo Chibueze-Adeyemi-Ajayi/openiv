@@ -12,6 +12,7 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 const PLAN_ACCENT: Record<string, string> = {
   starter:    '#3b82f6',
   growth:     colorPalette.primary,
+  scale:      '#0ea5e9',
   enterprise: '#7c3aed',
 }
 
@@ -57,12 +58,6 @@ const FEATURE_META: Record<string, {
     perks:       ['Unlimited active cases', 'Higher transaction volumes', 'More team members', 'Enterprise SLA'],
     icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
   },
-  ai: {
-    label:       'Eureka AI Assistant',
-    description: 'AI-powered investigation assistant that analyses patterns, drafts reports, and surfaces insights.',
-    perks:       ['Chat-based case analysis', 'Pattern summarisation', 'NFIU draft generation', 'Risk narrative writing'],
-    icon:        <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
-  },
   txn_cap: {
     label:       'Monthly Transaction Limit Reached',
     description: 'Your institution has used all monthly transaction slots included in your current plan. Usage resets after 30 days.',
@@ -70,9 +65,27 @@ const FEATURE_META: Record<string, {
     icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
   },
   kyc_cap: {
-    label:       'Monthly KYC Lookup Limit Reached',
-    description: 'Your institution has used all monthly KYC lookup slots included in your current plan. Usage resets after 30 days.',
-    perks:       ['Higher monthly KYC lookup volume', 'Unlimited lookups on Enterprise', 'BVN / NIN verification', 'PEP screening'],
+    label:       'Monthly KYC Step Limit Reached',
+    description: 'Your institution has used all KYC steps included in your current plan. Each Dojah call (BVN/NIN lookup, phone basic, phone fraud, liveness, PEP) counts as one step. Usage resets after 30 days.',
+    perks:       ['Higher monthly KYC step volume', 'Unlimited steps on Enterprise', 'BVN / NIN + phone fraud + liveness', 'PEP screening'],
+    icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
+  },
+  nfiu_cap: {
+    label:       'Monthly NFIU Filing Limit Reached',
+    description: 'Your institution has used all monthly NFIU filings included in your current plan. Usage resets after 30 days.',
+    perks:       ['Higher monthly filing volume', 'Unlimited filings on Enterprise', 'STR / CTR support', 'GoAML export'],
+    icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
+  },
+  case_cap: {
+    label:       'Monthly Case Limit Reached',
+    description: 'Your institution has opened the maximum cases allowed this month. Usage resets after 30 days.',
+    perks:       ['Higher monthly case volume', 'Unlimited cases on Enterprise', 'Faster analyst throughput', 'More team seats'],
+    icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
+  },
+  team_seats: {
+    label:       'Team Seat Limit Reached',
+    description: 'Your institution has used all team seats included in your current plan. Upgrade to invite more analysts and reviewers.',
+    perks:       ['More team seats', 'Unlimited seats on Enterprise', 'Granular custom roles', 'Higher monthly volumes across the platform'],
     icon:        <LockOutlinedIcon sx={{ fontSize: '1.5rem' }} />,
   },
 }
@@ -80,6 +93,7 @@ const FEATURE_META: Record<string, {
 const PLAN_LABEL: Record<string, string> = {
   starter:    'Starter',
   growth:     'Growth',
+  scale:      'Scale',
   enterprise: 'Enterprise',
 }
 

@@ -5,7 +5,6 @@ import { NavLink, useLocation } from 'react-router-dom'
 import SidebarAIBubble from './SidebarAIBubble'
 import { useAiEnabled } from '@/hooks/useAiEnabled'
 import { usePlan, type PlanFeature } from '@/hooks/usePlan'
-import { usePlanModal } from '@/contexts/PlanContext'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -24,8 +23,6 @@ import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
 import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
 import { transactionApi } from '@/api/transactions'
@@ -46,15 +43,6 @@ interface NavItem {
   badge?: string
   permission?: Permission
   planFeature?: PlanFeature
-}
-
-const FEATURE_REQUIRED_PLAN: Record<PlanFeature, string> = {
-  kyc:            'growth',
-  webhooks:       'growth',
-  network:        'growth',
-  behavioral:     'growth',
-  reports_export: 'growth',
-  ai:             'growth',
 }
 
 interface ActiveNavItem {
@@ -125,7 +113,6 @@ export default function Sidebar() {
   const { eurekaEnabled, setEurekaBuddyOpen } = useEureka()
   const isAiEnabled = useAiEnabled()
   const plan = usePlan()
-  const { triggerUpgrade } = usePlanModal()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [unseenTransactionCount, setUnseenTransactionCount] = useState(0)
   const [unassignedCasesCount,   setUnassignedCasesCount]   = useState(0)
@@ -300,6 +287,7 @@ export default function Sidebar() {
             items: group.items.filter((item) => {
               if (isBuildOne && COMING_SOON_ROUTES.includes(item.to)) return false
               if (item.permission && !can(item.permission)) return false
+              if (item.planFeature && plan.isLoaded && !plan.canUse(item.planFeature)) return false
               return true
             }),
           }))
@@ -321,81 +309,82 @@ export default function Sidebar() {
             </Typography>
             {group.items.map((item) => {
               const active = location.pathname === item.to
-              const isLocked = !!(item.planFeature && plan.isLoaded && !plan.canUse(item.planFeature))
 
-              const itemContent = (
-                <Box
-                  onMouseEnter={e => !isLocked && handleNavMouseEnter(item, e)}
-                  onMouseLeave={!isLocked ? handleNavMouseLeave : undefined}
-                  data-ai-analyzable={!isLocked ? 'true' : undefined}
-                  data-ai-description={`Navigate to ${item.label} module. ${item.badge ? `Current attention required: ${item.badge}` : ''}`}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    px: 1.5,
-                    py: 1.125,
-                    mb: 0.25,
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    color: isLocked ? 'rgba(255,255,255,0.35)' : (active ? '#d9f99d' : 'rgba(255,255,255,0.7)'),
-                    bgcolor: active && !isLocked ? 'rgba(255,255,255,0.06)' : 'transparent',
-                    transition: 'all 0.18s ease',
-                    '&:hover': {
-                      bgcolor: isLocked ? 'rgba(255,255,255,0.03)' : (active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'),
-                      color: isLocked ? 'rgba(255,255,255,0.5)' : (active ? '#d9f99d' : '#ffffff'),
-                    },
-                    '&::before': active && !isLocked
-                      ? {
-                          content: '""',
-                          position: 'absolute',
-                          left: 0,
-                          top: 6,
-                          bottom: 6,
-                          width: '3px',
-                          bgcolor: '#d9f99d',
-                        }
-                      : {},
-                  }}
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  style={{ textDecoration: 'none' }}
                 >
-                  {!isLocked && hoveringItemTo === item.to && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: 280,
-                        height: 280,
-                        borderRadius: '50%',
-                        pointerEvents: 'none',
-                        border: `1.5px solid ${colorPalette.primary}35`,
-                        bgcolor: `${colorPalette.primary}07`,
-                        animation: 'navRipple 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
-                        '@keyframes navRipple': {
-                          '0%':   { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0.9 },
-                          '72%':  { transform: 'translate(-50%, -50%) scale(1)',    opacity: 0.35 },
-                          '86%':  { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0.18 },
-                          '100%': { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0 },
-                        },
-                      }}
-                    />
-                  )}
-                  {item.icon}
-                  <Typography
+                  <Box
+                    onMouseEnter={e => handleNavMouseEnter(item, e)}
+                    onMouseLeave={handleNavMouseLeave}
+                    data-ai-analyzable="true"
+                    data-ai-description={`Navigate to ${item.label} module. ${item.badge ? `Current attention required: ${item.badge}` : ''}`}
                     sx={{
-                      fontSize: '0.875rem',
-                      fontWeight: active && !isLocked ? 600 : 500,
-                      fontFamily: 'Jost',
-                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      px: 1.5,
+                      py: 1.125,
+                      mb: 0.25,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      color: active ? '#d9f99d' : 'rgba(255,255,255,0.7)',
+                      bgcolor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      transition: 'all 0.18s ease',
+                      '&:hover': {
+                        bgcolor: active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                        color: active ? '#d9f99d' : '#ffffff',
+                      },
+                      '&::before': active
+                        ? {
+                            content: '""',
+                            position: 'absolute',
+                            left: 0,
+                            top: 6,
+                            bottom: 6,
+                            width: '3px',
+                            bgcolor: '#d9f99d',
+                          }
+                        : {},
                     }}
                   >
-                    {item.label}
-                  </Typography>
-                  {isLocked ? (
-                    <LockOutlinedIcon sx={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-                  ) : (
-                    (() => {
+                    {hoveringItemTo === item.to && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          width: 280,
+                          height: 280,
+                          borderRadius: '50%',
+                          pointerEvents: 'none',
+                          border: `1.5px solid ${colorPalette.primary}35`,
+                          bgcolor: `${colorPalette.primary}07`,
+                          animation: 'navRipple 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+                          '@keyframes navRipple': {
+                            '0%':   { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0.9 },
+                            '72%':  { transform: 'translate(-50%, -50%) scale(1)',    opacity: 0.35 },
+                            '86%':  { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0.18 },
+                            '100%': { transform: 'translate(-50%, -50%) scale(0)',    opacity: 0 },
+                          },
+                        }}
+                      />
+                    )}
+                    {item.icon}
+                    <Typography
+                      sx={{
+                        fontSize: '0.875rem',
+                        fontWeight: active ? 600 : 500,
+                        fontFamily: 'Jost',
+                        flex: 1,
+                      }}
+                    >
+                      {item.label}
+                    </Typography>
+                    {(() => {
                       let badgeValue = item.badge;
                       if (item.to === '/dashboard/transactions' && unseenTransactionCount > 0) {
                         badgeValue = unseenTransactionCount.toString();
@@ -420,29 +409,8 @@ export default function Sidebar() {
                           }}
                         />
                       );
-                    })()
-                  )}
-                </Box>
-              )
-
-              return isLocked ? (
-                <Box
-                  key={item.to}
-                  onClick={() => triggerUpgrade({
-                    feature: item.planFeature!,
-                    currentPlan: plan.slug ?? 'starter',
-                    requiredPlan: FEATURE_REQUIRED_PLAN[item.planFeature!],
-                  })}
-                >
-                  {itemContent}
-                </Box>
-              ) : (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  style={{ textDecoration: 'none' }}
-                >
-                  {itemContent}
+                    })()}
+                  </Box>
                 </NavLink>
               )
             })}
