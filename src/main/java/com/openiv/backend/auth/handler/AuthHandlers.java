@@ -232,13 +232,15 @@ public final class AuthHandlers {
                     .put("institutionName",   instName)
                     .put("monthlyTxnUsed",    usageSummary.monthlyTxnUsed())
                     .put("monthlyKycUsed",    usageSummary.monthlyKycUsed())
+                    .put("monthlyNfiuUsed",   usageSummary.monthlyNfiuUsed())
+                    .put("monthlyCasesUsed",  usageSummary.monthlyCasesUsed())
                     .put("usagePeriodStart",  usageSummary.usagePeriodStart() != null
                         ? usageSummary.usagePeriodStart().toString() : null);
                 subOpt.ifPresent(sub -> {
                   var p = sub.plan();
                   json.put("planSlug",                p.slug())
                       .put("planName",                p.name())
-                      .put("aiFeaturesEnabled",       p.aiFeaturesEnabled())
+                      .put("monthlyPriceNgn",         p.monthlyPriceNgn())
                       .put("featureKycEnabled",       p.featureKycEnabled())
                       .put("featureWebhooksEnabled",  p.featureWebhooksEnabled())
                       .put("featureNetworkEnabled",   p.featureNetworkEnabled())
@@ -248,6 +250,8 @@ public final class AuthHandlers {
                       .put("maxActiveCases",          p.maxActiveCases())
                       .put("maxMonthlyTransactions",  p.maxMonthlyTransactions())
                       .put("maxMonthlyKycLookups",    p.maxMonthlyKycLookups())
+                      .put("maxMonthlyNfiuFilings",   p.maxMonthlyNfiuFilings())
+                      .put("maxMonthlyCases",         p.maxMonthlyCases())
                       .put("maxUsers",                p.maxUsers())
                       .put("subscriptionStatus",      sub.status())
                       .put("trialEndsAt",             sub.trialEndsAt() != null ? sub.trialEndsAt().toString() : null)

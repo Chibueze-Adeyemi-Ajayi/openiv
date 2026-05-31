@@ -45,6 +45,7 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.auth.service.DevInviteSeeder;
+import com.openiv.backend.auth.service.SuperAdminSeeder;
 import com.openiv.backend.auth.service.EmailSender;
 import com.openiv.backend.auth.service.LogEmailSender;
 import com.openiv.backend.auth.service.VertxEmailSender;
@@ -184,8 +185,11 @@ public final class Main {
 
         // Fraud detection services
         var notificationService = new com.openiv.backend.notifications.NotificationService(pool, vertx);
-        var fraudDetectionBillingService = new com.openiv.backend.billing.FraudDetectionBillingService(pool);
         var autoCaseService = new com.openiv.backend.cases.AutoCaseCreationService(caseRepository);
+        // Wire the case cap counter so auto-created cases consume monthly slots
+        // (same atomic counter manual /cases POSTs use). When the cap is hit
+        // the transaction still flows but no case is opened.
+        autoCaseService.attachUsageRepository(new com.openiv.backend.billing.UsageRepository(pool));
 
         // Doja.io identity verification client
         com.openiv.backend.doja.DojaClient dojaClient =
@@ -213,7 +217,7 @@ public final class Main {
             customerRepository,
             new com.openiv.backend.alerts.InstitutionAlertRepository(pool));
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
-            hybridAnalysis, fraudDetectionBillingService, notificationService);
+            hybridAnalysis, notificationService);
 
         // Behavioral beam analyzer — handles login, activity, location, device, and OTP timestamp rules
         BehavioralAlertRepository behavioralAlertRepository = new BehavioralAlertRepository(pool, vertx);
@@ -235,6 +239,7 @@ public final class Main {
             customerRepository, users, emailSender, notificationService);
 
         return sessions.clearStaleSocketActive()
+            .compose(ignored -> SuperAdminSeeder.run(users, config.superAdmin().password()))
             .compose(ignored -> DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions))
             .compose(ignored -> DevDemoBankSeeder.runIfDev(config.isDevelopment(), institutions, users))
             .compose(ignored -> deployVerticles(

@@ -98,17 +98,25 @@ public final class CustomerTransactionRuleRepository {
     .onFailure(e -> log.error("[CustomerRuleRepo] toggleActive failed: {}", e.getMessage()));
   }
 
-  public Future<BigDecimal> sumTodayAmount(long institutionId, String externalCustomerId) {
-    return pool.preparedQuery(
-        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
-        "WHERE institution_id = $1 AND customer_id = $2 " +
-        "AND occurred_at::date = CURRENT_DATE"
-    ).execute(Tuple.of(institutionId, externalCustomerId))
-    .map(rows -> {
-      var n = rows.iterator().next().getNumeric(0);
-      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
-    })
-    .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmount failed: {}", e.getMessage()));
+  /**
+   * Sums today's transactions for this customer in the given direction.
+   * Pass {@code "outward"} for spending limits, {@code "inward"} for deposit limits,
+   * or {@code "both"} for combined volume.
+   */
+  public Future<BigDecimal> sumTodayAmount(long institutionId, String externalCustomerId, String direction) {
+    boolean both = direction == null || "both".equals(direction);
+    String sql = "SELECT COALESCE(SUM(amount), 0) FROM transactions "
+        + "WHERE institution_id = $1 AND customer_id = $2 "
+        + "AND occurred_at::date = CURRENT_DATE"
+        + (both ? "" : " AND direction = $3");
+    Tuple args = both ? Tuple.of(institutionId, externalCustomerId)
+                      : Tuple.of(institutionId, externalCustomerId, direction);
+    return pool.preparedQuery(sql).execute(args)
+        .map(rows -> {
+          var n = rows.iterator().next().getNumeric(0);
+          return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+        })
+        .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmount failed: {}", e.getMessage()));
   }
 
   /** Cumulative amount for a specific channel+direction today — used for KYC-tier daily limit enforcement. */
@@ -128,17 +136,21 @@ public final class CustomerTransactionRuleRepository {
     .onFailure(e -> log.error("[CustomerRuleRepo] sumTodayAmountByChannelAndDirection failed: {}", e.getMessage()));
   }
 
-  public Future<BigDecimal> sumMonthAmount(long institutionId, String externalCustomerId) {
-    return pool.preparedQuery(
-        "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
-        "WHERE institution_id = $1 AND customer_id = $2 " +
-        "AND DATE_TRUNC('month', occurred_at) = DATE_TRUNC('month', NOW())"
-    ).execute(Tuple.of(institutionId, externalCustomerId))
-    .map(rows -> {
-      var n = rows.iterator().next().getNumeric(0);
-      return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
-    })
-    .onFailure(e -> log.error("[CustomerRuleRepo] sumMonthAmount failed: {}", e.getMessage()));
+  /** Same direction-aware sum semantics as {@link #sumTodayAmount}, scoped to the current calendar month. */
+  public Future<BigDecimal> sumMonthAmount(long institutionId, String externalCustomerId, String direction) {
+    boolean both = direction == null || "both".equals(direction);
+    String sql = "SELECT COALESCE(SUM(amount), 0) FROM transactions "
+        + "WHERE institution_id = $1 AND customer_id = $2 "
+        + "AND DATE_TRUNC('month', occurred_at) = DATE_TRUNC('month', NOW())"
+        + (both ? "" : " AND direction = $3");
+    Tuple args = both ? Tuple.of(institutionId, externalCustomerId)
+                      : Tuple.of(institutionId, externalCustomerId, direction);
+    return pool.preparedQuery(sql).execute(args)
+        .map(rows -> {
+          var n = rows.iterator().next().getNumeric(0);
+          return n != null ? n.bigDecimalValue() : BigDecimal.ZERO;
+        })
+        .onFailure(e -> log.error("[CustomerRuleRepo] sumMonthAmount failed: {}", e.getMessage()));
   }
 
   public Future<Long> countInVelocityWindow(long institutionId, String externalCustomerId, int hours) {
@@ -179,8 +191,9 @@ public final class CustomerTransactionRuleRepository {
   }
 
   private CustomerTransactionRule fromRow(Row row) {
-    String paramsStr = row.getString("params");
-    JsonObject params = (paramsStr != null && !paramsStr.isBlank()) ? new JsonObject(paramsStr) : new JsonObject();
+    // params is JSONB — Vert.x returns it as a JsonObject, not a String.
+    JsonObject params = row.getJsonObject("params");
+    if (params == null) params = new JsonObject();
     Long createdBy = row.getLong("created_by");
     String direction = row.getString("direction");
     return new CustomerTransactionRule(

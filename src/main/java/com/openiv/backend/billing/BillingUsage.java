@@ -10,12 +10,12 @@ public record BillingUsage(
     long                totalDebitUnits,
     String              creditExpiresAt,    // ISO-8601, null if no credit
     boolean             isInFreePeriod,     // true while welcome credit is active
-    List<CategoryUsage> categories          // all known categories, 0 when unused
+    List<CategoryUsage> categories          // categories that had ledger activity this month
 ) {
   public record CategoryUsage(
-      String category,          // beam_ingest | kyc_lookup | webhook_delivery | ai_token
+      String category,
       long   eventCount,
       long   totalAmountUnits,
-      long   rateUnitsEach
+      long   rateUnitsEach     // derived: totalAmountUnits / eventCount (or 0 if no events)
   ) {}
 }

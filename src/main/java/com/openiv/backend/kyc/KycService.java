@@ -4,6 +4,7 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
+import com.openiv.backend.billing.UsageRepository;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.customers.CustomerService;
 import com.openiv.backend.doja.DojaClient;
@@ -39,6 +40,10 @@ public final class KycService {
   private final DojaClient dojaClient;
   private final KycPipelineResultRepository pipelineResults;
   private final WebhookRepository webhookRepository;
+  // Optional — wired by V1Router after construction. When present, KYC
+  // pipelines reserve points up-front against the institution's monthly cap
+  // and refund whatever isn't used by the actual Dojah call count.
+  private UsageRepository usageRepository;
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService) {
@@ -73,6 +78,11 @@ public final class KycService {
   }
 
   public DojaClient dojaClient() { return dojaClient; }
+
+  /** Wire the cap counter — invoked once from V1Router after construction. */
+  public void attachUsageRepository(UsageRepository usageRepository) {
+    this.usageRepository = usageRepository;
+  }
 
   // ── Config ────────────────────────────────────────────────────────────────
 
@@ -285,8 +295,8 @@ public final class KycService {
 
   // ── Doja Verification Pipeline ────────────────────────────────────────────
 
-  /** Default step order matching the UI pipeline canvas. */
-  public static final List<String> DEFAULT_PIPELINE = List.of("bvn_nin", "phone_match", "liveness", "pep_check");
+  /** Step order delegated to {@link DojaVerificationPipeline}. */
+  public static final List<String> DEFAULT_PIPELINE = DojaVerificationPipeline.DEFAULT_PIPELINE;
 
   /**
    * Run the Doja verification pipeline for a customer beamed via the KYC stream.
@@ -333,8 +343,114 @@ public final class KycService {
       return Future.succeededFuture(skipped);
     }
 
-    DojaVerificationPipeline pipeline = new DojaVerificationPipeline(dojaClient);
+    final int worstCase = forecastWorstCase(bvn, nin, phone, photo, beamedName);
 
+    // No reservation possible without UsageRepository — fall through to a
+    // plain pipeline run (test/legacy paths).
+    if (usageRepository == null) {
+      return runUnmeteredPipeline(institutionId, customerId, bvn, nin, phone, photo,
+          stepCallback, beamedName);
+    }
+
+    // Zero-input pipeline — nothing to reserve, nothing to charge.
+    if (worstCase <= 0) {
+      return runUnmeteredPipeline(institutionId, customerId, bvn, nin, phone, photo,
+          stepCallback, beamedName);
+    }
+
+    return usageRepository.reserveKycPoints(institutionId, worstCase)
+        .compose(reservation -> {
+          if (!reservation.allowed()) {
+            long remaining = Math.max(0L, reservation.limit() - reservation.used());
+            String detail = reservation.limit() == -1
+                ? "Monthly KYC cap reached."
+                : "Pipeline needs " + worstCase + " KYC steps but only "
+                  + remaining + " remain in your monthly cap (used "
+                  + reservation.used() + " of " + reservation.limit() + ").";
+            log.info("[Pipeline] Cap reached for institution={}: {}", institutionId, detail);
+            PipelineVerificationResult capped = new PipelineVerificationResult(
+                customerId,
+                List.of(new PipelineStepResult("preflight", "skipped", detail, 0, 0, false)),
+                "cap_reached", 0, 0, 0, null, null, null, phone, null,
+                worstCase, 0, 0, remaining, true, detail);
+            // Emit the preflight skip to any SSE subscriber so the UI gets a
+            // concrete event rather than silence.
+            if (stepCallback != null) {
+              stepCallback.accept(new io.vertx.core.json.JsonObject()
+                  .put("step",       "preflight")
+                  .put("status",     "skipped")
+                  .put("detail",     detail)
+                  .put("durationMs", 0)
+                  .put("stepRiskScore", 0)
+                  .put("dojahCalled",   false)
+                  .put("runningScore",  0)
+                  .put("capReached",    true));
+            }
+            return Future.succeededFuture(capped);
+          }
+
+          DojaVerificationPipeline pipeline = new DojaVerificationPipeline(dojaClient);
+          return pipeline.run(customerId, bvn, nin, phone, photo, DEFAULT_PIPELINE, stepCallback, beamedName)
+              .compose(result -> {
+                int actualUsed   = (int) result.steps().stream().filter(PipelineStepResult::dojahCalled).count();
+                int refundAmount = Math.max(0, worstCase - actualUsed);
+                long remainingAfter = Math.max(0L, reservation.limit() == -1
+                    ? -1L
+                    : reservation.limit() - (reservation.used() - refundAmount));
+
+                Future<Void> refundFuture = refundAmount > 0
+                    ? usageRepository.refundKycPoints(institutionId, refundAmount)
+                    : Future.succeededFuture();
+
+                PipelineVerificationResult enriched = new PipelineVerificationResult(
+                    result.customerId(), result.steps(), result.overallStatus(),
+                    result.kycTier(), result.totalDurationMs(), result.overallRiskScore(),
+                    result.identityPhoto(), result.firstName(), result.lastName(),
+                    result.phone(), result.dateOfBirth(),
+                    worstCase, actualUsed, refundAmount, remainingAfter,
+                    false, null);
+
+                String logStatus = enriched.flagged() ? "failed" : "success";
+                int durationMs = (int) Math.min(enriched.totalDurationMs(), Integer.MAX_VALUE);
+                return refundFuture
+                    .compose(v -> repository.saveLog(
+                        institutionId, customerId, "beam_pipeline",
+                        logStatus, 200, durationMs,
+                        enriched.kycTier(), enriched.overallStatus(), null))
+                    .map(ignored -> enriched);
+              })
+              .recover(err -> {
+                // Pipeline died unexpectedly — refund the whole reservation so
+                // the institution doesn't lose points to a server-side fault.
+                log.error("[Pipeline] Run failed for {} — refunding {} reserved points: {}",
+                    customerId, worstCase, err.getMessage());
+                return usageRepository.refundKycPoints(institutionId, worstCase)
+                    .compose(v -> Future.<PipelineVerificationResult>failedFuture(err));
+              });
+        });
+  }
+
+  /** Forecast the worst-case Dojah call count from the inputs we have. */
+  static int forecastWorstCase(String bvn, String nin, String phone, String photo, String beamedName) {
+    boolean hasIdentity = (bvn != null && !bvn.isBlank()) || (nin != null && !nin.isBlank());
+    boolean hasPhone    = phone != null && !phone.isBlank();
+    boolean hasPhoto    = photo != null && !photo.isBlank();
+    boolean hasName     = beamedName != null && !beamedName.isBlank();
+
+    int worstCase = 0;
+    if (hasIdentity) worstCase++;                  // BVN or NIN lookup
+    if (hasIdentity || hasPhone) worstCase += 4;   // up to 2 phones × (basic + fraud)
+    if (hasPhoto && hasIdentity) worstCase++;      // liveness needs identity as reference
+    if (hasName || hasIdentity) worstCase++;       // AML needs a name (beamed or derived)
+    return worstCase;
+  }
+
+  /** Plain pipeline run with no reservation / refund — used when usage repo is absent. */
+  private Future<PipelineVerificationResult> runUnmeteredPipeline(
+      long institutionId, String customerId,
+      String bvn, String nin, String phone, String photo,
+      Consumer<JsonObject> stepCallback, String beamedName) {
+    DojaVerificationPipeline pipeline = new DojaVerificationPipeline(dojaClient);
     return pipeline.run(customerId, bvn, nin, phone, photo, DEFAULT_PIPELINE, stepCallback, beamedName)
         .compose(result -> {
           String logStatus = result.flagged() ? "failed" : "success";

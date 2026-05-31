@@ -60,6 +60,18 @@ public final class UserRepository {
         });
   }
 
+  /** Counts non-disabled users in this institution (members + pending invites). */
+  public Future<Integer> countActiveByInstitution(long institutionId) {
+    return pool.preparedQuery(
+            "SELECT COUNT(*) AS n FROM users "
+            + "WHERE institution_id = $1 AND status <> 'disabled'")
+        .execute(Tuple.of(institutionId))
+        .map(rs -> {
+          var it = rs.iterator();
+          return it.hasNext() ? Math.toIntExact(it.next().getLong("n")) : 0;
+        });
+  }
+
   /** Users in this institution who were directly invited and have not yet completed setup. */
   public Future<List<User>> listPendingByInstitution(long institutionId) {
     return pool.preparedQuery(

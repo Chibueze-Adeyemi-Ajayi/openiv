@@ -250,12 +250,19 @@ public final class SubscriptionHandlers {
         .put("maxUsers",                 p.maxUsers())
         .put("maxMonthlyTransactions",   p.maxMonthlyTransactions())
         .put("maxActiveCases",           p.maxActiveCases())
-        .put("aiFeaturesEnabled",        p.aiFeaturesEnabled())
         .put("apiRateLimitPerMin",       p.apiRateLimitPerMin())
         .put("includedTransactionUnits", p.includedTransactionUnits())
         .put("features",                 feats)
         .put("sortOrder",                p.sortOrder())
-        .put("maxMonthlyKycLookups",     p.maxMonthlyKycLookups());
+        .put("featureKycEnabled",        p.featureKycEnabled())
+        .put("featureWebhooksEnabled",   p.featureWebhooksEnabled())
+        .put("featureNetworkEnabled",    p.featureNetworkEnabled())
+        .put("featureBehavioralEnabled", p.featureBehavioralEnabled())
+        .put("featureReportsExport",     p.featureReportsExport())
+        .put("maxAmlRules",              p.maxAmlRules())
+        .put("maxMonthlyKycLookups",     p.maxMonthlyKycLookups())
+        .put("maxMonthlyNfiuFilings",    p.maxMonthlyNfiuFilings())
+        .put("maxMonthlyCases",          p.maxMonthlyCases());
   }
 
   private static void ok(RoutingContext ctx, JsonObject body) {

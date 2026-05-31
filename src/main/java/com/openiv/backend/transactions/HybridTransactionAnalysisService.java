@@ -115,9 +115,23 @@ public class HybridTransactionAnalysisService {
     return customerRuleRepo.listActiveByExternalCustomerId(institutionId, transaction.customerId())
         .<AnalysisResult>compose(customerRules -> {
 
-          // Determine which customer-aggregate queries are needed
-          boolean needsDaily    = customerRules.stream().anyMatch(r -> r.isActive() && "daily_amount_limit".equals(r.ruleType()));
-          boolean needsMonthly  = customerRules.stream().anyMatch(r -> r.isActive() && "monthly_amount_limit".equals(r.ruleType()));
+          // Determine which customer-aggregate queries are needed. Daily/monthly sums are
+          // direction-aware (a "spending limit" rule with direction=outward must only sum
+          // outward transactions; otherwise inward deposits inflate the running total and
+          // cause false positives).
+          java.util.Set<String> dailyDirs = customerRules.stream()
+              .filter(r -> r.isActive() && "daily_amount_limit".equals(r.ruleType()))
+              .map(r -> r.direction() == null ? "both" : r.direction())
+              .collect(java.util.stream.Collectors.toSet());
+          java.util.Set<String> monthlyDirs = customerRules.stream()
+              .filter(r -> r.isActive() && "monthly_amount_limit".equals(r.ruleType()))
+              .map(r -> r.direction() == null ? "both" : r.direction())
+              .collect(java.util.stream.Collectors.toSet());
+          boolean needsDailyOutward   = dailyDirs.contains("outward")   || dailyDirs.contains("both");
+          boolean needsDailyInward    = dailyDirs.contains("inward")    || dailyDirs.contains("both");
+          boolean needsMonthlyOutward = monthlyDirs.contains("outward") || monthlyDirs.contains("both");
+          boolean needsMonthlyInward  = monthlyDirs.contains("inward")  || monthlyDirs.contains("both");
+
           boolean needsVelocity = customerRules.stream().anyMatch(r -> r.isActive() && "transaction_velocity".equals(r.ruleType()));
           boolean needsRapidWd  = customerRules.stream().anyMatch(r -> r.isActive() && "rapid_post_deposit_withdrawal".equals(r.ruleType()));
           boolean needsSuddenWd = customerRules.stream().anyMatch(r -> r.isActive() && "sudden_withdrawal_after_deposit".equals(r.ruleType()));
@@ -132,12 +146,18 @@ public class HybridTransactionAnalysisService {
               .mapToInt(r -> r.params().getInteger("window_minutes", 30)).max().orElse(30);
 
           // ── Step 2: fire ALL remaining queries in one parallel batch ─────────
-          // Customer aggregate data
-          Future<java.math.BigDecimal> fTodaySum = needsDaily
-              ? customerRuleRepo.sumTodayAmount(institutionId, transaction.customerId())
+          // Customer aggregate data (direction-aware sums)
+          Future<java.math.BigDecimal> fTodayOutward = needsDailyOutward
+              ? customerRuleRepo.sumTodayAmount(institutionId, transaction.customerId(), "outward")
               : Future.succeededFuture(java.math.BigDecimal.ZERO);
-          Future<java.math.BigDecimal> fMonthSum = needsMonthly
-              ? customerRuleRepo.sumMonthAmount(institutionId, transaction.customerId())
+          Future<java.math.BigDecimal> fTodayInward = needsDailyInward
+              ? customerRuleRepo.sumTodayAmount(institutionId, transaction.customerId(), "inward")
+              : Future.succeededFuture(java.math.BigDecimal.ZERO);
+          Future<java.math.BigDecimal> fMonthOutward = needsMonthlyOutward
+              ? customerRuleRepo.sumMonthAmount(institutionId, transaction.customerId(), "outward")
+              : Future.succeededFuture(java.math.BigDecimal.ZERO);
+          Future<java.math.BigDecimal> fMonthInward = needsMonthlyInward
+              ? customerRuleRepo.sumMonthAmount(institutionId, transaction.customerId(), "inward")
               : Future.succeededFuture(java.math.BigDecimal.ZERO);
           Future<Long> fVelocityCount = needsVelocity
               ? customerRuleRepo.countInVelocityWindow(institutionId, transaction.customerId(), vHours)
@@ -168,29 +188,32 @@ public class HybridTransactionAnalysisService {
           Future<java.util.Optional<java.time.OffsetDateTime>> fLastTxnDate =
               findPreviousTransactionDate(institutionId, transaction.customerId(), transaction.id());
 
-          // Indices: 0-5 customer aggregate, 6-14 institution data
+          // Indices: 0-7 customer aggregate, 8-16 institution data
           return Future.all(new java.util.ArrayList<>(java.util.List.of(
-              fTodaySum, fMonthSum, fVelocityCount, fRecentDeposit, fKycDailySum, fSuddenWdDeposit,
+              fTodayOutward, fTodayInward, fMonthOutward, fMonthInward,
+              fVelocityCount, fRecentDeposit, fKycDailySum, fSuddenWdDeposit,
               fThresholds, fTierThresholds, fAmlSettings, fBehavioralRules, fKycSuppressed,
               fOverallRisk, fKyc, fProfile, fLastTxnDate)))
               .<AnalysisResult>compose(all -> {
 
-                java.math.BigDecimal todaySum      = all.resultAt(0);
-                java.math.BigDecimal monthSum      = all.resultAt(1);
-                long velocityCount                 = (Long) all.resultAt(2);
-                java.math.BigDecimal recentDeposit = all.resultAt(3);
-                java.math.BigDecimal kycDailySum   = all.resultAt(4);
-                boolean hadRecentDeposit           = Boolean.TRUE.equals((Boolean) all.resultAt(5));
+                java.math.BigDecimal todayOutward  = all.resultAt(0);
+                java.math.BigDecimal todayInward   = all.resultAt(1);
+                java.math.BigDecimal monthOutward  = all.resultAt(2);
+                java.math.BigDecimal monthInward   = all.resultAt(3);
+                long velocityCount                 = (Long) all.resultAt(4);
+                java.math.BigDecimal recentDeposit = all.resultAt(5);
+                java.math.BigDecimal kycDailySum   = all.resultAt(6);
+                boolean hadRecentDeposit           = Boolean.TRUE.equals((Boolean) all.resultAt(7));
 
-                List<ThresholdRecord>     thresholds      = all.resultAt(6);
-                List<KycTierRecord>       tierThresholds  = all.resultAt(7);
-                java.util.Optional<com.openiv.backend.aml.AmlSettings> optAml = all.resultAt(8);
-                List<BehavioralRuleRecord> behavioralRules = all.resultAt(9);
-                boolean kycSuppressed = Boolean.TRUE.equals((Boolean) all.resultAt(10));
-                int customerOverallRisk               = (Integer) all.resultAt(11);
-                java.util.Optional<com.openiv.backend.kyc.KycPipelineResult> optKyc = all.resultAt(12);
-                java.util.Optional<CustomerBehavioralProfile> optProfile             = all.resultAt(13);
-                java.util.Optional<java.time.OffsetDateTime> lastTxnDate             = all.resultAt(14);
+                List<ThresholdRecord>     thresholds      = all.resultAt(8);
+                List<KycTierRecord>       tierThresholds  = all.resultAt(9);
+                java.util.Optional<com.openiv.backend.aml.AmlSettings> optAml = all.resultAt(10);
+                List<BehavioralRuleRecord> behavioralRules = all.resultAt(11);
+                boolean kycSuppressed = Boolean.TRUE.equals((Boolean) all.resultAt(12));
+                int customerOverallRisk               = (Integer) all.resultAt(13);
+                java.util.Optional<com.openiv.backend.kyc.KycPipelineResult> optKyc = all.resultAt(14);
+                java.util.Optional<CustomerBehavioralProfile> optProfile             = all.resultAt(15);
+                java.util.Optional<java.time.OffsetDateTime> lastTxnDate             = all.resultAt(16);
 
                 boolean kycTierCheckEnabled = !kycSuppressed && !skipKyc;
                 int customerKycTier = optKyc.map(k ->
@@ -302,7 +325,12 @@ public class HybridTransactionAnalysisService {
                   switch (rule.ruleType()) {
                     case "daily_amount_limit" -> {
                       long maxD = rule.params().getLong("max_amount", Long.MAX_VALUE);
-                      if (todaySum.add(transaction.amount()).longValue() > maxD) {
+                      java.math.BigDecimal effDaily = switch (rule.direction() == null ? "both" : rule.direction()) {
+                        case "outward" -> todayOutward;
+                        case "inward"  -> todayInward;
+                        default        -> todayOutward.add(todayInward);
+                      };
+                      if (effDaily.add(transaction.amount()).longValue() > maxD) {
                         if ("block".equals(rule.action()))
                           return handleCustomerBlock(institutionId, transaction,
                               "Transaction would exceed this customer's daily spending limit of ₦" + String.format("%,d", maxD),
@@ -313,7 +341,12 @@ public class HybridTransactionAnalysisService {
                     }
                     case "monthly_amount_limit" -> {
                       long maxM = rule.params().getLong("max_amount", Long.MAX_VALUE);
-                      if (monthSum.add(transaction.amount()).longValue() > maxM) {
+                      java.math.BigDecimal effMonthly = switch (rule.direction() == null ? "both" : rule.direction()) {
+                        case "outward" -> monthOutward;
+                        case "inward"  -> monthInward;
+                        default        -> monthOutward.add(monthInward);
+                      };
+                      if (effMonthly.add(transaction.amount()).longValue() > maxM) {
                         if ("block".equals(rule.action()))
                           return handleCustomerBlock(institutionId, transaction,
                               "Transaction would exceed this customer's monthly spending limit of ₦" + String.format("%,d", maxM),

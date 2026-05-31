@@ -204,7 +204,7 @@ public final class V1Router {
 
     // NFIU compliance — reports and scheduled filings
     NfiuService nfiuService = new NfiuService(
-        new NfiuRepository(dbPool), new UserRepository(dbPool), billingService);
+        new NfiuRepository(dbPool), new UserRepository(dbPool));
     NfiuHandlers nfiuHandlers = new NfiuHandlers(nfiuService,
         new InstitutionRepository(dbPool));
     Handler<RoutingContext> nfiuAuth     = SessionAuthHandler.authenticated(authService);
@@ -212,10 +212,11 @@ public final class V1Router {
     Handler<RoutingContext> nfiuCreate   = RoleAuthHandler.require(sharedUsers, Permission.REPORTS_CREATE);
     Handler<RoutingContext> nfiuFile     = RoleAuthHandler.require(sharedUsers, Permission.REPORTS_FILE);
     Handler<RoutingContext> nfiuApprove  = RoleAuthHandler.require(sharedUsers, Permission.REPORTS_APPROVE);
+    Handler<RoutingContext> nfiuCap     = UsageGuard.nfiuFiling(usageRepository, sharedUsers);
     router.get("/nfiu/metrics").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.getMetrics());
     router.get("/nfiu/reports").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.listReports());
     router.post("/nfiu/reports").handler(nfiuAuth).handler(nfiuCreate).handler(nfiuHandlers.createReport());
-    router.post("/nfiu/reports/:id/file").handler(nfiuAuth).handler(nfiuFile).handler(nfiuHandlers.fileReport());
+    router.post("/nfiu/reports/:id/file").handler(nfiuAuth).handler(nfiuFile).handler(nfiuCap).handler(nfiuHandlers.fileReport());
     router.post("/nfiu/reports/:id/approve").handler(nfiuAuth).handler(nfiuApprove).handler(nfiuHandlers.approveReport());
     router.get("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuView).handler(nfiuHandlers.getReport());
     router.patch("/nfiu/reports/:id").handler(nfiuAuth).handler(nfiuCreate).handler(nfiuHandlers.updateReport());
@@ -228,7 +229,7 @@ public final class V1Router {
 
     // Transactions — two endpoints registered directly to avoid sub-router
     // path-stripping on root.
-    TransactionHandlers txnHandlers = new TransactionHandlers(transactionService, billingService);
+    TransactionHandlers txnHandlers = new TransactionHandlers(transactionService);
     Handler<RoutingContext> txnAuth   = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> txnView   = RoleAuthHandler.require(sharedUsers, Permission.TRANSACTIONS_VIEW);
     Handler<RoutingContext> txnFlag   = RoleAuthHandler.require(sharedUsers, Permission.TRANSACTIONS_FLAG);
@@ -242,7 +243,7 @@ public final class V1Router {
     router.get("/transactions/:id").handler(txnAuth).handler(txnView).handler(txnHandlers.getById());
 
     // Cases — metrics must be registered before /:id to avoid path collision
-    CaseHandlers caseHandlers = new CaseHandlers(caseService, billingService);
+    CaseHandlers caseHandlers = new CaseHandlers(caseService);
     Handler<RoutingContext> caseAuth     = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> casesView    = RoleAuthHandler.require(sharedUsers, Permission.CASES_VIEW);
     Handler<RoutingContext> casesCreate  = RoleAuthHandler.require(sharedUsers, Permission.CASES_CREATE);
@@ -256,8 +257,9 @@ public final class V1Router {
     router.get("/cases/unassigned-count").handler(caseAuth).handler(casesView).handler(caseHandlers.unassignedCount());
     router.get("/cases/unseen-count").handler(caseAuth).handler(casesView).handler(caseHandlers.unseenCount());
     router.get("/cases/analytics").handler(caseAuth).handler(casesView).handler(caseHandlers.analytics());
+    Handler<RoutingContext> casesCap = UsageGuard.caseOpen(usageRepository, sharedUsers);
     router.get("/cases").handler(caseAuth).handler(casesView).handler(caseHandlers.list());
-    router.post("/cases").handler(caseAuth).handler(casesCreate).handler(caseHandlers.create());
+    router.post("/cases").handler(caseAuth).handler(casesCreate).handler(casesCap).handler(caseHandlers.create());
     router.get("/cases/:id").handler(caseAuth).handler(casesView).handler(caseHandlers.detail());
     router.patch("/cases/:id/status").handler(caseAuth).handler(casesClose).handler(caseHandlers.updateStatus());
     router.post("/cases/:id/transactions").handler(caseAuth).handler(casesCreate).handler(caseHandlers.linkTransaction());
@@ -296,7 +298,7 @@ public final class V1Router {
     router.patch("/behavioral-rules/:id").handler(behavioralAuth).handler(rulesModify).handler(planBehavioral).handler(behavioralRuleHandlers.update());
 
     // Beam API key auth for ingest endpoints
-    BeamHandlers beamHandlers = new BeamHandlers(beamService, billingService);
+    BeamHandlers beamHandlers = new BeamHandlers(beamService);
     BeamApiKeyHandler beamApiKeyHandler = new BeamApiKeyHandler(beamService, authService);
 
     // Verification API — BVN, NIN, Phone, PEP (beam API key auth)
@@ -357,7 +359,10 @@ public final class V1Router {
     KycPipelineResultRepository kycPipelineRepo = new KycPipelineResultRepository(dbPool);
     com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo =
         new com.openiv.backend.kyc.KycEvaluationConfigRepository(dbPool);
-    KycHandlers kycHandlers = new KycHandlers(kycService, billingService, evalConfigRepo);
+    // Wire the cap counter so KYC pipelines reserve/refund points against the
+    // institution's monthly cap. Counts each Dojah call as one point.
+    kycService.attachUsageRepository(usageRepository);
+    KycHandlers kycHandlers = new KycHandlers(kycService, evalConfigRepo);
     Handler<RoutingContext> kycAuth    = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> kycView    = RoleAuthHandler.require(sharedUsers, Permission.KYC_VIEW);
     Handler<RoutingContext> kycConfig  = RoleAuthHandler.require(sharedUsers, Permission.KYC_CONFIG);
@@ -365,6 +370,8 @@ public final class V1Router {
     router.get("/kyc/config").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getConfig());
     router.put("/kyc/config").handler(kycAuth).handler(kycConfig).handler(planKyc).handler(kycHandlers.saveConfig());
     router.get("/kyc/pep-search").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.searchPEP());
+    // /kyc/lookup is the single-call institution-webhook fetch (not a Dojah
+    // pipeline). One call = one point against the monthly KYC cap.
     Handler<RoutingContext> usageKycGuard = UsageGuard.kycLookup(usageRepository, sharedUsers);
     router.post("/kyc/lookup").handler(kycAuth).handler(kycView).handler(planKyc).handler(usageKycGuard).handler(kycHandlers.lookup());
     router.get("/kyc/customers/stats").handler(kycAuth).handler(kycView).handler(planKyc).handler(kycHandlers.getStats());
@@ -402,7 +409,7 @@ public final class V1Router {
 
     // Documents — compliance evidence files (upload + download)
     DocumentHandlers docHandlers = new DocumentHandlers(
-        documentRepository, new UserRepository(dbPool), vertx, billingService, cloudinary);
+        documentRepository, new UserRepository(dbPool), vertx, cloudinary);
     Handler<RoutingContext> docAuth = SessionAuthHandler.authenticated(authService);
     router.post("/documents/upload").handler(docAuth).handler(docHandlers.upload());
     router.get("/documents/:id").handler(docAuth).handler(docHandlers.download());
@@ -469,7 +476,7 @@ public final class V1Router {
 
     // Dashboard — SSE streams, REST snapshots, export, NFIU return
     DashboardHandlers dashboardHandlers = new DashboardHandlers(dashboardService, geoFenceService, vertx,
-        billingService, notificationService, new UserRepository(dbPool));
+        notificationService, new UserRepository(dbPool));
     Handler<RoutingContext> dashAuth = SessionAuthHandler.authenticated(authService);
     router.get("/dashboard/events").handler(dashAuth).handler(dashboardHandlers.unifiedStream());
     router.get("/dashboard/stream").handler(dashAuth).handler(dashboardHandlers.stream());

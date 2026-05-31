@@ -1,6 +1,5 @@
 package com.openiv.backend.transactions;
 
-import com.openiv.backend.billing.FraudDetectionBillingService;
 import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
 import org.slf4j.Logger;
@@ -12,7 +11,6 @@ public class TransactionProcessingOrchestrator {
   private static final Logger log = LoggerFactory.getLogger(TransactionProcessingOrchestrator.class);
 
   private final HybridTransactionAnalysisService analysisService;
-  private final FraudDetectionBillingService billingService;
   private final NotificationService notificationService;
 
   public record ProcessingResult(String transactionId, int riskScore, String priority,
@@ -20,9 +18,8 @@ public class TransactionProcessingOrchestrator {
       java.util.List<String> triggeredRules, String recommendedAction) {}
 
   public TransactionProcessingOrchestrator(HybridTransactionAnalysisService analysisService,
-      FraudDetectionBillingService billingService, NotificationService notificationService) {
+      NotificationService notificationService) {
     this.analysisService = analysisService;
-    this.billingService = billingService;
     this.notificationService = notificationService;
   }
 
@@ -72,21 +69,11 @@ public class TransactionProcessingOrchestrator {
 
           return notifFuture.map(notification -> {
                 long time = System.currentTimeMillis() - startTime;
-
-                // Charge async (non-blocking) — don't wait for billing to complete
-                billingService.chargeForTransaction(
-                    institutionId, transaction.id(),
-                    analysisResult.caseCreated(), analysisResult.aiAnalyzed())
-                    .onSuccess(billingRecord ->
-                        log.info("[Orchestrator] Charged txn={} ref={}", transaction.id(), billingRecord.reference()))
-                    .onFailure(e ->
-                        log.warn("[Orchestrator] Billing failed for txn={}: {}", transaction.id(), e.getMessage()));
-
                 log.info("[Orchestrator] txn={} risk={} case={} time={}ms",
                     transaction.id(), analysisResult.riskScore(), analysisResult.caseid(), time);
                 return new ProcessingResult(transaction.id(), analysisResult.riskScore(),
                     analysisResult.priority(), analysisResult.caseid(),
-                    "pending", String.valueOf(notification.id()), time,
+                    "n/a", String.valueOf(notification.id()), time,
                     analysisResult.triggeredRules(), analysisResult.recommendedAction());
               });
         })

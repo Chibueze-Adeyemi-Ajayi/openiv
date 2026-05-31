@@ -4,8 +4,6 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.repository.UserRepository;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -13,7 +11,6 @@ import java.util.List;
  * Manages institution billing, wallets, payment methods, and topups.
  */
 public class BillingService {
-  private static final Logger log = LoggerFactory.getLogger(BillingService.class);
   private final BillingRepository billingRepository;
   private final UserRepository userRepository;
   private final Vertx vertx;
@@ -130,33 +127,4 @@ public class BillingService {
         });
   }
 
-  // ── Async Charging for Features ───────────────────────────────────────────
-
-  public void chargeCaseOpenAsync(Session session) {
-    log.debug("[BillingService] Case open charge (async) - not yet integrated");
-  }
-
-  public void chargeTransactionImportAsync(Session session, Integer count) {
-    log.debug("[BillingService] Transaction import charge (async) for {} records", count);
-  }
-
-  public void chargeReportExportAsync(Session session) {
-    log.debug("[BillingService] Report export charge (async)");
-  }
-
-  public void chargeDocumentUploadAsync(Session session) {
-    log.debug("[BillingService] Document upload charge (async)");
-  }
-
-  public void chargeKycLookupAsync(Session session, String kycType) {
-    log.debug("[BillingService] KYC lookup charge (async) for {}", kycType);
-  }
-
-  public void chargeNfiuReturnAsync(Session session) {
-    log.debug("[BillingService] NFIU return charge (async)");
-  }
-
-  public void chargeBeamIngestAsync(long institutionId, String recordId) {
-    log.debug("[BillingService] Beam ingest charge (async) for {}", recordId);
-  }
 }

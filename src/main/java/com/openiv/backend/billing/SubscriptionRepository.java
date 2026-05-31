@@ -21,11 +21,11 @@ public final class SubscriptionRepository {
   public Future<List<SubscriptionPlan>> listPlans() {
     return db.query("""
         SELECT id, name, slug, monthly_price_ngn, max_users, max_monthly_transactions,
-               max_active_cases, ai_features_enabled, api_rate_limit_per_min,
+               max_active_cases, api_rate_limit_per_min,
                included_transaction_units, features, sort_order,
                feature_kyc_enabled, feature_webhooks_enabled, feature_network_enabled,
                feature_behavioral_enabled, feature_reports_export, max_aml_rules,
-               max_monthly_kyc_lookups
+               max_monthly_kyc_lookups, max_monthly_nfiu_filings, max_monthly_cases
         FROM   subscription_plans
         WHERE  is_active = true
         ORDER  BY sort_order
@@ -40,12 +40,12 @@ public final class SubscriptionRepository {
   public Future<Optional<InstitutionSubscription>> getByInstitution(long institutionId) {
     return db.preparedQuery("""
         SELECT sp.id, sp.name, sp.slug, sp.monthly_price_ngn, sp.max_users,
-               sp.max_monthly_transactions, sp.max_active_cases, sp.ai_features_enabled,
+               sp.max_monthly_transactions, sp.max_active_cases,
                sp.api_rate_limit_per_min, sp.included_transaction_units,
                sp.features, sp.sort_order,
                sp.feature_kyc_enabled, sp.feature_webhooks_enabled, sp.feature_network_enabled,
                sp.feature_behavioral_enabled, sp.feature_reports_export, sp.max_aml_rules,
-               sp.max_monthly_kyc_lookups,
+               sp.max_monthly_kyc_lookups, sp.max_monthly_nfiu_filings, sp.max_monthly_cases,
                i.subscription_status, i.subscription_starts_at,
                i.trial_ends_at, i.subscription_renews_at
         FROM   institutions i
@@ -190,6 +190,8 @@ public final class SubscriptionRepository {
     boolean featureReports    = !Boolean.FALSE.equals(row.getBoolean("feature_reports_export"));
     Integer maxAmlRules       = row.getInteger("max_aml_rules");
     Integer maxKycLookups     = row.getInteger("max_monthly_kyc_lookups");
+    Integer maxNfiuFilings    = row.getInteger("max_monthly_nfiu_filings");
+    Integer maxCases          = row.getInteger("max_monthly_cases");
 
     return new SubscriptionPlan(
         row.getUUID("id").toString(),
@@ -199,7 +201,6 @@ public final class SubscriptionRepository {
         row.getInteger("max_users"),
         row.getLong("max_monthly_transactions"),
         row.getInteger("max_active_cases"),
-        row.getBoolean("ai_features_enabled"),
         row.getInteger("api_rate_limit_per_min"),
         row.getLong("included_transaction_units"),
         features,
@@ -209,8 +210,10 @@ public final class SubscriptionRepository {
         featureNetwork,
         featureBehavioral,
         featureReports,
-        maxAmlRules != null ? maxAmlRules : 29,
-        maxKycLookups != null ? maxKycLookups : -1
+        maxAmlRules    != null ? maxAmlRules    : 29,
+        maxKycLookups  != null ? maxKycLookups  : -1,
+        maxNfiuFilings != null ? maxNfiuFilings : -1,
+        maxCases       != null ? maxCases       : -1
     );
   }
 }

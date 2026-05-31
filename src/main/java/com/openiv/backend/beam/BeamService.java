@@ -372,7 +372,12 @@ public final class BeamService {
                       int score = result.overallRiskScore();
                       String actionTaken;
                       String actionDetail;
-                      if (score < settings.kycRiskNormalThreshold()) {
+                      if (result.capReached()) {
+                        actionTaken = "cap_reached";
+                        actionDetail = result.capReachedDetail() != null
+                            ? result.capReachedDetail()
+                            : "Monthly KYC cap reached — pipeline not executed.";
+                      } else if (score < settings.kycRiskNormalThreshold()) {
                         actionTaken = "clear";
                         actionDetail = "Customer KYC cleared — risk score within normal range";
                       } else if (score < settings.kycRiskCaseThreshold()) {
@@ -383,10 +388,18 @@ public final class BeamService {
                         actionDetail = "Investigation case auto-opened — risk score exceeded threshold";
                       }
 
-                      return customerService.updateRiskScore(institutionId, customerId, score)
-                          .compose(v -> kycService.savePipelineResultWithTier(
-                              institutionId, customerId, result, actionTaken,
-                              monthlyInflow, monthlyOutflow, institutionKycTier))
+                      // Skip persistence + risk update when the pipeline was
+                      // refused at pre-flight — no real KYC result to record.
+                      Future<?> persistChain = result.capReached()
+                          ? Future.succeededFuture(null)
+                          : customerService.updateRiskScore(institutionId, customerId, score)
+                              .compose(v -> kycService.savePipelineResultWithTier(
+                                  institutionId, customerId, result, actionTaken,
+                                  monthlyInflow, monthlyOutflow, institutionKycTier));
+
+                      final String finalActionTaken  = actionTaken;
+                      final String finalActionDetail = actionDetail;
+                      return persistChain
                           .<BeamIngestResult>map(saved -> {
                             JsonArray stepsJson = new JsonArray();
                             result.steps().forEach(s -> stepsJson.add(new JsonObject()
@@ -394,25 +407,35 @@ public final class BeamService {
                                 .put("status", s.status())
                                 .put("detail", s.detail())
                                 .put("durationMs", s.durationMs())
-                                .put("stepRiskScore", s.riskScore())));
+                                .put("stepRiskScore", s.riskScore())
+                                .put("dojahCalled", s.dojahCalled())));
+                            JsonObject billing = new JsonObject()
+                                .put("pointsReserved",  result.pointsReserved())
+                                .put("pointsUsed",      result.pointsUsed())
+                                .put("pointsRefunded",  result.pointsRefunded())
+                                .put("pointsRemaining", result.pointsRemaining())
+                                .put("capReached",      result.capReached());
                             JsonObject analysis = new JsonObject()
                                 .put("customerId", customerId)
                                 .put("kycStatus", result.overallStatus())
                                 .put("knowledgeLevel", com.openiv.backend.kyc.KycPipelineResultRepository.toKnowledgeLevel(result.kycTier()))
                                 .put("institutionKycTier", institutionKycTier)
                                 .put("overallRiskScore", score)
-                                .put("action", actionTaken)
-                                .put("actionDetail", actionDetail)
+                                .put("action", finalActionTaken)
+                                .put("actionDetail", finalActionDetail)
                                 .put("bvnReceived", bvn != null && !bvn.isBlank())
                                 .put("ninReceived", nin != null && !nin.isBlank())
                                 .put("photoReceived", photo != null && !photo.isBlank())
                                 .put("pipelineMs", result.totalDurationMs())
                                 .put("steps", stepsJson)
+                                .put("billing", billing)
                                 .put("processedAt", OffsetDateTime.now().toString());
                             return new BeamIngestResult(record, analysis);
                           })
                           .andThen(ar -> {
-                            if (ar.succeeded()) customerService.refreshScore(institutionId, customerId);
+                            if (ar.succeeded() && !result.capReached()) {
+                              customerService.refreshScore(institutionId, customerId);
+                            }
                           });
                     })));
       });

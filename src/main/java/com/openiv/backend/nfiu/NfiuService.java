@@ -4,7 +4,6 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.model.User;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
-import com.openiv.backend.billing.BillingService;
 
 import io.vertx.core.Future;
 
@@ -15,12 +14,10 @@ public final class NfiuService {
 
   private final NfiuRepository repository;
   private final UserRepository users;
-  private final BillingService billing;
 
-  public NfiuService(NfiuRepository repository, UserRepository users, BillingService billing) {
+  public NfiuService(NfiuRepository repository, UserRepository users) {
     this.repository = repository;
     this.users = users;
-    this.billing = billing;
   }
 
   public Future<NfiuMetrics> getMetrics(Session session) {
@@ -97,8 +94,7 @@ public final class NfiuService {
   public Future<NfiuReport> fileReport(Session session, long id) {
     return resolveUser(session).compose(u -> {
       if (isApprover(u.role())) {
-        return repository.fileReport(u.institutionId(), id, u.id(), u.displayName())
-            .onSuccess(r -> billing.chargeNfiuReturnAsync(session));
+        return repository.fileReport(u.institutionId(), id, u.id(), u.displayName());
       } else {
         return repository.submitForApproval(u.institutionId(), id, u.id(), u.displayName());
       }
@@ -110,8 +106,7 @@ public final class NfiuService {
       if (!isApprover(u.role())) {
         return Future.failedFuture(new IllegalStateException("Insufficient permissions to approve reports"));
       }
-      return repository.approveReport(u.institutionId(), id, u.id(), u.displayName())
-          .onSuccess(r -> billing.chargeNfiuReturnAsync(session));
+      return repository.approveReport(u.institutionId(), id, u.id(), u.displayName());
     });
   }
 

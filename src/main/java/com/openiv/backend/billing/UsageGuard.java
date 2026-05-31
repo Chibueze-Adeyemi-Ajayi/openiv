@@ -50,6 +50,32 @@ public final class UsageGuard {
    * Resolves institution ID from the session user.
    */
   public static Handler<RoutingContext> kycLookup(UsageRepository usage, UserRepository users) {
+    return sessionCheckAndIncrement(usage, users, "kyc_cap",
+        "monthly KYC lookups", UsageRepository::checkAndIncrementKyc);
+  }
+
+  /** Guard for session-authenticated NFIU filing routes (file + approve). */
+  public static Handler<RoutingContext> nfiuFiling(UsageRepository usage, UserRepository users) {
+    return sessionCheckAndIncrement(usage, users, "nfiu_cap",
+        "monthly NFIU filings", UsageRepository::checkAndIncrementNfiu);
+  }
+
+  /** Guard for session-authenticated case-open routes. */
+  public static Handler<RoutingContext> caseOpen(UsageRepository usage, UserRepository users) {
+    return sessionCheckAndIncrement(usage, users, "case_cap",
+        "monthly cases", UsageRepository::checkAndIncrementCase);
+  }
+
+  // ── Shared session-resolution + 402-on-cap-reached pattern ────────────────
+
+  @FunctionalInterface
+  private interface CounterFn {
+    io.vertx.core.Future<UsageRepository.UsageResult> apply(UsageRepository usage, long institutionId);
+  }
+
+  private static Handler<RoutingContext> sessionCheckAndIncrement(
+      UsageRepository usage, UserRepository users,
+      String feature, String unitLabel, CounterFn counter) {
     return ctx -> {
       var session = SessionAuthHandler.require(ctx);
       users.findById(session.userId())
@@ -57,17 +83,17 @@ public final class UsageGuard {
             long institutionId = opt
                 .orElseThrow(() -> AuthException.invalid("session"))
                 .institutionId();
-            return usage.checkAndIncrementKyc(institutionId);
+            return counter.apply(usage, institutionId);
           })
           .onSuccess(result -> {
             if (result.allowed()) {
               ctx.next();
             } else {
               String detail = result.limit() == -1
-                  ? "Monthly KYC lookup cap reached."
+                  ? "Monthly cap reached."
                   : "Your institution has used all " + result.limit()
-                    + " monthly KYC lookups. Usage resets after 30 days.";
-              PlanGuard.planLimitResponse(ctx, "kyc_cap",
+                    + " " + unitLabel + " for this month. Usage resets after 30 days.";
+              PlanGuard.planLimitResponse(ctx, feature,
                   result.planSlug(), nextPlan(result.planSlug()), detail);
             }
           })
@@ -78,6 +104,8 @@ public final class UsageGuard {
   private static String nextPlan(String current) {
     return switch (current) {
       case "starter" -> "growth";
+      case "growth"  -> "scale";
+      case "scale"   -> "enterprise";
       default        -> "enterprise";
     };
   }

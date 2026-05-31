@@ -7,9 +7,7 @@ import io.vertx.sqlclient.Tuple;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public final class BillingRepository {
@@ -168,14 +166,13 @@ public final class BillingRepository {
   }
 
   // ── Usage (current billing period = calendar month) ──────────────────────
-  // All 4 known categories are always present; missing ones return 0.
-
-  private static final List<String> KNOWN_CATEGORIES = List.of(
-      "beam_ingest", "kyc_lookup", "kyc_pep_lookup", "webhook_delivery", "ai_token", "nfiu_return");
+  //
+  // Rolls up every category that actually appears in the ledger for the
+  // current month. When new per-call charges are wired through to
+  // {@link #debit}, their categories surface here automatically — no
+  // hardcoded category list to keep in sync.
 
   public Future<BillingUsage> getUsage(long institutionId) {
-    // All 3 queries fire immediately in parallel on separate pool connections.
-
     Future<Row> metaFuture = db.preparedQuery("""
         SELECT
           to_char(date_trunc('month', now() AT TIME ZONE 'UTC'), 'YYYY-MM-DD')   AS period_start,
@@ -189,7 +186,7 @@ public final class BillingRepository {
         """).execute(Tuple.tuple())
         .map(rs -> rs.iterator().next());
 
-    Future<Map<String, long[]>> catFuture = db.preparedQuery("""
+    Future<List<BillingUsage.CategoryUsage>> catFuture = db.preparedQuery("""
         SELECT
           category,
           COUNT(*)           AS event_count,
@@ -200,15 +197,20 @@ public final class BillingRepository {
           AND created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')
           AND created_at <  date_trunc('month', now() AT TIME ZONE 'UTC') + INTERVAL '1 month'
         GROUP BY category
+        ORDER BY category
         """).execute(Tuple.of(institutionId))
         .map(rs -> {
-          Map<String, long[]> byCategory = new LinkedHashMap<>();
+          List<BillingUsage.CategoryUsage> cats = new ArrayList<>();
+          long totalUnits = 0;
           for (Row row : rs) {
-            // long[] = { eventCount, totalAmountUnits }
-            byCategory.put(row.getString("category"),
-                new long[]{row.getLong("event_count"), row.getLong("total_amount_units")});
+            long amount = row.getLong("total_amount_units");
+            long count  = row.getLong("event_count");
+            cats.add(new BillingUsage.CategoryUsage(
+                row.getString("category"), count, amount,
+                count > 0 ? amount / count : 0L));
+            totalUnits += amount;
           }
-          return byCategory;
+          return cats;
         });
 
     Future<OffsetDateTime> creditFuture = db.preparedQuery(
@@ -220,16 +222,9 @@ public final class BillingRepository {
         });
 
     return Future.all(metaFuture, catFuture, creditFuture).map(cf -> {
-      Row                  meta            = cf.resultAt(0);
-      Map<String, long[]>  rawCats         = cf.resultAt(1);
-      OffsetDateTime       creditExpiresAt = cf.resultAt(2);
-
-      // Build canonical category list — always all 4, fill missing with zeros
-      List<BillingUsage.CategoryUsage> cats = new ArrayList<>();
-      for (String cat : KNOWN_CATEGORIES) {
-        long[] vals = rawCats.getOrDefault(cat, new long[]{0L, 0L});
-        cats.add(new BillingUsage.CategoryUsage(cat, vals[0], vals[1], rateForCategory(cat)));
-      }
+      Row                              meta            = cf.resultAt(0);
+      List<BillingUsage.CategoryUsage> cats            = cf.resultAt(1);
+      OffsetDateTime                   creditExpiresAt = cf.resultAt(2);
 
       long totalDebitUnits = cats.stream()
           .mapToLong(BillingUsage.CategoryUsage::totalAmountUnits).sum();
@@ -247,18 +242,6 @@ public final class BillingRepository {
           isInFreePeriod,
           cats);
     });
-  }
-
-  private static long rateForCategory(String category) {
-    return switch (category) {
-      case "beam_ingest"        -> BillingRates.RATE_BEAM_INGEST;
-      case "kyc_lookup"         -> BillingRates.RATE_KYC_LOOKUP;
-      case "kyc_pep_lookup"    -> BillingRates.RATE_KYC_PEP_LOOKUP;
-      case "webhook_delivery"   -> BillingRates.RATE_WEBHOOK;
-      case "ai_token"           -> BillingRates.RATE_AI_TOKEN;
-      case "nfiu_return"        -> BillingRates.RATE_NFIU_RETURN;
-      default                   -> 0L;
-    };
   }
 
   // ── Mappers ───────────────────────────────────────────────────────────────

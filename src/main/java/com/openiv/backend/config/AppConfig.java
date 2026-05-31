@@ -18,7 +18,8 @@ public record AppConfig(
     EmailConfig email,
     DojaConfig doja,
     CloudinaryConfig cloudinary,
-    BillingConfig billing
+    BillingConfig billing,
+    SuperAdminConfig superAdmin
 ) {
 
   public record EmailConfig(String apiToken, String from, boolean enabled) {}
@@ -26,6 +27,8 @@ public record AppConfig(
   public record CloudinaryConfig(String cloudName, String apiKey, String apiSecret) {}
 
   public record BillingConfig(String paystackSecretKey, String paystackPublicKey, String paystackWebhookSecret) {}
+
+  public record SuperAdminConfig(String password) {}
 
   public static AppConfig from(JsonObject json) {
     JsonObject httpJson = json.getJsonObject("http", new JsonObject());
@@ -52,6 +55,9 @@ public record AppConfig(
     String paystackPublic  = envOr("PAYSTACK_PUBLIC_KEY",     billingJson.getString("paystackPublicKey",  ""));
     String paystackWebhook = envOr("PAYSTACK_WEBHOOK_SECRET", billingJson.getString("paystackWebhookSecret", ""));
 
+    JsonObject superAdminJson = json.getJsonObject("superadmin", new JsonObject());
+    String superAdminPassword = envOr("SUPER_ADMIN_PASSWORD", superAdminJson.getString("password", ""));
+
     return new AppConfig(
         env,
         new HttpConfig(
@@ -68,7 +74,8 @@ public record AppConfig(
         ),
         new DojaConfig(dojaUrl, dojaAppId, dojaApiKey, dojaJson.getBoolean("enabled", true)),
         new CloudinaryConfig(cloudName, cloudApiKey, cloudSecret),
-        new BillingConfig(paystackSecret, paystackPublic, paystackWebhook)
+        new BillingConfig(paystackSecret, paystackPublic, paystackWebhook),
+        new SuperAdminConfig(superAdminPassword)
     );
   }
 
