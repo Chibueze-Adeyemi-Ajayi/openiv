@@ -20,26 +20,25 @@ public final class CaseRepository {
     this.pool = pool;
   }
 
-  public record CasePage(List<CaseRecord> cases, long total, int page, int pageSize) {}
+  public record CasePage(List<CaseRecord> cases, long total, int page, int pageSize) {
+  }
 
-  private static final String CASE_COLS =
-      "SELECT c.id, c.institution_id, c.title, c.brief, c.typology, c.status, c.priority, c.risk_score, "
+  private static final String CASE_COLS = "SELECT c.id, c.institution_id, c.title, c.brief, c.typology, c.status, c.priority, c.risk_score, "
       + "c.assigned_to, COALESCE(u1.full_name, u1.email) AS assignee_name, "
       + "c.notes, c.resolution, c.created_by, COALESCE(u2.full_name, u2.email) AS created_by_name, "
       + "c.sla_deadline, c.closed_at, c.created_at, c.updated_at, c.is_available_for_investigation, "
       + "c.linked_nfiu_report_id, c.customer_id, c.customer_name, "
       + "EXISTS(SELECT 1 FROM case_interests ci WHERE ci.case_id = c.id AND ci.status = 'pending') AS has_pending_interest";
 
-  private static final String CASE_FROM =
-      " FROM cases c "
+  private static final String CASE_FROM = " FROM cases c "
       + "LEFT JOIN users u1 ON c.assigned_to = u1.id "
       + "LEFT JOIN users u2 ON c.created_by = u2.id";
 
   // Keep CASE_SELECT for callers that don't need the seen column
+  @SuppressWarnings("unused")
   private static final String CASE_SELECT = CASE_COLS + CASE_FROM;
 
-  private static final String TXN_COLS =
-      "t.id, t.institution_id, t.customer_id, t.customer_name, t.amount, t.channel, "
+  private static final String TXN_COLS = "t.id, t.institution_id, t.customer_id, t.customer_name, t.amount, t.channel, "
       + "t.counterparty, t.risk_score, t.status, t.flagged_status, t.location, t.lat, t.lng, "
       + "t.occurred_at, t.created_at, t.updated_at, t.sender_account, t.sender_bank, "
       + "t.recipient_name, t.recipient_account, t.recipient_bank, t.currency, "
@@ -52,11 +51,12 @@ public final class CaseRepository {
       Integer minRisk, Integer maxRisk, long userId, String userRole,
       Boolean assignedToMe, Long assignedToUser, Boolean hasInterest) {
 
-    var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = true");
+    var where = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = true");
     var params = new ArrayList<Object>();
     params.add(institutionId);
 
-    // Visibility: non-elevated roles only see unassigned cases + cases assigned to them
+    // Visibility: non-elevated roles only see unassigned cases + cases assigned to
+    // them
     if (!isElevatedRole(userRole)) {
       where.append(" AND (c.assigned_to IS NULL OR c.assigned_to = $").append(params.size() + 1).append(")");
       params.add(userId);
@@ -94,12 +94,15 @@ public final class CaseRepository {
       String like = "%" + q.toLowerCase() + "%";
       int n = params.size() + 1;
       where.append(" AND (LOWER(c.id) LIKE $").append(n)
-           .append(" OR LOWER(c.title) LIKE $").append(n + 1)
-           .append(" OR LOWER(c.typology) LIKE $").append(n + 2).append(")");
-      params.add(like); params.add(like); params.add(like);
+          .append(" OR LOWER(c.title) LIKE $").append(n + 1)
+          .append(" OR LOWER(c.typology) LIKE $").append(n + 2).append(")");
+      params.add(like);
+      params.add(like);
+      params.add(like);
     }
     String rc = caseRangeClause(range);
-    if (rc != null) where.append(" AND ").append(rc);
+    if (rc != null)
+      where.append(" AND ").append(rc);
 
     String order = caseOrderBy(sort);
 
@@ -113,7 +116,7 @@ public final class CaseRepository {
         + ", EXISTS(SELECT 1 FROM case_views cv WHERE cv.case_id = c.id AND cv.user_id = $" + seenIdx + ") AS seen"
         + CASE_FROM
         + " WHERE " + where + order
-        + " LIMIT $"  + (lp.size() + 1)
+        + " LIMIT $" + (lp.size() + 1)
         + " OFFSET $" + (lp.size() + 2);
 
     lp.add(pageSize);
@@ -136,7 +139,7 @@ public final class CaseRepository {
 
   public Future<Void> assignCase(String caseId, long institutionId, long toUserId) {
     return pool.preparedQuery(
-            "UPDATE cases SET assigned_to=$1, updated_at=now() WHERE id=$2 AND institution_id=$3")
+        "UPDATE cases SET assigned_to=$1, updated_at=now() WHERE id=$2 AND institution_id=$3")
         .execute(Tuple.of(toUserId, caseId, institutionId))
         .mapEmpty();
   }
@@ -160,10 +163,21 @@ public final class CaseRepository {
         + " created_by, sla_deadline, open_reason, open_document_id, customer_id, customer_name) "
         + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)";
     var p = new ArrayList<>();
-    p.add(id); p.add(institutionId); p.add(title); p.add(brief); p.add(typology);
-    p.add(priority); p.add(riskScore); p.add(assignedTo); p.add(notes);
-    p.add(createdBy); p.add(slaDeadline); p.add(openReason); p.add(openDocumentId);
-    p.add(customerId); p.add(customerName);
+    p.add(id);
+    p.add(institutionId);
+    p.add(title);
+    p.add(brief);
+    p.add(typology);
+    p.add(priority);
+    p.add(riskScore);
+    p.add(assignedTo);
+    p.add(notes);
+    p.add(createdBy);
+    p.add(slaDeadline);
+    p.add(openReason);
+    p.add(openDocumentId);
+    p.add(customerId);
+    p.add(customerName);
     return pool.preparedQuery(sql).execute(buildTuple(p))
         .compose(v -> findById(id, institutionId, createdBy != null ? createdBy : 0L).map(opt -> opt.orElseThrow()));
   }
@@ -171,7 +185,7 @@ public final class CaseRepository {
   // ── Find ─────────────────────────────────────────────────────────────────
 
   public Future<Optional<CaseRecord>> findById(String id, long institutionId, long userId) {
-    String sql = CASE_COLS 
+    String sql = CASE_COLS
         + ", EXISTS(SELECT 1 FROM case_views cv WHERE cv.case_id = c.id AND cv.user_id = $3) AS seen"
         + CASE_FROM
         + " WHERE c.id = $1 AND c.institution_id = $2";
@@ -179,7 +193,8 @@ public final class CaseRepository {
         .execute(Tuple.of(id, institutionId, userId))
         .map(rs -> {
           var it = rs.iterator();
-          if (!it.hasNext()) return Optional.empty();
+          if (!it.hasNext())
+            return Optional.empty();
           Row r = it.next();
           return Optional.of(mapCase(r, r.getBoolean("seen")));
         });
@@ -191,7 +206,7 @@ public final class CaseRepository {
       String q, int page, int pageSize, String sort, String range,
       Integer minRisk, Integer maxRisk, long userId) {
 
-    var where  = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = false");
+    var where = new StringBuilder("c.institution_id = $1 AND c.is_available_for_investigation = false");
     var params = new ArrayList<Object>();
     params.add(institutionId);
 
@@ -215,12 +230,15 @@ public final class CaseRepository {
       String like = "%" + q.toLowerCase() + "%";
       int n = params.size() + 1;
       where.append(" AND (LOWER(c.id) LIKE $").append(n)
-           .append(" OR LOWER(c.title) LIKE $").append(n + 1)
-           .append(" OR LOWER(c.typology) LIKE $").append(n + 2).append(")");
-      params.add(like); params.add(like); params.add(like);
+          .append(" OR LOWER(c.title) LIKE $").append(n + 1)
+          .append(" OR LOWER(c.typology) LIKE $").append(n + 2).append(")");
+      params.add(like);
+      params.add(like);
+      params.add(like);
     }
     String rc = caseRangeClause(range);
-    if (rc != null) where.append(" AND ").append(rc);
+    if (rc != null)
+      where.append(" AND ").append(rc);
 
     String order = caseOrderBy(sort);
 
@@ -234,7 +252,7 @@ public final class CaseRepository {
         + ", EXISTS(SELECT 1 FROM case_views cv WHERE cv.case_id = c.id AND cv.user_id = $" + seenIdx + ") AS seen"
         + CASE_FROM
         + " WHERE " + where + order
-        + " LIMIT $"  + (lp.size() + 1)
+        + " LIMIT $" + (lp.size() + 1)
         + " OFFSET $" + (lp.size() + 2);
 
     lp.add(pageSize);
@@ -257,15 +275,15 @@ public final class CaseRepository {
 
   public Future<Optional<CaseDetail>> detail(String id, long institutionId, long userId) {
     return findById(id, institutionId, userId).compose(opt -> {
-      if (opt.isEmpty()) return Future.succeededFuture(Optional.empty());
+      if (opt.isEmpty())
+        return Future.succeededFuture(Optional.empty());
       CaseRecord cas = opt.get();
 
       String txnSql = "SELECT " + TXN_COLS
           + " FROM transactions t JOIN case_transactions ct ON ct.transaction_id = t.id"
           + " WHERE ct.case_id = $1 ORDER BY ct.linked_at DESC";
 
-      String actSql =
-          "SELECT ca.id, ca.case_id, ca.actor_id,"
+      String actSql = "SELECT ca.id, ca.case_id, ca.actor_id,"
           + " COALESCE(u.full_name, u.email) AS actor_name,"
           + " COALESCE(u.role, 'unknown') AS actor_role,"
           + " ca.action, ca.detail, ca.created_at"
@@ -300,7 +318,8 @@ public final class CaseRepository {
         .execute(Tuple.of(transactionId, institutionId, userId))
         .map(rs -> {
           var it = rs.iterator();
-          if (!it.hasNext()) return Optional.empty();
+          if (!it.hasNext())
+            return Optional.empty();
           Row r = it.next();
           return Optional.of(mapCase(r, r.getBoolean("seen")));
         });
@@ -310,8 +329,7 @@ public final class CaseRepository {
 
   public Future<CaseEvidence> addEvidence(String caseId, Long addedBy,
       String category, String title, String detail, String refId) {
-    String sql =
-        "INSERT INTO case_evidence (case_id, added_by, category, title, detail, ref_id)"
+    String sql = "INSERT INTO case_evidence (case_id, added_by, category, title, detail, ref_id)"
         + " VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, created_at";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(caseId, addedBy, category, title, detail, refId))
@@ -324,8 +342,7 @@ public final class CaseRepository {
   }
 
   public Future<List<CaseEvidence>> findEvidence(String caseId) {
-    String sql =
-        "SELECT e.id, e.case_id, e.added_by,"
+    String sql = "SELECT e.id, e.case_id, e.added_by,"
         + " COALESCE(u.full_name, u.email, 'System') AS added_by_name,"
         + " e.category, e.title, e.detail, e.ref_id, e.created_at"
         + " FROM case_evidence e LEFT JOIN users u ON u.id = e.added_by"
@@ -385,7 +402,7 @@ public final class CaseRepository {
 
   public Future<Void> markSeen(String caseId, long institutionId, long userId) {
     return pool.preparedQuery(
-            "INSERT INTO case_views (case_id, institution_id, user_id)"
+        "INSERT INTO case_views (case_id, institution_id, user_id)"
             + " VALUES ($1, $2, $3) ON CONFLICT (case_id, user_id) DO NOTHING")
         .execute(Tuple.of(caseId, institutionId, userId))
         .mapEmpty();
@@ -393,21 +410,20 @@ public final class CaseRepository {
 
   public Future<Long> countActiveCases(long institutionId) {
     return pool.preparedQuery(
-            "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND status != 'closed'")
+        "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND status != 'closed'")
         .execute(Tuple.of(institutionId))
         .map(rs -> rs.iterator().next().getLong(0));
   }
 
   public Future<Long> unassignedCount(long institutionId) {
     return pool.preparedQuery(
-            "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND assigned_to IS NULL AND status != 'closed'")
+        "SELECT COUNT(*) FROM cases WHERE institution_id = $1 AND assigned_to IS NULL AND status != 'closed'")
         .execute(Tuple.of(institutionId))
         .map(rs -> rs.iterator().next().getLong(0));
   }
 
   public Future<Long> unseenCount(long institutionId, long userId) {
-    String sql =
-        "SELECT COUNT(*) FROM cases c"
+    String sql = "SELECT COUNT(*) FROM cases c"
         + " WHERE c.institution_id = $1"
         + "   AND c.is_available_for_investigation = true"
         + "   AND c.status != 'closed'"
@@ -422,7 +438,7 @@ public final class CaseRepository {
 
   public Future<Void> linkNfiuReport(String caseId, long institutionId, long nfiuReportId) {
     return pool.preparedQuery(
-            "UPDATE cases SET linked_nfiu_report_id = $1, updated_at = now()"
+        "UPDATE cases SET linked_nfiu_report_id = $1, updated_at = now()"
             + " WHERE id = $2 AND institution_id = $3")
         .execute(Tuple.of(nfiuReportId, caseId, institutionId))
         .mapEmpty();
@@ -434,9 +450,10 @@ public final class CaseRepository {
     String check = "SELECT 1 FROM cases WHERE id=$1 AND institution_id=$2";
     return pool.preparedQuery(check).execute(Tuple.of(caseId, institutionId))
         .compose(rs -> {
-          if (!rs.iterator().hasNext()) return Future.succeededFuture(false);
+          if (!rs.iterator().hasNext())
+            return Future.succeededFuture(false);
           return pool.preparedQuery(
-                  "INSERT INTO case_transactions(case_id,transaction_id) VALUES($1,$2) ON CONFLICT DO NOTHING")
+              "INSERT INTO case_transactions(case_id,transaction_id) VALUES($1,$2) ON CONFLICT DO NOTHING")
               .execute(Tuple.of(caseId, txnId))
               .map(r -> true);
         });
@@ -446,14 +463,14 @@ public final class CaseRepository {
 
   public Future<Void> addActivity(String caseId, Long actorId, String action, String detail) {
     return pool.preparedQuery(
-            "INSERT INTO case_activity(case_id,actor_id,action,detail) VALUES($1,$2,$3,$4)")
+        "INSERT INTO case_activity(case_id,actor_id,action,detail) VALUES($1,$2,$3,$4)")
         .execute(Tuple.of(caseId, actorId, action, detail))
         .mapEmpty();
   }
 
   public Future<Void> addActivity(String caseId, Long actorId, String action, String detail, Long documentId) {
     return pool.preparedQuery(
-            "INSERT INTO case_activity(case_id,actor_id,action,detail,document_id) VALUES($1,$2,$3,$4,$5)")
+        "INSERT INTO case_activity(case_id,actor_id,action,detail,document_id) VALUES($1,$2,$3,$4,$5)")
         .execute(Tuple.of(caseId, actorId, action, detail, documentId))
         .mapEmpty();
   }
@@ -479,46 +496,44 @@ public final class CaseRepository {
         + " FROM cases WHERE institution_id = $1" + rf
         + " GROUP BY day ORDER BY day";
 
-    return pool.preparedQuery(typSql).execute(t).compose(typRs ->
-        pool.preparedQuery(resSql).execute(t).compose(resRs ->
-            pool.preparedQuery(slaSql).execute(t).compose(slaRs ->
-                pool.preparedQuery(volSql).execute(t).map(volRs -> {
-                  var typArr = new io.vertx.core.json.JsonArray();
-                  typRs.forEach(r -> typArr.add(new io.vertx.core.json.JsonObject()
-                      .put("typology", r.getString("typology"))
-                      .put("count",    r.getLong("cnt"))
-                      .put("avgRisk",  r.getInteger("avg_risk") != null ? r.getInteger("avg_risk") : 0)));
+    return pool.preparedQuery(typSql).execute(t)
+        .compose(typRs -> pool.preparedQuery(resSql).execute(t).compose(resRs -> pool.preparedQuery(slaSql).execute(t)
+            .compose(slaRs -> pool.preparedQuery(volSql).execute(t).map(volRs -> {
+              var typArr = new io.vertx.core.json.JsonArray();
+              typRs.forEach(r -> typArr.add(new io.vertx.core.json.JsonObject()
+                  .put("typology", r.getString("typology"))
+                  .put("count", r.getLong("cnt"))
+                  .put("avgRisk", r.getInteger("avg_risk") != null ? r.getInteger("avg_risk") : 0)));
 
-                  var resArr = new io.vertx.core.json.JsonArray();
-                  resRs.forEach(r -> resArr.add(new io.vertx.core.json.JsonObject()
-                      .put("resolution", r.getString("resolution"))
-                      .put("count",      r.getLong("cnt"))));
+              var resArr = new io.vertx.core.json.JsonArray();
+              resRs.forEach(r -> resArr.add(new io.vertx.core.json.JsonObject()
+                  .put("resolution", r.getString("resolution"))
+                  .put("count", r.getLong("cnt"))));
 
-                  Row sla      = slaRs.iterator().next();
-                  long breached = sla.getLong("breached");
-                  long total    = sla.getLong("total");
+              Row sla = slaRs.iterator().next();
+              long breached = sla.getLong("breached");
+              long total = sla.getLong("total");
 
-                  var volArr = new io.vertx.core.json.JsonArray();
-                  volRs.forEach(r -> volArr.add(new io.vertx.core.json.JsonObject()
-                      .put("date",  r.getString("day"))
-                      .put("count", r.getLong("cnt"))));
+              var volArr = new io.vertx.core.json.JsonArray();
+              volRs.forEach(r -> volArr.add(new io.vertx.core.json.JsonObject()
+                  .put("date", r.getString("day"))
+                  .put("count", r.getLong("cnt"))));
 
-                  return new io.vertx.core.json.JsonObject()
-                      .put("typologyBreakdown",   typArr)
-                      .put("resolutionBreakdown", resArr)
-                      .put("slaBreach", new io.vertx.core.json.JsonObject()
-                          .put("breached", breached)
-                          .put("total",    total)
-                          .put("rate",     total > 0 ? (int) Math.round((double) breached / total * 100) : 0))
-                      .put("volumeByDay", volArr);
-                }))));
+              return new io.vertx.core.json.JsonObject()
+                  .put("typologyBreakdown", typArr)
+                  .put("resolutionBreakdown", resArr)
+                  .put("slaBreach", new io.vertx.core.json.JsonObject()
+                      .put("breached", breached)
+                      .put("total", total)
+                      .put("rate", total > 0 ? (int) Math.round((double) breached / total * 100) : 0))
+                  .put("volumeByDay", volArr);
+            }))));
   }
 
   // ── Metrics ──────────────────────────────────────────────────────────────
 
   public Future<CaseMetrics> metrics(long institutionId) {
-    String sql =
-        "SELECT "
+    String sql = "SELECT "
         + "COUNT(*) FILTER (WHERE status != 'closed') AS open_count, "
         + "COUNT(*) FILTER (WHERE status = 'escalated') AS escalated_count, "
         + "COUNT(*) FILTER (WHERE status = 'closed' AND closed_at >= CURRENT_DATE) AS closed_today, "
@@ -539,9 +554,9 @@ public final class CaseRepository {
   // ── Mappers ───────────────────────────────────────────────────────────────
 
   private static CaseRecord mapCase(Row r, Boolean seen) {
-    Object assignedToVal  = r.getValue("assigned_to");
-    Object createdByVal   = r.getValue("created_by");
-    Object linkedNfiuVal  = r.getValue("linked_nfiu_report_id");
+    Object assignedToVal = r.getValue("assigned_to");
+    Object createdByVal = r.getValue("created_by");
+    Object linkedNfiuVal = r.getValue("linked_nfiu_report_id");
     return new CaseRecord(
         r.getString("id"),
         r.getLong("institution_id"),
@@ -605,23 +620,24 @@ public final class CaseRepository {
 
   private static String caseOrderBy(String sort) {
     return switch (sort != null ? sort : "recent") {
-      case "oldest"    -> " ORDER BY c.created_at ASC";
-      case "priority"  -> " ORDER BY CASE c.status WHEN 'escalated' THEN 0 WHEN 'investigating'"
-                          + " THEN 1 WHEN 'open' THEN 2 ELSE 3 END, c.sla_deadline ASC";
+      case "oldest" -> " ORDER BY c.created_at ASC";
+      case "priority" -> " ORDER BY CASE c.status WHEN 'escalated' THEN 0 WHEN 'investigating'"
+          + " THEN 1 WHEN 'open' THEN 2 ELSE 3 END, c.sla_deadline ASC";
       case "risk_desc" -> " ORDER BY c.risk_score DESC, c.created_at DESC";
-      case "risk_asc"  -> " ORDER BY c.risk_score ASC, c.created_at DESC";
-      default          -> " ORDER BY c.created_at DESC";
+      case "risk_asc" -> " ORDER BY c.risk_score ASC, c.created_at DESC";
+      default -> " ORDER BY c.created_at DESC";
     };
   }
 
   private static String caseRangeClause(String range) {
-    if (range == null || range.isBlank() || "all".equals(range)) return null;
+    if (range == null || range.isBlank() || "all".equals(range))
+      return null;
     return switch (range) {
       case "24h" -> "c.created_at > now() - interval '24 hours'";
-      case "7d"  -> "c.created_at > now() - interval '7 days'";
+      case "7d" -> "c.created_at > now() - interval '7 days'";
       case "90d" -> "c.created_at > now() - interval '90 days'";
       case "ytd" -> "c.created_at >= date_trunc('year', now())";
-      default    -> "c.created_at > now() - interval '30 days'";
+      default -> "c.created_at > now() - interval '30 days'";
     };
   }
 
@@ -635,7 +651,7 @@ public final class CaseRepository {
 
   public Future<Boolean> expressInterest(String caseId, long institutionId, long userId, String userName) {
     return pool.preparedQuery(
-            "INSERT INTO case_interests (case_id, institution_id, user_id, user_name)"
+        "INSERT INTO case_interests (case_id, institution_id, user_id, user_name)"
             + " VALUES ($1, $2, $3, $4) ON CONFLICT (case_id, user_id) DO NOTHING")
         .execute(Tuple.of(caseId, institutionId, userId, userName))
         .map(rs -> rs.rowCount() > 0);
@@ -643,7 +659,7 @@ public final class CaseRepository {
 
   public Future<List<CaseInterest>> listInterests(String caseId, long institutionId) {
     return pool.preparedQuery(
-            "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
+        "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
             + " FROM case_interests WHERE case_id = $1 AND institution_id = $2 ORDER BY created_at ASC")
         .execute(Tuple.of(caseId, institutionId))
         .map(rs -> {
@@ -658,7 +674,7 @@ public final class CaseRepository {
 
   public Future<Boolean> acceptInterest(String caseId, long institutionId, long userId) {
     return pool.preparedQuery(
-            "UPDATE case_interests SET status = 'accepted'"
+        "UPDATE case_interests SET status = 'accepted'"
             + " WHERE case_id = $1 AND institution_id = $2 AND user_id = $3")
         .execute(Tuple.of(caseId, institutionId, userId))
         .map(rs -> rs.rowCount() > 0);
@@ -666,12 +682,13 @@ public final class CaseRepository {
 
   public Future<Optional<CaseInterest>> myInterest(String caseId, long institutionId, long userId) {
     return pool.preparedQuery(
-            "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
+        "SELECT id, case_id, institution_id, user_id, user_name, status, created_at"
             + " FROM case_interests WHERE case_id = $1 AND institution_id = $2 AND user_id = $3")
         .execute(Tuple.of(caseId, institutionId, userId))
         .map(rs -> {
           var iter = rs.iterator();
-          if (!iter.hasNext()) return Optional.<CaseInterest>empty();
+          if (!iter.hasNext())
+            return Optional.<CaseInterest>empty();
           var r = iter.next();
           return Optional.of(new CaseInterest(
               r.getLong("id"), r.getString("case_id"), r.getLong("institution_id"),
