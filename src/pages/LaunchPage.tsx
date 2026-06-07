@@ -1,934 +1,1026 @@
-import { Box, Container, Typography, Stack, Grid } from '@mui/material'
+import { useEffect, useRef, useState } from 'react'
+import { Box, Container, Typography, Stack } from '@mui/material'
 import { Link } from 'react-router-dom'
-import SharedFooter from '@/components/landing/Footer'
 import { keyframes } from '@mui/system'
-import { useState, useEffect, useRef } from 'react'
-import ElectricBoltIcon from '@mui/icons-material/ElectricBolt'
-import FingerprintIcon from '@mui/icons-material/Fingerprint'
-import PolicyIcon from '@mui/icons-material/Policy'
-import RadarIcon from '@mui/icons-material/Radar'
-import ManageSearchIcon from '@mui/icons-material/ManageSearch'
-import HubIcon from '@mui/icons-material/Hub'
-import BarChartIcon from '@mui/icons-material/BarChart'
-import LocationOnIcon from '@mui/icons-material/LocationOn'
-import DevicesIcon from '@mui/icons-material/Devices'
+import SharedFooter from '@/components/landing/Footer'
 
-// ── Keyframes (mirror of AuthLayout sign-in sidebar) ─────────────────────────
-const bounceIn = keyframes`
-  0%   { opacity: 0; transform: scale(0.3) translateY(20px); }
-  50%  { opacity: 1; transform: scale(1.05) translateY(-5px); }
-  70%  { transform: scale(0.9) translateY(2px); }
-  100% { transform: scale(1) translateY(0); }
-`
-const slideInLine = keyframes`
-  from { opacity: 0; transform: translateX(-30px); }
-  to   { opacity: 1; transform: translateX(0); }
-`
-const flyOff = keyframes`
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-40px) scale(0.95); }
-`
-const fadeUp = keyframes`
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-`
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to   { opacity: 1; }
-`
-const pulse = keyframes`
+// ── Animations ────────────────────────────────────────────────────────────────
+const blink = keyframes`
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-`
-const scrollLeft = keyframes`
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  50%      { opacity: 0.25; }
 `
 
-// ── Animated counter ──────────────────────────────────────────────────────────
-function Counter({ to, suffix = '' }: { to: number; suffix?: string }) {
-  const [val, setVal] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
+// ── Reveal-on-scroll wrapper ──────────────────────────────────────────────────
+function Reveal({
+  children,
+  delay = 0,
+  as = 'div',
+  sx,
+}: {
+  children: React.ReactNode
+  delay?: number
+  as?: 'div' | 'section' | 'span'
+  sx?: object
+}) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return
-      observer.disconnect()
-      let start = 0
-      const step = Math.ceil(to / 60)
-      const timer = setInterval(() => {
-        start = Math.min(start + step, to)
-        setVal(start)
-        if (start >= to) clearInterval(timer)
-      }, 16)
-    }, { threshold: 0.5 })
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [to])
-  return <span ref={ref}>{val}{suffix}</span>
-}
-
-// ── Navbar ────────────────────────────────────────────────────────────────────
-function Navbar() {
-  const [scrolled, setScrolled] = useState(false)
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { threshold: 0.08, rootMargin: '0px 0px -24px 0px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
   }, [])
   return (
-    <Box sx={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-      height: 68, display: 'flex', alignItems: 'center',
-      bgcolor: scrolled ? 'rgba(255,255,255,0.95)' : 'transparent',
-      backdropFilter: scrolled ? 'blur(12px)' : 'none',
-      borderBottom: scrolled ? '1px solid #e2e8f0' : '1px solid transparent',
-      transition: 'all 0.3s ease',
-    }}>
-      <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box component={Link} to="/" sx={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-          <Box sx={{ position: 'relative' }}>
-            <Box sx={{ position: 'absolute', top: -4, left: 0, width: 24, height: '2px', bgcolor: scrolled ? '#00288e' : '#ffffff', borderRadius: '1px' }} />
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: scrolled ? '#00288e' : '#ffffff', fontFamily: 'Jost', letterSpacing: '0.1em' }}>
-              OPENIV
-            </Typography>
-          </Box>
-        </Box>
-
-        <Stack direction="row" sx={{ gap: 1, alignItems: 'center' }}>
-          <Box component={Link} to="/developers" sx={{
-            textDecoration: 'none', px: 2, py: 0.875, fontSize: '0.875rem', fontWeight: 500,
-            color: scrolled ? '#475569' : 'rgba(255,255,255,0.75)', fontFamily: 'Jost',
-            '&:hover': { color: scrolled ? '#00288e' : '#ffffff' },
-          }}>Docs</Box>
-          <Box component={Link} to="/auth/login" sx={{
-            textDecoration: 'none', px: 2, py: 0.875, fontSize: '0.875rem', fontWeight: 500,
-            color: scrolled ? '#475569' : 'rgba(255,255,255,0.75)', fontFamily: 'Jost',
-            '&:hover': { color: scrolled ? '#00288e' : '#ffffff' },
-          }}>Sign in</Box>
-          <Box component={Link} to="/request-access" sx={{
-            textDecoration: 'none', px: 2.5, py: 0.875, fontSize: '0.875rem', fontWeight: 700,
-            bgcolor: '#d9f99d', color: '#00288e', fontFamily: 'Jost',
-            '&:hover': { bgcolor: '#bef264' },
-          }}>Get access →</Box>
-        </Stack>
-      </Container>
+    <Box
+      ref={ref}
+      component={as}
+      sx={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'none' : 'translateY(20px)',
+        transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
+        ...sx,
+      }}
+    >
+      {children}
     </Box>
   )
 }
 
-// ── Hero carousel (same motion as sign-in sidebar) ────────────────────────────
-const HERO_SLIDES = [
-  {
-    title: 'Stop Financial Crime\nBefore It Lands.',
-    lines: [
-      'Real-time AML surveillance scores every transaction',
-      'against 29+ rules in sub-14ms — before it settles.',
-    ],
-  },
-  {
-    title: 'Behavioral KYC.\nKnow Every Risk Profile.',
-    lines: [
-      'BVN, NIN, phone verification, liveness check,',
-      'and PEP screening wrapped in a single API call.',
-    ],
-  },
-  {
-    title: 'Effortless\nRegulatory Compliance.',
-    lines: [
-      'Generate CBN, NFIU, and NDPR-aligned reports',
-      'automatically — without a single manual filing.',
-    ],
-  },
-  {
-    title: 'One API.\nFull Fraud Coverage.',
-    lines: [
-      'Stream transactions and KYC data with one POST.',
-      'Risk score, triggered rules, and action in <14ms.',
-    ],
-  },
-]
-
-function HeroCarousel() {
-  const [index, setIndex] = useState(0)
-  const [exiting, setExiting] = useState(false)
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setExiting(true)
-      setTimeout(() => {
-        setIndex(i => (i + 1) % HERO_SLIDES.length)
-        setExiting(false)
-      }, 600)
-    }, 8000)
-    return () => clearInterval(t)
-  }, [])
-
-  const go = (i: number) => {
-    if (i === index || exiting) return
-    setExiting(true)
-    setTimeout(() => { setIndex(i); setExiting(false) }, 600)
-  }
-
-  const slide = HERO_SLIDES[index]
-
+// ── Section eyebrow ───────────────────────────────────────────────────────────
+function Eyebrow({ text }: { text: string }) {
   return (
-    <Box>
-      <Box sx={{
-        minHeight: { xs: 180, md: 220 },
-        animation: exiting ? `${flyOff} 0.6s cubic-bezier(0.4,0,0.2,1) forwards` : 'none',
+    <Reveal sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mb: 1.75 }}>
+      <Box sx={{ width: 16, height: '2px', bgcolor: '#00288e' }} />
+      <Typography sx={{
+        fontSize: '0.7rem', fontWeight: 700, color: '#00288e',
+        letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Jost',
       }}>
-        <Typography sx={{
-          fontSize: { xs: '2.625rem', md: '3.5rem', lg: '4rem' },
-          fontWeight: 900, color: '#ffffff', lineHeight: 1.1,
-          fontFamily: 'Jost', mb: 2.5, whiteSpace: 'pre-line',
-          animation: !exiting ? `${bounceIn} 0.8s cubic-bezier(0.34,1.56,0.64,1) both` : 'none',
-        }}>
-          {slide.title}
-        </Typography>
+        {text}
+      </Typography>
+    </Reveal>
+  )
+}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-          {slide.lines.map((line, i) => (
-            <Typography key={`${index}-${i}`} sx={{
-              fontSize: { xs: '1rem', md: '1.125rem' },
-              color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
-              animation: !exiting
-                ? `${slideInLine} 0.8s cubic-bezier(0.34,1.56,0.64,1) ${0.4 + i * 0.15}s both`
-                : 'none',
-            }}>
-              {line}
-            </Typography>
-          ))}
-        </Box>
-      </Box>
-
-      {/* Progress dots */}
-      <Box sx={{ display: 'flex', gap: 1, mt: 4 }}>
-        {HERO_SLIDES.map((_, i) => (
-          <Box key={i} onClick={() => go(i)} sx={{
-            width: i === index ? 24 : 8, height: 8, borderRadius: '4px',
-            bgcolor: i === index ? '#d9f99d' : 'rgba(217,249,157,0.3)',
-            cursor: 'pointer',
-            transition: 'all 0.4s cubic-bezier(0.4,0,0.2,1)',
-            '&:hover': { bgcolor: i === index ? '#d9f99d' : 'rgba(217,249,157,0.5)' },
-          }} />
-        ))}
-      </Box>
+// ── Brand mark (text logo) ────────────────────────────────────────────────────
+function BrandMark({ light = false }: { light?: boolean }) {
+  return (
+    <Box component={Link} to="/" sx={{ textDecoration: 'none', display: 'inline-flex', position: 'relative' }}>
+      <Box sx={{
+        position: 'absolute', top: -4, left: 0, width: 24, height: '2px',
+        bgcolor: light ? '#ffffff' : '#00288e', borderRadius: '1px',
+      }} />
+      <Typography sx={{
+        fontSize: '1.125rem', fontWeight: 700,
+        color: light ? '#ffffff' : '#00288e',
+        fontFamily: 'Jost', letterSpacing: '0.1em',
+      }}>
+        OPENIV
+      </Typography>
     </Box>
   )
 }
 
-// ── Hero section ──────────────────────────────────────────────────────────────
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function Navbar() {
+  return (
+    <Box component="nav" sx={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+      height: 60, display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', px: { xs: '6vw', md: '6vw' },
+      bgcolor: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)',
+      borderBottom: '1px solid #e2e8f0',
+    }}>
+      <BrandMark />
+      <Stack direction="row" sx={{ gap: { xs: 2, md: 4 }, alignItems: 'center' }}>
+        {[
+          { to: '#solution', label: 'Product' },
+          { to: '#pricing',  label: 'Pricing' },
+          { to: '#cbn',      label: 'CBN Compliance' },
+        ].map((n) => (
+          <Box key={n.to} component="a" href={n.to} sx={{
+            textDecoration: 'none',
+            fontSize: '0.875rem', fontWeight: 500, color: '#3a4a62',
+            fontFamily: 'Jost', display: { xs: 'none', sm: 'inline' },
+            '&:hover': { color: '#00288e' }, transition: 'color 0.15s',
+          }}>
+            {n.label}
+          </Box>
+        ))}
+        <Box component={Link} to="/request-access" sx={{
+          textDecoration: 'none', bgcolor: '#00288e', color: '#ffffff',
+          px: 2.75, py: 1.125, fontWeight: 700, fontSize: '0.875rem',
+          letterSpacing: '0.02em', fontFamily: 'Jost',
+          '&:hover': { opacity: 0.85 }, transition: 'opacity 0.15s',
+        }}>
+          Get a Demo
+        </Box>
+      </Stack>
+    </Box>
+  )
+}
+
+// ── HERO ──────────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <Box sx={{
-      bgcolor: '#00288e', minHeight: '100vh', pt: '68px',
-      display: 'flex', flexDirection: 'column',
-      position: 'relative', overflow: 'hidden',
+    <Box component="section" id="hero" sx={{
+      pt: '140px', pb: '100px', px: '6vw',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      textAlign: 'center', bgcolor: '#ffffff',
     }}>
-      {/* Grid */}
       <Box sx={{
-        position: 'absolute', inset: 0, opacity: 0.06,
-        backgroundImage: 'linear-gradient(#d9f99d 1px, transparent 1px), linear-gradient(90deg, #d9f99d 1px, transparent 1px)',
-        backgroundSize: '48px 48px',
-      }} />
-      {/* Glow */}
-      <Box sx={{
-        position: 'absolute', top: '20%', left: '60%', width: 500, height: 500,
-        bgcolor: '#d9f99d', opacity: 0.04, borderRadius: '50%',
-        filter: 'blur(120px)', pointerEvents: 'none',
-      }} />
-
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-        <Container maxWidth="lg" sx={{ position: 'relative', py: { xs: 10, md: 14 } }}>
-          <Grid container spacing={8} sx={{ alignItems: 'center' }}>
-            <Grid size={{ xs: 12, lg: 6 }}>
-              {/* Brand name expansion — shown above the carousel */}
-              <Box sx={{
-                display: 'inline-flex', alignItems: 'center', gap: 1.5, mb: 3,
-                animation: `${fadeUp} 0.6s ease both`,
-              }}>
-                <Box sx={{ width: 5, height: 5, bgcolor: '#d9f99d', borderRadius: '50%', flexShrink: 0 }} />
-                <Typography sx={{
-                  fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)',
-                  letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Jost',
-                }}>
-                  Open Intelligence &amp; Verification
-                </Typography>
-              </Box>
-
-              <HeroCarousel />
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 5, animation: `${fadeUp} 0.7s 0.3s ease both` }}>
-                <Box component={Link} to="/dashboard" sx={{
-                  textDecoration: 'none', px: 3.5, py: 1.5, bgcolor: '#d9f99d', color: '#00288e',
-                  fontSize: '0.9375rem', fontWeight: 800, fontFamily: 'Jost',
-                  display: 'inline-flex', alignItems: 'center', gap: 1,
-                  '&:hover': { bgcolor: '#bef264' },
-                }}>Go to dashboard →</Box>
-                <Box component={Link} to="/developers" sx={{
-                  textDecoration: 'none', px: 3.5, py: 1.5,
-                  border: '1.5px solid rgba(255,255,255,0.3)', color: '#ffffff',
-                  fontSize: '0.9375rem', fontWeight: 600, fontFamily: 'Jost',
-                  display: 'inline-flex', alignItems: 'center',
-                  '&:hover': { border: '1.5px solid rgba(255,255,255,0.6)', bgcolor: 'rgba(255,255,255,0.05)' },
-                }}>Read the docs</Box>
-              </Stack>
-            </Grid>
-
-            {/* Stats grid */}
-            <Grid size={{ xs: 12, lg: 6 }}>
-              <Grid container spacing={2} sx={{ animation: `${fadeUp} 0.8s 0.3s ease both` }}>
-                {[
-                  { value: 14, suffix: 'ms', label: 'Average detection latency', accent: true },
-                  { value: 29, suffix: '+', label: 'AML rules out of the box', accent: false },
-                  { value: 100, suffix: '%', label: 'CBN / NFIU / NDPR aligned', accent: false },
-                  { value: 6, suffix: ' APIs', label: 'Verification & ingest endpoints', accent: false },
-                ].map((s, i) => (
-                  <Grid key={i} size={{ xs: 6 }}>
-                    <Box sx={{
-                      p: 3, height: '100%',
-                      bgcolor: s.accent ? 'rgba(217,249,157,0.1)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${s.accent ? 'rgba(217,249,157,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                    }}>
-                      <Typography sx={{
-                        fontSize: { xs: '2rem', md: '2.5rem' }, fontWeight: 900,
-                        color: s.accent ? '#d9f99d' : '#ffffff', fontFamily: 'Jost', lineHeight: 1,
-                      }}>
-                        {i < 3 ? <Counter to={s.value} suffix={s.suffix} /> : <>{s.value}{s.suffix}</>}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.55)', mt: 0.75, lineHeight: 1.4 }}>
-                        {s.label}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            </Grid>
-          </Grid>
-        </Container>
+        display: 'inline-flex', alignItems: 'center', gap: 0.875,
+        bgcolor: '#e8f0ff', px: 1.75, py: 0.625, mb: 4,
+      }}>
+        <Box sx={{
+          width: 7, height: 7, bgcolor: '#dc2626', borderRadius: '50%',
+          animation: `${blink} 1.8s infinite`,
+        }} />
+        <Typography sx={{
+          fontSize: '0.72rem', fontWeight: 700, color: '#00288e',
+          letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Jost',
+        }}>
+          CBN Circular March 2026 — 18 months to comply
+        </Typography>
       </Box>
 
-      <ComplianceBar />
+      <Typography component="h1" sx={{
+        fontSize: 'clamp(2.8rem, 5.5vw, 4.4rem)',
+        fontWeight: 900, lineHeight: 0.97, letterSpacing: '-0.035em',
+        color: '#0f1929', mb: 2.5, maxWidth: 720, fontFamily: 'Jost',
+      }}>
+        Fraud doesn't wait for<br />
+        your <Box component="span" sx={{ color: '#00288e' }}>morning report.</Box>
+      </Typography>
+
+      <Typography sx={{
+        fontSize: '1.1rem', fontWeight: 400, color: '#3a4a62',
+        lineHeight: 1.65, maxWidth: 500, mx: 'auto', mb: 4.5, fontFamily: 'Jost',
+      }}>
+        Real-time AML, KYC, and fraud intelligence built natively for Nigerian financial institutions.
+      </Typography>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, mb: 1.75 }}>
+        <Box component={Link} to="/request-access" sx={{
+          textDecoration: 'none', bgcolor: '#00288e', color: '#ffffff',
+          px: 3.75, py: 1.625, fontWeight: 700, fontSize: '0.95rem',
+          fontFamily: 'Jost', display: 'inline-block',
+          '&:hover': { opacity: 0.85 }, transition: 'opacity 0.15s',
+        }}>
+          Get a Demo
+        </Box>
+        <Box component="a" href="#solution" sx={{
+          textDecoration: 'none', border: '1.5px solid #e2e8f0', color: '#3a4a62',
+          px: 3, py: 1.625, fontWeight: 600, fontSize: '0.95rem',
+          fontFamily: 'Jost', display: 'inline-block',
+          '&:hover': { borderColor: '#00288e', color: '#00288e' },
+          transition: 'border-color 0.15s, color 0.15s',
+        }}>
+          See how it works
+        </Box>
+      </Stack>
+
+      <Typography sx={{
+        fontSize: '0.8rem', color: '#6b7d96', letterSpacing: '0.03em', fontFamily: 'Jost',
+      }}>
+        Pay-as-you-go &nbsp;·&nbsp; No contracts &nbsp;·&nbsp; CBN-native
+      </Typography>
+
+      <HeroVisual />
     </Box>
   )
 }
 
-// ── Compliance ticker (horizontal scroll) ─────────────────────────────────────
-function ComplianceBar() {
-  const items = [
-    'CBN AML/CFT Framework',
-    'NFIU Reporting Standards',
-    'NDPR Data Privacy',
-    'FATF Guidelines',
-    'Basel III Risk Controls',
-    'KYC Identity Verification',
-    'PEP & Sanctions Screening',
-    'STR / CTR Reporting',
-    'Customer Due Diligence',
-    'Suspicious Activity Monitoring',
-  ]
-  // No gap on the container — padding is symmetric inside each item so -50% lands
-  // exactly at the start of the duplicate, giving a truly seamless infinite loop.
+// ── Dashboard preview card ────────────────────────────────────────────────────
+function HeroVisual() {
   return (
-    <Box sx={{
-      bgcolor: '#001b5e', py: 2.5, overflow: 'hidden', flexShrink: 0, position: 'relative',
-      '&::before': {
-        content: '""', position: 'absolute', top: 0, left: 0, bottom: 0, width: 80,
-        background: 'linear-gradient(to right, #001b5e, transparent)', zIndex: 1, pointerEvents: 'none',
-      },
-      '&::after': {
-        content: '""', position: 'absolute', top: 0, right: 0, bottom: 0, width: 80,
-        background: 'linear-gradient(to left, #001b5e, transparent)', zIndex: 1, pointerEvents: 'none',
-      },
-    }}>
+    <Reveal sx={{ mt: 7.5, width: '100%', maxWidth: 860 }}>
       <Box sx={{
-        display: 'flex', alignItems: 'center', width: 'max-content',
-        animation: `${scrollLeft} 32s linear infinite`,
+        bgcolor: '#ffffff', border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 40px rgba(0,40,142,0.06)',
       }}>
-        {[...items, ...items].map((item, i) => (
-          <Stack key={i} direction="row" sx={{ alignItems: 'center', gap: 2, flexShrink: 0, px: 3.5 }}>
-            <Box sx={{ width: 4, height: 4, bgcolor: '#d9f99d', borderRadius: '50%', flexShrink: 0 }} />
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
-              {item}
+        {/* Bar */}
+        <Box sx={{
+          bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0',
+          px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1,
+        }}>
+          {['#ef4444', '#f59e0b', '#22c55e'].map((c) => (
+            <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />
+          ))}
+          <Box sx={{
+            ml: 1, fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '0.7rem', color: '#6b7d96',
+            bgcolor: '#ffffff', border: '1px solid #e2e8f0',
+            px: 1.5, py: 0.375, flex: 1, maxWidth: 220,
+          }}>
+            openiv.ng · live dashboard
+          </Box>
+        </Box>
+
+        {/* 3-col body */}
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          textAlign: 'left',
+        }}>
+          {/* Col 1 — Flagged */}
+          <Box sx={{
+            p: 2.5,
+            borderRight: { xs: 'none', md: '1px solid #e2e8f0' },
+            borderBottom: { xs: '1px solid #e2e8f0', md: 'none' },
+          }}>
+            <Typography sx={{
+              fontSize: '0.65rem', fontWeight: 700, color: '#dc2626',
+              letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1.5, fontFamily: 'Jost',
+            }}>
+              ⚠ Flagged — right now
             </Typography>
-          </Stack>
+            <Typography sx={{
+              fontSize: '2.8rem', fontWeight: 900, lineHeight: 1,
+              letterSpacing: '-0.03em', color: '#dc2626', mb: 0.5, fontFamily: 'Jost',
+            }}>
+              94
+            </Typography>
+            <Typography sx={{
+              fontSize: '0.72rem', color: '#6b7d96',
+              fontFamily: 'JetBrains Mono, monospace', mb: 1.75, lineHeight: 1.5,
+            }}>
+              TXN-2847193 · ₦4.7M<br />Geo-velocity · 03:12am
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: 36 }}>
+              {[
+                { h: '30%', c: '#e2e8f0' },
+                { h: '44%', c: '#bfdbfe' },
+                { h: '58%', c: '#93c5fd' },
+                { h: '36%', c: '#e2e8f0' },
+                { h: '50%', c: '#bfdbfe' },
+                { h: '96%', c: '#dc2626' },
+                { h: '38%', c: '#e2e8f0' },
+                { h: '28%', c: '#e2e8f0' },
+              ].map((b, i) => (
+                <Box key={i} sx={{ flex: 1, bgcolor: b.c, height: b.h, minHeight: '3px' }} />
+              ))}
+            </Box>
+          </Box>
+
+          {/* Col 2 — Live transactions */}
+          <Box sx={{
+            p: 2.5,
+            borderRight: { xs: 'none', md: '1px solid #e2e8f0' },
+            borderBottom: { xs: '1px solid #e2e8f0', md: 'none' },
+          }}>
+            <Typography sx={{
+              fontSize: '0.65rem', fontWeight: 700, color: '#00288e',
+              letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1.5, fontFamily: 'Jost',
+            }}>
+              Live Transactions
+            </Typography>
+            {[
+              { id: 'TXN-2847193', score: '94', bg: '#fee2e2', col: '#dc2626' },
+              { id: 'TXN-2847180', score: '08', bg: '#dcfce7', col: '#16a34a' },
+              { id: 'TXN-2847161', score: '51', bg: '#fef3c7', col: '#d97706' },
+              { id: 'TXN-2847144', score: '14', bg: '#dcfce7', col: '#16a34a' },
+              { id: 'TXN-2847130', score: '19', bg: '#dcfce7', col: '#16a34a' },
+            ].map((tx, i, arr) => (
+              <Box key={tx.id} sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                py: 0.875,
+                borderBottom: i < arr.length - 1 ? '1px solid #e2e8f0' : 'none',
+                fontSize: '0.78rem',
+              }}>
+                <Box sx={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: '#6b7d96', fontSize: '0.7rem',
+                }}>
+                  {tx.id}
+                </Box>
+                <Box sx={{
+                  fontSize: '0.65rem', fontWeight: 700, px: 0.875, py: 0.25,
+                  letterSpacing: '0.04em', bgcolor: tx.bg, color: tx.col, fontFamily: 'Jost',
+                }}>
+                  Score {tx.score}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Col 3 — Customer profile */}
+          <Box sx={{ p: 2.5 }}>
+            <Typography sx={{
+              fontSize: '0.65rem', fontWeight: 700, color: '#16a34a',
+              letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1.5, fontFamily: 'Jost',
+            }}>
+              Customer Profile · Live
+            </Typography>
+            {[
+              { lbl: 'Normal behaviour range', w: '68%', c: '#86efac' },
+              { lbl: 'Current risk level',     w: '90%', c: '#fca5a5' },
+              { lbl: 'KYC completeness',       w: '100%', c: '#86efac' },
+            ].map((p) => (
+              <Box key={p.lbl} sx={{ mb: 1.25 }}>
+                <Typography sx={{ fontSize: '0.7rem', color: '#6b7d96', mb: 0.5, fontFamily: 'Jost' }}>
+                  {p.lbl}
+                </Typography>
+                <Box sx={{ height: 5, bgcolor: '#e2e8f0', overflow: 'hidden' }}>
+                  <Box sx={{ height: '100%', width: p.w, bgcolor: p.c }} />
+                </Box>
+              </Box>
+            ))}
+            <Typography sx={{ fontSize: '0.7rem', color: '#6b7d96', mt: 1.25, fontFamily: 'Jost' }}>
+              Updated continuously · BVN verified ✓
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Reveal>
+  )
+}
+
+// ── TRUST STRIP ───────────────────────────────────────────────────────────────
+function TrustStrip() {
+  const insts = [
+    'Commercial Banks', 'Microfinance Banks', 'Licensed Fintechs',
+    'Bureau de Change', 'Payment Service Banks',
+  ]
+  return (
+    <Box id="trust" sx={{
+      py: 4, px: '6vw',
+      borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0',
+      bgcolor: '#f8fafc', textAlign: 'center',
+    }}>
+      <Typography sx={{
+        fontSize: '0.78rem', fontWeight: 600, color: '#6b7d96',
+        letterSpacing: '0.1em', textTransform: 'uppercase', mb: 2.5, fontFamily: 'Jost',
+      }}>
+        Built for every licensed institution in Nigeria
+      </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}>
+        {insts.map((i) => (
+          <Box key={i} sx={{
+            bgcolor: '#ffffff', border: '1px solid #e2e8f0',
+            px: 2.25, py: 0.875, fontSize: '0.8rem',
+            fontWeight: 600, color: '#3a4a62', fontFamily: 'Jost',
+          }}>
+            {i}
+          </Box>
         ))}
       </Box>
     </Box>
   )
 }
 
-// ── 360° Customer Risk Profile ────────────────────────────────────────────────
-const RISK_DIMENSIONS = [
-  { Icon: FingerprintIcon,  color: '#60a5fa',  label: 'Identity',     desc: 'BVN, NIN, liveness score, document OCR',        status: 'Verified',      ok: true  },
-  { Icon: ElectricBoltIcon, color: '#d9f99d',  label: 'Transactions', desc: 'Velocity, amount patterns, channel switching',   status: '3 anomalies',   ok: false },
-  { Icon: LocationOnIcon,   color: '#f472b6',  label: 'Location',     desc: 'GPS, IP-geo, impossible travel detection',       status: 'Lagos, NG',     ok: true  },
-  { Icon: ManageSearchIcon, color: '#a78bfa',  label: 'Behavior',     desc: 'Login cadence, session timing, OTP patterns',    status: 'OTP spike',     ok: false },
-  { Icon: HubIcon,          color: '#34d399',  label: 'Network',      desc: 'Shared devices, account clusters, transfer rings', status: 'No clusters', ok: true  },
-  { Icon: PolicyIcon,       color: '#fbbf24',  label: 'Compliance',   desc: 'PEP status, sanctions, STR/CTR history',         status: 'No PEP flags',  ok: true  },
-  { Icon: DevicesIcon,      color: '#fb923c',  label: 'Device',       desc: 'Fingerprint, browser, app version, IP reputation', status: 'Known device', ok: true },
-  { Icon: RadarIcon,        color: '#f87171',  label: 'Velocity',     desc: '29+ AML rules scored in parallel, sub-14ms',     status: 'Score: 87',    ok: false },
-]
-
-function CustomerRiskProfile() {
-  const [visible, setVisible] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
-      { threshold: 0.08 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function Stats() {
+  const stats = [
+    { n: '₦5B+',        c: '#dc2626', l: 'AML fines paid by Nigerian institutions since 2021' },
+    { n: '18 months',   c: '#00288e', l: 'CBN deadline to deploy automated AML — March 2026' },
+    { n: 'Real-time',   c: '#16a34a', l: 'every transaction scored as it moves, not overnight' },
+  ]
   return (
-    <Box ref={ref} sx={{
-      bgcolor: '#070d1a', py: { xs: 10, md: 16 },
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <Box sx={{
-        position: 'absolute', inset: 0, opacity: 0.022,
-        backgroundImage: 'linear-gradient(rgba(217,249,157,1) 1px, transparent 1px), linear-gradient(90deg, rgba(217,249,157,1) 1px, transparent 1px)',
-        backgroundSize: '56px 56px', pointerEvents: 'none',
-      }} />
-      <Box sx={{
-        position: 'absolute', top: '25%', left: '35%', width: 700, height: 380,
-        bgcolor: '#00288e', opacity: 0.11, borderRadius: '50%', filter: 'blur(130px)', pointerEvents: 'none',
-      }} />
-
-      <Container maxWidth="lg" sx={{ position: 'relative' }}>
-
-        <Box sx={{ textAlign: 'center', mb: { xs: 7, md: 10 } }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#d9f99d',
-            textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-            360° Risk Intelligence
-          </Typography>
-          <Typography sx={{ fontSize: { xs: '2.125rem', md: '3rem' }, fontWeight: 900,
-            color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.08, mb: 2.5 }}>
-            Every signal.<br />One unified profile.
-          </Typography>
-          <Typography sx={{ fontSize: '1.0625rem', color: 'rgba(255,255,255,0.5)',
-            lineHeight: 1.8, maxWidth: 560, mx: 'auto' }}>
-            OpenIV doesn't score events in isolation. Every transaction, login, OTP request,
-            and location ping continuously updates a unified risk model for each customer — so
-            your compliance team always works from the complete picture.
-          </Typography>
-        </Box>
-
-        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
-
-          {/* Signal grid */}
-          <Grid size={{ xs: 12, lg: 7 }}>
-            <Grid container spacing={1.5}>
-              {RISK_DIMENSIONS.map((d, i) => (
-                <Grid key={d.label} size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{
-                    p: 3, height: '100%',
-                    bgcolor: 'rgba(255,255,255,0.025)',
-                    borderTop: '1px solid rgba(255,255,255,0.07)',
-                    borderRight: '1px solid rgba(255,255,255,0.07)',
-                    borderBottom: '1px solid rgba(255,255,255,0.07)',
-                    borderLeft: `3px solid ${d.color}`,
-                    opacity: visible ? 1 : 0,
-                    transform: visible ? 'translateY(0)' : 'translateY(22px)',
-                    transition: `opacity 0.55s ease ${i * 0.075}s, transform 0.55s ease ${i * 0.075}s`,
-                    '&:hover': { bgcolor: `${d.color}0c` },
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-                      <Box sx={{ width: 30, height: 30, flexShrink: 0, bgcolor: `${d.color}18`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <d.Icon sx={{ fontSize: '1rem', color: d.color }} />
-                      </Box>
-                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost' }}>
-                        {d.label}
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.65, pl: '42px' }}>
-                      {d.desc}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-
-          {/* Profile card */}
-          <Grid size={{ xs: 12, lg: 5 }}>
-            <Box sx={{
-              bgcolor: '#0c1526', border: '1px solid rgba(255,255,255,0.09)',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.5)',
-              height: '100%', display: 'flex', flexDirection: 'column',
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'translateY(0)' : 'translateY(28px)',
-              transition: 'opacity 0.7s ease 0.45s, transform 0.7s ease 0.45s',
+    <Box sx={{ px: '6vw', bgcolor: '#ffffff' }}>
+      <Reveal sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+        maxWidth: 900, mx: 'auto',
+        borderLeft: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0',
+        borderBottom: '1px solid #e2e8f0',
+      }}>
+        {stats.map((s) => (
+          <Box key={s.l} sx={{
+            p: { xs: 4, md: 5 }, borderRight: '1px solid #e2e8f0', textAlign: 'center',
+          }}>
+            <Typography sx={{
+              fontSize: '2.6rem', fontWeight: 900, color: s.c,
+              letterSpacing: '-0.04em', lineHeight: 1, mb: 0.75, fontFamily: 'Jost',
             }}>
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)',
-                  letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'Jost' }}>
-                  Customer Risk Profile
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#d9f99d',
-                    animation: `${pulse} 1.8s ease-in-out infinite` }} />
-                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#d9f99d',
-                    letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live</Typography>
-                </Box>
-              </Box>
+              {s.n}
+            </Typography>
+            <Typography sx={{ fontSize: '0.84rem', color: '#3a4a62', lineHeight: 1.5, fontFamily: 'Jost' }}>
+              {s.l}
+            </Typography>
+          </Box>
+        ))}
+      </Reveal>
+    </Box>
+  )
+}
 
-              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                <Box sx={{ width: 40, height: 40, bgcolor: '#00288e', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 800, color: '#d9f99d', fontFamily: 'Jost' }}>AO</Typography>
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.2 }}>
-                    Adebayo Okonkwo
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
-                    CUS-00142 · updated 2s ago
-                  </Typography>
-                </Box>
-              </Box>
+// ── Shared section heading bits ───────────────────────────────────────────────
+function SectionHead({ eyebrow, title, subtitle }: { eyebrow: string; title: React.ReactNode; subtitle?: string }) {
+  return (
+    <>
+      <Eyebrow text={eyebrow} />
+      <Reveal>
+        <Typography component="h2" sx={{
+          fontSize: 'clamp(1.6rem, 2.8vw, 2.2rem)',
+          fontWeight: 800, letterSpacing: '-0.025em',
+          lineHeight: 1.1, mb: 1.25, color: '#0f1929', fontFamily: 'Jost',
+        }}>
+          {title}
+        </Typography>
+      </Reveal>
+      {subtitle && (
+        <Reveal>
+          <Typography sx={{
+            fontSize: '0.95rem', color: '#3a4a62',
+            lineHeight: 1.65, maxWidth: 480, mb: 6, fontFamily: 'Jost',
+          }}>
+            {subtitle}
+          </Typography>
+        </Reveal>
+      )}
+    </>
+  )
+}
 
-              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', gap: 3.5, flexShrink: 0 }}>
-                <Box>
-                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)',
-                    letterSpacing: '0.12em', textTransform: 'uppercase', mb: 0.5 }}>Composite Score</Typography>
-                  <Typography sx={{ fontSize: '3.25rem', fontWeight: 900, color: '#f87171', fontFamily: 'Jost', lineHeight: 1 }}>87</Typography>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Box sx={{ mb: 1.25 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)' }}>Risk Level</Typography>
-                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#f87171' }}>HIGH</Typography>
-                    </Box>
-                    <Box sx={{ height: 3, bgcolor: 'rgba(255,255,255,0.08)' }}>
-                      <Box sx={{ height: '100%', width: '87%', bgcolor: '#f87171' }} />
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'inline-flex', px: 1.25, py: 0.375,
-                    bgcolor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}>
-                    <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#f87171',
-                      letterSpacing: '0.1em', textTransform: 'uppercase' }}>Manual Review</Typography>
-                  </Box>
-                </Box>
-              </Box>
+// ── PROBLEM ───────────────────────────────────────────────────────────────────
+function Problem() {
+  const probs = [
+    { t: 'STR filings in Microsoft Word',     d: 'Manual, error-prone, and never audit-defensible.' },
+    { t: 'Fraud caught the morning after',    d: 'Batch reviews at EOD. The money is already gone.' },
+    { t: 'KYC frozen at onboarding',          d: 'No continuous profiling as customer risk evolves.' },
+    { t: 'Foreign tools that don\'t fit',     d: 'No BVN, no CBN tiers, no GoAML. ₦500k/year.' },
+  ]
+  return (
+    <Box id="problem" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#f8fafc' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <SectionHead
+          eyebrow="The Problem"
+          title={<>Most institutions are running compliance<br />with the wrong tools.</>}
+          subtitle="Foreign platforms don't know what a BVN is. Local alternatives don't have the full stack. The gap gets filled with spreadsheets and Word documents."
+        />
 
-              <Box sx={{ flex: 1 }}>
-                {RISK_DIMENSIONS.map((d, i) => (
-                  <Box key={d.label} sx={{
-                    px: 3, py: 1.375, display: 'flex', alignItems: 'center', gap: 2,
-                    borderBottom: i < RISK_DIMENSIONS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                    bgcolor: !d.ok ? 'rgba(248,113,113,0.03)' : 'transparent',
-                  }}>
-                    <d.Icon sx={{ fontSize: '0.8125rem', color: d.color, flexShrink: 0 }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600,
-                      color: 'rgba(255,255,255,0.6)', fontFamily: 'Jost', flex: 1 }}>{d.label}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875 }}>
-                      <Box sx={{ width: 5, height: 5, borderRadius: '50%',
-                        bgcolor: d.ok ? '#34d399' : '#f87171', flexShrink: 0 }} />
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600,
-                        color: d.ok ? '#34d399' : '#f87171', fontFamily: 'Jost' }}>{d.status}</Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-
-              <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography sx={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
-                  29 rules · 13.2ms · CBN aligned
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 0.625 }}>
-                  {['#f87171', '#fbbf24', '#34d399'].map((c, i) => (
-                    <Box key={i} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: c, opacity: 0.5 }} />
-                  ))}
-                </Box>
-              </Box>
+        <Reveal sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+          gap: '1px', bgcolor: '#e2e8f0', mb: 4,
+        }}>
+          {probs.map((p) => (
+            <Box key={p.t} sx={{
+              bgcolor: '#ffffff', p: 3.5, borderLeft: '3px solid #dc2626',
+            }}>
+              <Typography sx={{
+                fontSize: '0.95rem', fontWeight: 700, mb: 0.75,
+                color: '#0f1929', fontFamily: 'Jost',
+              }}>
+                {p.t}
+              </Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: '#3a4a62', lineHeight: 1.55, fontFamily: 'Jost' }}>
+                {p.d}
+              </Typography>
             </Box>
-          </Grid>
-
-        </Grid>
-      </Container>
-    </Box>
-  )
-}
-
-// ── Feature spotlight (new section) ──────────────────────────────────────────
-const SPOTLIGHTS = [
-  {
-    Icon: ElectricBoltIcon,
-    iconColor: '#16a34a',
-    iconBg: '#dcfce7',
-    color: '#d9f99d',
-    bg: '#f0fdf4',
-    border: '#bbf7d0',
-    title: 'Sub-14ms Fraud Scoring',
-    body: 'Every transaction is scored synchronously before the response returns. Velocity spikes, impossible travel, late-night patterns, OTP anomalies — all checked in parallel.',
-    detail: '29+ rules · real-time · auto case creation',
-  },
-  {
-    Icon: FingerprintIcon,
-    iconColor: '#2563eb',
-    iconBg: '#dbeafe',
-    color: '#60a5fa',
-    bg: '#eff6ff',
-    border: '#bfdbfe',
-    title: 'Behavioral KYC Pipeline',
-    body: 'BVN lookup, NIN cross-check, phone registry match, liveness score, and global PEP/sanctions screening — all in a single pipeline, with a blended risk score out.',
-    detail: 'NIBSS · NIMC · NCC · Liveness · PEP screening',
-  },
-  {
-    Icon: PolicyIcon,
-    iconColor: '#d97706',
-    iconBg: '#fef3c7',
-    color: '#f59e0b',
-    bg: '#fffbeb',
-    border: '#fde68a',
-    title: 'Regulatory Reporting',
-    body: 'STR, CTR, and KYC audit exports pre-formatted for CBN and NFIU submissions. NDPR-safe data handling with full institution-level audit trails.',
-    detail: 'CBN · NFIU · NDPR · FATF',
-  },
-]
-
-function FeatureSpotlight() {
-  return (
-    <Box sx={{ bgcolor: '#ffffff', py: { xs: 10, md: 14 }, borderBottom: '1px solid #f1f5f9' }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#00288e',
-            textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-            What we do
-          </Typography>
-          <Typography sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, fontWeight: 900,
-            color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.12, mb: 2 }}>
-            Three pillars. Zero compromise.
-          </Typography>
-          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 540, mx: 'auto', lineHeight: 1.7 }}>
-            Fraud detection, identity verification, and compliance reporting — all connected, all real-time.
-          </Typography>
-        </Box>
-
-        <Grid container spacing={3}>
-          {SPOTLIGHTS.map((s) => (
-            <Grid key={s.title} size={{ xs: 12, md: 4 }}>
-              <Box sx={{
-                p: 4, height: '100%', bgcolor: s.bg,
-                border: `1px solid ${s.border}`,
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 32px rgba(0,0,0,0.07)' },
-              }}>
-                <Box sx={{ width: 44, height: 44, bgcolor: s.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2.5 }}>
-                  <s.Icon sx={{ fontSize: '1.375rem', color: s.iconColor }} />
-                </Box>
-                <Typography sx={{ fontSize: '1.1875rem', fontWeight: 800, color: '#0f172a',
-                  fontFamily: 'Jost', mb: 1.5 }}>{s.title}</Typography>
-                <Typography sx={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.7, mb: 2.5 }}>{s.body}</Typography>
-                <Box sx={{ display: 'inline-flex', px: 1.25, py: 0.5, bgcolor: 'rgba(255,255,255,0.7)',
-                  border: `1px solid ${s.border}` }}>
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: s.iconColor,
-                    letterSpacing: '0.06em', fontFamily: 'Jost' }}>{s.detail}</Typography>
-                </Box>
-              </Box>
-            </Grid>
           ))}
-        </Grid>
-      </Container>
+        </Reveal>
+
+        <Reveal sx={{
+          bgcolor: '#e8f0ff', borderLeft: '3px solid #00288e',
+          p: 2.75, display: 'flex', gap: 1.75, alignItems: 'flex-start',
+        }}>
+          <Box sx={{ fontSize: '1.2rem', flexShrink: 0, mt: '1px' }}>📋</Box>
+          <Box>
+            <Typography sx={{
+              fontSize: '0.7rem', fontWeight: 700, color: '#00288e',
+              letterSpacing: '0.1em', textTransform: 'uppercase', mb: 0.625, fontFamily: 'Jost',
+            }}>
+              CBN Circular · March 2026
+            </Typography>
+            <Typography sx={{ fontSize: '0.88rem', color: '#00288e', lineHeight: 1.6, fontFamily: 'Jost' }}>
+              Every licensed institution must deploy automated AML within 18–24 months. This is a mandate, not a recommendation.
+            </Typography>
+          </Box>
+        </Reveal>
+      </Box>
     </Box>
   )
 }
 
-// ── Full feature grid ─────────────────────────────────────────────────────────
-const FEATURES = [
-  { Icon: ElectricBoltIcon, iconColor: '#16a34a', iconBg: '#dcfce7', title: 'Real-Time Transaction Monitoring', body: 'Scores every transaction against 29+ AML/fraud rules before it settles — velocity, geo-velocity, impossible travel, late-night, OTP anomalies, and more.', tag: 'Real-time' },
-  { Icon: FingerprintIcon,  iconColor: '#2563eb', iconBg: '#dbeafe', title: 'Behavioral KYC Pipeline', body: 'BVN, NIN, phone verification, liveness check, and PEP screening in a single API call. Risk score blends identity and behavioral signals.', tag: 'Identity' },
-  { Icon: RadarIcon,        iconColor: '#7c3aed', iconBg: '#ede9fe', title: 'AML Surveillance', body: 'Automated case creation when risk crosses your threshold. Pattern matching, customer risk scoring, and escalation workflows — all configurable.', tag: 'Compliance' },
-  { Icon: PolicyIcon,       iconColor: '#d97706', iconBg: '#fef3c7', title: 'CBN / NFIU Reporting', body: 'Generate STR and CTR-ready reports aligned to CBN and NFIU formats. NDPR-safe data handling with full audit trails across your institution.', tag: 'Regulatory' },
-  { Icon: HubIcon,          iconColor: '#0891b2', iconBg: '#cffafe', title: 'Data Beam API', body: 'Stream transactions, KYC records, logins, device signals, and OTP events via a single authenticated POST. SDKs for Node.js, Python, Go, and Java.', tag: 'Integration' },
-  { Icon: BarChartIcon,     iconColor: '#00288e', iconBg: '#e0e7ff', title: 'Intelligence Dashboard', body: 'Real-time case queue, geospatial heatmaps, behavioral pattern explorer, and team-based role management — built for compliance officers and analysts.', tag: 'Analytics' },
-]
-
-function Features() {
-  const [visible, setVisible] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
-      { threshold: 0.08 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
+// ── SOLUTION ──────────────────────────────────────────────────────────────────
+function Solution() {
+  const feats = [
+    { n: '01', t: 'Real-time transaction scoring', d: 'Every transaction scored as it moves. Flags raised before money settles.' },
+    { n: '02', t: '360° customer profiling',       d: 'Living risk profiles built from behaviour — updated with every interaction.' },
+    { n: '03', t: 'BVN · NIN · KYC pipeline',      d: 'Full identity verification with CBN tier limits enforced natively.' },
+    { n: '04', t: 'NFIU GoAML filing',             d: 'STR and CTR reports as valid GoAML XML. No Word documents.' },
+    { n: '05', t: 'Per-institution rule engine',   d: 'Custom AML rules calibrated to your customers — not a generic template.' },
+    { n: '06', t: 'Case management',               d: 'Auto-opened cases, analyst workflow, and NFIU filing — all in one place.' },
+  ]
   return (
-    <Box ref={ref} sx={{ bgcolor: '#f8fafc', py: { xs: 10, md: 14 }, borderTop: '1px solid #e2e8f0' }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#00288e',
-            textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-            Platform capabilities
-          </Typography>
-          <Typography sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, fontWeight: 900,
-            color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.15, mb: 2 }}>
-            Everything your compliance team needs.
-          </Typography>
-          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 520, mx: 'auto', lineHeight: 1.7 }}>
-            One platform covering fraud detection, AML, KYC, identity verification, and regulatory reporting.
-          </Typography>
-        </Box>
-
-        <Grid container spacing={2}>
-          {FEATURES.map((f, i) => (
-            <Grid key={f.title} size={{ xs: 12, sm: 6, lg: 4 }}>
-              <Box sx={{
-                p: 3.5, height: '100%', bgcolor: '#ffffff',
-                borderTop: `3px solid ${f.iconColor}`,
-                borderRight: '1px solid #e2e8f0',
-                borderBottom: '1px solid #e2e8f0',
-                borderLeft: '1px solid #e2e8f0',
-                opacity: visible ? 1 : 0,
-                transform: visible ? 'translateY(0)' : 'translateY(18px)',
-                transition: `opacity 0.5s ease ${i * 0.07}s, transform 0.5s ease ${i * 0.07}s, box-shadow 0.2s`,
-                '&:hover': { boxShadow: '0 8px 32px rgba(0,40,142,0.09)' },
+    <Box id="solution" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#ffffff' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <SectionHead
+          eyebrow="The Platform"
+          title={<>One platform. Everything your compliance<br />team actually needs.</>}
+          subtitle="Built natively for Nigerian institutions — CBN-native from the schema up."
+        />
+        <Reveal sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+          gap: '1px', bgcolor: '#e2e8f0',
+        }}>
+          {feats.map((f) => (
+            <Box key={f.n} sx={{
+              bgcolor: '#ffffff', p: 3.5,
+              transition: 'background 0.2s', '&:hover': { bgcolor: '#f8fafc' },
+            }}>
+              <Typography sx={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: '0.65rem', color: '#6b7d96',
+                letterSpacing: '0.08em', mb: 1.5,
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-                  <Box sx={{ width: 36, height: 36, bgcolor: f.iconBg,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <f.Icon sx={{ fontSize: '1.125rem', color: f.iconColor }} />
-                  </Box>
-                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: f.iconColor,
-                    textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Jost' }}>{f.tag}</Typography>
-                </Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', mb: 1 }}>{f.title}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.7 }}>{f.body}</Typography>
-              </Box>
-            </Grid>
+                {f.n}
+              </Typography>
+              <Typography sx={{
+                fontSize: '0.95rem', fontWeight: 700, mb: 0.875,
+                color: '#0f1929', fontFamily: 'Jost',
+              }}>
+                {f.t}
+              </Typography>
+              <Typography sx={{ fontSize: '0.84rem', color: '#3a4a62', lineHeight: 1.6, fontFamily: 'Jost' }}>
+                {f.d}
+              </Typography>
+            </Box>
           ))}
-        </Grid>
-      </Container>
+        </Reveal>
+      </Box>
     </Box>
   )
 }
 
-// ── How it works ──────────────────────────────────────────────────────────────
-const STEPS = [
-  { n: '01', title: 'Request access', body: 'Your institution gets a dashboard login and an API key within 24 hours of approval.' },
-  { n: '02', title: 'Beam your data', body: 'Stream transactions, KYC records, and identity events to OpenIV with a single authenticated POST.' },
-  { n: '03', title: 'Stay compliant', body: 'OpenIV scores risk, opens cases automatically, and generates CBN-ready compliance reports in real time.' },
-]
-
+// ── HOW ───────────────────────────────────────────────────────────────────────
 function HowItWorks() {
+  const steps = [
+    { n: '01', t: 'Event ingests',  d: 'Transactions, logins, KYC, location, and device data pushed via API stream.' },
+    { n: '02', t: 'Engine fires',   d: '3-phase scoring — institution rules, behavioural patterns, per-customer logic — in parallel.' },
+    { n: '03', t: 'Score returned', d: 'Risk score 0–100. Cases auto-opened. Full audit snapshot captured.' },
+    { n: '04', t: 'Analyst acts',   d: 'Case with full context — triggered rules, customer profile, plain-language flag reason.' },
+  ]
   return (
-    <Box sx={{ bgcolor: '#ffffff', py: { xs: 10, md: 14 } }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#00288e',
-            textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-            How it works
-          </Typography>
-          <Typography sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, fontWeight: 900,
-            color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.12, mb: 2 }}>
-            Up and running in one day.
-          </Typography>
-          <Typography sx={{ fontSize: '1.0625rem', color: '#64748b', maxWidth: 460, mx: 'auto', lineHeight: 1.7 }}>
-            No lengthy procurement, no complex onboarding. One approved request, one API key, full coverage.
-          </Typography>
-        </Box>
-
-        <Grid container spacing={3} sx={{ position: 'relative' }}>
-          {/* Connecting rule — desktop only */}
+    <Box id="how" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#f8fafc' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <SectionHead
+          eyebrow="How It Works"
+          title="Transaction to decision in milliseconds."
+          subtitle="Every event flows through OpenIV's scoring engine and returns a decision before the next one arrives."
+        />
+        <Reveal sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          position: 'relative',
+        }}>
+          {/* Connector line — desktop only */}
           <Box sx={{
             display: { xs: 'none', md: 'block' },
-            position: 'absolute', top: 28, left: '16%', right: '16%', height: '1px',
-            background: 'linear-gradient(to right, transparent, #00288e 30%, #00288e 70%, transparent)',
-            opacity: 0.2, zIndex: 0,
+            position: 'absolute', top: 20, left: '12.5%', right: '12.5%',
+            height: '1px', bgcolor: '#e2e8f0',
           }} />
-
-          {STEPS.map((s, i) => (
-            <Grid key={s.n} size={{ xs: 12, md: 4 }}>
-              <Box sx={{ p: { xs: 3, md: 4 }, height: '100%', border: '1px solid #e2e8f0', position: 'relative',
-                '&:hover': { borderColor: '#00288e', boxShadow: '0 4px 20px rgba(0,40,142,0.07)' },
-                transition: 'border-color 0.2s, box-shadow 0.2s',
+          {steps.map((s) => (
+            <Box key={s.n} sx={{ px: 2.25, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+              <Box sx={{
+                width: 40, height: 40, bgcolor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.85rem', fontWeight: 800, color: '#00288e',
+                mx: 'auto', mb: 2.25, fontFamily: 'Jost',
               }}>
-                {/* Step badge */}
-                <Box sx={{
-                  width: 44, height: 44, mb: 3, zIndex: 1, position: 'relative',
-                  bgcolor: '#00288e',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 900, color: '#d9f99d', fontFamily: 'Jost' }}>
-                    {s.n}
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Jost', mb: 1.25 }}>{s.title}</Typography>
-                <Typography sx={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.7 }}>{s.body}</Typography>
+                {s.n}
               </Box>
-            </Grid>
+              <Typography sx={{
+                fontSize: '0.9rem', fontWeight: 700, mb: 0.875,
+                color: '#0f1929', fontFamily: 'Jost',
+              }}>
+                {s.t}
+              </Typography>
+              <Typography sx={{ fontSize: '0.82rem', color: '#3a4a62', lineHeight: 1.6, fontFamily: 'Jost' }}>
+                {s.d}
+              </Typography>
+            </Box>
           ))}
-        </Grid>
-
-        <Box sx={{ textAlign: 'center', mt: 7 }}>
-          <Box component={Link} to="/request-access" sx={{
-            display: 'inline-flex', alignItems: 'center', gap: 1,
-            textDecoration: 'none', px: 3.5, py: 1.5,
-            bgcolor: '#00288e', color: '#ffffff',
-            fontSize: '0.9375rem', fontWeight: 700, fontFamily: 'Jost',
-            '&:hover': { bgcolor: '#001f6e' },
-          }}>
-            Request access — takes 2 minutes →
-          </Box>
-        </Box>
-      </Container>
+        </Reveal>
+      </Box>
     </Box>
   )
 }
 
-// ── API section ───────────────────────────────────────────────────────────────
-const CODE = `curl -X POST https://api.openiv.ng/api/v1/beam/transactions \\
-  -H "Authorization: Bearer $OPENIV_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "customer_id": "CUS-001",
-    "amount": 14250000,
-    "channel": "wire",
-    "occurred_at": "2026-05-26T09:41:00Z"
-  }'
-
-# Response — back in <14ms
-{
-  "ok": true,
-  "analysis": {
-    "risk_score": 12,
-    "risk_level": "LOW",
-    "recommended_action": "ACCEPT"
-  }
-}`
-
-function ApiSection() {
-  const [copied, setCopied] = useState(false)
-  const copy = () => { navigator.clipboard.writeText(CODE); setCopied(true); setTimeout(() => setCopied(false), 1800) }
+// ── CBN ───────────────────────────────────────────────────────────────────────
+function CbnSection() {
+  const checks = [
+    'Real-time transaction monitoring',
+    'Automated suspicious activity flagging',
+    'Continuous customer risk profiling',
+    'NFIU STR / CTR — GoAML XML compliant',
+    'CBN KYC tier enforcement',
+    'BVN and NIN identity verification',
+    'PEP and sanctions screening',
+    'Full audit trail — every decision defensible',
+  ]
   return (
-    <Box sx={{ bgcolor: '#f8fafc', py: { xs: 10, md: 14 }, borderTop: '1px solid #e2e8f0' }}>
-      <Container maxWidth="lg">
-        <Grid container spacing={8} sx={{ alignItems: 'center' }}>
-          <Grid size={{ xs: 12, md: 5 }}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#00288e',
-              textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.5 }}>
-              Integration
-            </Typography>
-            <Typography sx={{ fontSize: { xs: '1.875rem', md: '2.5rem' }, fontWeight: 900,
-              color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.15, mb: 2 }}>
-              One API call.<br />Full fraud coverage.
-            </Typography>
-            <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.75, mb: 4 }}>
-              Stream a transaction with a single POST and get a risk score, triggered rules, and a recommended action back in under 14 milliseconds. No configuration required.
-            </Typography>
-            <Stack direction="row" spacing={2}>
-              <Box component={Link} to="/developers" sx={{
-                textDecoration: 'none', px: 2.5, py: 1, bgcolor: '#00288e', color: '#ffffff',
-                fontSize: '0.875rem', fontWeight: 700, fontFamily: 'Jost',
-                '&:hover': { bgcolor: '#001f6e' },
-              }}>View full docs →</Box>
+    <Box id="cbn" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#ffffff' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          gap: { xs: 5, md: 9 }, alignItems: 'center',
+        }}>
+          <Box>
+            <Eyebrow text="CBN Compliance" />
+            <Reveal>
+              <Typography component="h2" sx={{
+                fontSize: 'clamp(1.6rem, 2.8vw, 2.2rem)',
+                fontWeight: 800, letterSpacing: '-0.025em',
+                lineHeight: 1.1, mb: 1.25, color: '#0f1929', fontFamily: 'Jost',
+              }}>
+                When the examiner arrives,<br />OpenIV users don't panic.
+              </Typography>
+            </Reveal>
+            <Reveal>
+              <Typography sx={{
+                fontSize: '0.9rem', color: '#3a4a62', lineHeight: 1.65, mb: 3, fontFamily: 'Jost',
+              }}>
+                Built to meet all 12 minimum standards of the CBN March 2026 circular — out of the box, not as an add-on.
+              </Typography>
+            </Reveal>
+            <Reveal sx={{ bgcolor: '#e8f0ff', p: 3, mb: 3 }}>
+              <Typography sx={{
+                fontSize: '0.68rem', fontWeight: 700, color: '#00288e',
+                letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1, fontFamily: 'Jost',
+              }}>
+                CBN Deadline
+              </Typography>
+              <Typography sx={{
+                fontSize: '3.2rem', fontWeight: 900, color: '#00288e',
+                lineHeight: 1, letterSpacing: '-0.04em', mb: 0.5, fontFamily: 'Jost',
+              }}>
+                18 months
+              </Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: '#00288e', fontFamily: 'Jost' }}>
+                from March 2026 · every institution must comply
+              </Typography>
+            </Reveal>
+            <Reveal sx={{ display: 'inline-block' }}>
               <Box component={Link} to="/request-access" sx={{
-                textDecoration: 'none', px: 2.5, py: 1,
-                border: '1.5px solid #e2e8f0', color: '#475569',
-                fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost',
-                '&:hover': { borderColor: '#00288e', color: '#00288e' },
-              }}>Get API key</Box>
-            </Stack>
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 7 }}>
-            <Box sx={{ position: 'relative', bgcolor: '#0d1117', border: '1px solid #1e293b',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
-              <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid #1e293b',
-                display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                {['#ff5f57', '#febc2e', '#28c840'].map((c) => (
-                  <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />
-                ))}
-                <Typography sx={{ ml: 1, fontSize: '0.6875rem', color: '#4b5563', fontFamily: 'monospace' }}>terminal</Typography>
+                textDecoration: 'none', bgcolor: '#00288e', color: '#ffffff',
+                px: 3.75, py: 1.625, fontWeight: 700, fontSize: '0.95rem',
+                fontFamily: 'Jost', display: 'inline-block',
+                '&:hover': { opacity: 0.85 }, transition: 'opacity 0.15s',
+              }}>
+                Get CBN-ready →
               </Box>
-              <Box sx={{ p: 3, overflowX: 'auto', fontFamily: '"Fira Code","SF Mono",monospace', fontSize: '0.8125rem', lineHeight: 1.8 }}>
-                {CODE.split('\n').map((line, i) => (
-                  <Box key={i} component="div" sx={{ whiteSpace: 'pre', color: line.startsWith('#') ? '#6b7280' : line.includes('curl') ? '#60a5fa' : line.includes('"') ? '#a3e635' : '#d9f99d' }}>
-                    {line}
+            </Reveal>
+          </Box>
+
+          <Reveal as="div">
+            <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+              {checks.map((c, i, arr) => (
+                <Box key={c} component="li" sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.25,
+                  py: 1.375, borderBottom: i < arr.length - 1 ? '1px solid #e2e8f0' : 'none',
+                  fontSize: '0.88rem', color: '#3a4a62', fontFamily: 'Jost',
+                }}>
+                  <Box sx={{
+                    width: 18, height: 18, bgcolor: '#dcfce7', border: '1px solid #bbf7d0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.6rem', color: '#16a34a', flexShrink: 0,
+                  }}>
+                    ✓
+                  </Box>
+                  {c}
+                </Box>
+              ))}
+            </Box>
+          </Reveal>
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
+// ── PRICING ───────────────────────────────────────────────────────────────────
+type Plan = {
+  name: string
+  who: string
+  price: string
+  feats: string[]
+  cta: string
+  accent: string
+  popular?: boolean
+}
+const PLANS: Plan[] = [
+  { name: 'Starter',    who: 'MFBs & early fintechs', price: 'Pay per transaction',     accent: '#3b82f6',
+    feats: ['Real-time scoring', 'KYC pipeline', 'Case management', 'NFIU filing'], cta: 'Get started →' },
+  { name: 'Growth',     who: 'Fintechs & BDCs',       price: 'Metered + modules',       accent: '#00288e', popular: true,
+    feats: ['Everything in Starter', 'Behavioural analytics', 'Webhooks', 'Advanced reports'], cta: 'Talk to us →' },
+  { name: 'Scale',      who: 'Mid-size banks',        price: 'Volume pricing + SLA',    accent: '#0ea5e9',
+    feats: ['Everything in Growth', 'Custom rule config', 'Dedicated support', 'CBN exam support'], cta: 'Book a call →' },
+  { name: 'Enterprise', who: 'Tier-1 banks',          price: 'Custom + dedicated infra', accent: '#7c3aed',
+    feats: ['Everything in Scale', 'Dedicated infra', 'Full API access', 'Custom SLA'], cta: 'Contact us →' },
+]
+
+function Pricing() {
+  return (
+    <Box id="pricing" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#f8fafc' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <SectionHead
+          eyebrow="Pricing"
+          title="Pay for what you use."
+          subtitle="No six-figure contracts. No procurement cycles. Start today."
+        />
+        <Reveal sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+          gap: '1px', bgcolor: '#e2e8f0',
+        }}>
+          {PLANS.map((p) => (
+            <Box key={p.name} sx={{
+              bgcolor: p.popular ? '#00288e' : '#ffffff',
+              p: 3.5, py: 3.5, position: 'relative',
+              outline: p.popular ? '2px solid #00288e' : 'none',
+            }}>
+              {p.popular && (
+                <Box sx={{
+                  position: 'absolute', top: 0, left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  bgcolor: '#d9f99d', color: '#0f1929',
+                  fontSize: '0.62rem', fontWeight: 800, fontFamily: 'Jost',
+                  px: 1.25, py: 0.375, letterSpacing: '0.08em',
+                  textTransform: 'uppercase', whiteSpace: 'nowrap',
+                }}>
+                  Most Popular
+                </Box>
+              )}
+              <Typography sx={{
+                fontSize: '0.95rem', fontWeight: 800, mb: 0.375, fontFamily: 'Jost',
+                color: p.popular ? '#ffffff' : p.accent,
+              }}>
+                {p.name}
+              </Typography>
+              <Typography sx={{
+                fontSize: '0.78rem', mb: 1.75, fontFamily: 'Jost',
+                color: p.popular ? 'rgba(255,255,255,0.65)' : '#6b7d96',
+              }}>
+                {p.who}
+              </Typography>
+              <Typography sx={{
+                fontSize: '0.82rem', pb: 1.75, mb: 1.75,
+                borderBottom: `1px solid ${p.popular ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`,
+                color: p.popular ? 'rgba(255,255,255,0.8)' : '#3a4a62',
+                fontFamily: 'Jost',
+              }}>
+                {p.price}
+              </Typography>
+              <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, mb: 2.75 }}>
+                {p.feats.map((f) => (
+                  <Box key={f} component="li" sx={{
+                    fontSize: '0.8rem', py: 0.375,
+                    color: p.popular ? 'rgba(255,255,255,0.8)' : '#3a4a62',
+                    display: 'flex', gap: 0.875, fontFamily: 'Jost',
+                    '&::before': {
+                      content: '"→"', color: p.popular ? '#d9f99d' : '#00288e', flexShrink: 0,
+                    },
+                  }}>
+                    {f}
                   </Box>
                 ))}
               </Box>
-              <Box onClick={copy} sx={{
-                position: 'absolute', top: 44, right: 12, cursor: 'pointer',
-                px: 1.25, py: 0.375, bgcolor: '#1e293b',
-                color: copied ? '#a3e635' : '#6b7280', fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
-                userSelect: 'none', '&:hover': { color: '#e5e7eb' },
-              }}>{copied ? 'Copied ✓' : 'Copy'}</Box>
+              <Box component={Link} to="/request-access" sx={{
+                display: 'block', textAlign: 'center', textDecoration: 'none',
+                py: 1.125, fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Jost',
+                border: p.popular ? '1.5px solid #ffffff' : '1.5px solid #e2e8f0',
+                color: p.popular ? '#00288e' : '#3a4a62',
+                bgcolor: p.popular ? '#ffffff' : 'transparent',
+                transition: 'all 0.15s',
+                '&:hover': p.popular
+                  ? { bgcolor: '#d9f99d', color: '#0f1929', borderColor: '#d9f99d' }
+                  : { bgcolor: '#00288e', color: '#ffffff', borderColor: '#00288e' },
+              }}>
+                {p.cta}
+              </Box>
             </Box>
-          </Grid>
-        </Grid>
-      </Container>
+          ))}
+        </Reveal>
+      </Box>
     </Box>
   )
 }
 
-// ── Final CTA ─────────────────────────────────────────────────────────────────
+// ── COMPARE ───────────────────────────────────────────────────────────────────
+type Cell = { kind: 'yes' } | { kind: 'no' } | { kind: 'partial' }
+const COMP_ROWS: { label: string; cells: [Cell, Cell, Cell] }[] = [
+  { label: 'BVN / NIN verification',         cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'partial' }] },
+  { label: 'CBN KYC tier enforcement',       cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'partial' }] },
+  { label: 'NFIU GoAML XML export',          cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'no' }] },
+  { label: 'Real-time transaction scoring',  cells: [{ kind: 'yes' }, { kind: 'partial' }, { kind: 'partial' }] },
+  { label: '360° continuous profiling',      cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'no' }] },
+  { label: 'Pay-as-you-go pricing',          cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'partial' }] },
+  { label: 'MFB-accessible pricing',         cells: [{ kind: 'yes' }, { kind: 'no' },      { kind: 'partial' }] },
+]
+
+function CellGlyph({ cell }: { cell: Cell }) {
+  if (cell.kind === 'yes')     return <Box component="span" sx={{ color: '#16a34a', fontSize: '1rem' }}>✓</Box>
+  if (cell.kind === 'no')      return <Box component="span" sx={{ color: '#dc2626', fontSize: '1rem' }}>✗</Box>
+  return <Box component="span" sx={{ color: '#d97706', fontSize: '0.78rem', fontWeight: 600 }}>Partial</Box>
+}
+
+function CompareSection() {
+  return (
+    <Box id="compare" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#ffffff' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <SectionHead
+          eyebrow="Why OpenIV"
+          title="Built here. Not adapted here."
+          subtitle="Foreign tools don't understand BVN. Local tools don't have the full stack."
+        />
+        <Reveal sx={{ overflowX: 'auto' }}>
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+            <Box component="thead">
+              <Box component="tr">
+                {[
+                  { label: 'Capability', w: '36%', align: 'left' },
+                  { label: 'OpenIV',     w: 'auto', align: 'center' },
+                  { label: 'Foreign AML', w: 'auto', align: 'center' },
+                  { label: 'Local tools', w: 'auto', align: 'center' },
+                ].map((h) => (
+                  <Box key={h.label} component="th" sx={{
+                    py: 1.375, px: 2.25, textAlign: h.align as 'left' | 'center',
+                    fontSize: '0.72rem', fontWeight: 700, color: '#6b7d96',
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    borderBottom: '1px solid #e2e8f0', width: h.w, fontFamily: 'Jost',
+                  }}>
+                    {h.label}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {COMP_ROWS.map((r, i) => {
+                const oi = i % 2 === 0
+                return (
+                  <Box key={r.label} component="tr">
+                    <Box component="td" sx={{
+                      py: 1.625, px: 2.25, fontSize: '0.88rem',
+                      borderBottom: '1px solid #e2e8f0',
+                      bgcolor: oi ? '#f0f4ff' : 'transparent',
+                      color: oi ? '#00288e' : '#3a4a62',
+                      fontWeight: oi ? 700 : 500,
+                      textAlign: 'left', fontFamily: 'Jost',
+                    }}>
+                      {r.label}
+                    </Box>
+                    {r.cells.map((c, ci) => (
+                      <Box key={ci} component="td" sx={{
+                        py: 1.625, px: 2.25, fontSize: '0.88rem',
+                        borderBottom: '1px solid #e2e8f0',
+                        bgcolor: oi ? '#f0f4ff' : 'transparent',
+                        textAlign: 'center',
+                      }}>
+                        <CellGlyph cell={c} />
+                      </Box>
+                    ))}
+                  </Box>
+                )
+              })}
+            </Box>
+          </Box>
+        </Reveal>
+      </Box>
+    </Box>
+  )
+}
+
+// ── WHO ───────────────────────────────────────────────────────────────────────
+function WhoSection() {
+  const who = [
+    { ico: '🏦', t: 'Commercial Banks',    d: 'Full-stack AML at tier-1 volumes with enterprise SLA.' },
+    { ico: '🏪', t: 'Microfinance Banks',  d: 'Same infrastructure as tier-1 banks. Pay-as-you-go pricing.' },
+    { ico: '📱', t: 'Licensed Fintechs',   d: 'Compliance that grows with you from day one.' },
+    { ico: '💱', t: 'Bureau de Change',    d: 'Cross-border monitoring and NFIU filing — native.' },
+  ]
+  return (
+    <Box id="who" component="section" sx={{ py: 11, px: '6vw', bgcolor: '#f8fafc' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto' }}>
+        <Eyebrow text="Who It's For" />
+        <Reveal>
+          <Typography component="h2" sx={{
+            fontSize: 'clamp(1.6rem, 2.8vw, 2.2rem)',
+            fontWeight: 800, letterSpacing: '-0.025em',
+            lineHeight: 1.1, mb: 6, color: '#0f1929', fontFamily: 'Jost',
+          }}>
+            Every licensed institution in Nigeria.
+          </Typography>
+        </Reveal>
+        <Reveal sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gap: '1px', bgcolor: '#e2e8f0',
+        }}>
+          {who.map((w) => (
+            <Box key={w.t} sx={{
+              bgcolor: '#ffffff', p: 3.5,
+              transition: 'background 0.2s', '&:hover': { bgcolor: '#e8f0ff' },
+            }}>
+              <Typography sx={{ fontSize: '1.6rem', mb: 1.5 }}>{w.ico}</Typography>
+              <Typography sx={{
+                fontSize: '0.9rem', fontWeight: 700, mb: 0.875,
+                color: '#0f1929', fontFamily: 'Jost',
+              }}>
+                {w.t}
+              </Typography>
+              <Typography sx={{ fontSize: '0.82rem', color: '#3a4a62', lineHeight: 1.55, fontFamily: 'Jost' }}>
+                {w.d}
+              </Typography>
+            </Box>
+          ))}
+        </Reveal>
+      </Box>
+    </Box>
+  )
+}
+
+// ── FINAL CTA ─────────────────────────────────────────────────────────────────
 function FinalCTA() {
   return (
-    <Box sx={{ bgcolor: '#00288e', py: { xs: 12, md: 16 }, position: 'relative', overflow: 'hidden' }}>
-      <Box sx={{
-        position: 'absolute', inset: 0, opacity: 0.05,
-        backgroundImage: 'radial-gradient(circle, #d9f99d 1px, transparent 1px)',
-        backgroundSize: '32px 32px',
-      }} />
-      <Container maxWidth="md" sx={{ position: 'relative', textAlign: 'center' }}>
-        <Typography sx={{ fontSize: { xs: '2.25rem', md: '3.25rem' }, fontWeight: 900,
-          color: '#ffffff', fontFamily: 'Jost', lineHeight: 1.1, mb: 2.5 }}>
-          Protect your institution<br />from day one.
+    <Box id="cta" component="section" sx={{
+      py: 12.5, px: '6vw', textAlign: 'center', bgcolor: '#00288e',
+    }}>
+      <Reveal>
+        <Typography component="h2" sx={{
+          fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
+          fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.03em',
+          color: '#ffffff', mb: 1.75, fontFamily: 'Jost',
+        }}>
+          The CBN deadline is<br />
+          <Box component="span" sx={{ color: '#d9f99d' }}>18 months away.</Box>
         </Typography>
-        <Typography sx={{ fontSize: '1.0625rem', color: 'rgba(255,255,255,0.65)',
-          maxWidth: 480, mx: 'auto', lineHeight: 1.75, mb: 5 }}>
-          Join the Nigerian financial institutions already using OpenIV to detect fraud in real time and stay ahead of compliance requirements.
+      </Reveal>
+      <Reveal>
+        <Typography sx={{
+          fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)',
+          lineHeight: 1.6, maxWidth: 420, mx: 'auto', mb: 4, fontFamily: 'Jost',
+        }}>
+          Less than a week to integrate. Your first transactions scored in real time before your next compliance review.
         </Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center' }}>
-          <Box component={Link} to="/dashboard" sx={{
-            textDecoration: 'none', px: 4, py: 1.625, bgcolor: '#d9f99d', color: '#00288e',
-            fontSize: '1rem', fontWeight: 800, fontFamily: 'Jost',
-            display: 'inline-flex', alignItems: 'center', gap: 1,
-            '&:hover': { bgcolor: '#bef264' },
-          }}>Go to dashboard →</Box>
+      </Reveal>
+      <Reveal>
+        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, justifyContent: 'center' }}>
           <Box component={Link} to="/request-access" sx={{
-            textDecoration: 'none', px: 4, py: 1.625,
-            border: '1.5px solid rgba(255,255,255,0.3)', color: '#ffffff',
-            fontSize: '1rem', fontWeight: 600, fontFamily: 'Jost',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
-          }}>Request API access</Box>
+            textDecoration: 'none', bgcolor: '#ffffff', color: '#00288e',
+            px: 3.75, py: 1.625, fontWeight: 700, fontSize: '0.95rem',
+            fontFamily: 'Jost', display: 'inline-block',
+            '&:hover': { opacity: 0.9 }, transition: 'opacity 0.15s',
+          }}>
+            Book a Demo
+          </Box>
+          <Box component="a" href="mailto:hello@openiv.ng" sx={{
+            textDecoration: 'none', border: '1.5px solid rgba(255,255,255,0.35)',
+            color: 'rgba(255,255,255,0.85)', px: 3, py: 1.625,
+            fontWeight: 600, fontSize: '0.95rem', fontFamily: 'Jost',
+            display: 'inline-block',
+            '&:hover': { borderColor: '#ffffff' }, transition: 'border-color 0.15s',
+          }}>
+            Talk to the team →
+          </Box>
         </Stack>
-      </Container>
+      </Reveal>
+      <Reveal>
+        <Typography sx={{
+          mt: 1.75, fontSize: '0.76rem',
+          color: 'rgba(255,255,255,0.5)', fontFamily: 'Jost',
+        }}>
+          No commitment. Just 30 minutes.
+        </Typography>
+      </Reveal>
     </Box>
   )
 }
 
-
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── PAGE ──────────────────────────────────────────────────────────────────────
 export default function LaunchPage() {
+  // Enable smooth in-page anchor scrolling
+  useEffect(() => {
+    const prev = document.documentElement.style.scrollBehavior
+    document.documentElement.style.scrollBehavior = 'smooth'
+    return () => { document.documentElement.style.scrollBehavior = prev }
+  }, [])
+
   return (
-    <Box sx={{ fontFamily: 'Jost, Inter, sans-serif' }}>
+    <Box sx={{ fontFamily: 'Jost, sans-serif', bgcolor: '#ffffff', color: '#0f1929', lineHeight: 1 }}>
       <Navbar />
-      <Hero />
-      <FeatureSpotlight />
-      <CustomerRiskProfile />
-      <Features />
-      <HowItWorks />
-      <ApiSection />
-      <FinalCTA />
-      <SharedFooter />
+      <Container disableGutters maxWidth={false}>
+        <Hero />
+        <TrustStrip />
+        <Stats />
+        <Problem />
+        <Solution />
+        <HowItWorks />
+        <CbnSection />
+        <Pricing />
+        <CompareSection />
+        <WhoSection />
+        <FinalCTA />
+        <SharedFooter />
+      </Container>
     </Box>
   )
 }

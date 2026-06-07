@@ -71,7 +71,7 @@ export default function HighRiskCustomersPage() {
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
           <WarningAmberOutlinedIcon sx={{ color: '#dc2626', fontSize: '1.625rem' }} />
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>
             High-Risk Customers
           </Typography>
         </Box>
@@ -102,7 +102,7 @@ export default function HighRiskCustomersPage() {
       {!loading && !error && customers.length > 0 && (
         <Box sx={{ border: '1px solid #e5e7eb' }}>
           {/* Table header */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 200px', px: 2, py: 1.25, bgcolor: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 200px', px: 2, py: 1.25, bgcolor: 'var(--section-bg)', borderBottom: '1px solid #e5e7eb' }}>
             {['Customer', 'Overall Risk', 'KYC Score', 'Case History', 'Txn Behaviour', 'Actions'].map(col => (
               <Typography key={col} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 {col}
@@ -123,12 +123,12 @@ export default function HighRiskCustomersPage() {
                   px: 2,
                   py: 1.75,
                   alignItems: 'center',
-                  bgcolor: i % 2 === 0 ? '#ffffff' : '#fafbfc',
-                  borderBottom: '1px solid #f1f5f9',
+                  bgcolor: i % 2 === 0 ? 'var(--card-bg)' : 'var(--section-bg)',
+                  borderBottom: '1px solid var(--border-col)',
                   cursor: 'pointer',
                   transition: 'background 0.15s',
                   '&:last-child': { borderBottom: 'none' },
-                  '&:hover': { bgcolor: '#f1f5f9' },
+                  '&:hover': { bgcolor: 'var(--section-bg)' },
                 }}
               >
                 {/* Customer identity */}
@@ -140,7 +140,7 @@ export default function HighRiskCustomersPage() {
                     {initials(c.name)}
                   </Avatar>
                   <Box>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)' }}>
                       {c.name}
                     </Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
@@ -159,9 +159,9 @@ export default function HighRiskCustomersPage() {
                 </Box>
 
                 {/* Component scores */}
-                <Typography sx={{ fontSize: '0.875rem', color: '#334155' }}>{c.riskScore}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', color: '#334155' }}>{c.riskProfileScore}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', color: '#334155' }}>{c.transactionRiskScore}</Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>{c.riskScore}</Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>{c.riskProfileScore}</Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>{c.transactionRiskScore}</Typography>
 
                 {/* Actions */}
                 <Stack direction="row" gap={1}>
@@ -180,7 +180,7 @@ export default function HighRiskCustomersPage() {
                         borderRadius: 0,
                         px: 1.5,
                         py: 0.75,
-                        '&:hover': { bgcolor: '#1e293b' },
+                        '&:hover': { bgcolor: 'var(--on-surface)' },
                       }}
                     >
                       Open Case
@@ -192,7 +192,7 @@ export default function HighRiskCustomersPage() {
                       startIcon={<AssignmentOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
                       onClick={e => { e.stopPropagation(); setReportTarget(c) }}
                       sx={{
-                        bgcolor: '#ffffff',
+                        bgcolor: 'var(--card-bg)',
                         color: '#dc2626',
                         border: '1px solid #fecaca',
                         fontFamily: 'Jost',

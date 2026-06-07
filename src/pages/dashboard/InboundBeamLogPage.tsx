@@ -44,7 +44,7 @@ const STREAM_COLORS: Record<string, { bg: string; color: string }> = {
   logins: { bg: '#f0fdf4', color: '#16a34a' },
   activity: { bg: '#fdf4ff', color: '#9333ea' },
   location: { bg: '#fff7ed', color: '#ea580c' },
-  devices: { bg: '#f8fafc', color: '#475569' },
+  devices: { bg: '#f8fafc', color: 'var(--on-surface-variant)' },
   otps: { bg: '#fef2f2', color: '#dc2626' },
 }
 
@@ -68,7 +68,7 @@ function CopyBtn({ text }: { text: string }) {
         fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
         color: copied ? '#10b981' : '#64748b', textTransform: 'none',
         px: 1, py: 0.375, borderRadius: 0,
-        '&:hover': { bgcolor: '#f8fafc' },
+        '&:hover': { bgcolor: 'var(--section-bg)' },
         '& .MuiButton-startIcon': { mr: 0.375 },
       }}
     >
@@ -80,7 +80,7 @@ function CopyBtn({ text }: { text: string }) {
 // ── Stream badge ──────────────────────────────────────────────────────────────
 
 function StreamBadge({ stream }: { stream: string }) {
-  const cfg = STREAM_COLORS[stream] ?? { bg: '#f8fafc', color: '#475569' }
+  const cfg = STREAM_COLORS[stream] ?? { bg: '#f8fafc', color: 'var(--on-surface-variant)' }
   return (
     <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: cfg.bg }}>
       <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.1em', color: cfg.color }}>
@@ -107,7 +107,7 @@ function RecordRow({ record }: { record: BeamRecord }) {
   }
 
   return (
-    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
         sx={{
@@ -116,12 +116,12 @@ function RecordRow({ record }: { record: BeamRecord }) {
           gridTemplateColumns: '120px 1fr 80px 80px 32px',
           gap: 1.5, alignItems: 'center',
           cursor: 'pointer',
-          '&:hover': { bgcolor: '#f8fafc' },
+          '&:hover': { bgcolor: 'var(--section-bg)' },
           transition: 'background 0.15s',
         }}
       >
         <StreamBadge stream={record.stream} />
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {'{ ' + preview + ' }'}
         </Typography>
         <Box sx={{ display: 'inline-flex', px: 1, py: 0.375, bgcolor: '#f0fdf4' }}>
@@ -140,7 +140,7 @@ function RecordRow({ record }: { record: BeamRecord }) {
       </Box>
 
       <Collapse in={expanded}>
-        <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #eef0f4', p: 2.5 }}>
+        <Box sx={{ bgcolor: 'var(--section-bg)', borderTop: '1px solid var(--border-col)', p: 2.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
             {[
               ['Record ID', String(record.id)],
@@ -153,14 +153,14 @@ function RecordRow({ record }: { record: BeamRecord }) {
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', mb: 0.25 }}>
                   {label}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>
+                <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)' }}>
                   {value}
                 </Typography>
               </Box>
             ))}
           </Box>
 
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>
             PAYLOAD
           </Typography>
           <Box sx={{ position: 'relative' }}>
@@ -181,7 +181,7 @@ function RecordRow({ record }: { record: BeamRecord }) {
 
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
+    <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2, flex: 1, minWidth: 0 }}>
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
@@ -230,8 +230,8 @@ export default function InboundBeamLogPage() {
 
   const selectSx = {
     height: 36, fontSize: '0.8125rem', fontFamily: 'Jost',
-    borderRadius: 0, bgcolor: '#ffffff',
-    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #eef0f4' },
+    borderRadius: 0, bgcolor: 'var(--card-bg)',
+    '& .MuiOutlinedInput-notchedOutline': { border: '1px solid var(--border-col)' },
     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
     '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary, borderWidth: '1px' },
   }
@@ -250,7 +250,7 @@ export default function InboundBeamLogPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Developer Console
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           Inbound Beam Log
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -262,7 +262,7 @@ export default function InboundBeamLogPage() {
       <Stack direction="row" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+            <Box key={i} sx={{ flex: 1, minWidth: 120, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2 }}>
               <Skeleton height={16} width="60%" />
               <Skeleton height={36} width="40%" sx={{ mt: 0.5 }} />
             </Box>
@@ -299,16 +299,16 @@ export default function InboundBeamLogPage() {
           startIcon={<RefreshRoundedIcon sx={{ fontSize: '1rem !important' }} />}
           onClick={load}
           disabled={loading}
-          sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', color: '#475569', border: '1px solid #eef0f4', bgcolor: '#ffffff', px: 2, py: 0.875, '&:hover': { bgcolor: '#f8fafc' } }}
+          sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', px: 2, py: 0.875, '&:hover': { bgcolor: 'var(--section-bg)' } }}
         >
           Refresh
         </Button>
       </Box>
 
       {/* Record table */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
         {/* Column headers */}
-        <Box sx={{ px: 3, py: 1.25, display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 32px', gap: 1.5, borderBottom: '1px solid #eef0f4', bgcolor: '#fafafa' }}>
+        <Box sx={{ px: 3, py: 1.25, display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 32px', gap: 1.5, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
           {['STREAM', 'PAYLOAD PREVIEW', 'STATUS', 'TIME', ''].map((h, i) => (
             <Typography key={i} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em' }}>{h}</Typography>
           ))}
@@ -317,7 +317,7 @@ export default function InboundBeamLogPage() {
         {loading ? (
           <Stack>
             {Array.from({ length: 8 }).map((_, i) => (
-              <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid #f4f5f7', display: 'flex', gap: 2 }}>
+              <Box key={i} sx={{ px: 3, py: 1.875, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 2 }}>
                 <Skeleton variant="rectangular" width={90} height={18} />
                 <Skeleton variant="rectangular" width="60%" height={18} />
                 <Skeleton variant="rectangular" width={60} height={18} />
@@ -342,7 +342,7 @@ export default function InboundBeamLogPage() {
         <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: colorPalette.primary, fontFamily: 'Jost', mb: 0.375 }}>
           Schema validation
         </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>
           Payloads that pass schema validation are stored with <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#10b981' }}>status: received</Box>. Rejected payloads (missing required fields, unknown stream) get a{' '}
           <Box component="span" sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.7rem', color: '#dc2626' }}>400</Box>{' '}
           HTTP response and are not stored. Use{' '}

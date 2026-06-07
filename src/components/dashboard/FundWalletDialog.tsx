@@ -233,14 +233,14 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 0, border: '1px solid #eef0f4' } }}>
+      PaperProps={{ sx: { borderRadius: 0, border: '1px solid var(--border-col)' } }}>
 
-      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: '#00288e', pb: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'Jost', color: 'var(--heading-color)', pb: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1 }}>
         {prevStep[step] && (
           <Box
             component="span"
             onClick={() => { setError(null); setStep(prevStep[step]!) }}
-            sx={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', mr: 0.25, lineHeight: 1, '&:hover': { color: '#475569' } }}
+            sx={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', mr: 0.25, lineHeight: 1, '&:hover': { color: 'var(--on-surface-variant)' } }}
           >
             ←
           </Box>
@@ -254,12 +254,12 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
         {step === 'done' ? (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <CheckCircleOutlineRoundedIcon sx={{ fontSize: '3rem', color: '#10b981', mb: 1.5 }} />
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
               Wallet funded!
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
               New balance:{' '}
-              <strong style={{ color: '#00288e' }}>₦{doneBalance.toLocaleString()}</strong>
+              <strong style={{ color: 'var(--heading-color)' }}>₦{doneBalance.toLocaleString()}</strong>
             </Typography>
           </Box>
 
@@ -318,7 +318,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
           <Stack gap={1.5}>
             <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mb: 0.5 }}>
               Funding{' '}
-              <strong style={{ color: '#00288e' }}>₦{parsedAmount.toLocaleString()}</strong>
+              <strong style={{ color: 'var(--heading-color)' }}>₦{parsedAmount.toLocaleString()}</strong>
               {' '}— choose how to pay:
             </Typography>
 
@@ -326,7 +326,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
               <RadioDot active={payMethod === 'card'} />
               <CreditCardOutlinedIcon sx={{ fontSize: '1.375rem', color: payMethod === 'card' ? colorPalette.primary : '#64748b', flexShrink: 0 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', lineHeight: 1.3 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', lineHeight: 1.3 }}>
                   Debit card
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 0.25 }}>
@@ -341,7 +341,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
               <RadioDot active={payMethod === 'paystack'} />
               <PaymentsOutlinedIcon sx={{ fontSize: '1.375rem', color: payMethod === 'paystack' ? colorPalette.primary : '#64748b', flexShrink: 0 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', lineHeight: 1.3 }}>
+                <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', lineHeight: 1.3 }}>
                   Paystack checkout
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 0.25 }}>
@@ -358,7 +358,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
           <Stack gap={2}>
             <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
               Charging{' '}
-              <strong style={{ color: '#00288e' }}>₦{parsedAmount.toLocaleString()}</strong>
+              <strong style={{ color: 'var(--heading-color)' }}>₦{parsedAmount.toLocaleString()}</strong>
             </Typography>
 
             {methods.length > 0 && (
@@ -369,7 +369,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
                     <RadioDot active={selectedCard === m.id} />
                     <CreditCardOutlinedIcon sx={{ fontSize: '1.125rem', color: selectedCard === m.id ? colorPalette.primary : '#64748b', flexShrink: 0 }} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', lineHeight: 1.3 }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', lineHeight: 1.3 }}>
                         {m.displayName}
                         {m.isDefault && (
                           <Typography component="span" sx={{ ml: 1, fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -400,7 +400,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
                 <RadioDot active={selectedCard === 'new'} />
                 <AddCardOutlinedIcon sx={{ fontSize: '1.125rem', color: selectedCard === 'new' ? colorPalette.primary : '#64748b', flexShrink: 0 }} />
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>Enter new card</Typography>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)' }}>Enter new card</Typography>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Direct charge</Typography>
                 </Box>
               </Box>
@@ -446,7 +446,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
                   <Box sx={{ width: 14, height: 14, flexShrink: 0, border: '2px solid', borderColor: saveCard ? colorPalette.primary : '#cbd5e1', bgcolor: saveCard ? colorPalette.primary : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {saveCard && <Box sx={{ width: 6, height: 6, bgcolor: '#fff' }} />}
                   </Box>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>Save card for future top-ups</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>Save card for future top-ups</Typography>
                 </Box>
               </Stack>
             )}
@@ -482,7 +482,7 @@ export default function FundWalletDialog({ open, onClose, onSuccess, paystackPub
         ) : null}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', gap: 1 }}>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', gap: 1 }}>
         {step === 'done' ? (
           <Button fullWidth onClick={handleClose} sx={primaryBtn}>Done</Button>
 
@@ -554,7 +554,7 @@ const cardOptionSx = (active: boolean) => ({
   '&:hover': { borderColor: active ? colorPalette.primary : '#c7d0e0' },
 } as const)
 
-const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
+const labelSx = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem', fontWeight: 600 } }
-const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
-const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: '#f8fafc' } }
+const primaryBtn = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 700, textTransform: 'none' as const, bgcolor: colorPalette.primary, color: '#fff', boxShadow: 'none', py: 1.125, '&:hover': { bgcolor: 'var(--on-surface)' }, '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' } }
+const cancelBtn  = { borderRadius: 0, fontFamily: 'Jost', fontWeight: 600, textTransform: 'none' as const, color: '#64748b', border: '1px solid #e5e7eb', px: 2.5, py: 1.125, '&:hover': { bgcolor: 'var(--section-bg)' } }

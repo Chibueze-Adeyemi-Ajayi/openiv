@@ -43,35 +43,35 @@ import AutorenewOutlinedIcon from '@mui/icons-material/AutorenewOutlined'
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#f5f3fb',
+    bgcolor: 'var(--section-bg)',
     borderRadius: 0,
     transition: 'all 0.2s ease',
     '& fieldset': { border: '1px solid transparent' },
     '&:hover fieldset': { borderColor: '#e4dff2' },
     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+    '&.Mui-focused': { bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
   },
   '& .MuiOutlinedInput-input': {
     fontSize: '0.875rem',
     fontFamily: 'Jost',
     py: '12px',
     px: '14px',
-    color: '#00288e',
+    color: 'var(--heading-color)',
   },
 }
 
 const labelSx = {
   fontSize: '0.75rem',
   fontWeight: 600,
-  color: '#475569',
+  color: 'var(--on-surface-variant)',
   mb: 0.875,
   fontFamily: 'Jost',
 }
 
 const selectSx = {
   height: 36, fontSize: '0.8125rem', fontFamily: 'Jost',
-  borderRadius: 0, bgcolor: '#ffffff',
-  '& .MuiOutlinedInput-notchedOutline': { border: '1px solid #eef0f4' },
+  borderRadius: 0, bgcolor: 'var(--card-bg)',
+  '& .MuiOutlinedInput-notchedOutline': { border: '1px solid var(--border-col)' },
   '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
   '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colorPalette.primary, borderWidth: '1px' },
 }
@@ -261,7 +261,7 @@ function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
         fontSize: '0.6875rem', fontFamily: 'Jost', fontWeight: 600,
         color: copied ? '#10b981' : '#64748b', textTransform: 'none',
         px: 1, py: 0.375, borderRadius: 0,
-        '&:hover': { bgcolor: '#f8fafc' },
+        '&:hover': { bgcolor: 'var(--section-bg)' },
         '& .MuiButton-startIcon': { mr: 0.375 },
       }}
     >
@@ -304,12 +304,12 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
   const respBody = prettyJson(d.responseBody)
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', borderTop: '1px solid #eef0f4' }}>
+    <Box sx={{ bgcolor: 'var(--section-bg)', borderTop: '1px solid var(--border-col)' }}>
       <Tabs
         value={tab}
         onChange={(_, v) => setTab(v)}
         sx={{
-          borderBottom: '1px solid #eef0f4', minHeight: 36,
+          borderBottom: '1px solid var(--border-col)', minHeight: 36,
           '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
           '& .MuiTab-root': {
             fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
@@ -328,11 +328,11 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
         {tab === 0 && (
           <Stack gap={2}>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>HEADERS</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>HEADERS</Typography>
               <CodeBlock content={d.requestHeaders ?? ''} copyLabel="Copy headers" />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>BODY</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>BODY</Typography>
               <CodeBlock content={reqBody} copyLabel="Copy payload" />
             </Box>
           </Stack>
@@ -349,11 +349,11 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
               </Box>
             )}
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>HEADERS</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>HEADERS</Typography>
               <CodeBlock content={d.responseHeaders ?? '(no response headers)'} copyLabel="Copy headers" />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', letterSpacing: '0.1em', mb: 0.75 }}>BODY</Typography>
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', letterSpacing: '0.1em', mb: 0.75 }}>BODY</Typography>
               <CodeBlock content={respBody || '(no response body)'} copyLabel="Copy body" />
             </Box>
           </Stack>
@@ -376,7 +376,7 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
                   {label}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', wordBreak: 'break-all' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)', wordBreak: 'break-all' }}>
                     {value}
                   </Typography>
                   {label === 'Delivery ID' && d.deliveryId && <CopyBtn text={d.deliveryId} label="Copy" />}
@@ -393,7 +393,7 @@ function DeliveryDetail({ d }: { d: WebhookDelivery }) {
 function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: string }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box
         onClick={() => setExpanded(p => !p)}
         data-ai-analyzable="true"
@@ -404,17 +404,17 @@ function LogDeliveryRow({ d, endpointUrl }: { d: WebhookDelivery; endpointUrl: s
           gridTemplateColumns: '120px 1fr 130px 90px 56px 80px 80px 32px',
           gap: 1.5, alignItems: 'center',
           cursor: 'pointer',
-          '&:hover': { bgcolor: '#f8fafc' },
+          '&:hover': { bgcolor: 'var(--section-bg)' },
           transition: 'background 0.15s',
         }}
       >
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)' }}>
           {shortId(d.deliveryId)}
         </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {endpointUrl}
         </Typography>
-        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>
+        <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)' }}>
           {d.eventType}
         </Typography>
         <DeliveryStatusBadge status={d.status} />
@@ -450,7 +450,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
     <Box
       data-ai-analyzable="true"
       data-ai-description={`Webhook Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2, flex: 1, minWidth: 0 }}>
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2, flex: 1, minWidth: 0 }}>
       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', mb: 0.5 }}>
         {label}
       </Typography>
@@ -536,7 +536,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
     setTimeout(() => setKeyCopied(false), 2000)
   }
 
-  const smallLabel = { fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.75, fontFamily: 'Jost' }
+  const smallLabel = { fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.75, fontFamily: 'Jost' }
 
   return (
     <>
@@ -548,11 +548,11 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
         disableEnforceFocus={keyTotpOpen}
         PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' } }}
       >
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <SecurityOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
             <Box>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Security Rules
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.125, maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -560,7 +560,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
               </Typography>
             </Box>
           </Box>
-          <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+          <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
             <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
           </IconButton>
         </Box>
@@ -575,11 +575,11 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
               <Box
                 data-ai-analyzable="true"
                 data-ai-description={`Webhook Security: API Key Configuration. status: ${rule?.hasApiKey ? 'Configured' : 'Not set'}. When set, OpenIV sends this key in the X-OpenIV-Api-Key header to verify request origin.`}
-                sx={{ p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                sx={{ p: 2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875 }}>
-                    <VpnKeyOutlinedIcon sx={{ fontSize: '1rem', color: '#475569' }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                    <VpnKeyOutlinedIcon sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }} />
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       API Key
                     </Typography>
                   </Box>
@@ -601,7 +601,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
                       NEW KEY — COPY NOW, IT WON'T BE SHOWN AGAIN
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all' }}>
+                      <Typography sx={{ flex: 1, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: 'var(--heading-color)', wordBreak: 'break-all' }}>
                         {newKey}
                       </Typography>
                       <Button
@@ -677,7 +677,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
 
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
                 <Box>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Require acknowledgement
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -708,10 +708,10 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
           )}
         </Box>
 
-        <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
           <Button
             onClick={onClose}
-            sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 600, color: '#64748b', textTransform: 'none', px: 2, py: 1, borderRadius: 0, '&:hover': { bgcolor: '#f8fafc' } }}
+            sx={{ fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 600, color: '#64748b', textTransform: 'none', px: 2, py: 1, borderRadius: 0, '&:hover': { bgcolor: 'var(--section-bg)' } }}
           >
             Close
           </Button>
@@ -722,7 +722,7 @@ function SecurityRulesModal({ ep, open, onClose }: SecurityRulesModalProps) {
               bgcolor: colorPalette.primary, color: '#ffffff',
               px: 2.5, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
               borderRadius: 0, textTransform: 'none', boxShadow: 'none',
-              '&:hover': { bgcolor: '#1e293b' },
+              '&:hover': { bgcolor: 'var(--on-surface)' },
               '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
             }}
           >
@@ -841,10 +841,10 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
   }[totpAction] : null
 
   return (
-    <Box sx={{ borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
+    <Box sx={{ borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
       <Box sx={{ px: 3, py: 2, display: 'grid', gridTemplateColumns: '1fr 80px 100px 110px 44px 44px', gap: 2, alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {ep.url}
           </Typography>
           {ep.description && (
@@ -877,27 +877,27 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
         onClose={() => setMenuAnchor(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', border: '1px solid #eef0f4', minWidth: 180 } } }}
+        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', border: '1px solid var(--border-col)', minWidth: 180 } } }}
       >
-        <Box onClick={handleTest} sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' } }}>
+        <Box onClick={handleTest} sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: 'var(--heading-color)', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
           {testing ? 'Sending…' : 'Send test event'}
         </Box>
         <Box
           onClick={() => { setMenuAnchor(null); setSecRulesOpen(true) }}
-          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7', display: 'flex', alignItems: 'center', gap: 1 }}
+          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: 'var(--heading-color)', '&:hover': { bgcolor: 'var(--section-bg)' }, borderTop: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1 }}
         >
           <SecurityOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b' }} />
           Security rules
         </Box>
         <Box
           onClick={() => openTotp(ep.status === 'active' ? 'pause' : 'resume')}
-          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#00288e', '&:hover': { bgcolor: '#f8fafc' }, borderTop: '1px solid #f4f5f7' }}
+          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: 'var(--heading-color)', '&:hover': { bgcolor: 'var(--section-bg)' }, borderTop: '1px solid var(--border-col)' }}
         >
           {ep.status === 'active' ? 'Pause endpoint' : 'Resume endpoint'}
         </Box>
         <Box
           onClick={() => openTotp('delete')}
-          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#dc2626', '&:hover': { bgcolor: '#fef2f2' }, borderTop: '1px solid #f4f5f7' }}
+          sx={{ px: 2, py: 1.25, cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 500, color: '#dc2626', '&:hover': { bgcolor: '#fef2f2' }, borderTop: '1px solid var(--border-col)' }}
         >
           Delete endpoint
         </Box>
@@ -923,8 +923,8 @@ function EndpointRow({ ep, onUpdate }: EndpointRowProps) {
           ) : (
             <Stack gap={0}>
               {deliveries.map(d => (
-                <Box key={d.id} sx={{ display: 'grid', gridTemplateColumns: '130px 90px 60px 1fr', gap: 2, alignItems: 'center', py: 0.875, borderBottom: '1px solid #f4f5f7', '&:last-child': { borderBottom: 'none' } }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#475569' }}>{d.eventType}</Typography>
+                <Box key={d.id} sx={{ display: 'grid', gridTemplateColumns: '130px 90px 60px 1fr', gap: 2, alignItems: 'center', py: 0.875, borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--on-surface-variant)' }}>{d.eventType}</Typography>
                   {deliveryStatusBadge(d.status)}
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{d.responseCode ?? '—'}</Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'right' }}>{fmtRelative(d.createdAt)}</Typography>
@@ -1289,10 +1289,10 @@ function VerifyButton({ url, type }: { url: string; type: 'notification' }) {
         onClick={run}
         disabled={state === 'loading' || !url.startsWith('https://')}
         sx={{
-          bgcolor: '#f8fafc', color: '#475569', border: '1px solid #e5e7eb',
+          bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)',
           px: 1.75, py: 0.75, fontSize: '0.75rem', fontWeight: 600,
           fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-          '&:hover': { bgcolor: '#f1f5f9' },
+          '&:hover': { bgcolor: 'var(--section-bg)' },
         }}
       >
         Verify URL
@@ -1452,7 +1452,7 @@ export default function WebhooksPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Configure
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Webhooks
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -1465,7 +1465,7 @@ export default function WebhooksPage() {
           value={tabValue}
           onChange={(_, v) => setTabValue(v)}
           sx={{
-            borderBottom: '1px solid #eef0f4', mb: 3, minHeight: 36,
+            borderBottom: '1px solid var(--border-col)', mb: 3, minHeight: 36,
             '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: 2 },
             '& .MuiTab-root': {
               fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 600,
@@ -1483,9 +1483,9 @@ export default function WebhooksPage() {
         {/* Tab 0: Notification Webhooks ────────────────────────────────────── */}
         {tabValue === 0 && (
           <Box>
-            <Box sx={{ mb: 2.5, px: 2.5, py: 1.75, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ mb: 2.5, px: 2.5, py: 1.75, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <LockOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b', flexShrink: 0 }} />
-              <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>
                 Every delivery is signed with <strong>HMAC-SHA256</strong> using the shared signing secret.
                 Manage the secret and see integration guides in the{' '}
                 <Box component="span" onClick={() => setTabValue(2)}
@@ -1496,9 +1496,9 @@ export default function WebhooksPage() {
             </Box>
             <Stack gap={3}>
               {/* New endpoint form */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Add new endpoint
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1535,8 +1535,8 @@ export default function WebhooksPage() {
                               onClick={() => toggleEvent(e.id)}
                               sx={{
                                 p: 1.75, border: '1px solid',
-                                borderColor: checked ? colorPalette.primary : '#eef0f4',
-                                bgcolor: checked ? `${colorPalette.primary}06` : '#ffffff',
+                                borderColor: checked ? colorPalette.primary : 'var(--border-col)',
+                                bgcolor: checked ? `${colorPalette.primary}06` : 'var(--card-bg)',
                                 display: 'flex', alignItems: 'center', gap: 1.5,
                                 cursor: 'pointer', transition: 'all 0.18s',
                                 '&:hover': { borderColor: checked ? colorPalette.primary : '#cbd5e1' },
@@ -1545,18 +1545,18 @@ export default function WebhooksPage() {
                               <Box sx={{
                                 width: 16, height: 16, flexShrink: 0,
                                 border: `1.5px solid ${checked ? colorPalette.primary : '#cbd5e1'}`,
-                                bgcolor: checked ? colorPalette.primary : '#ffffff',
+                                bgcolor: checked ? colorPalette.primary : 'var(--card-bg)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                               }}>
                                 {checked && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
                               </Box>
                               <Box sx={{ flex: 1 }}>
-                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                                   {e.label}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>{e.desc}</Typography>
                               </Box>
-                              <Typography sx={{ fontSize: '0.6875rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#94a3b8', bgcolor: '#f8fafc', px: 1, py: 0.375 }}>
+                              <Typography sx={{ fontSize: '0.6875rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#94a3b8', bgcolor: 'var(--section-bg)', px: 1, py: 0.375 }}>
                                 {e.id}
                               </Typography>
                             </Box>
@@ -1579,7 +1579,7 @@ export default function WebhooksPage() {
                           px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
                           borderRadius: 0, textTransform: 'none', boxShadow: 'none',
                           '& .MuiButton-startIcon': { color: '#ffffff' },
-                          '&:hover': { bgcolor: '#1e293b' },
+                          '&:hover': { bgcolor: 'var(--on-surface)' },
                           '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
                         }}
                       >
@@ -1591,13 +1591,13 @@ export default function WebhooksPage() {
               </Box>
 
               {/* Endpoint list */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     {epLoading ? 'Endpoints' : `Endpoints (${endpoints.length})`}
                   </Typography>
                 </Box>
-                <Box sx={{ px: 3, py: 1, display: 'grid', gridTemplateColumns: '1fr 80px 100px 110px 44px 44px', gap: 2, borderBottom: '1px solid #f4f5f7' }}>
+                <Box sx={{ px: 3, py: 1, display: 'grid', gridTemplateColumns: '1fr 80px 100px 110px 44px 44px', gap: 2, borderBottom: '1px solid var(--border-col)' }}>
                   {['URL / Description', 'Events', 'Status', 'Last delivery', 'Rate', ''].map((h, i) => (
                     <Typography key={i} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em' }}>{h}</Typography>
                   ))}
@@ -1605,7 +1605,7 @@ export default function WebhooksPage() {
                 {epLoading ? (
                   <Stack>
                     {[1, 2, 3].map(i => (
-                      <Box key={i} sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f4f5f7' }}>
+                      <Box key={i} sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
                         <Skeleton variant="rectangular" height={20} width="60%" />
                       </Box>
                     ))}
@@ -1628,8 +1628,8 @@ export default function WebhooksPage() {
 
             {/* Left: Config card */}
             <Stack gap={3}>
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
                   <Box sx={{ width: 34, height: 34, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <PersonSearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#1d4ed8' }} />
                   </Box>
@@ -1637,7 +1637,7 @@ export default function WebhooksPage() {
                     <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                       Customer Lookup
                     </Typography>
-                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                       Customer Fetch Webhook
                     </Typography>
                   </Box>
@@ -1709,7 +1709,7 @@ export default function WebhooksPage() {
                             px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
                             borderRadius: 0, textTransform: 'none', boxShadow: 'none',
                             '& .MuiButton-startIcon': { color: '#ffffff' },
-                            '&:hover': { bgcolor: '#1e293b' },
+                            '&:hover': { bgcolor: 'var(--on-surface)' },
                             '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
                           }}
                         >
@@ -1725,10 +1725,10 @@ export default function WebhooksPage() {
             {/* Right: Documentation */}
             <Stack gap={3}>
               {/* How it works */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <InfoOutlinedIcon sx={{ fontSize: '1rem', color: colorPalette.primary }} />
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     How it works
                   </Typography>
                 </Box>
@@ -1741,11 +1741,11 @@ export default function WebhooksPage() {
                       { icon: <BlockOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />, title: 'Customer not found — transaction rejected', body: 'If your endpoint returns 404, times out, or returns an error, the transaction is immediately rejected with recommended_action: "REJECTED". Nothing is stored.' },
                     ].map((step, i) => (
                       <Box key={i} sx={{ display: 'flex', gap: 1.5 }}>
-                        <Box sx={{ width: 28, height: 28, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.125 }}>
+                        <Box sx={{ width: 28, height: 28, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.125 }}>
                           {step.icon}
                         </Box>
                         <Box>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>{step.title}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{step.title}</Typography>
                           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>{step.body}</Typography>
                         </Box>
                       </Box>
@@ -1755,9 +1755,9 @@ export default function WebhooksPage() {
               </Box>
 
               {/* Request format */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Request OpenIV sends to your endpoint
                   </Typography>
                 </Box>
@@ -1765,11 +1765,11 @@ export default function WebhooksPage() {
                   <Stack gap={2.5}>
                     <Box>
                       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Method & URL</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
                         <Box sx={{ px: 1, py: 0.25, bgcolor: '#dcfce7', flexShrink: 0 }}>
                           <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#15803d', letterSpacing: '0.06em' }}>GET</Typography>
                         </Box>
-                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: '#00288e' }}>
+                        <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', color: 'var(--heading-color)' }}>
                           {'{your_lookup_url}'}/
                           <Box component="span" sx={{ color: '#7c3aed' }}>{'{customerId}'}</Box>
                         </Typography>
@@ -1782,16 +1782,16 @@ export default function WebhooksPage() {
                         highlight
                       />
                     </Box>
-                    <Box sx={{ px: 2.5, py: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
+                    <Box sx={{ px: 2.5, py: 2, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>
                         Signature construction
                       </Typography>
                       <Stack gap={1}>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
                           The signed payload is the concatenation of the Unix timestamp and the customer ID, separated by a dot:
                         </Typography>
                         <CodeBlock content={`signed_payload = "{timestamp}.{customerId}"\nsignature      = HMAC-SHA256(signing_secret, signed_payload)`} highlight />
-                        <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
                           Reject the request if the timestamp is more than <strong>5 minutes</strong> old — this prevents replay attacks.
                           Always use a constant-time comparison when verifying the signature.
                         </Typography>
@@ -1802,9 +1802,9 @@ export default function WebhooksPage() {
               </Box>
 
               {/* Expected response */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Expected response from your endpoint
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1821,8 +1821,8 @@ export default function WebhooksPage() {
 
                     <Box>
                       <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>Field Reference</Typography>
-                      <Box sx={{ border: '1px solid #eef0f4', overflow: 'hidden' }}>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                      <Box sx={{ border: '1px solid var(--border-col)', overflow: 'hidden' }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                           {['Field', 'Type', 'Required', 'Description'].map(h => (
                             <Typography key={h} sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
                           ))}
@@ -1836,7 +1836,7 @@ export default function WebhooksPage() {
                           { field: 'photo', type: 'string', req: false, desc: 'Base64-encoded JPEG or PNG selfie for liveness check. Omit if not available' },
                           { field: 'occurred_at', type: 'string', req: true, desc: 'ISO-8601 timestamp when this KYC data was collected by your institution' },
                         ].map((row, i, arr) => (
-                          <Box key={row.field} sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1.25, alignItems: 'flex-start', borderBottom: i < arr.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                          <Box key={row.field} sx={{ display: 'grid', gridTemplateColumns: '130px 80px 60px 1fr', px: 2, py: 1.25, alignItems: 'flex-start', borderBottom: i < arr.length - 1 ? '1px solid var(--border-col)' : 'none' }}>
                             <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary }}>{row.field}</Typography>
                             <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', color: '#f59e0b' }}>{row.type}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1863,7 +1863,7 @@ export default function WebhooksPage() {
                         ].map(e => (
                           <Box key={e.code} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 1.5, py: 1, bgcolor: e.bg, border: `1px solid ${e.border}` }}>
                             <Typography sx={{ fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.6875rem', fontWeight: 800, color: e.color, flexShrink: 0, mt: 0.1 }}>{e.code}</Typography>
-                            <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{e.msg}</Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{e.msg}</Typography>
                           </Box>
                         ))}
                       </Stack>
@@ -1873,9 +1873,9 @@ export default function WebhooksPage() {
               </Box>
 
               {/* Code samples */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Implementation example
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1992,8 +1992,8 @@ async def fetch_customer(
           <Stack gap={3}>
 
             {/* ── Secret card ───────────────────────────────────────────────── */}
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
                 <Box sx={{ width: 34, height: 34, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <KeyOutlinedIcon sx={{ fontSize: '1.125rem', color: '#1d4ed8' }} />
                 </Box>
@@ -2001,7 +2001,7 @@ async def fetch_customer(
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                     Shared Signing Secret
                   </Typography>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                     One secret authenticates all webhook types
                   </Typography>
                 </Box>
@@ -2020,13 +2020,13 @@ async def fetch_customer(
                       Signing Secret
                     </Typography>
                     <Box sx={{
-                      bgcolor: '#0f172a', p: 2, fontFamily: 'SF Mono, Monaco, monospace',
+                      bgcolor: 'var(--on-surface)', p: 2, fontFamily: 'SF Mono, Monaco, monospace',
                       fontSize: '0.8125rem', color: showSecret ? '#c3e88d' : '#64748b',
                       wordBreak: 'break-all', lineHeight: 1.6, letterSpacing: showSecret ? '0.02em' : '0.15em',
                       minHeight: 56, display: 'flex', alignItems: 'center',
                     }}>
                       {secretLoading
-                        ? <Skeleton variant="text" width="80%" sx={{ bgcolor: '#1e293b' }} />
+                        ? <Skeleton variant="text" width="80%" sx={{ bgcolor: 'var(--on-surface)' }} />
                         : showSecret ? (secret?.secret ?? '—') : '•'.repeat(48)
                       }
                     </Box>
@@ -2035,9 +2035,9 @@ async def fetch_customer(
                         startIcon={<LockOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
                         onClick={() => showSecret ? setShowSecret(false) : setRevealOpen(true)}
                         sx={{
-                          flex: 1, bgcolor: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0',
+                          flex: 1, bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)',
                           px: 1.75, py: 0.875, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
-                          borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f1f5f9' },
+                          borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)' },
                           '& .MuiButton-startIcon': { mr: 0.5 },
                         }}
                       >
@@ -2064,13 +2064,13 @@ async def fetch_customer(
                   </Box>
 
                   {/* Rotation */}
-                  <Box sx={{ pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                  <Box sx={{ pt: 2, borderTop: '1px solid var(--border-col)' }}>
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.5 }}>
                       Rotation
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5, gap: 2 }}>
                       <Box>
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                           Auto-rotate every 90 days
                         </Typography>
                         {secretLoading
@@ -2119,8 +2119,8 @@ async def fetch_customer(
                 </Stack>
 
                 {/* Right: usage summary */}
-                <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', p: 2.5 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 1.5, letterSpacing: '0.05em' }}>
+                <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', p: 2.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 1.5, letterSpacing: '0.05em' }}>
                     Used by
                   </Typography>
                   <Stack gap={1.25}>
@@ -2134,7 +2134,7 @@ async def fetch_customer(
                       </Box>
                     ))}
                   </Stack>
-                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid var(--border-col)' }}>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.6 }}>
                       The same secret signs every outbound request OpenIV makes to your infrastructure.
                       Store it as an environment variable — never hard-code it.
@@ -2148,13 +2148,13 @@ async def fetch_customer(
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
 
               {/* Notification webhooks verification */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
                     <Box sx={{ px: 1, py: 0.25, bgcolor: '#f5f3ff' }}>
                       <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#7c3aed', letterSpacing: '0.08em' }}>POST</Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       Verifying notification webhooks
                     </Typography>
                   </Box>
@@ -2162,7 +2162,7 @@ async def fetch_customer(
                     OpenIV POSTs signed JSON to your endpoint. Compute HMAC-SHA256 over the raw request body and compare to <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>X-OpenIV-Signature</code>.
                   </Typography>
                 </Box>
-                <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+                <Box sx={{ borderBottom: '1px solid var(--border-col)' }}>
                   <Box sx={{ display: 'flex', overflowX: 'auto' }}>
                     {Object.keys(codeSamples).map(lang => (
                       <Box
@@ -2185,13 +2185,13 @@ async def fetch_customer(
               </Box>
 
               {/* Customer fetch verification */}
-              <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4' }}>
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4' }}>
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.375 }}>
                     <Box sx={{ px: 1, py: 0.25, bgcolor: '#eff6ff' }}>
                       <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.08em' }}>GET</Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       Verifying customer fetch requests
                     </Typography>
                   </Box>
@@ -2199,7 +2199,7 @@ async def fetch_customer(
                     OpenIV GETs customer data from your endpoint. Compute HMAC-SHA256 over <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>"{'{timestamp}.{customerId}'}"</code> and compare to <code style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>X-OpenIV-Signature</code>. Reject requests older than 5 minutes.
                   </Typography>
                 </Box>
-                <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+                <Box sx={{ borderBottom: '1px solid var(--border-col)' }}>
                   <Box sx={{ display: 'flex', overflowX: 'auto' }}>
                     {['Node.js', 'Python', 'Go', 'Java'].map(lang => (
                       <Box

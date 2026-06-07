@@ -405,11 +405,11 @@ export default function Setup2FAForm({
                           borderRadius: 0,
                           transition: 'all 0.2s ease',
                           '& fieldset': {
-                            border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                            border: `1px solid ${digit ? colorPalette.primary : 'var(--border-col)'} !important`,
                             transition: 'all 0.2s ease',
                           },
-                          '&:hover fieldset': { borderColor: digit ? colorPalette.primary : '#e4dff2' },
-                          '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
+                          '&:hover fieldset': { border: `1px solid ${colorPalette.primary} !important` },
+                          '&.Mui-focused fieldset': { border: `1px solid ${colorPalette.primary} !important` },
                           '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                         },
                       }}

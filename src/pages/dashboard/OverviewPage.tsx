@@ -103,7 +103,7 @@ function MiniRiskDonut({ score, color }: { score: number; color: string }) {
   const filled = (Math.min(100, Math.max(0, score)) / 100) * circ
   return (
     <svg width={size} height={size} style={{ display: 'block', flexShrink: 0 }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={sw} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--section-bg)" strokeWidth={sw} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
         strokeLinecap="round"
         strokeDasharray={`${filled} ${circ - filled}`}
@@ -226,7 +226,7 @@ export default function OverviewPage() {
             >
               Compliance Operations
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Good morning, {currentUser?.firstName ?? '…'}
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -244,9 +244,9 @@ export default function OverviewPage() {
                 ? <CircularProgress size={14} thickness={5} sx={{ color: 'inherit' }} />
                 : <FileDownloadOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
               sx={{
-                bgcolor: '#ffffff',
-                color: '#475569',
-                border: '1px solid #e5e7eb',
+                bgcolor: 'var(--card-bg)',
+                color: 'var(--on-surface-variant)',
+                border: '1px solid var(--border-col)',
                 px: 2.25,
                 py: 1.125,
                 fontSize: '0.8125rem',
@@ -255,7 +255,7 @@ export default function OverviewPage() {
                 borderRadius: 0,
                 textTransform: 'none',
                 transition: 'all 0.18s',
-                '&:hover:not(:disabled)': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' },
+                '&:hover:not(:disabled)': { bgcolor: 'var(--section-bg)', borderColor: '#cbd5e1' },
                 '&:disabled': { opacity: 0.6 },
               }}
             >
@@ -277,7 +277,7 @@ export default function OverviewPage() {
                 textTransform: 'none',
                 boxShadow: 'none',
                 transition: 'all 0.18s',
-                '&:hover:not(:disabled)': { bgcolor: '#1e293b', boxShadow: `0 4px 12px ${colorPalette.primary}30` },
+                '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)', boxShadow: `0 4px 12px ${colorPalette.primary}30` },
                 '&:disabled': { opacity: 0.6 },
               }}
             >
@@ -339,13 +339,13 @@ export default function OverviewPage() {
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}>
             {/* High-Risk Customers panel */}
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid #e5e7eb', bgcolor: '#ffffff' }}>
-              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid var(--card-border-col)', bgcolor: 'var(--card-bg)' }}>
+              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     Risk Map · Watchlist
                   </Typography>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost' }}>
                     High-Risk Customers
                   </Typography>
                 </Box>
@@ -376,15 +376,15 @@ export default function OverviewPage() {
                           gap: 1.5,
                           px: 2,
                           py: 1.25,
-                          bgcolor: i % 2 === 0 ? '#ffffff' : '#fafbfc',
-                          borderBottom: '1px solid #f8fafc',
+                          bgcolor: i % 2 === 0 ? 'var(--card-bg)' : 'var(--card-bg)',
+                          borderBottom: '1px solid var(--border-col)',
                           cursor: 'pointer',
-                          '&:hover': { bgcolor: '#f1f5f9' },
+                          '&:hover': { bgcolor: 'var(--section-bg)' },
                         }}
                       >
                         <CustomerPhoto photo={c.photo} color={color} name={c.name} />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {c.name}
                           </Typography>
                           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -416,14 +416,14 @@ export default function OverviewPage() {
 
           {/* ── Top 5 Urgent AML Cases ───────────────────────────────────────── */}
           <Grid size={{ xs: 12, lg: 7 }}>
-            <Box sx={{ border: '1px solid #e5e7eb', bgcolor: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ border: '1px solid var(--card-border-col)', bgcolor: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
               {/* Header */}
-              <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                     AML Cases · Priority Queue
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost', lineHeight: 1.2 }}>
                     Top 5 Urgent Cases
                   </Typography>
                 </Box>
@@ -456,7 +456,7 @@ export default function OverviewPage() {
                       borderBottom: i < urgentCases.length - 1 ? '1px solid #f8fafc' : 'none',
                       cursor: 'pointer',
                       transition: 'background 0.14s',
-                      '&:hover': { bgcolor: '#f8fafc' },
+                      '&:hover': { bgcolor: 'var(--section-bg)' },
                     }}
                   >
                     {/* Left accent spacer */}
@@ -474,7 +474,7 @@ export default function OverviewPage() {
                         </Box>
                       </Box>
                       {/* Title */}
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.35, mb: 0.25 }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.35, mb: 0.25 }}>
                         {c.title}
                       </Typography>
                       {/* Customer + typology */}
@@ -503,14 +503,14 @@ export default function OverviewPage() {
 
           {/* ── Recent NFIU Reports ──────────────────────────────────────────── */}
           <Grid size={{ xs: 12, lg: 5 }}>
-            <Box sx={{ border: '1px solid #e5e7eb', bgcolor: '#ffffff', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Box sx={{ border: '1px solid var(--card-border-col)', bgcolor: 'var(--card-bg)', display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* Header */}
-              <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                     NFIU · Compliance
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Jost', lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'Jost', lineHeight: 1.2 }}>
                     Recent Reports
                   </Typography>
                 </Box>
@@ -542,7 +542,7 @@ export default function OverviewPage() {
                       borderBottom: i < recentReports.length - 1 ? '1px solid #f8fafc' : 'none',
                       cursor: 'pointer',
                       transition: 'background 0.14s',
-                      '&:hover': { bgcolor: '#f8fafc' },
+                      '&:hover': { bgcolor: 'var(--section-bg)' },
                     }}
                   >
                     {/* Left spacer */}
@@ -561,7 +561,7 @@ export default function OverviewPage() {
 
                     {/* Reference + title */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mb: 0.25 }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mb: 0.25 }}>
                         {r.reference}
                       </Typography>
                       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -640,7 +640,7 @@ export default function OverviewPage() {
             </Button>
             <Button
               sx={{
-                bgcolor: '#ffffff',
+                bgcolor: 'var(--card-bg)',
                 color: colorPalette.primary,
                 px: 2.25,
                 py: 1.125,
@@ -649,7 +649,7 @@ export default function OverviewPage() {
                 fontFamily: 'Jost',
                 borderRadius: 0,
                 textTransform: 'none',
-                '&:hover': { bgcolor: '#f8fafc' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Review Rules

@@ -434,10 +434,10 @@ function LatencyBar({ ms, maxMs }: { ms: number; maxMs: number }) {
   const color = ms > 2000 ? '#dc2626' : ms > 800 ? '#f59e0b' : '#10b981'
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 80 }}>
-      <Box sx={{ flex: 1, height: 4, bgcolor: '#f1f5f9', borderRadius: 2 }}>
+      <Box sx={{ flex: 1, height: 4, bgcolor: 'var(--section-bg)', borderRadius: 2 }}>
         <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: color, borderRadius: 2 }} />
       </Box>
-      <Typography sx={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: '#475569', minWidth: 44, textAlign: 'right' }}>
+      <Typography sx={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: 'var(--on-surface-variant)', minWidth: 44, textAlign: 'right' }}>
         {fmtMs(ms)}
       </Typography>
     </Stack>
@@ -456,7 +456,7 @@ function JsonView({ text }: { text: string }) {
       dangerouslySetInnerHTML={{ __html: highlighted }}
       sx={{
         m: 0, fontSize: '0.75rem', fontFamily: 'SF Mono, Fira Code, Consolas, monospace',
-        color: '#334155', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+        color: 'var(--on-surface-variant)', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         overflowX: 'hidden'
       }}
     />
@@ -473,7 +473,7 @@ function HeadersView({ headers }: { headers: Record<string, string> }) {
             fontFamily: 'monospace', flexShrink: 0, minWidth: 180
           }}>{k}:</Typography>
           <Typography sx={{
-            fontSize: '0.6875rem', color: '#334155', fontFamily: 'monospace',
+            fontSize: '0.6875rem', color: 'var(--on-surface-variant)', fontFamily: 'monospace',
             wordBreak: 'break-all'
           }}>{v}</Typography>
         </Box>
@@ -487,7 +487,7 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string; 
     <Box
       data-ai-analyzable="true"
       data-ai-description={`Network Performance KPI: ${label}. current value: ${value}. status: ${sub || 'N/A'}.`}
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', px: 2.5, py: 2 }}>
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 2 }}>
       <Typography sx={{
         fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8',
         textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.625
@@ -623,7 +623,7 @@ export default function NetworkPage() {
           letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75
         }}>Configuration</Typography>
         <Typography sx={{
-          fontSize: '1.625rem', fontWeight: 700, color: '#00288e',
+          fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)',
           fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5
         }}>Network & Traffic</Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -647,7 +647,7 @@ export default function NetworkPage() {
       {/* ── Filters ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
         {/* Source */}
-        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Stack direction="row" sx={{ border: '1px solid var(--border-col)', overflow: 'hidden' }}>
           {(['all', 'beam', 'webhook'] as SrcFilter[]).map(s => (
             <Box
               key={s}
@@ -660,7 +660,7 @@ export default function NetworkPage() {
           ))}
         </Stack>
         {/* Status */}
-        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Stack direction="row" sx={{ border: '1px solid var(--border-col)', overflow: 'hidden' }}>
           {(['all', '2xx', '4xx', '5xx'] as StatusF[]).map(s => (
             <Box
               key={s}
@@ -673,7 +673,7 @@ export default function NetworkPage() {
           ))}
         </Stack>
         {/* Time range */}
-        <Stack direction="row" sx={{ border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <Stack direction="row" sx={{ border: '1px solid var(--border-col)', overflow: 'hidden' }}>
           {(['1h', '6h', '24h', '7d'] as TimeF[]).map(t => (
             <Box key={t} onClick={() => setTimeF(t)} sx={filterBtn(timeF === t)}>{t}</Box>
           ))}
@@ -687,27 +687,27 @@ export default function NetworkPage() {
             ml: 'auto', minWidth: 260,
             '& .MuiOutlinedInput-root': {
               borderRadius: '2px', fontSize: '0.8125rem',
-              bgcolor: '#f8fafc', '& fieldset': { borderColor: '#e2e8f0' }
+              bgcolor: 'var(--input-bg)', '& fieldset': { borderColor: 'var(--border-col)' }
             },
           }}
         />
         <Tooltip title={`${filtered.length} entries`}>
           <Chip label={filtered.length} size="small"
-            sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, borderRadius: '3px', height: 28 }} />
+            sx={{ bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)', fontWeight: 700, borderRadius: '3px', height: 28 }} />
         </Tooltip>
       </Box>
       {/* </Box> */}
 
 
       {/* ── Main split: table + inspector ── */}
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 390px)', minHeight: 380, mx: 4, mb: 3, border: '1px solid #eef0f4', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', height: 'calc(100vh - 390px)', minHeight: 380, mx: 4, mb: 3, border: '1px solid var(--border-col)', overflow: 'hidden' }}>
 
         {/* Log table */}
-        <Box sx={{ flex: selected ? '0 0 55%' : '1', overflow: 'auto', borderRight: selected ? '1px solid #eef0f4' : 'none' }}>
+        <Box sx={{ flex: selected ? '0 0 55%' : '1', overflow: 'auto', borderRight: selected ? '1px solid var(--border-col)' : 'none' }}>
           {/* Table header */}
           <Box sx={{
             display: 'grid', gridTemplateColumns: '90px 70px 52px 1fr 58px 130px 72px',
-            px: 2, py: 1.25, bgcolor: '#f8fafc', borderBottom: '1px solid #eef0f4', position: 'sticky', top: 0, zIndex: 1
+            px: 2, py: 1.25, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', position: 'sticky', top: 0, zIndex: 1
           }}>
             {['Time', 'Source', 'Method', 'Endpoint / Stream', 'Status', 'Latency', 'Size'].map(h => (
               <Typography key={h} sx={{
@@ -737,11 +737,11 @@ export default function NetworkPage() {
                 sx={{
                   display: 'grid', gridTemplateColumns: '90px 70px 52px 1fr 58px 130px 72px',
                   px: 2, py: 1.125, alignItems: 'center',
-                  borderBottom: '1px solid #f4f5f7',
+                  borderBottom: '1px solid var(--border-col)',
                   bgcolor: isSelected ? `${colorPalette.primary}0a` : 'transparent',
                   cursor: 'pointer',
                   transition: 'background 0.12s',
-                  '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : '#f8fafc' },
+                  '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0f` : 'var(--section-bg)' },
                   ...(e.status >= 400 && !isSelected && { borderLeft: `2px solid ${sc.border}` }),
                 }}>
                 <Tooltip title={fmtAbs(e.ts)} placement="right">
@@ -754,13 +754,13 @@ export default function NetworkPage() {
                   {e.source === 'beam'
                     ? <CallReceivedIcon sx={{ fontSize: '0.7rem', color: '#2563eb' }} />
                     : <CallMadeIcon sx={{ fontSize: '0.7rem', color: '#7c3aed' }} />}
-                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#00288e', fontFamily: 'monospace' }}>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'monospace' }}>
                     {e.method}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography sx={{
-                    fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace',
+                    fontSize: '0.75rem', color: 'var(--heading-color)', fontFamily: 'monospace',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                   }}>
                     {e.source === 'webhook'
@@ -790,21 +790,21 @@ export default function NetworkPage() {
         {selected && (
           <Box sx={{ flex: '0 0 45%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Inspector header */}
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f8fafc', flexShrink: 0 }}>
-              <Box sx={{ px: 0.75, py: 0.25, bgcolor: '#1e293b', borderRadius: '3px' }}>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'var(--card-bg)', flexShrink: 0 }}>
+              <Box sx={{ px: 0.75, py: 0.25, bgcolor: 'var(--on-surface)', borderRadius: '3px' }}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', fontFamily: 'monospace' }}>
                   {selected.method}
                 </Typography>
               </Box>
               <Typography sx={{
-                fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace', flex: 1,
+                fontSize: '0.75rem', color: 'var(--heading-color)', fontFamily: 'monospace', flex: 1,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
               }}>
                 {selected.endpoint}
               </Typography>
               <StatusBadge code={selected.status} />
               <IconButton size="small" onClick={() => setSelected(null)}
-                sx={{ color: '#94a3b8', p: 0.25, '&:hover': { color: '#475569' } }}>
+                sx={{ color: '#94a3b8', p: 0.25, '&:hover': { color: 'var(--on-surface-variant)' } }}>
                 <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
               </IconButton>
             </Box>
@@ -812,7 +812,7 @@ export default function NetworkPage() {
             {/* Tabs */}
             <Tabs value={detailTab} onChange={(_, v) => setDetailTab(v)}
               sx={{
-                borderBottom: '1px solid #eef0f4', minHeight: 36, flexShrink: 0,
+                borderBottom: '1px solid var(--border-col)', minHeight: 36, flexShrink: 0,
                 '& .MuiTab-root': { minHeight: 36, fontSize: '0.75rem', fontFamily: 'Jost', textTransform: 'none', py: 0.75, px: 1.5 },
                 '& .Mui-selected': { color: `${colorPalette.primary} !important`, fontWeight: 600 },
                 '& .MuiTabs-indicator': { bgcolor: colorPalette.primary, height: '2px' },
@@ -846,7 +846,7 @@ export default function NetworkPage() {
                           textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25
                         }}>{k}</Typography>
                         <Typography sx={{
-                          fontSize: '0.75rem', color: '#00288e', fontFamily: 'monospace',
+                          fontSize: '0.75rem', color: 'var(--heading-color)', fontFamily: 'monospace',
                           wordBreak: 'break-all'
                         }}>{v}</Typography>
                       </Box>
@@ -865,7 +865,7 @@ export default function NetworkPage() {
                   {selected.retries && selected.retries.length > 0 && (
                     <Box>
                       <Typography sx={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                         textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1
                       }}>
                         Retry Timeline
@@ -888,7 +888,7 @@ export default function NetworkPage() {
                               </Box>
                               <Box sx={{ flex: 1 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                                     Attempt {r.attempt}
                                   </Typography>
                                   <StatusBadge code={r.status} />
@@ -914,17 +914,17 @@ export default function NetworkPage() {
                 <Stack spacing={2}>
                   <Box>
                     <Typography sx={{
-                      fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                      fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                       textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875
                     }}>Headers</Typography>
-                    <Box sx={{ p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                    <Box sx={{ p: 1.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
                       <HeadersView headers={selected.reqHeaders} />
                     </Box>
                   </Box>
                   <Box>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.875 }}>
                       <Typography sx={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                         textTransform: 'uppercase', letterSpacing: '0.08em'
                       }}>Body</Typography>
                       <Tooltip title={copied ? 'Copied!' : 'Copy body'}>
@@ -934,7 +934,7 @@ export default function NetworkPage() {
                         </IconButton>
                       </Tooltip>
                     </Stack>
-                    <Box sx={{ p: 1.5, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 340 }}>
+                    <Box sx={{ p: 1.5, bgcolor: 'var(--heading-color)', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 340 }}>
                       <Box component="pre"
                         dangerouslySetInnerHTML={{
                           __html: selected.reqBody
@@ -959,20 +959,20 @@ export default function NetworkPage() {
                 <Stack spacing={2}>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <StatusBadge code={selected.status} />
-                    <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'monospace' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'monospace' }}>
                       {fmtMs(selected.ms)}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'monospace' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'monospace' }}>
                       {fmtBytes(selected.bytes)}
                     </Typography>
                   </Stack>
                   {selected.resHeaders && (
                     <Box>
                       <Typography sx={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                         textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.875
                       }}>Headers</Typography>
-                      <Box sx={{ p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                      <Box sx={{ p: 1.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
                         <HeadersView headers={selected.resHeaders} />
                       </Box>
                     </Box>
@@ -981,7 +981,7 @@ export default function NetworkPage() {
                     <Box>
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.875 }}>
                         <Typography sx={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                          fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                           textTransform: 'uppercase', letterSpacing: '0.08em'
                         }}>Body</Typography>
                         <Tooltip title={copied ? 'Copied!' : 'Copy body'}>
@@ -991,7 +991,7 @@ export default function NetworkPage() {
                           </IconButton>
                         </Tooltip>
                       </Stack>
-                      <Box sx={{ p: 1.5, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 320 }}>
+                      <Box sx={{ p: 1.5, bgcolor: 'var(--heading-color)', border: '1px solid #1e293b', overflow: 'auto', maxHeight: 320 }}>
                         <Box component="pre"
                           dangerouslySetInnerHTML={{
                             __html: selected.resBody
@@ -1017,7 +1017,7 @@ export default function NetworkPage() {
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Typography sx={{
-                      fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                      fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                       textTransform: 'uppercase', letterSpacing: '0.08em'
                     }}>Replay with cURL</Typography>
                     <Box onClick={() => copy(makeCurl(selected))}
@@ -1035,7 +1035,7 @@ export default function NetworkPage() {
                       </Typography>
                     </Box>
                   </Stack>
-                  <Box sx={{ p: 1.75, bgcolor: '#00288e', border: '1px solid #1e293b', overflow: 'auto' }}>
+                  <Box sx={{ p: 1.75, bgcolor: 'var(--heading-color)', border: '1px solid #1e293b', overflow: 'auto' }}>
                     <Box component="pre" sx={{
                       m: 0, fontSize: '0.7rem', fontFamily: 'SF Mono, Fira Code, monospace',
                       color: '#e2e8f0', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word'
@@ -1043,7 +1043,7 @@ export default function NetworkPage() {
                       {makeCurl(selected)}
                     </Box>
                   </Box>
-                  <Box sx={{ mt: 1.5, p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+                  <Box sx={{ mt: 1.5, p: 1.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
                     <Stack direction="row" spacing={0.75} alignItems="flex-start">
                       <InfoOutlinedIcon sx={{ fontSize: '0.875rem', color: '#64748b', mt: 0.125 }} />
                       <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.6 }}>
@@ -1067,10 +1067,10 @@ export default function NetworkPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 2.5, mx: 4, mb: 4 }}>
 
         {/* Throughput chart */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 3 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
             <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Request Volume
               </Typography>
               <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.25 }}>Hourly — last 24 h</Typography>
@@ -1095,8 +1095,8 @@ export default function NetworkPage() {
         </Box>
 
         {/* Latency percentiles */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 3 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
             Latency Distribution
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mb: 2 }}>Across filtered entries</Typography>
@@ -1109,16 +1109,16 @@ export default function NetworkPage() {
             return (
               <Box key={label} sx={{ mb: 1.5 }}>
                 <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', fontFamily: 'Jost' }}>{label}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>{label}</Typography>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color, fontFamily: 'monospace' }}>{fmtMs(val)}</Typography>
                 </Stack>
-                <Box sx={{ height: 6, bgcolor: '#f1f5f9', borderRadius: 3 }}>
+                <Box sx={{ height: 6, bgcolor: 'var(--section-bg)', borderRadius: 3 }}>
                   <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: color, borderRadius: 3, transition: 'width 0.4s' }} />
                 </Box>
               </Box>
             )
           })}
-          <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #eef0f4' }}>
+          <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid var(--border-col)' }}>
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
               <AccessTimeIcon sx={{ fontSize: '0.75rem', color: '#94a3b8' }} />
               <Typography sx={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1132,12 +1132,12 @@ export default function NetworkPage() {
         </Box>
 
         {/* Status distribution */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 3 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 3 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
             Status Distribution
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mb: 2 }}>By response class</Typography>
-          <Box sx={{ height: 10, bgcolor: '#f1f5f9', borderRadius: 2, overflow: 'hidden', display: 'flex', mb: 2 }}>
+          <Box sx={{ height: 10, bgcolor: 'var(--section-bg)', borderRadius: 2, overflow: 'hidden', display: 'flex', mb: 2 }}>
             {Number(statusDist.p2) > 0 && <Box sx={{ flex: statusDist.s2, bgcolor: '#10b981', transition: 'flex 0.4s' }} />}
             {Number(statusDist.p4) > 0 && <Box sx={{ flex: statusDist.s4, bgcolor: '#f59e0b', transition: 'flex 0.4s' }} />}
             {Number(statusDist.p5) > 0 && <Box sx={{ flex: statusDist.s5, bgcolor: '#dc2626', transition: 'flex 0.4s' }} />}
@@ -1151,7 +1151,7 @@ export default function NetworkPage() {
               sx={{ py: 0.875, px: 1.25, mb: 0.5, bgcolor: bg, borderRadius: '3px' }}>
               <Stack direction="row" spacing={0.75} alignItems="center">
                 <Box sx={{ width: 8, height: 8, bgcolor: color, borderRadius: '50%' }} />
-                <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'Jost' }}>{label}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>{label}</Typography>
               </Stack>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color, fontFamily: 'Jost' }}>{count}</Typography>
@@ -1159,9 +1159,9 @@ export default function NetworkPage() {
               </Stack>
             </Stack>
           ))}
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between' }}>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Total requests</Typography>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               {filtered.length}
             </Typography>
           </Box>

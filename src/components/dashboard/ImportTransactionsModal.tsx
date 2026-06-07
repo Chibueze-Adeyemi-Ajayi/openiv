@@ -255,7 +255,7 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
         width: `min(${modalWidth}px, 96vw)`,
-        bgcolor: '#ffffff', zIndex: 1291,
+        bgcolor: 'var(--card-bg)', zIndex: 1291,
         boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
         animation: 'modalIn 0.22s cubic-bezier(0.16,1,0.3,1)',
         '@keyframes modalIn': { from: { opacity: 0, transform: 'translate(-50%,-48%) scale(0.97)' }, to: { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' } },
@@ -308,13 +308,13 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
               onClick={() => fileRef.current?.click()}
               sx={{
                 border: `2px dashed ${dragOver ? colorPalette.primary : '#cbd5e1'}`,
-                bgcolor: dragOver ? `${colorPalette.primary}06` : '#f8fafc',
+                bgcolor: dragOver ? `${colorPalette.primary}06` : 'var(--section-bg)',
                 p: 4, textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
                 '&:hover': { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` },
               }}
             >
               <UploadFileOutlinedIcon sx={{ fontSize: '2rem', color: dragOver ? colorPalette.primary : '#94a3b8', mb: 1 }} />
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                 Drop your file here, or <Box component="span" sx={{ color: colorPalette.primary }}>browse</Box>
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 0.5 }}>
@@ -375,9 +375,9 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
             )}
 
             {/* Preview table */}
-            <Box sx={{ border: '1px solid #eef0f4', maxHeight: 360, overflow: 'auto' }}>
+            <Box sx={{ border: '1px solid var(--border-col)', maxHeight: 360, overflow: 'auto' }}>
               {/* Header */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 120px 110px 80px 90px 90px', gap: 1.5, px: 1.5, py: 1, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4', position: 'sticky', top: 0 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 120px 110px 80px 90px 90px', gap: 1.5, px: 1.5, py: 1, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', position: 'sticky', top: 0 }}>
                 <Box />
                 {['Reference', 'Customer ID', 'Customer Name', 'Amount', 'Channel', 'Status', 'Risk'].map(h => (
                   <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -392,7 +392,7 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
                   <Box
                     key={i}
                     title={hasErr ? row._errors.join('\n') : undefined}
-                    sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 120px 110px 80px 90px 90px', gap: 1.5, px: 1.5, py: 1.125, borderBottom: '1px solid #f4f5f7', bgcolor: hasErr ? '#fff7f7' : 'transparent', '&:last-child': { borderBottom: 'none' }, alignItems: 'center' }}
+                    sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 120px 110px 80px 90px 90px', gap: 1.5, px: 1.5, py: 1.125, borderBottom: '1px solid var(--border-col)', bgcolor: hasErr ? '#fff7f7' : 'transparent', '&:last-child': { borderBottom: 'none' }, alignItems: 'center' }}
                   >
                     {hasErr
                       ? <ErrorOutlineRoundedIcon sx={{ fontSize: '0.875rem', color: '#ef4444' }} />
@@ -402,9 +402,9 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
                       {row.id || <Box component="span" sx={{ color: '#ef4444', fontStyle: 'italic' }}>missing</Box>}
                     </Typography>
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.customerId || '—'}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.customerName || '—'}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount ? row.amount.toLocaleString() : '—'}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{row.channel || '—'}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.customerName || '—'}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount ? row.amount.toLocaleString() : '—'}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{row.channel || '—'}</Typography>
                     <StatusBadge status={row.status || 'pending'} />
                     <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>{row.riskScore ?? 0}</Typography>
                   </Box>
@@ -452,18 +452,18 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
               <WarningAmberRoundedIcon sx={{ fontSize: '1.5rem', color: '#d97706' }} />
             </Box>
 
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>
               API Ingestion
             </Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.7, mb: 2 }}>
+            <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.7, mb: 2 }}>
               This process is <strong>delicate &amp; technical</strong> and requires developer access
               to configure securely.
             </Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.7, mb: 3 }}>
+            <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.7, mb: 3 }}>
               Kindly contact your tech team or reach out to us directly:
             </Typography>
 
-            <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', px: 2.5, py: 1.5, mb: 3, display: 'inline-block' }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 1.5, mb: 3, display: 'inline-block' }}>
               <Typography
                 component="a"
                 href="mailto:support@openiv.ng"
@@ -507,14 +507,14 @@ function ModalHeader({ title, showBack, onBack, onClose }: {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
       {showBack && (
-        <IconButton disableRipple size="small" onClick={onBack} sx={{ borderRadius: 0, color: '#64748b', mr: 0.5, ml: -0.5, '&:hover': { color: '#00288e' } }}>
+        <IconButton disableRipple size="small" onClick={onBack} sx={{ borderRadius: 0, color: '#64748b', mr: 0.5, ml: -0.5, '&:hover': { color: 'var(--heading-color)' } }}>
           <ArrowBackRoundedIcon sx={{ fontSize: '1rem' }} />
         </IconButton>
       )}
-      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', flex: 1 }}>
+      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', flex: 1 }}>
         {title}
       </Typography>
-      <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+      <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
         <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
       </IconButton>
     </Box>
@@ -529,14 +529,14 @@ function OptionCard({ icon, title, description, onClick, loading }: {
       onClick={loading ? undefined : onClick}
       sx={{
         display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1.75,
-        border: '1px solid #e2e8f0', cursor: loading ? 'wait' : 'pointer',
+        border: '1px solid var(--border-col)', cursor: loading ? 'wait' : 'pointer',
         transition: 'all 0.15s', bgcolor: 'transparent',
         '&:hover': loading ? {} : { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` },
       }}
     >
       <Box sx={{ flexShrink: 0 }}>{icon}</Box>
       <Box sx={{ flex: 1 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
           {title}
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>

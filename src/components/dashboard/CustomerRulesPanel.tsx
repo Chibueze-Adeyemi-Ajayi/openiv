@@ -247,7 +247,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Transaction Rules
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -258,7 +258,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
           <Button
             startIcon={<AddOutlinedIcon />}
             onClick={openAdd}
-            sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, whiteSpace: 'nowrap', flexShrink: 0, '&:hover': { bgcolor: '#1e293b' } }}
+            sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', textTransform: 'none', borderRadius: 0, px: 2, py: 0.875, whiteSpace: 'nowrap', flexShrink: 0, '&:hover': { bgcolor: 'var(--on-surface)' } }}
           >
             Add Rule
           </Button>
@@ -283,7 +283,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
           <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: '#64748b' }}>No rules configured</Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', mb: 2 }}>Add rules to restrict or monitor this customer's transactions.</Typography>
           {canModify && (
-            <Button onClick={openAdd} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: '#1e293b' } }}>
+            <Button onClick={openAdd} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: 'var(--on-surface)' } }}>
               Add the first rule
             </Button>
           )}
@@ -313,7 +313,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
                 <Typography sx={{ fontSize: '1rem', lineHeight: 1 }}>{rt.emoji}</Typography>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>{rt.label}</Typography>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>{rt.label}</Typography>
               </Box>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                 {rule.description || rt.description}
@@ -322,7 +322,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {/* Summary */}
             <Box sx={{ minWidth: 120, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#334155', fontFamily: 'Jost' }}>{paramSummary(rule)}</Typography>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>{paramSummary(rule)}</Typography>
               <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>constraint</Typography>
             </Box>
 
@@ -331,7 +331,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
               <Chip
                 label={rule.direction === 'inward' ? 'INWARD' : 'OUTWARD'}
                 size="small"
-                sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, fontSize: '0.5625rem', letterSpacing: '0.08em', borderRadius: 0, height: 18, '& .MuiChip-label': { px: 0.75 } }}
+                sx={{ bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)', fontWeight: 700, fontSize: '0.5625rem', letterSpacing: '0.08em', borderRadius: 0, height: 18, '& .MuiChip-label': { px: 0.75 } }}
               />
             )}
 
@@ -374,19 +374,19 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
       {/* Add / Edit dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
-        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, color: '#00288e', fontSize: '1rem', borderBottom: '1px solid #eef0f4', pb: 1.5 }}>
+        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, color: 'var(--heading-color)', fontSize: '1rem', borderBottom: '1px solid var(--border-col)', pb: 1.5 }}>
           {editTarget ? 'Edit Rule' : 'Add Transaction Rule'}
         </DialogTitle>
         <DialogContent sx={{ pt: 2.5 }}>
           <Stack gap={2.5}>
             {/* Rule type */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rule Type</Typography>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rule Type</Typography>
               <Select
                 fullWidth size="small" value={form.ruleType}
                 disabled={!!editTarget}
                 onChange={e => setForm(f => ({ ...DEFAULT_FORM, ruleType: e.target.value as RuleType, action: f.action, description: f.description }))}
-                sx={{ borderRadius: 0, fontFamily: 'Jost', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' } }}
+                sx={{ borderRadius: 0, fontFamily: 'Jost', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-col)' } }}
               >
                 {(Object.entries(RULE_TYPES) as [RuleType, RuleTypeConfig][]).map(([key, val]) => (
                   <MenuItem key={key} value={key} sx={{ fontFamily: 'Jost' }}>
@@ -407,11 +407,11 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             {/* Dynamic fields */}
             {cfg.fields.includes('amount') && (
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Amount Limit</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Amount Limit</Typography>
                 <TextField
                   fullWidth size="small" type="number" value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: '0.875rem', color: '#475569' }}>₦</Typography></InputAdornment> }}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>₦</Typography></InputAdornment> }}
                   placeholder="e.g. 500000"
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
                 />
@@ -421,14 +421,14 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             {cfg.fields.includes('velocity') && (
               <Stack direction="row" gap={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Max Transactions</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Max Transactions</Typography>
                   <TextField fullWidth size="small" type="number" value={form.maxCount}
                     onChange={e => setForm(f => ({ ...f, maxCount: e.target.value }))}
                     placeholder="e.g. 5"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Window (hours)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Window (hours)</Typography>
                   <TextField fullWidth size="small" type="number" value={form.windowHours}
                     onChange={e => setForm(f => ({ ...f, windowHours: e.target.value }))}
                     placeholder="e.g. 24"
@@ -439,7 +439,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {cfg.fields.includes('banks') && (
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Banks (comma-separated)</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Banks (comma-separated)</Typography>
                 <TextField
                   fullWidth size="small" value={form.banks}
                   onChange={e => setForm(f => ({ ...f, banks: e.target.value }))}
@@ -452,7 +452,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {cfg.fields.includes('channels') && (
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Channels</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Channels</Typography>
                 <Stack direction="row" flexWrap="wrap" gap={1}>
                   {CHANNELS.map(ch => (
                     <Chip
@@ -476,7 +476,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             {cfg.fields.includes('rapidWithdrawal') && (
               <Stack direction="row" gap={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Min Withdrawal % of Deposit</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Min Withdrawal % of Deposit</Typography>
                   <TextField fullWidth size="small" type="number" value={form.withdrawalRatio}
                     onChange={e => setForm(f => ({ ...f, withdrawalRatio: e.target.value }))}
                     placeholder="e.g. 50"
@@ -485,7 +485,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>Flag if withdrawal exceeds this % of recent deposit.</Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lookback Window (hours)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lookback Window (hours)</Typography>
                   <TextField fullWidth size="small" type="number" value={form.withdrawalWindowHours}
                     onChange={e => setForm(f => ({ ...f, withdrawalWindowHours: e.target.value }))}
                     placeholder="e.g. 6"
@@ -497,7 +497,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             {cfg.fields.includes('suddenWithdrawal') && (
               <Stack direction="row" gap={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Time Window (minutes)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Time Window (minutes)</Typography>
                   <TextField fullWidth size="small" type="number" value={form.suddenWdMinutes}
                     onChange={e => setForm(f => ({ ...f, suddenWdMinutes: e.target.value }))}
                     placeholder="e.g. 30"
@@ -506,7 +506,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.5 }}>Flag if a withdrawal occurs within this many minutes of a deposit.</Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Min Withdrawal Amount (optional)</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Min Withdrawal Amount (optional)</Typography>
                   <TextField fullWidth size="small" type="number" value={form.suddenWdMinAmount}
                     onChange={e => setForm(f => ({ ...f, suddenWdMinAmount: e.target.value }))}
                     placeholder="e.g. 50000 — leave blank for any amount"
@@ -521,7 +521,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {/* Direction */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Applies To</Typography>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Applies To</Typography>
               <Stack gap={0.75}>
                 {DIRECTION_OPTIONS.map(d => (
                   <Box key={d.value} onClick={() => setForm(f => ({ ...f, direction: d.value }))}
@@ -531,7 +531,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', border: `2px solid ${form.direction === d.value ? colorPalette.primary : '#cbd5e1'}`,
                       bgcolor: form.direction === d.value ? colorPalette.primary : 'transparent', flexShrink: 0 }} />
                     <Box>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>{d.label}</Typography>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>{d.label}</Typography>
                       <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>{d.hint}</Typography>
                     </Box>
                   </Box>
@@ -541,7 +541,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {/* Action */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Action When Triggered</Typography>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Action When Triggered</Typography>
               <Stack gap={1}>
                 {(Object.entries(ACTION_CONFIG) as [RuleAction, typeof ACTION_CONFIG[RuleAction]][]).map(([key, ac]) => (
                   <Box
@@ -555,7 +555,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
                     }}
                   >
                     <Chip label={ac.label} size="small" sx={{ bgcolor: ac.bg, color: ac.color, fontWeight: 700, fontSize: '0.625rem', borderRadius: 0, height: 18, '& .MuiChip-label': { px: 0.75 } }} />
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155' }}>{ac.hint}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>{ac.hint}</Typography>
                   </Box>
                 ))}
               </Stack>
@@ -563,7 +563,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
             {/* Description */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note (optional)</Typography>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note (optional)</Typography>
               <TextField
                 fullWidth size="small" value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -573,11 +573,11 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
             </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', gap: 1 }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', gap: 1 }}>
           <Button onClick={() => setDialogOpen(false)} sx={{ fontFamily: 'Jost', textTransform: 'none', color: '#64748b', borderRadius: 0 }}>Cancel</Button>
           <Button
             onClick={handleSave} disabled={saving}
-            sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2.5, '&:hover': { bgcolor: '#1e293b' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
+            sx={{ bgcolor: colorPalette.primary, color: '#fff', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', borderRadius: 0, px: 2.5, '&:hover': { bgcolor: 'var(--on-surface)' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
           >
             {saving ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : editTarget ? 'Save Changes' : 'Create Rule'}
           </Button>
@@ -586,7 +586,7 @@ export default function CustomerRulesPanel({ customerId }: { customerId: string 
 
       {/* Delete confirm */}
       <Dialog open={deleteId != null} onClose={() => setDeleteId(null)} PaperProps={{ sx: { borderRadius: 0, maxWidth: 400 } }}>
-        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>Delete Rule?</DialogTitle>
+        <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, color: 'var(--on-surface)', fontSize: '1rem' }}>Delete Rule?</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: '0.875rem', color: '#64748b' }}>
             This rule will stop being enforced immediately. This action cannot be undone.

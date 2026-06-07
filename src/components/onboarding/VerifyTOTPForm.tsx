@@ -34,7 +34,7 @@ const primaryButtonSx = {
 const labelSx = {
   fontSize: '0.875rem',
   fontWeight: 600,
-  color: '#475569',
+  color: 'var(--on-surface-variant)',
   mb: 1,
   fontFamily: 'Jost',
 }
@@ -92,14 +92,14 @@ export default function VerifyTOTPForm({
             fontSize: '1.625rem',
             fontWeight: 700,
             fontFamily: 'Jost',
-            color: '#00288e',
+            color: 'var(--heading-color)',
             letterSpacing: '-0.015em',
             mb: 0.75,
           }}
         >
           {userName ? `Welcome back, ${userName}` : 'Two-Factor Authentication'}
         </Typography>
-        <Typography sx={{ fontSize: '0.9375rem', color: '#64748b', lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
           Please verify this is you using the 6 digits verification code from your authenticator app
         </Typography>
       </Box>
@@ -122,7 +122,7 @@ export default function VerifyTOTPForm({
                       fontSize: '1.5rem',
                       fontWeight: 600,
                       padding: '24px 0',
-                      color: '#000000',
+                      color: 'var(--on-surface)',
                     },
                   }}
                   value={digit}
@@ -136,12 +136,12 @@ export default function VerifyTOTPForm({
                       bgcolor: 'transparent',
                       borderRadius: 0,
                       transition: 'all 0.2s ease',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        border: digit ? '1px solid #00288e' : '1px solid #cbd5e1',
+                      '& fieldset': {
+                        border: `1px solid ${digit ? '#00288e' : '#cbd5e1'} !important`,
                         transition: 'all 0.2s ease',
                       },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { border: '1px solid #00288e' },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: '1px solid #00288e' },
+                      '&:hover fieldset': { border: '1px solid #00288e !important' },
+                      '&.Mui-focused fieldset': { border: '1px solid #00288e !important' },
                       '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(0, 40, 142, 0.08)' },
                     },
                   }}

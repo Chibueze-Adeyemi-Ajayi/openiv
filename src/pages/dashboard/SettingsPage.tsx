@@ -22,30 +22,34 @@ import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
 import { institutionApi, type SigningCredentials } from '@/api/institution'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { kycApi, type KycEvaluationConfig } from '@/api/kyc'
+import { useThemeMode } from '@/components/dashboard/ThemeContext'
+import { profileApi } from '@/api/profile'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 
 const labelSx = {
   fontSize: '0.75rem',
   fontWeight: 600,
-  color: '#475569',
+  color: 'var(--on-surface-variant)',
   mb: 0.875,
   fontFamily: 'Jost',
 }
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#f5f3fb',
+    bgcolor: 'var(--section-bg)',
     borderRadius: 0,
     '& fieldset': { border: '1px solid transparent' },
     '&:hover fieldset': { borderColor: '#e4dff2' },
     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+    '&.Mui-focused': { bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
   },
   '& .MuiOutlinedInput-input': {
     fontSize: '0.875rem',
     fontFamily: 'Jost',
     py: '14px',
     px: '14px',
-    color: '#00288e',
+    color: 'var(--heading-color)',
   },
 }
 
@@ -97,18 +101,18 @@ function TimezoneSection() {
   const isDirty = currentTz !== savedTz
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+    <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <LanguageOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Institution Timezone
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
             Configure the default timezone for your institution's transaction reporting and analysis
           </Typography>
         </Box>
-        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
       <Box sx={{ p: 3 }}>
         <Grid container spacing={3} alignItems="flex-end">
@@ -145,7 +149,7 @@ function TimezoneSection() {
                   fontFamily: 'Jost',
                   borderRadius: 0,
                   textTransform: 'none',
-                  '&:hover': { bgcolor: '#1e293b' },
+                  '&:hover': { bgcolor: 'var(--on-surface)' },
                   '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' }
                 }}
               >
@@ -177,11 +181,11 @@ function EurekaCompanionSection() {
       <Box
         data-ai-analyzable="true"
         data-ai-description="Eureka Companion: Master configuration for the AI analytical cursor. Toggle the wave-glow interaction and contextual tooltip system across the entire dashboard."
-        sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <AutoAwesomeOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Eureka Companion
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -206,14 +210,14 @@ function EurekaCompanionSection() {
           </Box>
           <Box sx={{ flex: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 Eureka Realtime Buddy
               </Typography>
               <Chip
                 label={eurekaEnabled ? 'Active' : 'Inactive'}
                 size="small"
                 sx={{
-                  bgcolor: eurekaEnabled ? '#f0fdf4' : '#f8fafc',
+                  bgcolor: eurekaEnabled ? '#f0fdf4' : 'var(--section-bg)',
                   color: eurekaEnabled ? '#10b981' : '#94a3b8',
                   fontWeight: 700,
                   fontSize: '0.625rem',
@@ -257,7 +261,7 @@ function EurekaCompanionSection() {
                   }
                 }}
               />
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>
                 {eurekaEnabled ? 'Enabled' : 'Disabled'}
               </Typography>
               <Button
@@ -372,17 +376,17 @@ function AmlSettingsSection() {
   if (loading) return null
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+    <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             AML Case Settings
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
             Configure automatic case creation behavior and notifications for fraud detection
           </Typography>
         </Box>
-        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
 
       {/* Auto-open cases toggle */}
@@ -394,11 +398,11 @@ function AmlSettingsSection() {
           justifyContent: 'space-between',
           alignItems: 'flex-start',
           gap: 2,
-          borderBottom: '1px solid #f4f5f7',
+          borderBottom: '1px solid var(--border-col)',
         }}
       >
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
             Auto-open investigation cases
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
@@ -435,7 +439,7 @@ function AmlSettingsSection() {
 
       {/* Email notifications section */}
       <Box sx={{ px: 3, py: 2.5 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 1 }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>
           Send case notifications to
         </Typography>
         <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5, mb: 2 }}>
@@ -459,7 +463,7 @@ function AmlSettingsSection() {
             sx={{
               flex: 1,
               '& .MuiOutlinedInput-root': {
-                bgcolor: '#f5f3fb',
+                bgcolor: 'var(--section-bg)',
                 borderRadius: 0,
                 fontSize: '0.875rem',
                 fontFamily: 'Jost',
@@ -486,7 +490,7 @@ function AmlSettingsSection() {
               textTransform: 'none',
               borderRadius: 0,
               fontFamily: 'Jost',
-              '&:hover': { bgcolor: '#1e293b' },
+              '&:hover': { bgcolor: 'var(--on-surface)' },
               '&:disabled': { bgcolor: '#cbd5e1', color: '#94a3b8' }
             }}
           >
@@ -676,20 +680,20 @@ function BeamWindowSection() {
     <Box
       data-ai-analyzable="true"
       data-ai-description="Beam Time Window: Interactive security tuner for transaction timestamp tolerance. Drag the slider to set how wide the acceptance window is. Security strength indicator updates in real time."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}
     >
       {/* Header */}
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <TimerOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Beam Time Window
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
             Set how closely a transaction's recorded date must match its arrival time — tighter means stronger fraud protection
           </Typography>
         </Box>
-        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         {savedIdx !== secondsToIdx(180) && (
           <Box
             onClick={() => setDraftIdx(secondsToIdx(180))}
@@ -704,7 +708,7 @@ function BeamWindowSection() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 340px' }, gap: 0 }}>
 
         {/* ── LEFT: slider zone ── */}
-        <Box sx={{ px: 4, pt: 4, pb: isDirty ? 0 : 4, borderRight: { lg: '1px solid #eef0f4' } }}>
+        <Box sx={{ px: 4, pt: 4, pb: isDirty ? 0 : 4, borderRight: { lg: '1px solid var(--border-col)' } }}>
 
           {/* Large time display */}
           <Box sx={{ textAlign: 'center', mb: 5 }}>
@@ -809,7 +813,7 @@ function BeamWindowSection() {
                     py: 0.625,
                     cursor: 'pointer',
                     border: `1px solid ${active ? qProfile.color : '#e4dff2'}`,
-                    bgcolor: active ? qProfile.color : '#fafbfc',
+                    bgcolor: active ? qProfile.color : 'var(--section-bg)',
                     color: active ? '#fff' : '#475569',
                     fontSize: '0.75rem',
                     fontWeight: 700,
@@ -837,8 +841,8 @@ function BeamWindowSection() {
                 mx: -4,
                 px: 4,
                 py: 2,
-                borderTop: '1px solid #eef0f4',
-                bgcolor: '#fafbfc',
+                borderTop: '1px solid var(--border-col)',
+                bgcolor: 'var(--card-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
@@ -847,7 +851,7 @@ function BeamWindowSection() {
               }}
             >
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontWeight: 600 }}>
                   Unsaved change:&nbsp;
                   <Box component="span" sx={{ textDecoration: 'line-through', color: '#94a3b8' }}>
                     {BEAM_PRESETS[savedIdx].display}
@@ -945,7 +949,7 @@ function BeamWindowSection() {
               )}
             </Box>
 
-            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.65 }}>
+            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.65 }}>
               {profile.desc}
             </Typography>
           </Box>
@@ -993,7 +997,7 @@ function BeamWindowSection() {
             <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', fontWeight: 600 }}>
               Active:&nbsp;
-              <Box component="span" sx={{ color: '#00288e', fontWeight: 700 }}>
+              <Box component="span" sx={{ color: 'var(--heading-color)', fontWeight: 700 }}>
                 {BEAM_PRESETS[savedIdx].display}
               </Box>
               {isDirty && (
@@ -1049,11 +1053,11 @@ function DeveloperSandboxSection() {
     <Box
       data-ai-analyzable="true"
       data-ai-description="Developer Sandbox: Isolated environment configuration. Redirect all API traffic to a custom development URL. Changes require a page reload to re-initialize the network client."
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <ScienceOutlinedIcon sx={{ fontSize: '1.1rem', color: '#c2410c' }} />
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Developer Sandbox
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1064,7 +1068,7 @@ function DeveloperSandboxSection() {
       <Box sx={{ px: 3, py: 3 }}>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 7 }}>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', mb: 1, fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', mb: 1, fontFamily: 'Jost' }}>
               Sandbox Environment URL
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1074,8 +1078,8 @@ function DeveloperSandboxSection() {
                 placeholder="e.g. http://localhost:8081"
                 sx={{
                   flex: 1,
-                  bgcolor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  bgcolor: 'var(--card-bg)',
+                  border: '1px solid var(--border-col)',
                   px: 1.5,
                   height: 42,
                   fontSize: '0.875rem',
@@ -1095,7 +1099,7 @@ function DeveloperSandboxSection() {
                   fontWeight: 700,
                   textTransform: 'none',
                   borderRadius: 0,
-                  '&:hover': { bgcolor: '#1e293b' }
+                  '&:hover': { bgcolor: 'var(--on-surface)' }
                 }}
               >
                 {isApplying ? 'Applying...' : 'Apply & Reload'}
@@ -1106,7 +1110,7 @@ function DeveloperSandboxSection() {
             </Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 5 }}>
-            <Box sx={{ p: 2, bgcolor: sandboxEnabled ? '#fff7ed' : '#f8fafc', border: `1px solid ${sandboxEnabled ? '#ffedd5' : '#e2e8f0'}`, height: '100%' }}>
+            <Box sx={{ p: 2, bgcolor: sandboxEnabled ? '#fff7ed' : 'var(--section-bg)', border: `1px solid ${sandboxEnabled ? '#ffedd5' : 'var(--border-col)'}`, height: '100%' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box>
                   <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: sandboxEnabled ? '#c2410c' : '#64748b', fontFamily: 'Jost' }}>
@@ -1228,14 +1232,14 @@ function FilingCredentialsSection() {
     const value = credentials[field]
     return (
       <Box key={field} sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', mb: 1.25, fontFamily: 'Jost' }}>
+        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', mb: 1.25, fontFamily: 'Jost' }}>
           {label}
         </Typography>
         <Box
           sx={{
             height: 144,
             border: value ? '1px solid #e4dff2' : '2px dashed #cbd5e1',
-            bgcolor: '#fafbfc',
+            bgcolor: 'var(--card-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1327,24 +1331,24 @@ function FilingCredentialsSection() {
 
   return (
     <>
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <GavelOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Filing Credentials
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
               Official stamp and signature embedded in NFIU report filings and compliance documents
             </Typography>
           </Box>
-          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         </Box>
         <Box sx={{ p: 3 }}>
           <Stack
             direction={{ xs: 'column', md: 'row' }}
             spacing={3}
-            divider={<Box sx={{ width: '1px', bgcolor: '#eef0f4', display: { xs: 'none', md: 'block' } }} />}
+            divider={<Box sx={{ width: '1px', bgcolor: 'var(--border-col)', display: { xs: 'none', md: 'block' } }} />}
             sx={{ mb: 3 }}
           >
             {renderCard('officialStamp', 'Official Stamp')}
@@ -1406,29 +1410,29 @@ function KycReEvaluationSection() {
   }, [])
 
   return (
-    <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+    <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
         <RefreshRoundedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Customer Re-evaluation Schedule
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
             Configure when the KYC pipeline should automatically re-run for existing customers
           </Typography>
         </Box>
-        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+        {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
       </Box>
 
       <Box sx={{ p: 3 }}>
-        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, mb: 2.5, p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+        <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, mb: 2.5, p: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
           After every transaction beam, if a customer's last KYC evaluation is older than the selected interval, the system will automatically re-run the full KYC pipeline and update their risk scores.
         </Typography>
 
         {/* Enable toggle */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, p: 2, border: '1px solid #eef0f4', bgcolor: '#fafbfc' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, p: 2, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
               Enable automatic re-evaluation
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -1493,10 +1497,10 @@ function KycReEvaluationSection() {
 
         {/* Current config display */}
         {evalConfig && (
-          <Box sx={{ mb: 2.5, px: 2, py: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+          <Box sx={{ mb: 2.5, px: 2, py: 1.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
             <Box>
               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>Current setting</Typography>
-              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                 {evalConfig.enabled ? `Every ${evalConfig.intervalDays} days` : 'Disabled'}
               </Typography>
             </Box>
@@ -1541,7 +1545,7 @@ function KycReEvaluationSection() {
             px: 3, py: 1.25, fontSize: '0.875rem', fontWeight: 700,
             fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
             boxShadow: 'none',
-            '&:hover': { bgcolor: '#1e293b' },
+            '&:hover': { bgcolor: 'var(--on-surface)' },
             '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
           }}
         >
@@ -1601,17 +1605,17 @@ function OrganizationSection() {
 
   return (
     <>
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Organization
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
               Profile and contact details for your institution
             </Typography>
           </Box>
-          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: '#f8fafc', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
+          {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         </Box>
         <Stack sx={{ p: 3 }} gap={2.5}>
           <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Institution name. current value: ${name}.`}>
@@ -1639,7 +1643,7 @@ function OrganizationSection() {
                 bgcolor: colorPalette.primary, color: '#ffffff',
                 px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600,
                 fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e293b' },
+                '&:hover': { bgcolor: 'var(--on-surface)' },
                 '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >
@@ -1668,6 +1672,72 @@ function OrganizationSection() {
   )
 }
 
+function AppearanceSection() {
+  const { mode, setMode } = useThemeMode()
+  const [saving, setSaving] = useState(false)
+
+  const handleSelect = async (selected: 'light' | 'dark') => {
+    setMode(selected)
+    setSaving(true)
+    try {
+      await profileApi.updateTheme(selected)
+    } catch { /* non-critical — localStorage already saved */ }
+    setSaving(false)
+  }
+
+  const options: { value: 'light' | 'dark'; label: string; icon: JSX.Element; desc: string }[] = [
+    { value: 'light', label: 'Light', icon: <LightModeOutlinedIcon sx={{ fontSize: '1.25rem' }} />, desc: 'Clean, high-contrast workspace' },
+    { value: 'dark',  label: 'Dark',  icon: <DarkModeOutlinedIcon  sx={{ fontSize: '1.25rem' }} />, desc: 'Easy on the eyes, night-friendly' },
+  ]
+
+  return (
+    <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+        <DarkModeOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
+        <Box>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost' }}>
+            Appearance
+          </Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 0.25 }}>
+            Choose your preferred interface theme. Synced across all your devices.
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={{ px: 3, py: 2.5, display: 'flex', gap: 2 }}>
+        {options.map((opt) => {
+          const active = mode === opt.value
+          return (
+            <Box
+              key={opt.value}
+              onClick={() => !saving && handleSelect(opt.value)}
+              sx={{
+                flex: 1, p: 2.25, cursor: saving ? 'default' : 'pointer',
+                border: '2px solid',
+                borderColor: active ? colorPalette.primary : 'divider',
+                bgcolor: active ? `${colorPalette.primary}08` : 'transparent',
+                transition: 'all 0.18s',
+                display: 'flex', flexDirection: 'column', gap: 1,
+                '&:hover': !saving ? { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` } : {},
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: active ? colorPalette.primary : 'text.secondary' }}>
+                {opt.icon}
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, fontFamily: 'Jost', color: active ? colorPalette.primary : 'text.primary' }}>
+                  {opt.label}
+                </Typography>
+                {active && (
+                  <Box sx={{ ml: 'auto', width: 8, height: 8, borderRadius: '50%', bgcolor: colorPalette.primary, flexShrink: 0 }} />
+                )}
+              </Box>
+              <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{opt.desc}</Typography>
+            </Box>
+          )
+        })}
+      </Box>
+    </Box>
+  )
+}
+
 export default function SettingsPage() {
   const { can } = useRbac()
   const [geoFenceOpen, setGeoFenceOpen] = useState(false)
@@ -1678,7 +1748,7 @@ export default function SettingsPage() {
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
             Manage
           </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
             Settings
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -1695,6 +1765,9 @@ export default function SettingsPage() {
 
           {/* Beam Time Window */}
           <BeamWindowSection />
+
+          {/* Appearance / Theme — hidden until dark theme is re-enabled */}
+          {/* <AppearanceSection /> */}
 
           {/* Eureka Companion */}
           <EurekaCompanionSection />
@@ -1713,11 +1786,11 @@ export default function SettingsPage() {
 
           {/* Security — admin only */}
           {can('settings.modify') && (
-            <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
                 <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
                 <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Security
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -1733,7 +1806,7 @@ export default function SettingsPage() {
                   px: 3, py: 2.25,
                   display: 'flex', alignItems: 'center', gap: 2,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: '#f8fafc' },
+                  '&:hover': { bgcolor: 'var(--section-bg)' },
                   transition: 'background 0.15s',
                 }}
               >
@@ -1746,7 +1819,7 @@ export default function SettingsPage() {
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       Geographical Access Fence
                     </Typography>
                     <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />

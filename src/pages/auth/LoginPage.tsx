@@ -57,24 +57,24 @@ function TransferDialog({
   }
 
   return (
-    <Dialog open disableEscapeKeyDown PaperProps={{ sx: { borderRadius: 0, width: '100%', maxWidth: 420 } }}>
-      <Box sx={{ px: 3, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid #eef0f4' }}>
+    <Dialog open disableEscapeKeyDown PaperProps={{ sx: { borderRadius: 0, width: '100%', maxWidth: 420, bgcolor: 'var(--card-bg)', color: 'var(--on-surface)' } }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid var(--border-col)' }}>
         <Box sx={{ width: 36, height: 36, bgcolor: `${colorPalette.primary}0f`,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <LockOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Active session detected
           </Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+          <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>
             A session is already open on this device.
           </Typography>
         </Box>
       </Box>
 
       <Box sx={{ px: 3, py: 2.5 }}>
-        <Typography sx={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, mb: 2.5 }}>
+        <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, mb: 2.5 }}>
           To continue here, enter your authenticator code. Your existing session will be
           closed automatically.
         </Typography>
@@ -96,8 +96,8 @@ function TransferDialog({
             mb: 1,
             '& .MuiOutlinedInput-root': {
               borderRadius: 0,
-              bgcolor: '#f5f3fb',
-              '& fieldset': { border: `1px solid ${error ? '#dc2626' : 'transparent'}` },
+              bgcolor: 'var(--section-bg)',
+              '& fieldset': { border: `1px solid ${error ? '#dc2626' : 'var(--border-col)'}` },
               '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
             },
           }}
@@ -121,7 +121,7 @@ function TransferDialog({
             onClick={onCancel}
             sx={{ color: '#64748b', py: 1.25, borderRadius: 0, fontSize: '0.875rem',
               fontWeight: 600, fontFamily: 'Jost', textTransform: 'none',
-              '&:hover': { bgcolor: '#f8fafc' } }}
+              '&:hover': { bgcolor: 'var(--section-bg)' } }}
           >
             Cancel
           </Button>

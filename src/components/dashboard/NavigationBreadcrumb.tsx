@@ -30,7 +30,7 @@ export default function NavigationBreadcrumb({ currentLabel }: Props) {
         gap: 0.5,
         mb: 2.5,
         pb: 2,
-        borderBottom: '1px solid #f4f5f7',
+        borderBottom: '1px solid var(--border-col)',
         flexWrap: 'wrap',
       }}
     >

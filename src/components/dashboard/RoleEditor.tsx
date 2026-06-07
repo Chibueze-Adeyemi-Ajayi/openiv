@@ -170,7 +170,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
           width: '100%',
           maxWidth: 640,
           maxHeight: '90vh',
-          bgcolor: '#ffffff',
+          bgcolor: 'var(--card-bg)',
           zIndex: 1291,
           boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
           display: 'flex',
@@ -183,12 +183,12 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
         }}
       >
         {/* Header */}
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
               {mode === 'create' ? 'Create custom role' : 'Edit role'}
             </Typography>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
               {mode === 'create' ? 'Define a new role' : `${initial?.name}`}
             </Typography>
           </Box>
@@ -202,7 +202,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
           <Stack gap={2.5}>
             {/* Name */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                 Role name
               </Typography>
               <TextField
@@ -212,21 +212,21 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                 placeholder="e.g. Branch Manager, Risk Lead"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    bgcolor: '#f5f3fb',
+                    bgcolor: 'var(--section-bg)',
                     borderRadius: 0,
                     '& fieldset': { border: '1px solid transparent' },
                     '&:hover fieldset': { borderColor: '#e4dff2' },
                     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                    '&.Mui-focused': { bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                   },
-                  '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '12px', color: '#00288e' },
+                  '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '12px', color: 'var(--heading-color)' },
                 }}
               />
             </Box>
 
             {/* Description */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                 Description
               </Typography>
               <TextField
@@ -238,22 +238,22 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                 rows={2}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    bgcolor: '#f5f3fb',
+                    bgcolor: 'var(--section-bg)',
                     borderRadius: 0,
                     p: '12px',
                     '& fieldset': { border: '1px solid transparent' },
                     '&:hover fieldset': { borderColor: '#e4dff2' },
                     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                    '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                    '&.Mui-focused': { bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                   },
-                  '& textarea': { fontSize: '0.875rem', fontFamily: 'Jost', color: '#00288e' },
+                  '& textarea': { fontSize: '0.875rem', fontFamily: 'Jost', color: 'var(--heading-color)' },
                 }}
               />
             </Box>
 
             {/* Color */}
             <Box>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                 Color
               </Typography>
               <Stack direction="row" gap={1}>
@@ -281,7 +281,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
             {/* Permissions */}
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', fontFamily: 'Jost' }}>
                   Permissions
                 </Typography>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace' }}>
@@ -291,9 +291,9 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
 
               <Stack gap={1.25}>
                 {permissionGroups.map((g) => (
-                  <Box key={g.area} sx={{ border: '1px solid #eef0f4' }}>
-                    <Box sx={{ px: 1.5, py: 0.875, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
-                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Jost' }}>
+                  <Box key={g.area} sx={{ border: '1px solid var(--border-col)' }}>
+                    <Box sx={{ px: 1.5, py: 0.875, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Jost' }}>
                         {g.label}
                       </Typography>
                     </Box>
@@ -310,9 +310,9 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                             alignItems: 'center',
                             gap: 1.25,
                             cursor: 'pointer',
-                            borderBottom: i === g.actions.length - 1 ? 'none' : '1px solid #f4f5f7',
+                            borderBottom: i === g.actions.length - 1 ? 'none' : '1px solid var(--border-col)',
                             transition: 'background 0.15s',
-                            '&:hover': { bgcolor: '#fafbfc' },
+                            '&:hover': { bgcolor: 'var(--card-bg)' },
                           }}
                         >
                           <Box
@@ -321,7 +321,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                               height: 18,
                               border: '1.5px solid',
                               borderColor: granted ? color : '#cbd5e1',
-                              bgcolor: granted ? color : '#ffffff',
+                              bgcolor: granted ? color : 'var(--card-bg)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -332,7 +332,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                             {granted && <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />}
                           </Box>
                           <Box sx={{ flex: 1 }}>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                               {a.label}
                             </Typography>
                             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', mt: 0.125 }}>
@@ -350,7 +350,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
         </Box>
 
         {/* Footer */}
-        <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
             Saving requires authenticator confirmation
           </Typography>
@@ -358,8 +358,8 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
             <Button
               onClick={onClose}
               sx={{
-                bgcolor: '#ffffff',
-                color: '#475569',
+                bgcolor: 'var(--card-bg)',
+                color: 'var(--on-surface-variant)',
                 border: '1px solid #e5e7eb',
                 px: 2.25,
                 py: 1,
@@ -368,7 +368,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                 fontFamily: 'Jost',
                 borderRadius: 0,
                 textTransform: 'none',
-                '&:hover': { bgcolor: '#f8fafc' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Cancel
@@ -387,7 +387,7 @@ export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: R
                 borderRadius: 0,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
+                '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)' },
                 '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
               }}
             >

@@ -40,10 +40,10 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 interface ReportTypeMeta {
   id: ReportType; label: string; short: string
   icon: React.ReactNode; color: string; requiresSubject: boolean
-  minPlan: 'starter' | 'growth' | 'enterprise'
+  minPlan: 'starter' | 'growth' | 'scale' | 'enterprise'
 }
 
-const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, enterprise: 2 }
+const PLAN_RANK: Record<string, number> = { starter: 0, growth: 1, scale: 2, enterprise: 3 }
 
 const REPORT_TYPES: ReportTypeMeta[] = [
   { id: 'STR',       label: 'Suspicious Transaction Report', short: 'STR', icon: <DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />,       color: '#dc2626', requiresSubject: true,  minPlan: 'starter' },
@@ -105,8 +105,8 @@ interface Props {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const LBL = { fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', mb: 0.625, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }
-const FLD = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem', bgcolor: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' } }
-const AUTO_SX = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.875rem', bgcolor: '#fff', p: '4px 8px !important' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' } }
+const FLD = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.9375rem', bgcolor: '#fff' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-col)' } }
+const AUTO_SX = { '& .MuiOutlinedInput-root': { borderRadius: 0, fontSize: '0.875rem', bgcolor: '#fff', p: '4px 8px !important' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-col)' } }
 
 // Compliance-relevant roles for officer dropdown
 const COMPLIANCE_ROLES = ['owner', 'admin', 'compliance', 'cmlco', 'mlro', 'officer', 'analyst', 'auditor']
@@ -247,8 +247,8 @@ interface DocProps {
 function DocField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   const empty = !value?.trim()
   return (
-    <Box sx={{ display: 'flex', borderBottom: '1px solid #eef0f4', '&:last-child': { borderBottom: 'none' } }}>
-      <Box sx={{ width: 148, flexShrink: 0, bgcolor: '#f7f8fb', borderRight: '1px solid #eef0f4', px: 1.25, py: 0.875, display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
+      <Box sx={{ width: 148, flexShrink: 0, bgcolor: 'var(--section-bg)', borderRight: '1px solid var(--border-col)', px: 1.25, py: 0.875, display: 'flex', alignItems: 'center' }}>
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#64748b', lineHeight: 1.3 }}>{label}</Typography>
       </Box>
       <Box sx={{ flex: 1, px: 1.5, py: 0.875, display: 'flex', alignItems: 'center' }}>
@@ -266,10 +266,10 @@ function DocField2({ label1, value1, label2, value2, mono1, mono2 }: { label1: s
   const lSx = { fontSize: '0.6875rem', fontWeight: 600, color: '#64748b', lineHeight: 1.3 }
   const vSx = (e: boolean, mono?: boolean) => ({ fontSize: '0.8125rem', color: e ? '#cbd5e1' : '#00288e', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', fontStyle: e ? 'italic' : 'normal' })
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: '148px 1fr 148px 1fr', borderBottom: '1px solid #eef0f4', '&:last-child': { borderBottom: 'none' } }}>
-      <Box sx={{ ...cellSx, bgcolor: '#f7f8fb', borderRight: '1px solid #eef0f4' }}><Typography sx={lSx}>{label1}</Typography></Box>
-      <Box sx={{ ...cellSx, borderRight: '1px solid #eef0f4' }}><Typography sx={vSx(e1, mono1)}>{e1 ? '——' : value1}</Typography></Box>
-      <Box sx={{ ...cellSx, bgcolor: '#f7f8fb', borderRight: '1px solid #eef0f4' }}><Typography sx={lSx}>{label2}</Typography></Box>
+    <Box sx={{ display: 'grid', gridTemplateColumns: '148px 1fr 148px 1fr', borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
+      <Box sx={{ ...cellSx, bgcolor: 'var(--section-bg)', borderRight: '1px solid var(--border-col)' }}><Typography sx={lSx}>{label1}</Typography></Box>
+      <Box sx={{ ...cellSx, borderRight: '1px solid var(--border-col)' }}><Typography sx={vSx(e1, mono1)}>{e1 ? '——' : value1}</Typography></Box>
+      <Box sx={{ ...cellSx, bgcolor: 'var(--section-bg)', borderRight: '1px solid var(--border-col)' }}><Typography sx={lSx}>{label2}</Typography></Box>
       <Box sx={{ ...cellSx }}><Typography sx={vSx(e2, mono2)}>{e2 ? '——' : value2}</Typography></Box>
     </Box>
   )
@@ -281,7 +281,7 @@ function DocSection({ title, children }: { title: string; children: React.ReactN
       <Box sx={{ bgcolor: '#003366', px: 1.5, py: 0.75 }}>
         <Typography sx={{ fontSize: '0.625rem', fontWeight: 800, color: '#fff', letterSpacing: '0.14em', textTransform: 'uppercase' }}>{title}</Typography>
       </Box>
-      <Box sx={{ border: '1px solid #e2e8f0', borderTop: 'none' }}>{children}</Box>
+      <Box sx={{ border: '1px solid var(--border-col)', borderTop: 'none' }}>{children}</Box>
     </Box>
   )
 }
@@ -368,7 +368,7 @@ function DocumentPreview(p: DocProps) {
         {/* Section E */}
         <DocSection title="Section E — Declaration">
           <Box sx={{ px: 2, py: 1.5 }}>
-            <Typography sx={{ fontSize: '0.6875rem', color: '#475569', lineHeight: 1.8, fontFamily: '"Times New Roman",serif', mb: 2 }}>
+            <Typography sx={{ fontSize: '0.6875rem', color: 'var(--on-surface-variant)', lineHeight: 1.8, fontFamily: '"Times New Roman",serif', mb: 2 }}>
               I, the undersigned Compliance / Reporting Officer of <Box component="span" sx={{ fontWeight: 700 }}>{p.institutionName || '______________________'}</Box>, hereby certify that the information provided in this report is true, accurate and complete to the best of my knowledge and belief, filed in accordance with the Money Laundering (Prevention and Prohibition) Act 2022 and the NFIU Act.
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
@@ -404,7 +404,7 @@ function DocumentPreview(p: DocProps) {
           </Box>
         </DocSection>
 
-        <Box sx={{ borderTop: '1px solid #e2e8f0', pt: 1.25, display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ borderTop: '1px solid var(--border-col)', pt: 1.25, display: 'flex', justifyContent: 'space-between' }}>
           <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8', fontFamily: 'sans-serif' }}>NFIU Ref: {ref}</Typography>
           <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8', fontFamily: 'sans-serif' }}>Generated by OpenIV · {today}</Typography>
           <Typography sx={{ fontSize: '0.5625rem', color: '#94a3b8', fontFamily: 'sans-serif' }}>Page 1 of 1</Typography>
@@ -1031,11 +1031,11 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
       PaperProps={{ sx: { borderRadius: 0, width: '97vw', height: 'calc(100vh - 32px)', maxHeight: 'calc(100vh - 32px)', maxWidth: '1320px', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >
       {/* ── Toolbar ── */}
-      <Box sx={{ height: 52, flexShrink: 0, bgcolor: '#00288e', display: 'flex', alignItems: 'center', px: 2, gap: 1.5, borderBottom: '1px solid #1e293b' }}>
+      <Box sx={{ height: 52, flexShrink: 0, bgcolor: 'var(--heading-color)', display: 'flex', alignItems: 'center', px: 2, gap: 1.5, borderBottom: '1px solid #1e293b' }}>
         <Tooltip title="Close"><IconButton onClick={handleClose} size="small" sx={{ color: '#94a3b8', borderRadius: 0, '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
           <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
         </IconButton></Tooltip>
-        <Box sx={{ width: 1, height: 28, bgcolor: '#1e293b', mx: 0.5 }} />
+        <Box sx={{ width: 1, height: 28, bgcolor: 'var(--on-surface)', mx: 0.5 }} />
 
         {/* Report type pills */}
         <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1093,14 +1093,14 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         {!readOnly && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography sx={{ fontSize: '0.625rem', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Complete</Typography>
-            <Box sx={{ width: 80, height: 3, bgcolor: '#1e293b', position: 'relative' }}>
+            <Box sx={{ width: 80, height: 3, bgcolor: 'var(--on-surface)', position: 'relative' }}>
               <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${completion}%`, bgcolor: completion >= 80 ? '#10b981' : completion >= 50 ? '#f59e0b' : '#64748b', transition: 'width 0.3s' }} />
             </Box>
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: completion >= 80 ? '#10b981' : '#94a3b8', minWidth: 28 }}>{completion}%</Typography>
           </Box>
         )}
 
-        <Box sx={{ width: 1, height: 28, bgcolor: '#1e293b', mx: 0.5 }} />
+        <Box sx={{ width: 1, height: 28, bgcolor: 'var(--on-surface)', mx: 0.5 }} />
 
         <Tooltip title="Print / Save as PDF">
           <Button onClick={handlePrint} size="small" startIcon={<PrintRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
@@ -1120,17 +1120,17 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
         {/* ── Read-only summary sidebar ── */}
         {readOnly && initialReport && (
-          <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', bgcolor: '#fafbfc', overflow: 'hidden' }}>
+          <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', overflow: 'hidden' }}>
             {/* Header */}
-            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e2e8f0', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ color: meta.color, '& svg': { fontSize: '1rem !important' } }}>{meta.icon}</Box>
                 <Box>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{meta.short}</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2 }}>Filed Report</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.2 }}>Filed Report</Typography>
                 </Box>
               </Box>
-              <IconButton size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#00288e' } }}>
+              <IconButton size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--heading-color)' } }}>
                 <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
               </IconButton>
             </Box>
@@ -1146,9 +1146,9 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                 { label: 'Officer',     value: initialReport.officerName ?? '—' },
                 { label: 'Filed by',    value: initialReport.filedByName ?? '—' },
               ] as { label: string; value: string; mono?: boolean }[]).map(({ label, value, mono }) => (
-                <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid #f1f5f9', py: 0.875 }}>
+                <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', py: 0.875 }}>
                   <Typography sx={{ width: 72, flexShrink: 0, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', alignSelf: 'center' }}>{label}</Typography>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
                 </Box>
               ))}
 
@@ -1162,9 +1162,9 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                     { label: 'Type',    value: (initialReport.subjectType ?? '—').charAt(0).toUpperCase() + (initialReport.subjectType ?? '').slice(1) },
                     { label: 'Address', value: initialReport.subjectAddress ?? '—' },
                   ] as { label: string; value: string; mono?: boolean }[]).filter(r => r.value && r.value !== '—').map(({ label, value, mono }) => (
-                    <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid #f1f5f9', py: 0.875 }}>
+                    <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', py: 0.875 }}>
                       <Typography sx={{ width: 72, flexShrink: 0, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', alignSelf: 'center' }}>{label}</Typography>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
+                      <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
                     </Box>
                   ))}
 
@@ -1175,9 +1175,9 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                     { label: 'Date',    value: initialReport.transactionDate ?? '—' },
                     { label: 'Txn ID',  value: initialReport.linkedTransactionId ?? '—', mono: true },
                   ] as { label: string; value: string; mono?: boolean }[]).filter(r => r.value && r.value !== '—').map(({ label, value, mono }) => (
-                    <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid #f1f5f9', py: 0.875 }}>
+                    <Box key={label} sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', py: 0.875 }}>
                       <Typography sx={{ width: 72, flexShrink: 0, fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', alignSelf: 'center' }}>{label}</Typography>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
+                      <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.5 }}>{value}</Typography>
                     </Box>
                   ))}
                 </>
@@ -1213,13 +1213,13 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
             )}
 
             {/* Footer */}
-            <Box sx={{ flexShrink: 0, borderTop: '1px solid #e2e8f0', px: 2.5, py: 1.5, display: 'flex', gap: 1, bgcolor: '#fff' }}>
+            <Box sx={{ flexShrink: 0, borderTop: '1px solid var(--border-col)', px: 2.5, py: 1.5, display: 'flex', gap: 1, bgcolor: '#fff' }}>
               <Button onClick={handlePrint} size="small" startIcon={<PrintRoundedIcon sx={{ fontSize: '0.8125rem !important' }} />}
-                sx={{ flex: 1, fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 600, color: '#475569', border: '1px solid #e2e8f0', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
+                sx={{ flex: 1, fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 600, color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
                 Print PDF
               </Button>
               <Button onClick={onClose} size="small"
-                sx={{ flex: 1, fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: '#475569', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#334155' } }}>
+                sx={{ flex: 1, fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: 'var(--on-surface-variant)', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface-variant)' } }}>
                 Close
               </Button>
             </Box>
@@ -1227,10 +1227,10 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         )}
 
         {/* Form panel */}
-        {!readOnly && <Box sx={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', bgcolor: '#fafbfc', overflow: 'hidden' }}>
+        {!readOnly && <Box sx={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', overflow: 'hidden' }}>
 
           {/* Section tabs */}
-          <Box sx={{ display: 'flex', borderBottom: '1px solid #e2e8f0', bgcolor: '#fff', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', borderBottom: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', flexShrink: 0 }}>
             {visibleSections.map(s => (
               <Box key={s.id} onClick={() => setActiveSection(s.id as FormSection)} sx={{
                 flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', py: 1, cursor: 'pointer',
@@ -1311,7 +1311,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 800, color: colorPalette.primary }}>{m.initials}</Typography>
                         </Box>
                         <Box>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', lineHeight: 1.2 }}>{m.name}</Typography>
+                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', lineHeight: 1.2 }}>{m.name}</Typography>
                           <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8' }}>{m.role} · {m.email}</Typography>
                         </Box>
                       </Box>
@@ -1362,7 +1362,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                       renderOption={(props, c) => (
                         <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, py: 1 }}>
                           <Box>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e' }}>{c.name}</Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)' }}>{c.name}</Typography>
                             <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8' }}>{c.externalId}{c.email ? ` · ${c.email}` : ''}</Typography>
                           </Box>
                           <Chip label={`${c.riskScore}%`} size="small" sx={{ fontSize: '0.625rem', height: 18, bgcolor: c.riskScore >= 75 ? '#fef2f2' : c.riskScore >= 50 ? '#fffbeb' : '#f0fdf4', color: c.riskScore >= 75 ? '#dc2626' : c.riskScore >= 50 ? '#d97706' : '#16a34a', fontWeight: 700, borderRadius: 0 }} />
@@ -1417,7 +1417,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                       renderOption={(props, tx) => (
                         <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, py: 1 }}>
                           <Box>
-                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: '"Roboto Mono",monospace' }}>₦{tx.amount.toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: '"Roboto Mono",monospace' }}>₦{tx.amount.toLocaleString()}</Typography>
                             <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8' }}>{channelToType(tx.channel)} · {tx.occurredAt?.split('T')[0] ?? tx.time}</Typography>
                           </Box>
                           <Chip label={`${tx.risk}%`} size="small" sx={{ fontSize: '0.625rem', height: 18, bgcolor: tx.risk >= 75 ? '#fef2f2' : '#fffbeb', color: tx.risk >= 75 ? '#dc2626' : '#d97706', fontWeight: 700, borderRadius: 0 }} />
@@ -1469,21 +1469,21 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                               Change
                             </Box>
                           )}
-                          <Box sx={{ border: '1px solid #e2e8f0', px: 0.875, py: 0.25, bgcolor: tx.risk >= 75 ? '#fef2f2' : tx.risk >= 50 ? '#fffbeb' : '#f0fdf4' }}>
+                          <Box sx={{ border: '1px solid var(--border-col)', px: 0.875, py: 0.25, bgcolor: tx.risk >= 75 ? '#fef2f2' : tx.risk >= 50 ? '#fffbeb' : '#f0fdf4' }}>
                             <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: riskColor }}>RISK {tx.risk}%</Typography>
                           </Box>
                         </Box>
                       </Box>
 
                       {/* Field rows */}
-                      <Box sx={{ border: '1px solid #e2e8f0' }}>
+                      <Box sx={{ border: '1px solid var(--border-col)' }}>
                         {rows.map((r, i) => (
-                          <Box key={r.label} sx={{ display: 'flex', borderBottom: i < rows.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                            <Box sx={{ width: 110, flexShrink: 0, bgcolor: '#f8fafc', borderRight: '1px solid #f1f5f9', px: 1.25, py: 0.75, display: 'flex', alignItems: 'center' }}>
+                          <Box key={r.label} sx={{ display: 'flex', borderBottom: i < rows.length - 1 ? '1px solid var(--border-col)' : 'none' }}>
+                            <Box sx={{ width: 110, flexShrink: 0, bgcolor: 'var(--section-bg)', borderRight: '1px solid var(--border-col)', px: 1.25, py: 0.75, display: 'flex', alignItems: 'center' }}>
                               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', lineHeight: 1.3 }}>{r.label}</Typography>
                             </Box>
                             <Box sx={{ flex: 1, px: 1.25, py: 0.75, display: 'flex', alignItems: 'center' }}>
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: r.mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.4 }}>
+                              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: r.mono ? '"Roboto Mono",monospace' : 'inherit', wordBreak: 'break-all', lineHeight: 1.4 }}>
                                 {r.value}
                               </Typography>
                             </Box>
@@ -1494,7 +1494,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                   )
                 })() : selectedCustomer ? (
                   /* ── No transaction linked yet — prompt to select from picker ── */
-                  <Box sx={{ px: 1.5, py: 1.25, border: '1px solid #e2e8f0', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box sx={{ px: 1.5, py: 1.25, border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <InfoOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#94a3b8', flexShrink: 0 }} />
                     <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
                       Select a transaction from the dropdown above to populate the transaction details for this report.
@@ -1527,7 +1527,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
           {/* Nav footer */}
 
-          <Box sx={{ flexShrink: 0, borderTop: '1px solid #e2e8f0', px: 2.5, py: 1.5, display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
+          <Box sx={{ flexShrink: 0, borderTop: '1px solid var(--border-col)', px: 2.5, py: 1.5, display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
             <Button size="small" disabled={navIdx === 0}
               onClick={() => setActiveSection(visibleSections[navIdx - 1].id as FormSection)}
               sx={{ fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 600, color: '#64748b', borderRadius: 0, textTransform: 'none', px: 1.5, '&:hover': { bgcolor: '#f1f5f9' } }}>
@@ -1539,7 +1539,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
             {navIdx === visibleSections.length - 1 ? (
               readOnly ? (
                 <Button size="small" onClick={onClose}
-                  sx={{ fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: '#475569', borderRadius: 0, textTransform: 'none', px: 2, py: 0.75, boxShadow: 'none', '&:hover': { bgcolor: '#334155' } }}>
+                  sx={{ fontSize: '0.75rem', fontFamily: 'Jost', fontWeight: 700, color: '#fff', bgcolor: 'var(--on-surface-variant)', borderRadius: 0, textTransform: 'none', px: 2, py: 0.75, boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface-variant)' } }}>
                   Close
                 </Button>
               ) : (
@@ -1570,18 +1570,18 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         {/* ── Review & File overlay ── */}
         {editorStep === 'review' && (
           <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(4px)' }}>
-            <Box sx={{ bgcolor: '#fff', width: 520, border: '1px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ bgcolor: '#fff', width: 520, border: '1px solid var(--border-col)', boxShadow: '0 24px 64px rgba(0,0,0,0.35)', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
 
               {/* ── Header ── */}
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
+              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                   <Box sx={{ width: 34, height: 34, bgcolor: `${meta.color}14`, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', '& svg': { fontSize: '1.125rem !important' } }}>{meta.icon}</Box>
                   <Box>
                     <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Pre-flight Review</Typography>
-                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2 }}>{meta.label}</Typography>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.2 }}>{meta.label}</Typography>
                   </Box>
                 </Box>
-                <IconButton size="small" onClick={() => setEditorStep('compose')} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#00288e', bgcolor: '#f1f5f9' } }}>
+                <IconButton size="small" onClick={() => setEditorStep('compose')} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--heading-color)', bgcolor: '#f1f5f9' } }}>
                   <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
                 </IconButton>
               </Box>
@@ -1591,7 +1591,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
                 {/* Pre-flight checklist */}
                 <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.25 }}>Report summary</Typography>
-                <Box sx={{ border: '1px solid #e2e8f0', mb: 2.5 }}>
+                <Box sx={{ border: '1px solid var(--border-col)', mb: 2.5 }}>
                   {([
                     { label: 'Type',      value: meta.label,                                                           ok: true },
                     { label: 'Title',     value: title.trim() || '—',                                                  ok: !!title.trim() },
@@ -1604,7 +1604,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                     ] : []),
                     { label: 'Narrative', value: `${narrative.trim().length} chars`,                                   ok: narrative.trim().length >= 20 },
                   ] as { label: string; value: string; ok: boolean }[]).map((row, i, arr) => (
-                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i < arr.length - 1 ? '1px solid #f4f5f7' : 'none', px: 1.5, py: 0.875 }}>
+                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i < arr.length - 1 ? '1px solid var(--border-col)' : 'none', px: 1.5, py: 0.875 }}>
                       <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: row.ok ? '#dcfce7' : '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mr: 1.25 }}>
                         {row.ok
                           ? <CheckRoundedIcon sx={{ fontSize: '0.625rem', color: '#16a34a' }} />
@@ -1618,18 +1618,18 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
                 {/* Credentials status (non-blocking) */}
                 <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1.25 }}>Signing credentials (for PDF printout)</Typography>
-                <Box sx={{ border: '1px solid #e2e8f0', mb: 2.5 }}>
+                <Box sx={{ border: '1px solid var(--border-col)', mb: 2.5 }}>
                   {([
                     { label: 'Official Stamp',       ok: !!officialStamp },
                     { label: 'Authorized Signature', ok: !!officialSignature },
                   ]).map((row, i) => (
-                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i === 0 ? '1px solid #f4f5f7' : 'none', px: 1.5, py: 0.875 }}>
+                    <Box key={row.label} sx={{ display: 'flex', alignItems: 'center', borderBottom: i === 0 ? '1px solid var(--border-col)' : 'none', px: 1.5, py: 0.875 }}>
                       <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: row.ok ? '#dcfce7' : '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mr: 1.25 }}>
                         {row.ok
                           ? <CheckRoundedIcon sx={{ fontSize: '0.625rem', color: '#16a34a' }} />
                           : <InfoOutlinedIcon sx={{ fontSize: '0.625rem', color: '#d97706' }} />}
                       </Box>
-                      <Typography sx={{ fontSize: '0.8125rem', color: '#0f172a', flex: 1 }}>{row.label}</Typography>
+                      <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface)', flex: 1 }}>{row.label}</Typography>
                       <Typography sx={{ fontSize: '0.6875rem', color: row.ok ? '#16a34a' : '#d97706', fontWeight: 700 }}>
                         {row.ok ? 'On file' : 'Not set — optional for digital record'}
                       </Typography>
@@ -1640,7 +1640,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                 {/* Legal certification checkbox */}
                 <Box
                   onClick={() => setCertified(p => !p)}
-                  sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, cursor: 'pointer', p: 1.75, border: `2px solid ${certified ? '#003366' : '#e2e8f0'}`, bgcolor: certified ? '#f0f4ff' : '#fafbfc', transition: 'all 0.15s', mb: 2 }}
+                  sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, cursor: 'pointer', p: 1.75, border: `2px solid ${certified ? '#003366' : 'var(--border-col)'}`, bgcolor: certified ? '#f0f4ff' : 'var(--card-bg)', transition: 'all 0.15s', mb: 2 }}
                 >
                   <Box sx={{
                     width: 18, height: 18, border: `2px solid ${certified ? '#003366' : '#cbd5e1'}`,
@@ -1649,7 +1649,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                   }}>
                     {certified && <CheckRoundedIcon sx={{ fontSize: '0.75rem', color: '#fff' }} />}
                   </Box>
-                  <Typography sx={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.65 }}>
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.65 }}>
                     I certify that the information provided in this {meta.label} is <strong>true, accurate and complete</strong> to the best of my knowledge and belief, as required under the <strong>Money Laundering (Prevention and Prohibition) Act 2022</strong> and the NFIU Act.
                   </Typography>
                 </Box>
@@ -1670,9 +1670,9 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
               </Box>
 
               {/* ── Footer ── */}
-              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.5, justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fafbfc', flexShrink: 0 }}>
+              <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 1.5, justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fafbfc', flexShrink: 0 }}>
                 <Button onClick={() => { setEditorStep('compose'); setError(null) }}
-                  sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f1f5f9' } }}>
+                  sx={{ borderRadius: 0, border: '1px solid var(--border-col)', color: '#64748b', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', px: 2.5, py: 1, '&:hover': { bgcolor: '#f1f5f9' } }}>
                   ← Back
                 </Button>
                 <Button
@@ -1705,7 +1705,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
           const accentClr = isPending ? '#d97706' : '#10b981'
           return (
             <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(15,23,42,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(5px)' }}>
-              <Box sx={{ bgcolor: '#fff', width: 500, border: '1px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.38)' }}>
+              <Box sx={{ bgcolor: '#fff', width: 500, border: '1px solid var(--border-col)', boxShadow: '0 24px 64px rgba(0,0,0,0.38)' }}>
 
                 {/* Success header */}
                 <Box sx={{ bgcolor: headerBg, px: 3, py: 3, textAlign: 'center' }}>
@@ -1721,7 +1721,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                 </Box>
 
                 {/* Reference number — prominent + copyable */}
-                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fafbfc' }}>
                   <Box>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 0.375 }}>
                       {isPending ? 'Draft Reference' : 'NFIU Reference Number'}
@@ -1732,7 +1732,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                   </Box>
                   <Tooltip title="Copy reference">
                     <IconButton size="small" onClick={() => navigator.clipboard.writeText(filedReport.reference)}
-                      sx={{ borderRadius: 0, border: '1px solid #e2e8f0', color: '#64748b', '&:hover': { color: '#003366', bgcolor: '#f0f4ff' } }}>
+                      sx={{ borderRadius: 0, border: '1px solid var(--border-col)', color: '#64748b', '&:hover': { color: '#003366', bgcolor: '#f0f4ff' } }}>
                       <Box component="span" sx={{ fontSize: '0.75rem', px: 0.5, fontFamily: '"Roboto Mono",monospace' }}>⎘</Box>
                     </IconButton>
                   </Tooltip>
@@ -1768,7 +1768,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                             <Box sx={{ width: 20, height: 20, bgcolor: '#003366', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.125 }}>
                               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 800, color: '#fff' }}>{n}</Typography>
                             </Box>
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>{text}</Typography>
+                            <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>{text}</Typography>
                           </Box>
                         ))}
                       </Box>
@@ -1777,10 +1777,10 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
                 </Box>
 
                 {/* Footer actions */}
-                <Box sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 1.25, bgcolor: '#fafbfc' }}>
+                <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 1.25, bgcolor: '#fafbfc' }}>
                   {!isPending && (
                     <Button onClick={handlePrint} startIcon={<PrintRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                      sx={{ flex: 1, borderRadius: 0, border: '1px solid #e2e8f0', color: '#475569', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', py: 1, fontSize: '0.8125rem', '&:hover': { bgcolor: '#f8fafc' } }}>
+                      sx={{ flex: 1, borderRadius: 0, border: '1px solid var(--border-col)', color: 'var(--on-surface-variant)', fontFamily: 'Jost', fontWeight: 600, textTransform: 'none', py: 1, fontSize: '0.8125rem', '&:hover': { bgcolor: '#f8fafc' } }}>
                       Print PDF
                     </Button>
                   )}
@@ -1843,7 +1843,7 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
         title="Approve & File Report"
         description={
           <Box>
-            <Typography sx={{ fontSize: '0.875rem', color: '#475569', mb: 1 }}>
+            <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', mb: 1 }}>
               You are approving this report for official NFIU submission. A ₦10,000 filing charge will apply.
             </Typography>
             {initialReport?.submittedByName && (
@@ -1862,21 +1862,21 @@ export default function FileReportDialog({ open, onClose, onFiled, defaultType, 
 
 
       {/* ── Status bar ── */}
-      <Box sx={{ height: 28, flexShrink: 0, bgcolor: '#00288e', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', px: 2.5, gap: 3 }}>
+      <Box sx={{ height: 28, flexShrink: 0, bgcolor: 'var(--heading-color)', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', px: 2.5, gap: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: meta.color }} />
           <Typography sx={{ fontSize: '0.625rem', color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{meta.label}</Typography>
         </Box>
-        <Typography sx={{ fontSize: '0.625rem', color: '#334155' }}>|</Typography>
+        <Typography sx={{ fontSize: '0.625rem', color: 'var(--on-surface-variant)' }}>|</Typography>
         <Typography sx={{ fontSize: '0.625rem', color: '#64748b' }}>
           Period: {periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : 'Not set'}
         </Typography>
-        <Typography sx={{ fontSize: '0.625rem', color: '#334155' }}>|</Typography>
+        <Typography sx={{ fontSize: '0.625rem', color: 'var(--on-surface-variant)' }}>|</Typography>
         <Typography sx={{ fontSize: '0.625rem', color: '#64748b' }}>
           Narrative: {narrative.length} chars {narrative.length >= 20 ? '✓' : `(need ${20 - narrative.length} more)`}
         </Typography>
         <Box sx={{ flex: 1 }} />
-        <Typography sx={{ fontSize: '0.625rem', color: '#475569' }}>OpenIV Compliance Platform · NFIU Filing Module</Typography>
+        <Typography sx={{ fontSize: '0.625rem', color: 'var(--on-surface-variant)' }}>OpenIV Compliance Platform · NFIU Filing Module</Typography>
       </Box>
     </Dialog>
   )

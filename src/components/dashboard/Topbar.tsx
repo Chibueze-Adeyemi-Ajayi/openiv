@@ -1,4 +1,4 @@
-import { Box, InputBase, IconButton, Typography, Badge, Popover } from '@mui/material'
+import { Box, InputBase, IconButton, Typography, Badge, Popover, useTheme } from '@mui/material'
 import { colorPalette } from '@/theme'
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -45,6 +45,8 @@ function getInitials(fullName: string | null | undefined, email: string | null |
 }
 
 export default function Topbar(_props?: Record<string, unknown>) {
+  const muiTheme = useTheme()
+  const isDark = muiTheme.palette.mode === 'dark'
   const { sandboxEnabled } = useSandbox()
   const { notifications } = useDashboardEvents()
   const { markNotifRead, markAllNotifsRead } = useDashboardEventsMut()
@@ -106,13 +108,19 @@ export default function Topbar(_props?: Record<string, unknown>) {
     })
   }
 
+  const surface = isDark ? '#111114' : '#ffffff'
+  const surfaceLow = isDark ? '#181818' : '#f1f5f9'
+  const border = isDark ? '#2c2c30' : '#e2e8f0'
+  const textPrimary = muiTheme.palette.text.primary
+  const textMuted = muiTheme.palette.text.secondary
+
   const iconBtn = {
-    color: '#475569',
+    color: textMuted,
     width: 38,
     height: 38,
     borderRadius: 0,
     transition: 'all 0.18s',
-    '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' },
+    '&:hover': { bgcolor: surfaceLow, color: muiTheme.palette.primary.main },
   }
 
   return (
@@ -120,15 +128,15 @@ export default function Topbar(_props?: Record<string, unknown>) {
       sx={{
         height: 64,
         px: 4,
-        bgcolor: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
+        bgcolor: surface,
+        borderBottom: `1px solid ${border}`,
         display: 'flex',
         alignItems: 'center',
         gap: 2,
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        color: '#0f172a',
+        color: textPrimary,
       }}
     >
       {/* Search — click or ⌘K to open command palette */}
@@ -142,16 +150,16 @@ export default function Topbar(_props?: Record<string, unknown>) {
           display: 'flex',
           alignItems: 'center',
           gap: 1.25,
-          bgcolor: '#f1f5f9',
+          bgcolor: surfaceLow,
           px: 2,
           height: 38,
           cursor: 'pointer',
           transition: 'all 0.18s ease',
           border: '1px solid transparent',
-          '&:hover': { borderColor: '#e2e8f0', bgcolor: '#e8eef5' },
+          '&:hover': { borderColor: border, bgcolor: isDark ? '#202536' : '#e8eef5' },
         }}
       >
-        <SearchOutlinedIcon sx={{ fontSize: '1.125rem', color: '#64748b' }} />
+        <SearchOutlinedIcon sx={{ fontSize: '1.125rem', color: textMuted }} />
         <InputBase
           placeholder="Search transactions, customers, cases…"
           readOnly
@@ -160,9 +168,9 @@ export default function Topbar(_props?: Record<string, unknown>) {
             flex: 1,
             fontSize: '0.875rem',
             fontFamily: 'Jost',
-            color: '#000000',
+            color: textPrimary,
             pointerEvents: 'none',
-            '& input::placeholder': { color: '#94a3b8', opacity: 1 },
+            '& input::placeholder': { color: textMuted, opacity: 1 },
           }}
         />
         <Box
@@ -172,10 +180,10 @@ export default function Topbar(_props?: Record<string, unknown>) {
             gap: 0.5,
             px: 1,
             py: 0.25,
-            border: '1px solid #e2e8f0',
-            bgcolor: '#ffffff',
+            border: `1px solid ${border}`,
+            bgcolor: surface,
             fontSize: '0.6875rem',
-            color: '#94a3b8',
+            color: textMuted,
             fontWeight: 600,
             borderRadius: '4px',
             flexShrink: 0,
@@ -219,7 +227,7 @@ export default function Topbar(_props?: Record<string, unknown>) {
         disableRipple
         onClick={() => navigate('/dashboard/profile')}
         title={profile?.fullName ?? profile?.email ?? 'My Profile'}
-        sx={{ width: 38, height: 38, borderRadius: 0, p: 0, '&:hover': { bgcolor: '#f1f5f9' } }}
+        sx={{ width: 38, height: 38, borderRadius: 0, p: 0, '&:hover': { bgcolor: surfaceLow } }}
       >
         <Box sx={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
           {resolveMediaUrl((profile as { avatarUrl?: string } | null)?.avatarUrl) ? (
@@ -272,20 +280,20 @@ export default function Topbar(_props?: Record<string, unknown>) {
         onClose={() => setNotifAnchor(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { mt: 1, width: 380, maxHeight: 520, borderRadius: 0, border: '1px solid #eef0f4', boxShadow: '0 16px 48px rgba(15,23,42,0.12)' } } }}
+        slotProps={{ paper: { sx: { mt: 1, width: 380, maxHeight: 520, borderRadius: 0, border: `1px solid ${border}`, boxShadow: '0 16px 48px rgba(15,23,42,0.18)' } } }}
       >
         {/* Header */}
-        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Notifications</Typography>
-            <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: muiTheme.palette.primary.main, fontFamily: 'Jost' }}>Notifications</Typography>
+            <Typography sx={{ fontSize: '0.6875rem', color: textMuted }}>
               {unreadCount} unread · {notifications.length} total
             </Typography>
           </Box>
           {unreadCount > 0 && (
             <Typography
               onClick={handleMarkAllRead}
-              sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              sx={{ fontSize: '0.75rem', fontWeight: 600, color: muiTheme.palette.primary.main, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
             >
               Mark all read
             </Typography>
@@ -295,7 +303,7 @@ export default function Topbar(_props?: Record<string, unknown>) {
         {/* List */}
         <Box sx={{ overflowY: 'auto', maxHeight: 400 }}>
           {notifications.length === 0 && (
-            <Box sx={{ py: 5, textAlign: 'center', color: '#94a3b8' }}>
+            <Box sx={{ py: 5, textAlign: 'center', color: textMuted }}>
               <NotificationsNoneOutlinedIcon sx={{ fontSize: '2rem', mb: 1, display: 'block', mx: 'auto' }} />
               <Typography sx={{ fontSize: '0.8125rem' }}>No notifications yet</Typography>
             </Box>
@@ -310,40 +318,40 @@ export default function Topbar(_props?: Record<string, unknown>) {
                 onClick={() => handleNotifClick(n)}
                 sx={{
                   px: 2.5, py: 1.75, display: 'flex', gap: 1.25, cursor: 'pointer',
-                  borderBottom: '1px solid #f4f5f7', position: 'relative',
-                  bgcolor: unread ? `${colorPalette.primary}04` : 'transparent',
+                  borderBottom: `1px solid ${border}`, position: 'relative',
+                  bgcolor: unread ? `${muiTheme.palette.primary.main}08` : 'transparent',
                   transition: 'background 0.15s',
-                  '&:hover': { bgcolor: '#fafbfc' },
+                  '&:hover': { bgcolor: surfaceLow },
                   '&:last-child': { borderBottom: 'none' },
                 }}
               >
                 {unread && (
-                  <Box sx={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', bgcolor: colorPalette.primary }} />
+                  <Box sx={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', bgcolor: muiTheme.palette.primary.main }} />
                 )}
                 <Box sx={{ width: 28, height: 28, bgcolor: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {cfg.icon}
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: unread ? 700 : 500, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: unread ? 700 : 500, color: muiTheme.palette.primary.main, fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {n.title}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', flexShrink: 0, ml: 1, fontWeight: 500 }}>
+                    <Typography sx={{ fontSize: '0.625rem', color: textMuted, flexShrink: 0, ml: 1, fontWeight: 500 }}>
                       {timeAgo(n.createdAt)}
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: textMuted, mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {n.body}
                   </Typography>
                   {n.entityId && n.entityType && (
                     <Box
                       onClick={(e) => handleEntityClick(e, n)}
-                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, px: 1, py: 0.25, bgcolor: `${colorPalette.primary}0c`, border: `1px solid ${colorPalette.primary}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${colorPalette.primary}18` } }}>
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, px: 1, py: 0.25, bgcolor: `${muiTheme.palette.primary.main}0c`, border: `1px solid ${muiTheme.palette.primary.main}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${muiTheme.palette.primary.main}18` } }}>
                       {n.entityType === 'transaction'
-                        ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary }} />
-                        : <GavelOutlinedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary }} />
+                        ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.625rem', color: muiTheme.palette.primary.main }} />
+                        : <GavelOutlinedIcon sx={{ fontSize: '0.625rem', color: muiTheme.palette.primary.main }} />
                       }
-                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: muiTheme.palette.primary.main, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
                       </Typography>
                     </Box>
@@ -355,8 +363,8 @@ export default function Topbar(_props?: Record<string, unknown>) {
         </Box>
 
         {/* Footer */}
-        <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid #eef0f4', textAlign: 'center', bgcolor: '#fafbfc' }}>
-          <Typography onClick={handleViewAll} sx={{ fontSize: '0.75rem', fontWeight: 600, color: colorPalette.primary, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+        <Box sx={{ px: 2.5, py: 1.5, borderTop: `1px solid ${border}`, textAlign: 'center', bgcolor: surfaceLow }}>
+          <Typography onClick={handleViewAll} sx={{ fontSize: '0.75rem', fontWeight: 600, color: muiTheme.palette.primary.main, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
             View all activity
           </Typography>
         </Box>

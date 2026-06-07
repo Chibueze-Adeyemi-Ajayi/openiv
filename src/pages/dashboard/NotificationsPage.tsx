@@ -164,12 +164,12 @@ function NotifRow({
           ? `${colorPalette.primary}08`
           : unread
             ? `${colorPalette.primary}04`
-            : '#fff',
-        borderBottom: '1px solid #f4f5f7',
+            : 'var(--card-bg)',
+        borderBottom: '1px solid var(--border-col)',
         borderLeft: selected ? `3px solid ${colorPalette.primary}` : '3px solid transparent',
         position: 'relative',
         transition: 'background 0.2s ease, border-color 0.2s ease',
-        '&:hover': { bgcolor: selected ? `${colorPalette.primary}0c` : '#fafbfc' },
+        '&:hover': { bgcolor: selected ? `${colorPalette.primary}0c` : 'var(--section-bg)' },
         '&:last-child': { borderBottom: 'none' },
       }}
     >
@@ -213,7 +213,7 @@ function NotifRow({
             sx={{
               fontSize: '0.875rem',
               fontWeight: unread ? 700 : 600,
-              color: '#00288e',
+              color: 'var(--heading-color)',
               fontFamily: 'Jost',
               lineHeight: 1.4,
             }}
@@ -238,7 +238,7 @@ function NotifRow({
         </Box>
         <Typography
           sx={{
-            fontSize: '0.8125rem', color: '#475569', lineHeight: 1.55,
+            fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.55,
             overflow: 'hidden', textOverflow: 'ellipsis',
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
           }}
@@ -304,7 +304,7 @@ function NotifDetailDrawer({
         paper: {
           sx: {
             width: { xs: '100%', sm: 440 },
-            borderLeft: '1px solid #eef0f4',
+            borderLeft: '1px solid var(--border-col)',
             borderRadius: 0,
             boxShadow: '-8px 0 40px rgba(15,23,42,0.08)',
           },
@@ -318,11 +318,11 @@ function NotifDetailDrawer({
             sx={{
               px: 3, py: 2.25,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              borderBottom: '1px solid #eef0f4',
-              bgcolor: '#fafbfc',
+              borderBottom: '1px solid var(--border-col)',
+              bgcolor: 'var(--card-bg)',
             }}
           >
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               Notification detail
             </Typography>
             <Box
@@ -332,7 +332,7 @@ function NotifDetailDrawer({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', color: '#64748b', borderRadius: '4px',
                 transition: 'all 0.15s',
-                '&:hover': { bgcolor: '#f1f5f9', color: '#00288e' },
+                '&:hover': { bgcolor: 'var(--section-bg)', color: 'var(--heading-color)' },
               }}
             >
               <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
@@ -374,9 +374,9 @@ function NotifDetailDrawer({
                   size="small"
                   sx={{
                     fontSize: '0.625rem', fontWeight: 700, height: 18,
-                    bgcolor: n.status === 'unread' ? `${colorPalette.primary}15` : '#f1f5f9',
+                    bgcolor: n.status === 'unread' ? `${colorPalette.primary}15` : 'var(--section-bg)',
                     color: n.status === 'unread' ? colorPalette.primary : '#94a3b8',
-                    border: `1px solid ${n.status === 'unread' ? colorPalette.primary + '30' : '#e2e8f0'}`,
+                    border: `1px solid ${n.status === 'unread' ? colorPalette.primary + '30' : 'var(--border-col)'}`,
                     borderRadius: 0, fontFamily: 'Jost',
                     '& .MuiChip-label': { px: 1 },
                   }}
@@ -392,7 +392,7 @@ function NotifDetailDrawer({
           <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
             <Typography
               sx={{
-                fontSize: '1rem', fontWeight: 700, color: '#00288e',
+                fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)',
                 fontFamily: 'Jost', lineHeight: 1.45, mb: 2,
               }}
             >
@@ -401,7 +401,7 @@ function NotifDetailDrawer({
             <Divider sx={{ mb: 2, borderColor: '#f4f5f7' }} />
             <Typography
               sx={{
-                fontSize: '0.875rem', color: '#475569',
+                fontSize: '0.875rem', color: 'var(--on-surface-variant)',
                 lineHeight: 1.75, whiteSpace: 'pre-wrap',
               }}
             >
@@ -413,7 +413,7 @@ function NotifDetailDrawer({
           <Box
             sx={{
               px: 3, py: 2.25,
-              borderTop: '1px solid #eef0f4',
+              borderTop: '1px solid var(--border-col)',
               display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap',
             }}
           >
@@ -432,7 +432,7 @@ function NotifDetailDrawer({
                   borderRadius: 0, textTransform: 'none',
                   fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
                   px: 2, boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1e293b', boxShadow: 'none' },
+                  '&:hover': { bgcolor: 'var(--on-surface)', boxShadow: 'none' },
                 }}
               >
                 View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
@@ -444,13 +444,13 @@ function NotifDetailDrawer({
                 startIcon={<MarkEmailReadOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />}
                 onClick={handleMarkRead}
                 sx={{
-                  bgcolor: n.entityId ? '#f8fafc' : colorPalette.primary,
+                  bgcolor: n.entityId ? 'var(--card-bg)' : colorPalette.primary,
                   color: n.entityId ? '#475569' : '#fff',
-                  border: n.entityId ? '1px solid #e5e7eb' : 'none',
+                  border: n.entityId ? '1px solid var(--border-col)' : 'none',
                   borderRadius: 0, textTransform: 'none',
                   fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
                   px: 2, boxShadow: 'none',
-                  '&:hover': { bgcolor: n.entityId ? '#f1f5f9' : '#1e293b', boxShadow: 'none' },
+                  '&:hover': { bgcolor: n.entityId ? 'var(--section-bg)' : '#1e293b', boxShadow: 'none' },
                 }}
               >
                 Mark as read
@@ -467,12 +467,12 @@ function NotifDetailDrawer({
               size="small"
               onClick={onClose}
               sx={{
-                bgcolor: '#f8fafc', color: '#475569',
+                bgcolor: 'var(--section-bg)', color: 'var(--on-surface-variant)',
                 border: '1px solid #e5e7eb',
                 borderRadius: 0, textTransform: 'none',
                 fontFamily: 'Jost', fontSize: '0.8125rem', fontWeight: 600,
                 px: 2,
-                '&:hover': { bgcolor: '#f1f5f9' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Close
@@ -644,7 +644,7 @@ export default function NotificationsPage() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
-            <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+            <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
               Notifications
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -657,11 +657,11 @@ export default function NotificationsPage() {
               startIcon={<DoneAllRoundedIcon sx={{ fontSize: '0.9rem !important' }} />}
               onClick={handleMarkAllRead}
               sx={{
-                bgcolor: '#f8fafc', color: '#475569',
-                border: '1px solid #e5e7eb', borderRadius: 0,
+                bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)',
+                border: '1px solid var(--border-col)', borderRadius: 0,
                 textTransform: 'none', fontFamily: 'Jost',
                 fontSize: '0.8125rem', fontWeight: 600, px: 2,
-                '&:hover': { bgcolor: '#f1f5f9' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Mark all as read
@@ -679,11 +679,11 @@ export default function NotificationsPage() {
               sx={{
                 borderRadius: 0, fontFamily: 'Jost', fontSize: '0.75rem',
                 fontWeight: filter === f.key ? 700 : 500,
-                bgcolor: filter === f.key ? colorPalette.primary : '#f8fafc',
+                bgcolor: filter === f.key ? colorPalette.primary : 'var(--card-bg)',
                 color: filter === f.key ? '#fff' : '#475569',
-                border: `1px solid ${filter === f.key ? colorPalette.primary : '#e5e7eb'}`,
+                border: `1px solid ${filter === f.key ? colorPalette.primary : 'var(--border-col)'}`,
                 cursor: 'pointer',
-                '&:hover': { bgcolor: filter === f.key ? colorPalette.primary : '#f1f5f9' },
+                '&:hover': { bgcolor: filter === f.key ? colorPalette.primary : 'var(--section-bg)' },
                 '& .MuiChip-label': { px: 1.5 },
               }}
             />
@@ -754,9 +754,9 @@ export default function NotificationsPage() {
             <CircularProgress size={28} sx={{ color: colorPalette.primary }} />
           </Box>
         ) : filtered.length === 0 ? (
-          <Box sx={{ py: 10, textAlign: 'center', border: '1px solid #eef0f4', bgcolor: '#fff' }}>
+          <Box sx={{ py: 10, textAlign: 'center', border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
             <NotificationsNoneOutlinedIcon sx={{ fontSize: '2.5rem', color: '#cbd5e1', mb: 1.5, display: 'block', mx: 'auto' }} />
-            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#475569', fontFamily: 'Jost', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface-variant)', fontFamily: 'Jost', mb: 0.5 }}>
               {filter === 'all' ? 'No notifications yet' : `No ${filter} notifications`}
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
@@ -766,14 +766,14 @@ export default function NotificationsPage() {
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ border: '1px solid #eef0f4', bgcolor: '#fff' }}>
+          <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)' }}>
             {groups.map((group) => (
               <Box key={group.label}>
                 {/* Day divider */}
                 <Box
                   sx={{
-                    px: 3, py: 1, bgcolor: '#f8fafc',
-                    borderBottom: '1px solid #eef0f4',
+                    px: 3, py: 1, bgcolor: 'var(--section-bg)',
+                    borderBottom: '1px solid var(--border-col)',
                     display: 'flex', alignItems: 'center', gap: 1.5,
                   }}
                 >
@@ -785,7 +785,7 @@ export default function NotificationsPage() {
                   >
                     {group.label}
                   </Typography>
-                  <Box sx={{ flex: 1, height: 1, bgcolor: '#eef0f4' }} />
+                  <Box sx={{ flex: 1, height: 1, bgcolor: 'var(--border-col)' }} />
                 </Box>
                 {group.items.map((n) => (
                   <NotifRow

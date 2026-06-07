@@ -44,12 +44,12 @@ function AlertRow({ alert }: { alert: OtpAlertItem }) {
       sx={{
         px: 2.5,
         py: 1.5,
-        borderBottom: '1px solid #f1f5f9',
+        borderBottom: '1px solid var(--border-col)',
         display: 'flex',
         gap: 1.5,
         alignItems: 'flex-start',
         transition: 'background 0.15s',
-        '&:hover': { bgcolor: '#f8fafc' },
+        '&:hover': { bgcolor: 'var(--section-bg)' },
         animation: 'fadeIn 0.3s ease',
         '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(-4px)' }, to: { opacity: 1, transform: 'none' } },
       }}
@@ -76,7 +76,7 @@ function AlertRow({ alert }: { alert: OtpAlertItem }) {
             {cfg.shortLabel}
           </Box>
           {alert.customerId && (
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {alert.customerId}
             </Typography>
           )}
@@ -126,12 +126,12 @@ export default function OtpAlertsPanel() {
     <Box
       data-ai-analyzable="true"
       data-ai-description={`OTP Alerts Monitor: Currently tracking ${criticalCount} critical and ${warningCount} warning anomalies across the authentication stream.`}
-      sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', height: '100%', display: 'flex', flexDirection: 'column' }}
+      sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', height: '100%', display: 'flex', flexDirection: 'column' }}
     >
       {/* Header */}
-      <Box sx={{ px: 2.5, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ px: 2.5, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             OTP Alerts
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -153,17 +153,17 @@ export default function OtpAlertsPanel() {
 
       {/* Summary bar */}
       {!loading && alerts.length > 0 && (
-        <Box sx={{ px: 2.5, py: 1.25, borderBottom: '1px solid #eef0f4', display: 'flex', gap: 2 }}>
+        <Box sx={{ px: 2.5, py: 1.25, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#dc2626' }} />
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              <strong style={{ color: '#00288e' }}>{criticalCount}</strong> critical
+              <strong style={{ color: 'var(--heading-color)' }}>{criticalCount}</strong> critical
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f59e0b' }} />
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              <strong style={{ color: '#00288e' }}>{warningCount}</strong> warning
+              <strong style={{ color: 'var(--heading-color)' }}>{warningCount}</strong> warning
             </Typography>
           </Box>
         </Box>
@@ -173,7 +173,7 @@ export default function OtpAlertsPanel() {
       <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {loading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <Box key={i} sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #f1f5f9', display: 'flex', gap: 1.5 }}>
+              <Box key={i} sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', gap: 1.5 }}>
                 <Skeleton variant="circular" width={16} height={16} sx={{ mt: 0.25, flexShrink: 0 }} />
                 <Box sx={{ flex: 1 }}>
                   <Skeleton variant="text" width="40%" height={14} sx={{ mb: 0.5 }} />
@@ -199,7 +199,7 @@ export default function OtpAlertsPanel() {
       </Box>
 
       {/* Footer rule legend */}
-      <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid #eef0f4', display: 'flex', flexWrap: 'wrap', gap: 1.25 }}>
+      <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid var(--border-col)', display: 'flex', flexWrap: 'wrap', gap: 1.25 }}>
         {(Object.entries(ruleConfig) as [Rule, typeof ruleConfig[Rule]][]).map(([rule, cfg]) => (
           <Box key={rule} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: cfg.color, flexShrink: 0 }} />

@@ -212,7 +212,7 @@ export default function TransactionsPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Real-Time Monitor
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Transactions
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -230,7 +230,7 @@ export default function TransactionsPage() {
               onClick={handleExport}
               disabled={exporting}
               startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{ bgcolor: '#ffffff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' }, '&:disabled': { opacity: 0.6 } }}
+              sx={{ bgcolor: '#ffffff', color: 'var(--on-surface-variant)', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' }, '&:disabled': { opacity: 0.6 } }}
             >
               {exporting ? 'Exporting…' : 'Export CSV'}
             </Button>
@@ -244,7 +244,7 @@ export default function TransactionsPage() {
         )}
 
         {/* Filters & Search */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1.5, mb: 0, borderBottom: 'none' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1.5, mb: 0, borderBottom: 'none' }}>
           <Stack direction="row" gap={0.5}>
             {FILTERS.map(f => (
               <Box
@@ -260,13 +260,13 @@ export default function TransactionsPage() {
           </Stack>
           <Box sx={{ flex: 1 }} />
           <DateRangeFilter value={range} onChange={setRange} compact />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f8fafc', px: 1.5, height: 32, minWidth: 240, border: '1px solid transparent', transition: 'all 0.18s', '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'var(--section-bg)', px: 1.5, height: 32, minWidth: 240, border: '1px solid transparent', transition: 'all 0.18s', '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary } }}>
             <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
             <InputBase
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by ID, customer or customer ID…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
             />
           </Box>
 
@@ -287,7 +287,7 @@ export default function TransactionsPage() {
 
         {/* Active filter chips */}
         {filterCount > 0 && (
-          <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderTop: 'none', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', borderTop: 'none', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', mr: 0.5 }}>Filters:</Typography>
             {channel && (
               <Chip label={`Channel: ${channel}`} size="small" onDelete={() => { setChannel(null); setPage(1) }} deleteIcon={<CloseRoundedIcon />}
@@ -302,7 +302,7 @@ export default function TransactionsPage() {
                 sx={{ bgcolor: `${colorPalette.primary}0f`, color: colorPalette.primary, fontWeight: 600, fontSize: '0.6875rem', borderRadius: 0, height: 20, '& .MuiChip-label': { px: 1 }, '& .MuiChip-deleteIcon': { fontSize: '0.75rem', color: colorPalette.primary } }} />
             )}
             <Box sx={{ flex: 1 }} />
-            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setAppliedSort('recent'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+            <Box onClick={() => { setChannel(null); setAppliedRisk('any'); setAppliedSort('recent'); setPage(1) }} sx={{ fontSize: '0.6875rem', color: '#94a3b8', cursor: 'pointer', '&:hover': { color: 'var(--on-surface-variant)' } }}>
               Clear all
             </Box>
           </Box>
@@ -319,10 +319,10 @@ export default function TransactionsPage() {
         )}
 
         {/* Table */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', overflowX: 'auto' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', overflowX: 'auto' }}>
           <Box sx={{ minWidth: 1210 }}>
             {/* Header */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4', alignItems: 'center' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', alignItems: 'center' }}>
               <Box />
               {['Reference', 'Sender', 'Recipient', 'Amount (₦)', 'Channel', 'Risk', '', 'Date / Time', 'System Time', ''].map(h => (
                 <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: ['Amount (₦)', 'Risk'].includes(h) ? 'right' : 'left' }}>
@@ -333,7 +333,7 @@ export default function TransactionsPage() {
 
             {/* Loading skeleton */}
             {loading && Array.from({ length: 8 }).map((_, i) => (
-              <Box key={i} sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2, borderBottom: '1px solid #f4f5f7', alignItems: 'center' }}>
+              <Box key={i} sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2, borderBottom: '1px solid var(--border-col)', alignItems: 'center' }}>
                 {Array.from({ length: 11 }).map((_, j) => (
                   <Box key={j} sx={{ height: 12, bgcolor: '#f1f5f9', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 ))}
@@ -360,7 +360,7 @@ export default function TransactionsPage() {
                   data-ai-analyzable="true"
                   data-ai-description={`Transaction Reference ${t.id} for customer ${t.customer}. Amount: ₦${t.amount.toLocaleString()}. Risk Score: ${t.risk}. Channel: ${t.channel}. ${fCfg ? `Status: ${fCfg.label}.` : ''} ${t.location ? `Location: ${t.location}` : ''}`}
                   onClick={() => openDetail(t)}
-                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #f4f5f7', borderLeft: !t.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent', bgcolor: isSelected ? `${colorPalette.primary}06` : !t.seen ? `${colorPalette.primary}03` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `${colorPalette.primary}0a` : '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
+                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.75, alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid var(--border-col)', borderLeft: !t.seen ? `3px solid ${colorPalette.primary}` : '3px solid transparent', bgcolor: isSelected ? `${colorPalette.primary}06` : !t.seen ? `${colorPalette.primary}03` : 'transparent', transition: 'background 0.15s', '&:hover': { bgcolor: isSelected ? `0a` : 'var(--section-bg)' }, '&:last-child': { borderBottom: 'none' } }}
                 >
                   {/* Checkbox + unseen dot */}
                   <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -373,7 +373,7 @@ export default function TransactionsPage() {
                   </Box>
 
                   {/* Reference */}
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.id}
                   </Typography>
 
@@ -399,7 +399,7 @@ export default function TransactionsPage() {
 
                   {/* Recipient */}
                   <Box sx={{ overflow: 'hidden' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {recipName}
                     </Typography>
                     {recipSub && (
@@ -410,21 +410,21 @@ export default function TransactionsPage() {
                   </Box>
 
                   {/* Amount */}
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', textAlign: 'right', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', textAlign: 'right', fontFamily: 'SF Mono, Monaco, monospace' }}>
                     {t.amount.toLocaleString()}
                   </Typography>
 
                   {/* Channel */}
-                  <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontWeight: 500 }}>
                     {t.channel}
                   </Typography>
 
                   {/* Risk bar */}
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75 }}>
-                    <Box sx={{ width: 32, height: 4, bgcolor: '#f1f5f9', position: 'relative', flexShrink: 0 }}>
+                    <Box sx={{ width: 32, height: 4, bgcolor: 'var(--section-bg)', position: 'relative', flexShrink: 0 }}>
                       <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${t.risk}%`, bgcolor: t.risk >= 70 ? '#dc2626' : t.risk >= 40 ? '#f59e0b' : '#10b981' }} />
                     </Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', minWidth: 20, textAlign: 'right' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', minWidth: 20, textAlign: 'right' }}>
                       {t.risk}
                     </Typography>
                   </Box>
@@ -441,7 +441,7 @@ export default function TransactionsPage() {
                   <Box sx={{ overflow: 'hidden' }}>
                     {t.occurredAt ? (
                       <>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                           {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.occurredAt))}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
@@ -457,7 +457,7 @@ export default function TransactionsPage() {
                   <Box sx={{ overflow: 'hidden' }}>
                     {t.createdAt ? (
                       <>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                           {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(t.createdAt))}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
@@ -482,7 +482,7 @@ export default function TransactionsPage() {
             })}
 
             {/* Pagination */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, borderTop: '1px solid #eef0f4' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, borderTop: '1px solid var(--border-col)' }}>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                 {loading ? 'Loading…' : `Showing ${rows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total.toLocaleString()} transactions`}
               </Typography>
@@ -528,12 +528,12 @@ export default function TransactionsPage() {
         onClose={() => setFilterOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid #e2e8f0', width: 264 } }}
+        PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid var(--border-col)', width: 264 } }}
       >
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Filter</Typography>
-            <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' }, mr: -0.5 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Filter</Typography>
+            <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' }, mr: -0.5 }}>
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
             </IconButton>
           </Box>
@@ -570,7 +570,7 @@ export default function TransactionsPage() {
               )
             })}
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid var(--border-col)' }}>
             <Button disableRipple onClick={clearFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
             <Button disableRipple onClick={applyFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
           </Box>

@@ -209,7 +209,7 @@ export default function BehavioralPatternsPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Interaction Monitor
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Behavioral Patterns
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -219,7 +219,7 @@ export default function BehavioralPatternsPage() {
         </Box>
 
         {/* Filter row 1 — Status + Type */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: 'none' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: 'none' }}>
           <Stack direction="row" gap={0.5}>
             {['All', 'Normal', 'Suspicious', 'Fraudulent', 'Unscored'].map(f => (
               <Box
@@ -251,15 +251,15 @@ export default function BehavioralPatternsPage() {
         </Box>
 
         {/* Filter row 2 — Search + date + risk */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderTop: 'none', display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1 }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderTop: 'none', display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1 }}>
           <DateRangeFilter value={range} onChange={setRange} compact />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#f8fafc', px: 1.5, height: 32, flex: 1, border: '1px solid transparent', transition: 'all 0.18s', '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'var(--section-bg)', px: 1.5, height: 32, flex: 1, border: '1px solid transparent', transition: 'all 0.18s', '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary } }}>
             <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
             <InputBase
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by customer, device, IP, or session…"
-              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+              sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
             />
           </Box>
           <Box sx={{ position: 'relative', display: 'inline-flex' }}>
@@ -274,7 +274,7 @@ export default function BehavioralPatternsPage() {
 
         {/* Active risk filter chip */}
         {riskFilter !== 'any' && (
-          <Box sx={{ bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderTop: 'none', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', borderTop: 'none', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Risk filter:</Typography>
             <Chip
               label={RISK_OPTIONS.find(o => o.key === riskFilter)?.label}
@@ -287,11 +287,11 @@ export default function BehavioralPatternsPage() {
         )}
 
         {/* Table */}
-        <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', overflowX: 'auto' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', overflowX: 'auto' }}>
           <Box sx={{ minWidth: 1100 }}>
 
             {/* Header */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4', alignItems: 'center' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 1.5, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', alignItems: 'center' }}>
               <Box />
               {['Ref ID', 'Customer', 'Event', 'Context', 'Assessment', 'Date / Time', ''].map(h => (
                 <Typography key={h} sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -302,9 +302,9 @@ export default function BehavioralPatternsPage() {
 
             {/* Loading skeleton */}
             {loading && Array.from({ length: 8 }).map((_, i) => (
-              <Box key={i} sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2.25, borderBottom: '1px solid #f4f5f7', alignItems: 'center' }}>
+              <Box key={i} sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2.25, borderBottom: '1px solid var(--border-col)', alignItems: 'center' }}>
                 {Array.from({ length: 9 }).map((_, j) => (
-                  <Box key={j} sx={{ height: 11, bgcolor: '#f1f5f9', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                  <Box key={j} sx={{ height: 11, bgcolor: 'var(--section-bg)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                 ))}
               </Box>
             ))}
@@ -327,7 +327,7 @@ export default function BehavioralPatternsPage() {
                   onClick={() => setDetailBeam(r)}
                   data-ai-analyzable="true"
                   data-ai-description={`${r.stream} beam ${r.id} from ${customerName}. Assessment: ${cfg.label}.`}
-                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2, alignItems: 'center', borderBottom: '1px solid #f4f5f7', cursor: 'pointer', transition: 'background 0.15s', '&:hover': { bgcolor: '#fafbfc' }, '&:last-child': { borderBottom: 'none' } }}
+                  sx={{ display: 'grid', gridTemplateColumns: GRID, gap: 2, px: 2, py: 2, alignItems: 'center', borderBottom: '1px solid var(--border-col)', cursor: 'pointer', transition: 'background 0.15s', '&:hover': { bgcolor: 'var(--card-bg)' }, '&:last-child': { borderBottom: 'none' } }}
                 >
                   {/* Left border accent on high-risk rows */}
                   <Box sx={{ width: 3, height: 32, bgcolor: cfg.score >= 70 ? '#dc2626' : cfg.score >= 40 ? '#d97706' : 'transparent', borderRadius: 0 }} />
@@ -352,7 +352,7 @@ export default function BehavioralPatternsPage() {
 
                   {/* Event — stream-specific description */}
                   <Box sx={{ overflow: 'hidden' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {event}
                     </Typography>
                   </Box>
@@ -366,7 +366,7 @@ export default function BehavioralPatternsPage() {
 
                   {/* Assessment — score + label */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ flex: 1, height: 3, bgcolor: '#f1f5f9', position: 'relative' }}>
+                    <Box sx={{ flex: 1, height: 3, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                       <Box sx={{ position: 'absolute', inset: 0, right: `${100 - cfg.score}%`, bgcolor: cfg.color }} />
                     </Box>
                     <Chip
@@ -378,7 +378,7 @@ export default function BehavioralPatternsPage() {
 
                   {/* Date / Time */}
                   <Box sx={{ overflow: 'hidden' }}>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#00288e', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--heading-color)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                       {new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: user?.timezone ?? 'Africa/Lagos' }).format(new Date(timestamp))}
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace', whiteSpace: 'nowrap', mt: 0.125 }}>
@@ -395,7 +395,7 @@ export default function BehavioralPatternsPage() {
             })}
 
             {/* Pagination */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, borderTop: '1px solid #eef0f4' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, borderTop: '1px solid var(--border-col)' }}>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                 {loading ? 'Loading…' : `Showing ${rows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total.toLocaleString()} records`}
               </Typography>
@@ -420,11 +420,11 @@ export default function BehavioralPatternsPage() {
         onClose={() => setFilterOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid #e2e8f0', width: 240 } } }}
+        slotProps={{ paper: { sx: { borderRadius: 0, boxShadow: '0 8px 32px rgba(15,23,42,0.12)', border: '1px solid var(--border-col)', width: 240 } } }}
       >
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>Risk Level</Typography>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Risk Level</Typography>
             <IconButton size="small" disableRipple onClick={() => setFilterOpen(false)} sx={{ borderRadius: 0, color: '#94a3b8', mr: -0.5 }}>
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
             </IconButton>
@@ -439,7 +439,7 @@ export default function BehavioralPatternsPage() {
               )
             })}
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1.5, borderTop: '1px solid var(--border-col)' }}>
             <Button disableRipple onClick={clearFilter} sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 1.5, minWidth: 0 }}>Clear</Button>
             <Button disableRipple onClick={applyFilter} sx={{ bgcolor: colorPalette.primary, color: '#fff', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost', textTransform: 'none', borderRadius: 0, px: 2, '&:hover': { bgcolor: colorPalette.primary } }}>Apply</Button>
           </Box>

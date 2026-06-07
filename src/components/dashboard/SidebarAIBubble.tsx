@@ -459,8 +459,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
             width: PANEL_W,
             maxHeight: PANEL_MAX_H,
             zIndex: 1150,
-            bgcolor: '#ffffff',
-            border: '1px solid #eef0f4',
+            bgcolor: 'var(--card-bg)',
+            border: '1px solid var(--border-col)',
             boxShadow: '0 20px 60px rgba(15, 23, 42, 0.15)',
             display: 'flex',
             flexDirection: 'column',
@@ -487,7 +487,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
             sx={{
               px: 2,
               py: 1.5,
-              borderBottom: '1px solid #eef0f4',
+              borderBottom: '1px solid var(--border-col)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -518,7 +518,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
               <Box>
                 <Typography sx={{
                   fontSize: '0.8125rem', fontWeight: 700,
-                  color: '#00288e', fontFamily: 'Jost', lineHeight: 1.2,
+                  color: 'var(--heading-color)', fontFamily: 'Jost', lineHeight: 1.2,
                 }}>
                   Eureka
                 </Typography>
@@ -536,7 +536,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                 color: '#94a3b8',
                 borderRadius: 0,
                 p: 0.5,
-                '&:hover': { color: '#00288e', bgcolor: '#f8fafc' },
+                '&:hover': { color: 'var(--heading-color)', bgcolor: 'var(--section-bg)' },
               }}
             >
               <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
@@ -550,7 +550,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
             <Box sx={{ p: 2, pb: showSuggestions ? 0 : 2 }}>
               <Typography sx={{
                 fontSize: '0.8125rem',
-                color: '#334155',
+                color: 'var(--on-surface-variant)',
                 lineHeight: 1.7,
                 fontFamily: 'Jost',
               }}>
@@ -601,8 +601,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                         px: 1.5,
                         py: 0.875,
                         fontSize: '0.75rem',
-                        color: '#475569',
-                        border: '1px solid #eef0f4',
+                        color: 'var(--on-surface-variant)',
+                        border: '1px solid var(--border-col)',
                         cursor: 'pointer',
                         fontFamily: 'Jost',
                         lineHeight: 1.5,
@@ -651,8 +651,8 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                         maxWidth: '90%',
                         px: 1.5,
                         py: 1,
-                        bgcolor: '#f5f3fb',
-                        color: '#334155',
+                        bgcolor: 'var(--section-bg)',
+                        color: 'var(--on-surface-variant)',
                         fontSize: '0.75rem',
                         lineHeight: 1.65,
                         fontFamily: 'Jost',
@@ -713,7 +713,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                             key={i}
                             onClick={() => handleSend(s)}
                             sx={{
-                              px: 1.5, py: 0.875, fontSize: '0.75rem', color: '#475569', border: '1px solid #eef0f4',
+                              px: 1.5, py: 0.875, fontSize: '0.75rem', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)',
                               cursor: 'pointer', fontFamily: 'Jost', lineHeight: 1.5, transition: 'all 0.15s ease',
                               '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary, bgcolor: `${colorPalette.primary}07` },
                             }}
@@ -732,18 +732,18 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
           </Box>
 
           {/* Chat input */}
-          <Box sx={{ p: 1.5, borderTop: '1px solid #eef0f4', flexShrink: 0 }}>
+          <Box sx={{ p: 1.5, borderTop: '1px solid var(--border-col)', flexShrink: 0 }}>
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'flex-end',
                 gap: 0.875,
-                bgcolor: '#f5f3fb',
+                bgcolor: 'var(--section-bg)',
                 p: 1,
                 border: '1px solid transparent',
                 transition: 'all 0.18s',
                 '&:focus-within': {
-                  bgcolor: '#ffffff',
+                  bgcolor: 'var(--card-bg)',
                   borderColor: colorPalette.primary,
                   boxShadow: `0 0 0 2px ${colorPalette.primary}18`,
                 },
@@ -766,7 +766,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                   flex: 1,
                   fontSize: '0.75rem',
                   fontFamily: 'Jost',
-                  color: '#00288e',
+                  color: 'var(--heading-color)',
                   '& textarea::placeholder': { color: '#94a3b8', opacity: 1 },
                 }}
               />
@@ -787,7 +787,7 @@ export default function SidebarAIBubble({ anchorRect, navItem, onClose, isClosin
                     ? '#ffffff'
                     : '#94a3b8',
                   transition: 'all 0.18s',
-                  '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
+                  '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)' },
                 }}
               >
                 <SendRoundedIcon sx={{ fontSize: '0.875rem' }} />

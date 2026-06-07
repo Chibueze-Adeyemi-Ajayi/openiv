@@ -1,5 +1,30 @@
-/* Import Jost font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap');
+/* Import Jost font (full weight range for the marketing page hero hierarchy) +
+   JetBrains Mono for monospaced data on the landing dashboard preview. */
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --app-bg: #fbf8ff;
+  --card-bg: #ffffff;
+  --section-bg: #f5f3fb;
+  --input-bg: #efe9f9;
+  --border-col: #eef0f4;
+  --card-border-col: #e5e7eb;
+  --on-surface: #1a1b22;
+  --on-surface-variant: #48464f;
+  --heading-color: #00288e;
+}
+
+[data-theme="dark"] {
+  --app-bg: #080808;
+  --card-bg: #111114;
+  --section-bg: #181818;
+  --input-bg: #1e1e1e;
+  --border-col: #2c2c30;
+  --card-border-col: transparent;
+  --on-surface: #ffffff;
+  --on-surface-variant: #b0b0b8;
+  --heading-color: #ffffff;
+}
 
 * {
   box-sizing: border-box;

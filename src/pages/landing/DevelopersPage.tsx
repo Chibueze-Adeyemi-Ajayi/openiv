@@ -252,6 +252,46 @@ function ResponseTabs({ examples }: { examples: ResponseExample[] }) {
   )
 }
 
+// ── Beam endpoint card (compact — log line + docs button) ────────────────────
+interface BeamEndpointDef { id: string; method: string; path: string; title: string }
+
+function BeamEndpointCard({ ep }: { ep: BeamEndpointDef }) {
+  return (
+    <Box id={ep.id} sx={{
+      scrollMarginTop: 80,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flexWrap: 'wrap', gap: 2,
+      px: 2, py: 1.5,
+      border: '1px solid #e2e8f0', bgcolor: '#f8fafc',
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <MethodBadge method={ep.method} />
+        <Typography sx={{
+          fontFamily: '"Fira Code", "SF Mono", monospace', fontSize: '0.85rem',
+          color: '#1e293b', letterSpacing: '0.01em',
+        }}>
+          <Box component="span" sx={{ color: '#94a3b8' }}>https://api.openiv.ng</Box>
+          {ep.path}
+        </Typography>
+      </Box>
+      <Box
+        component={Link}
+        to="/docs"
+        sx={{
+          px: 1.5, py: 0.625,
+          bgcolor: '#00288e', color: '#ffffff',
+          fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
+          letterSpacing: '0.04em', textDecoration: 'none',
+          flexShrink: 0,
+          '&:hover': { bgcolor: '#003ab5' },
+        }}
+      >
+        Docs →
+      </Box>
+    </Box>
+  )
+}
+
 // ── Endpoint section ──────────────────────────────────────────────────────────
 interface EndpointDef {
   id: string
@@ -342,7 +382,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-interface SidebarGroup { label: string; color: string; items: { id: string; method: string; path: string }[] }
+interface SidebarGroup { label: string; color: string; items: { id: string; method: string; path: string }[]; hidden?: boolean }
 
 function Sidebar({ groups, activeId, onSelect }: {
   groups: SidebarGroup[]
@@ -427,7 +467,7 @@ function Sidebar({ groups, activeId, onSelect }: {
       <Box sx={{ my: 1.5, mx: 2.5, height: '1px', bgcolor: 'rgba(255,255,255,0.1)' }} />
 
       {/* Groups */}
-      {groups.map(g => (
+      {groups.filter(g => !g.hidden).map(g => (
         <Box key={g.label} sx={{ mt: 2.5 }}>
           <Typography sx={{ px: 2.5, fontSize: '0.625rem', fontWeight: 800,
             color: 'rgba(255,255,255,0.4)',
@@ -540,171 +580,20 @@ var response = HttpClient.newHttpClient().send(request, BodyHandlers.ofString())
 System.out.println(response.body());`
 }
 
-const ENDPOINTS: EndpointDef[] = [
-  // ── Data Ingest ──────────────────────────────────────────────────────────
-  {
-    id: 'ingest-transactions',
-    method: 'POST', path: '/api/v1/beam/transactions',
-    title: 'Ingest Transaction',
-    summary: 'Send a single transaction event for real-time fraud scoring',
-    description: 'Send every credit, debit, transfer, or FX transaction the moment it lands on your core — even before settlement. OpenIV scores risk, checks against AML rules, and can auto-open a case in under 14ms.',
-    requestFields: [
-      { name: 'customer_id',       type: 'string',   required: true,  desc: 'Your internal customer identifier' },
-      { name: 'customer_name',     type: 'string',   required: true,  desc: 'Full name of the customer' },
-      { name: 'amount',            type: 'integer',  required: true,  desc: 'Transaction amount in kobo (e.g. ₦14,250 = 1425000)' },
-      { name: 'channel',           type: 'enum',     required: true,  desc: 'wire | mobile | transfer | atm | pos | ussd | bdc | other' },
-      { name: 'counterparty',      type: 'string',   required: true,  desc: 'Name of the counterparty' },
-      { name: 'status',            type: 'enum',     required: true,  desc: 'pending | completed | failed | declined' },
-      { name: 'location',          type: 'string',   required: true,  desc: 'Human-readable location (e.g. "Lagos, NG")' },
-      { name: 'lat',               type: 'number',   required: true,  desc: 'Latitude of the transaction origin' },
-      { name: 'lng',               type: 'number',   required: true,  desc: 'Longitude of the transaction origin' },
-      { name: 'occurred_at',       type: 'ISO 8601', required: true,  desc: 'UTC timestamp when the event occurred' },
-      { name: 'sender_account',    type: 'string',   required: true,  desc: 'Sender account number' },
-      { name: 'sender_bank',       type: 'string',   required: true,  desc: 'Sender bank name' },
-      { name: 'recipient_name',    type: 'string',   required: true,  desc: 'Recipient full name' },
-      { name: 'recipient_account', type: 'string',   required: true,  desc: 'Recipient account number' },
-      { name: 'recipient_bank',    type: 'string',   required: true,  desc: 'Recipient bank name' },
-      { name: 'currency',          type: 'string',   required: true,  desc: 'ISO 4217 currency code (e.g. NGN)' },
-      { name: 'narration',         type: 'string',   required: true,  desc: 'Transaction narration or description' },
-      { name: 'device_id',         type: 'string',   required: true,  desc: 'Device fingerprint ID initiating the transaction' },
-      { name: 'ip_address',        type: 'string',   required: true,  desc: 'IP address of the originating request' },
-      { name: 'direction',         type: 'enum',     required: false, desc: 'outward | inward' },
-      { name: 'category',          type: 'string',   required: false, desc: 'Transaction category (e.g. salary, rent)' },
-      { name: 'customer_kyc_tier', type: 'integer',  required: false, desc: 'KYC tier 1–3 if already known' },
-    ],
-    requestExample: JSON.stringify({
-      customer_id: 'CUS-001', customer_name: 'Adamu Ibrahim',
-      amount: 14250000, channel: 'wire', counterparty: 'Sokoto BDC Ltd',
-      status: 'pending', location: 'Sokoto', lat: 13.0059, lng: 5.2476,
-      occurred_at: '2026-05-01T17:56:29Z',
-      sender_account: '0124567890', sender_bank: 'Access Bank',
-      recipient_name: 'Sokoto BDC Ltd', recipient_account: '0034567891',
-      recipient_bank: 'GTBank', currency: 'NGN',
-      narration: 'FX Settlement — USD Purchase',
-      device_id: 'dev_a1b2c3', ip_address: '102.89.45.67',
-    }, null, 2),
-    responses: [
-      { status: 200, label: 'Accepted', body: JSON.stringify({
-          ok: true, record_id: 12345, stream: 'transactions', status: 'pending',
-          analysis: {
-            transaction_id: 'beam-12345', risk_score: 12,
-            transaction_risk_score: 8, kyc_risk_score: 5,
-            risk_level: 'LOW', recommended_action: 'ACCEPT',
-            case_id: null, priority: null, account_conflict: false,
-            direction: 'outward', institution_kyc_tier: 2,
-            processed_at: '2026-05-01T18:01:23+01:00',
-          },
-        }, null, 2) },
-      { status: 200, label: 'Flagged / Case opened', body: JSON.stringify({
-          ok: true, record_id: 12346, stream: 'transactions', status: 'pending',
-          analysis: {
-            transaction_id: 'beam-12346', risk_score: 87,
-            transaction_risk_score: 79, kyc_risk_score: 72,
-            risk_level: 'CRITICAL', recommended_action: 'DECLINE',
-            case_id: 'case-7d8e9f', priority: 'HIGH',
-            account_conflict: false, direction: 'outward',
-            institution_kyc_tier: 1,
-            processed_at: '2026-05-01T18:01:24+01:00',
-          },
-        }, null, 2) },
-      { status: 200, label: 'Rejected (no KYC)', body: JSON.stringify({
-          ok: true, record_id: 12347, stream: 'transactions', status: 'pending',
-          analysis: {
-            transaction_id: 'beam-12347', rejected: true,
-            recommended_action: 'REJECTED', reason: 'unknown_customer',
-            account_conflict: false,
-            message: "Customer 'CUS-001' is not registered and could not be retrieved via the customer fetch webhook. Transactions from unverified customers are not accepted. Please beam the customer's KYC before beaming transactions.",
-            processed_at: '2026-05-01T18:01:24+01:00',
-          },
-        }, null, 2) },
-      { status: 400, label: 'Bad request', body: JSON.stringify({ error: "Missing required field 'occurred_at'. Provide the transaction timestamp in ISO-8601 format." }, null, 2) },
-      { status: 401, label: 'Unauthorized', body: JSON.stringify({ error: 'invalid_api_key_or_session' }, null, 2) },
-    ],
-    codeSamples: {
-      'cURL': curl('/beam/transactions', { customer_id: 'CUS-001', amount: 14250000, channel: 'wire', status: 'pending', occurred_at: '2026-05-01T17:56:29Z' }),
-      'Node.js': node('/beam/transactions', { customer_id: 'CUS-001', amount: 14250000, channel: 'wire' }, 'ok'),
-      'Python': python('/beam/transactions', { customer_id: 'CUS-001', amount: 14250000, channel: 'wire' }),
-      'Go': golang('/beam/transactions', { customer_id: 'CUS-001', amount: 14250000, channel: 'wire' }),
-      'Java': java('/beam/transactions', { customer_id: 'CUS-001', amount: 14250000, channel: 'wire', status: 'pending', occurred_at: '2026-05-01T17:56:29Z' }),
-    },
-  },
-  {
-    id: 'ingest-kyc',
-    method: 'POST', path: '/api/v1/beam/kyc',
-    title: 'Ingest Customer KYC',
-    summary: 'Submit customer identity records for KYC tier assignment',
-    description: 'Send BVN, NIN, and an optional biometric photo. OpenIV assigns a KYC tier, adjusts risk scores on all future transactions for that customer, and runs a PEP cross-check. Without this, customers default to Tier 0 (unverified) with minimal transaction limits.',
-    requestFields: [
-      { name: 'customer_id',       type: 'string',  required: true,  desc: 'Your internal customer identifier' },
-      { name: 'customer_kyc_tier', type: 'integer', required: true,  desc: 'Intended KYC tier (1, 2, or 3)' },
-      { name: 'occurred_at',       type: 'ISO 8601', required: true, desc: 'UTC timestamp of KYC submission' },
-      { name: 'name',              type: 'string',  required: false, desc: 'Customer full name for cross-check' },
-      { name: 'bvn',               type: 'string',  required: false, desc: '11-digit Bank Verification Number' },
-      { name: 'nin',               type: 'string',  required: false, desc: '11-digit National Identification Number' },
-      { name: 'photo',             type: 'string',  required: false, desc: 'Base64-encoded biometric photo (JPEG/PNG)' },
-      { name: 'monthly_inflow',    type: 'integer', required: false, desc: 'Expected monthly inflow in kobo' },
-      { name: 'monthly_outflow',   type: 'integer', required: false, desc: 'Expected monthly outflow in kobo' },
-    ],
-    requestExample: JSON.stringify({
-      customer_id: 'CUST-001', customer_kyc_tier: 2,
-      occurred_at: '2026-05-14T10:00:00Z',
-      name: 'Adamu Ibrahim', bvn: '22123456789', nin: '12345678901',
-      monthly_inflow: 5000000, monthly_outflow: 3200000,
-    }, null, 2),
-    responses: [
-      { status: 200, label: 'Verified — clear', body: JSON.stringify({
-          ok: true, record_id: 12348, stream: 'kyc', status: 'pending',
-          analysis: {
-            customer_id: 'CUST-001', kyc_status: 'verified',
-            knowledge_level: 'FULL', institution_kyc_tier: 2,
-            risk_score: 23, action: 'clear',
-            bvn_received: true, nin_received: true, photo_received: false,
-            pipeline_ms: 342,
-            steps: [
-              { step: 'bvn_nin',      status: 'passed',  detail: 'BVN verified — Adamu Ibrahim',   durationMs: 180 },
-              { step: 'phone_match',  status: 'passed',  detail: 'Phone matches BVN record',         durationMs: 62 },
-              { step: 'liveness',     status: 'skipped', detail: 'No photo provided',                durationMs: 0 },
-              { step: 'pep_check',    status: 'passed',  detail: 'No PEP matches found',             durationMs: 100 },
-            ],
-            processed_at: '2026-05-14T10:00:12+01:00',
-          },
-        }, null, 2) },
-      { status: 200, label: 'Flagged — review', body: JSON.stringify({
-          ok: true, record_id: 12349, stream: 'kyc', status: 'pending',
-          analysis: {
-            customer_id: 'CUST-002', kyc_status: 'flagged',
-            knowledge_level: 'BASIC', institution_kyc_tier: 1,
-            risk_score: 74, action: 'flagged',
-            bvn_received: true, nin_received: false, photo_received: false,
-            pipeline_ms: 220,
-            steps: [
-              { step: 'bvn_nin',      status: 'passed',  detail: 'BVN verified',                     durationMs: 180 },
-              { step: 'phone_match',  status: 'failed',  detail: 'Phone does not match BVN record',   durationMs: 40 },
-              { step: 'liveness',     status: 'skipped', detail: 'No photo provided',                 durationMs: 0 },
-              { step: 'pep_check',    status: 'passed',  detail: 'No PEP matches found',              durationMs: 0 },
-            ],
-            processed_at: '2026-05-14T10:01:04+01:00',
-          },
-        }, null, 2) },
-      { status: 400, label: 'Bad request', body: JSON.stringify({ error: "Missing required field 'customer_id'" }, null, 2) },
-      { status: 401, label: 'Unauthorized', body: JSON.stringify({ error: 'invalid_api_key_or_session' }, null, 2) },
-    ],
-    codeSamples: {
-      'cURL': curl('/beam/kyc', { customer_id: 'CUST-001', customer_kyc_tier: 2, bvn: '22123456789', occurred_at: '2026-05-14T10:00:00Z' }),
-      'Node.js': node('/beam/kyc', { customer_id: 'CUST-001', customer_kyc_tier: 2, bvn: '22123456789' }, 'ok'),
-      'Python': python('/beam/kyc', { customer_id: 'CUST-001', customer_kyc_tier: 2, bvn: '22123456789' }),
-      'Go': golang('/beam/kyc', { customer_id: 'CUST-001', customer_kyc_tier: 2, bvn: '22123456789' }),
-      'Java': java('/beam/kyc', { customer_id: 'CUST-001', customer_kyc_tier: 2, bvn: '22123456789', occurred_at: '2026-05-14T10:00:00Z' }),
-    },
-  },
+// ── Beam endpoints (log + Docs only — no schema, no samples) ─────────────────
+const BEAM_ENDPOINTS: BeamEndpointDef[] = [
+  { id: 'ingest-transactions', method: 'POST', path: '/api/v1/beam/transactions', title: 'Ingest Transaction' },
+  { id: 'ingest-kyc',          method: 'POST', path: '/api/v1/beam/kyc',          title: 'Ingest Customer KYC' },
+]
 
+const ENDPOINTS: EndpointDef[] = [
   // ── Verification ──────────────────────────────────────────────────────────
   {
     id: 'verify-bvn',
     method: 'POST', path: '/api/v1/verify/bvn',
     title: 'Verify BVN',
     summary: 'Validate a Bank Verification Number and retrieve identity details',
-    description: 'Looks up a BVN against the NIBSS identity database via Dojah. Returns the name, date of birth, and phone number on record. Use this during customer onboarding to confirm identity before assigning a KYC tier.',
+    description: 'Confirms a customer\'s registered identity. Returns the full name, date of birth, and phone number tied to the BVN — so you know the person in front of you is who they claim to be before you open an account or assign a KYC tier.',
     requestFields: [
       { name: 'bvn',          type: 'string', required: true,  desc: '11-digit Bank Verification Number' },
       { name: 'customer_ref', type: 'string', required: false, desc: 'Your internal reference — echoed back in the response for correlation' },
@@ -729,7 +618,7 @@ const ENDPOINTS: EndpointDef[] = [
     method: 'POST', path: '/api/v1/verify/nin',
     title: 'Verify NIN',
     summary: 'Validate a National Identification Number',
-    description: 'Looks up a NIN against the NIMC database. Returns the registered name and date of birth. Useful for onboarding Tier 2/3 customers where NIN is required under CBN KYC guidelines.',
+    description: 'Confirms a customer\'s government-issued identity. Returns the registered name and date of birth, giving you a second independent identity signal that satisfies CBN Tier 2 and Tier 3 KYC requirements.',
     requestFields: [
       { name: 'nin',          type: 'string', required: true,  desc: '11-digit National Identification Number' },
       { name: 'customer_ref', type: 'string', required: false, desc: 'Your internal reference — echoed back in the response' },
@@ -753,7 +642,7 @@ const ENDPOINTS: EndpointDef[] = [
     method: 'POST', path: '/api/v1/verify/phone',
     title: 'Verify Phone Number',
     summary: 'Validate a Nigerian mobile number and retrieve subscriber details',
-    description: 'Checks a phone number against the NCC subscriber registry. Returns the registered name and network operator. Use this to detect SIM swaps, name mismatches, or unregistered SIMs during onboarding or high-value transactions.',
+    description: 'Tells you who a phone number is registered to. Returns the subscriber\'s name and network operator — so you can catch SIM swaps and name mismatches before they become fraud losses.',
     requestFields: [
       { name: 'phone',        type: 'string', required: true,  desc: 'Nigerian mobile number in E.164 format (e.g. +2348031234567)' },
       { name: 'customer_ref', type: 'string', required: false, desc: 'Your internal reference — echoed back in the response' },
@@ -777,7 +666,7 @@ const ENDPOINTS: EndpointDef[] = [
     method: 'POST', path: '/api/v1/verify/pep',
     title: 'PEP Screening',
     summary: 'Screen a person against global Politically Exposed Persons lists',
-    description: 'Checks a name (and optional date of birth) against global PEP, sanctions, and adverse media databases. Returns a match list with risk levels and known positions. Required for onboarding under CBN AML/CFT guidelines before opening accounts for any individual.',
+    description: 'Tells you if a person is politically exposed or sanctioned before you do business with them. Returns every match found, the risk level, and the positions held — protecting your institution from CBN AML/CFT penalties and reputational risk.',
     requestFields: [
       { name: 'name', type: 'string', required: true,  desc: 'Full name of the individual to screen' },
       { name: 'dob',  type: 'string', required: false, desc: 'Date of birth (YYYY-MM-DD) — narrows results and reduces false positives' },
@@ -797,16 +686,181 @@ const ENDPOINTS: EndpointDef[] = [
       'Java': java('/verify/pep', { name: 'Godwin Emefiele', dob: '1961-08-04' }),
     },
   },
+  {
+    id: 'verify-nuban',
+    method: 'POST', path: '/api/v1/verify/nuban',
+    title: 'Resolve NUBAN',
+    summary: 'Resolve a NUBAN account number to the registered account holder',
+    description: 'Confirms that a bank account exists and returns the name of the registered holder. Use it before approving a transfer to make sure the money lands with the right person — and to surface a name mismatch before your customer sends funds to the wrong account.',
+    requestFields: [
+      { name: 'account_number', type: 'string', required: true,  desc: '10-digit NUBAN account number' },
+      { name: 'bank_code',      type: 'string', required: true,  desc: '3-digit CBN bank code (e.g. 033 for UBA, 058 for GTBank)' },
+    ],
+    requestExample: JSON.stringify({ account_number: '0123456789', bank_code: '033' }, null, 2),
+    responses: [
+      { status: 200, label: 'Resolved', body: JSON.stringify({
+          resolved: true,
+          account_name: 'ADAMU IBRAHIM YUSUF',
+          first_name: 'ADAMU', last_name: 'IBRAHIM', other_names: 'YUSUF',
+          dob: '1990-03-15',
+          masked_phone: '2348***34567',
+          masked_bvn: '221****6789',
+          identity_type: 'BVN',
+          city: 'Lagos', state: 'Lagos',
+        }, null, 2) },
+      { status: 200, label: 'Not resolved', body: JSON.stringify({
+          resolved: false,
+          account_name: null, first_name: null, last_name: null, other_names: null,
+          dob: null, masked_phone: null, masked_bvn: null,
+          identity_type: null, city: null, state: null,
+        }, null, 2) },
+      { status: 400, label: 'Bad request', body: JSON.stringify({ error: 'invalid_request', message: 'account_number is required' }, null, 2) },
+      { status: 401, label: 'Unauthorized', body: JSON.stringify({ error: 'invalid_api_key_or_session' }, null, 2) },
+    ],
+    codeSamples: {
+      'cURL': curl('/verify/nuban', { account_number: '0123456789', bank_code: '033' }),
+      'Node.js': node('/verify/nuban', { account_number: '0123456789', bank_code: '033' }, 'account_name'),
+      'Python': python('/verify/nuban', { account_number: '0123456789', bank_code: '033' }),
+      'Go': golang('/verify/nuban', { account_number: '0123456789', bank_code: '033' }),
+      'Java': java('/verify/nuban', { account_number: '0123456789', bank_code: '033' }),
+    },
+  },
+  {
+    id: 'verify-phone-fraud',
+    method: 'POST', path: '/api/v1/verify/phone-fraud',
+    title: 'Phone Fraud Screening',
+    summary: 'Screen a phone number for fraud risk signals from the telco intelligence network',
+    description: 'Tells you the fraud history of a phone number before you accept it from a customer or counterparty. Returns a risk score and specific flags — whether the number appeared in data breaches, was reported for spam, is a disposable or virtual SIM, or has recent abuse on record. One call is enough to decide whether a number deserves further scrutiny.',
+    requestFields: [
+      { name: 'phone', type: 'string', required: true, desc: 'Phone number in local or E.164 format (e.g. 2348101234567 or +2348101234567)' },
+    ],
+    requestExample: JSON.stringify({ phone: '2348101234567' }, null, 2),
+    responses: [
+      { status: 200, label: 'Low risk', body: JSON.stringify({
+          resolved: true, phone: '2348101234567',
+          valid: true, carrier: 'MTN Nigeria', line_type: 'Wireless', country: 'NG',
+          risk_score: 5,
+          leaked: false, spammer: false, disposable: false,
+          suspicious: false, recent_abuse: false, active: true,
+        }, null, 2) },
+      { status: 200, label: 'High risk', body: JSON.stringify({
+          resolved: true, phone: '2348101234567',
+          valid: true, carrier: 'Airtel Nigeria', line_type: 'Wireless', country: 'NG',
+          risk_score: 78,
+          leaked: true, spammer: true, disposable: false,
+          suspicious: true, recent_abuse: true, active: true,
+        }, null, 2) },
+      { status: 400, label: 'Bad request', body: JSON.stringify({ error: 'invalid_request', message: 'phone is required' }, null, 2) },
+      { status: 401, label: 'Unauthorized', body: JSON.stringify({ error: 'invalid_api_key_or_session' }, null, 2) },
+    ],
+    codeSamples: {
+      'cURL': curl('/verify/phone-fraud', { phone: '2348101234567' }),
+      'Node.js': node('/verify/phone-fraud', { phone: '2348101234567' }, 'risk_score'),
+      'Python': python('/verify/phone-fraud', { phone: '2348101234567' }),
+      'Go': golang('/verify/phone-fraud', { phone: '2348101234567' }),
+      'Java': java('/verify/phone-fraud', { phone: '2348101234567' }),
+    },
+  },
+
+  // ── Intelligence ──────────────────────────────────────────────────────────
+  {
+    id: 'intelligence-account-risk',
+    method: 'POST', path: '/api/v1/intelligence/account-risk',
+    title: 'Account Risk Intelligence',
+    summary: 'Multi-layer pre-transfer risk check on a beneficiary account',
+    description: 'Before your customer sends money, you get a clear verdict — proceed, review, or block — and the evidence behind it. You\'ll know if the account exists, if the holder\'s identity checks out, if they\'re politically exposed or sanctioned, whether any linked phone numbers carry a fraud history, and whether your institution has ever flagged this account. One call, two fields, full picture.',
+    requestFields: [
+      { name: 'account_number', type: 'string', required: true, desc: '10-digit NUBAN account number of the beneficiary' },
+      { name: 'bank_code',      type: 'string', required: true, desc: '3-digit CBN bank code (e.g. 033 for UBA, 058 for GTBank)' },
+    ],
+    requestExample: JSON.stringify({ account_number: '0123456789', bank_code: '033' }, null, 2),
+    responses: [
+      { status: 200, label: 'Low risk — phones match', body: JSON.stringify({
+          account_number: '0123456789', bank_code: '033',
+          resolved: true, account_name: 'ADAMU IBRAHIM YUSUF',
+          risk_level: 'LOW', recommendation: 'PROCEED',
+          signals: [],
+          checks: {
+            nuban: { resolved: true, account_name: 'ADAMU IBRAHIM YUSUF', phone: '2348031234567', bvn: '22123456789', identity_type: 'BVN' },
+            bvn_verification: { verified: true, first_name: 'Adamu', last_name: 'Ibrahim', middle_name: 'Yusuf', date_of_birth: '1990-03-15', name_match: true },
+            pep: { is_pep: false, total_matches: 0, matches: [] },
+            phone_screening: [
+              { phone: '2348031234567', source: 'bvn_record', valid: true, carrier: 'MTN Nigeria', line_type: 'Wireless', risk_score: 5, leaked: false, spammer: false, disposable: false, suspicious: false, recent_abuse: false, active: true },
+            ],
+            fraud_registry: { hit: false, caution_id: null },
+          },
+        }, null, 2) },
+      { status: 200, label: 'High risk — dual phone fraud checks', body: JSON.stringify({
+          account_number: '0123456788', bank_code: '033',
+          resolved: true, account_name: 'EMEKA OKAFOR',
+          risk_level: 'HIGH', recommendation: 'REVIEW',
+          signals: [
+            { type: 'phone_fraud', severity: 'high',   detail: 'BVN phone risk_score=72 — leaked, spammer' },
+            { type: 'phone_fraud', severity: 'medium', detail: 'NUBAN phone risk_score=45 — suspicious' },
+            { type: 'phone_mismatch', severity: 'medium', detail: 'NUBAN phone differs from BVN phone — both screened independently' },
+          ],
+          checks: {
+            nuban: { resolved: true, account_name: 'EMEKA OKAFOR', phone: '2348099876543', bvn: '22198765432', identity_type: 'BVN' },
+            bvn_verification: { verified: true, first_name: 'Emeka', last_name: 'Okafor', middle_name: null, date_of_birth: '1985-07-22', name_match: true },
+            pep: { is_pep: false, total_matches: 0, matches: [] },
+            phone_screening: [
+              { phone: '2348031112233', source: 'bvn_record',   valid: true, carrier: 'Airtel Nigeria', line_type: 'Wireless', risk_score: 72, leaked: true,  spammer: true,  disposable: false, suspicious: true, recent_abuse: false, active: true },
+              { phone: '2348099876543', source: 'nuban_record', valid: true, carrier: 'Glo Nigeria',   line_type: 'Wireless', risk_score: 45, leaked: false, spammer: false, disposable: false, suspicious: true, recent_abuse: false, active: true },
+            ],
+            fraud_registry: { hit: false, caution_id: null },
+          },
+        }, null, 2) },
+      { status: 200, label: 'Critical — PEP match + BVN name mismatch', body: JSON.stringify({
+          account_number: '0987654321', bank_code: '058',
+          resolved: true, account_name: 'GODWIN C EMEFIELE',
+          risk_level: 'CRITICAL', recommendation: 'BLOCK',
+          signals: [
+            { type: 'pep_match',         severity: 'critical', detail: 'Godwin Emefiele — Governor, Central Bank of Nigeria' },
+            { type: 'bvn_name_mismatch', severity: 'high',     detail: 'BVN name "Godwin Chukwuma Emefiele" does not match account name "GODWIN C EMEFIELE"' },
+          ],
+          checks: {
+            nuban: { resolved: true, account_name: 'GODWIN C EMEFIELE', phone: '2348031110001', bvn: '22100000001', identity_type: 'BVN' },
+            bvn_verification: { verified: true, first_name: 'Godwin', last_name: 'Emefiele', middle_name: 'Chukwuma', date_of_birth: '1961-08-04', name_match: false },
+            pep: { is_pep: true, total_matches: 1, matches: [{ name: 'Godwin Emefiele', risk_level: 'high', positions: ['Governor, Central Bank of Nigeria'], countries: ['NG'] }] },
+            phone_screening: [
+              { phone: '2348031110001', source: 'bvn_record', valid: true, carrier: 'MTN Nigeria', line_type: 'Wireless', risk_score: 12, leaked: false, spammer: false, disposable: false, suspicious: false, recent_abuse: false, active: true },
+            ],
+            fraud_registry: { hit: false, caution_id: null },
+          },
+        }, null, 2) },
+      { status: 200, label: 'Unresolved account', body: JSON.stringify({
+          account_number: '0000000000', bank_code: '033',
+          resolved: false, account_name: null,
+          risk_level: 'UNKNOWN', recommendation: 'REVIEW',
+          signals: [{ type: 'nuban_unresolved', severity: 'high', detail: 'Account could not be resolved — verify account number and bank code' }],
+          checks: { nuban: { resolved: false }, bvn_verification: null, pep: null, phone_screening: null, fraud_registry: { hit: false, caution_id: null } },
+        }, null, 2) },
+      { status: 400, label: 'Bad request', body: JSON.stringify({ error: 'invalid_request', message: 'account_number is required' }, null, 2) },
+      { status: 401, label: 'Unauthorized', body: JSON.stringify({ error: 'invalid_api_key_or_session' }, null, 2) },
+    ],
+    codeSamples: {
+      'cURL': curl('/intelligence/account-risk', { account_number: '0123456789', bank_code: '033' }),
+      'Node.js': node('/intelligence/account-risk', { account_number: '0123456789', bank_code: '033' }, 'risk_level'),
+      'Python': python('/intelligence/account-risk', { account_number: '0123456789', bank_code: '033' }),
+      'Go': golang('/intelligence/account-risk', { account_number: '0123456789', bank_code: '033' }),
+      'Java': java('/intelligence/account-risk', { account_number: '0123456789', bank_code: '033' }),
+    },
+  },
 ]
 
 const SIDEBAR_GROUPS: SidebarGroup[] = [
   {
     label: 'Data Ingest', color: '#61afef',
-    items: ENDPOINTS.filter(e => e.id.startsWith('ingest')).map(e => ({ id: e.id, method: e.method, path: e.path })),
+    items: BEAM_ENDPOINTS.map(e => ({ id: e.id, method: e.method, path: e.path })),
   },
   {
     label: 'Verification', color: '#c3e88d',
     items: ENDPOINTS.filter(e => e.id.startsWith('verify')).map(e => ({ id: e.id, method: e.method, path: e.path })),
+  },
+  {
+    label: 'Intelligence', color: '#f78c6c',
+    items: ENDPOINTS.filter(e => e.id.startsWith('intelligence')).map(e => ({ id: e.id, method: e.method, path: e.path })),
+    hidden: true, // Temporarily hidden — flip to false when ready to ship.
   },
 ]
 
@@ -832,7 +886,7 @@ export default function DevelopersPage() {
     const onScroll = () => {
       const threshold = container.getBoundingClientRect().top + 80
       let newActive = 'authentication'
-      for (const ep of ENDPOINTS) {
+      for (const ep of [...BEAM_ENDPOINTS, ...ENDPOINTS]) {
         const el = document.getElementById(ep.id)
         if (el && el.getBoundingClientRect().top <= threshold) newActive = ep.id
       }
@@ -901,7 +955,7 @@ curl -X POST https://api.openiv.ng/api/v1/beam/transactions \\
           </Box>
 
           {/* Divider + group headers */}
-          {SIDEBAR_GROUPS.map(group => (
+          {SIDEBAR_GROUPS.filter(group => !group.hidden).map(group => (
             <Box key={group.label}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4, mt: 2 }}>
                 <Box sx={{ height: 1, flex: 1, bgcolor: '#e2e8f0' }} />
@@ -914,14 +968,19 @@ curl -X POST https://api.openiv.ng/api/v1/beam/transactions \\
                 <Box sx={{ height: 1, flex: 1, bgcolor: '#e2e8f0' }} />
               </Box>
 
-              {ENDPOINTS.filter(e => group.items.some(i => i.id === e.id)).map((ep, idx, arr) => (
-                <Box key={ep.id}>
-                  <EndpointSection ep={ep} />
-                  {idx < arr.length - 1 && (
-                    <Box sx={{ height: 1, bgcolor: '#e2e8f0', my: 5 }} />
-                  )}
-                </Box>
-              ))}
+              {group.label === 'Data Ingest'
+                ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {BEAM_ENDPOINTS.map(ep => <BeamEndpointCard key={ep.id} ep={ep} />)}
+                  </Box>
+                )
+                : ENDPOINTS.filter(e => group.items.some(i => i.id === e.id)).map((ep, idx, arr) => (
+                  <Box key={ep.id}>
+                    <EndpointSection ep={ep} />
+                    {idx < arr.length - 1 && <Box sx={{ height: 1, bgcolor: '#e2e8f0', my: 5 }} />}
+                  </Box>
+                ))
+              }
               <Box sx={{ mb: 6 }} />
             </Box>
           ))}

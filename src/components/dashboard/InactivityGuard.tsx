@@ -93,17 +93,17 @@ function TotpInput({
           autoFocus={i === 0}
           inputProps={{ maxLength: 1, inputMode: 'numeric' as const,
             style: { textAlign: 'center', fontSize: '1.375rem', fontWeight: 600,
-              padding: '16px 0', color: '#00288e' } }}
+              padding: '16px 0', color: 'var(--heading-color)' } }}
           sx={{
             flex: 1,
             '& .MuiOutlinedInput-root': {
-              bgcolor: digit ? '#ffffff' : '#f5f3fb',
+              bgcolor: digit ? 'var(--card-bg)' : 'var(--section-bg)',
               borderRadius: 0,
               '& fieldset': {
-                border: digit ? `1px solid ${colorPalette.primary}` : '1px solid transparent',
+                border: `1px solid ${digit ? colorPalette.primary : 'var(--border-col)'} !important`,
               },
-              '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-              '&.Mui-focused': { bgcolor: '#ffffff' },
+              '&.Mui-focused fieldset': { border: `1px solid ${colorPalette.primary} !important` },
+              '&.Mui-focused': { bgcolor: 'var(--card-bg)' },
             },
           }}
         />
@@ -292,7 +292,7 @@ export default function InactivityGuard() {
           <LockOutlinedIcon sx={{ fontSize: '1.125rem', color: colorPalette.primary }} />
         </Box>
         <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {guardState === 'warning' ? 'Are you still there?' : 'Confirm it\'s you'}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -306,7 +306,7 @@ export default function InactivityGuard() {
       <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         {guardState === 'warning' && (
           <>
-            <Typography sx={{ fontSize: '0.9375rem', color: '#475569', lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: '0.9375rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
               For security, your session will end in{' '}
               <Box component="span" sx={{ fontWeight: 700, color: '#dc2626', fontFamily: 'Jost' }}>
                 {fmt(countdown)}
@@ -320,7 +320,7 @@ export default function InactivityGuard() {
                 sx={{ bgcolor: colorPalette.primary, color: '#ffffff', py: 1.25,
                   fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0,
                   textTransform: 'none', boxShadow: 'none',
-                  '&:hover': { bgcolor: '#1e293b' } }}
+                  '&:hover': { bgcolor: 'var(--on-surface)' } }}
               >
                 I'm still here
               </Button>
@@ -328,7 +328,7 @@ export default function InactivityGuard() {
                 onClick={doLogout}
                 sx={{ color: '#64748b', py: 1.25, fontSize: '0.875rem', fontWeight: 600,
                   fontFamily: 'Jost', borderRadius: 0, textTransform: 'none',
-                  '&:hover': { bgcolor: '#f8fafc', color: '#00288e' } }}
+                  '&:hover': { bgcolor: 'var(--section-bg)', color: 'var(--heading-color)' } }}
               >
                 Sign out
               </Button>
@@ -359,7 +359,7 @@ export default function InactivityGuard() {
               sx={{ bgcolor: colorPalette.primary, color: '#ffffff', py: 1.25,
                 fontSize: '0.875rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0,
                 textTransform: 'none', boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e293b' }, '&:disabled': { bgcolor: '#94a3b8' } }}
+                '&:hover': { bgcolor: 'var(--on-surface)' }, '&:disabled': { bgcolor: '#94a3b8' } }}
             >
               {submitting
                 ? <CircularProgress size={16} sx={{ color: '#ffffff' }} />

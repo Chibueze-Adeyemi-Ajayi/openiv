@@ -51,7 +51,7 @@ const CATEGORY_CFG: Record<EvidenceCategory, { label: string; color: string; bg:
   behavior:    { label: 'Behavior',        color: '#7c3aed', bg: '#f5f3ff', icon: '📊' },
   device:      { label: 'Device / IP',     color: '#b45309', bg: '#fefce8', icon: '💻' },
   otp:         { label: 'OTP / Fingerprint', color: '#be123c', bg: '#fff1f2', icon: '🔐' },
-  document:    { label: 'Document',        color: '#475569', bg: '#f8fafc', icon: '📄' },
+  document:    { label: 'Document',        color: 'var(--on-surface-variant)', bg: '#f8fafc', icon: '📄' },
   other:       { label: 'Other',           color: '#64748b', bg: '#f8fafc', icon: '📝' },
 }
 
@@ -391,10 +391,10 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
   const actCount = data?.activity.length ?? 0
 
   return (
-    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', bgcolor: '#f1f5f9' }}>
+    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', bgcolor: 'var(--app-bg)' }}>
 
       {/* ── Header bar ─────────────────────────────────────────────────────── */}
-      <Box sx={{ flexShrink: 0, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2, px: 3, height: 56 }}>
+      <Box sx={{ flexShrink: 0, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2, px: 3, height: 56 }}>
 
         {/* Back button — minimizes the workspace */}
         <Box onClick={onMinimize ?? onClose} sx={{
@@ -413,7 +413,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
           <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0 }}>
             {loading ? '—' : (cas?.id ?? '—')}
           </Typography>
-          <Typography sx={{ fontSize: '0.875rem', color: '#475569', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {cas?.title ?? ''}
           </Typography>
         </Box>
@@ -424,12 +424,12 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
             <Box
               onClick={onMinimize}
               title="Minimize — keep case open while you navigate"
-              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: 'var(--heading-color)' } }}
             >
               <RemoveRoundedIcon sx={{ fontSize: '1.125rem' }} />
             </Box>
           )}
-          <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: '#00288e' } }}>
+          <Box onClick={onClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, cursor: 'pointer', color: '#94a3b8', transition: 'color 0.15s', '&:hover': { color: 'var(--heading-color)' } }}>
             <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
           </Box>
         </Box>
@@ -439,7 +439,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Left sidebar */}
-        <Box sx={{ width: 284, flexShrink: 0, bgcolor: '#ffffff', borderRight: '1px solid #eef0f4', overflowY: 'auto', p: 2.5 }}>
+        <Box sx={{ width: 284, flexShrink: 0, bgcolor: 'var(--card-bg)', borderRight: '1px solid var(--border-col)', overflowY: 'auto', p: 2.5 }}>
 
           {loading ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
@@ -450,7 +450,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
           ) : cas ? (
             <>
               {/* Risk score */}
-              <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid #eef0f4', bgcolor: cas.riskScore >= 70 ? '#fef2f200' : '#fafbfc' }}>
+              <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid var(--border-col)', bgcolor: cas.riskScore >= 70 ? '#fef2f200' : 'var(--section-bg)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.875, mb: 0.875 }}>
                   <Typography sx={{ fontSize: '2rem', fontWeight: 800, color: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', fontFamily: 'Jost', lineHeight: 1 }}>
                     {cas.riskScore}
@@ -460,7 +460,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                   </Typography>
                   <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
                 </Box>
-                <Box sx={{ height: 5, bgcolor: '#f1f5f9', position: 'relative' }}>
+                <Box sx={{ height: 5, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                   <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${cas.riskScore}%`, bgcolor: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', transition: 'width 0.5s ease' }} />
                 </Box>
               </Box>
@@ -472,7 +472,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                     <SideLabel>SLA Deadline</SideLabel>
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: sla.color }}>{sla.label}</Typography>
                   </Box>
-                  <Box sx={{ height: 4, bgcolor: '#f1f5f9', position: 'relative' }}>
+                  <Box sx={{ height: 4, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                     <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${sla.pct}%`, bgcolor: sla.color }} />
                   </Box>
                   <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', mt: 0.5 }}>
@@ -527,14 +527,14 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                       <SideActionBtn label="Close Case ▾" color="#64748b" disabled={actioning || !isAssignedToMe}
                         onClick={() => { if (isAssignedToMe) setCloseSideOpen(v => !v) }} />
                       {closeSideOpen && (
-                        <Box sx={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 12px 36px rgba(15,23,42,0.14)', zIndex: 10 }}>
+                        <Box sx={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', boxShadow: '0 12px 36px rgba(15,23,42,0.14)', zIndex: 10 }}>
                           <Typography sx={{ px: 1.5, pt: 1.25, pb: 0.75, fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Select Resolution
                           </Typography>
                           {RESOLUTION_OPTIONS.map(r => (
-                            <Box key={r.key} onClick={() => { setCloseSideOpen(false); triggerAction({ type: 'status', to: 'closed', resolution: r.key }) }} sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: '#f8fafc' } }}>
+                            <Box key={r.key} onClick={() => { setCloseSideOpen(false); triggerAction({ type: 'status', to: 'closed', resolution: r.key }) }} sx={{ px: 1.5, py: 0.875, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                               <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: r.color, flexShrink: 0 }} />
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'Jost' }}>{r.label}</Typography>
+                              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'Jost' }}>{r.label}</Typography>
                             </Box>
                           ))}
                         </Box>
@@ -564,8 +564,8 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
               {cas.notes && (
                 <Box sx={{ mb: 2.5 }}>
                   <SideLabel>Case Notes</SideLabel>
-                  <Box sx={{ mt: 0.75, p: 1.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'Jost', lineHeight: 1.5 }}>
+                  <Box sx={{ mt: 0.75, p: 1.25, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost', lineHeight: 1.5 }}>
                       {cas.notes}
                     </Typography>
                   </Box>
@@ -575,19 +575,19 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
               {/* Linked transactions */}
               <Box>
                 <SideLabel>Linked Transactions ({data?.transactions.length ?? 0})</SideLabel>
-                <Box sx={{ mt: 0.75, border: '1px solid #eef0f4' }}>
+                <Box sx={{ mt: 0.75, border: '1px solid var(--border-col)' }}>
                   {!data?.transactions.length ? (
                     <Box sx={{ p: 1.5, textAlign: 'center' }}>
                       <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>None linked</Typography>
                     </Box>
                   ) : data!.transactions.map((t, i) => (
-                    <Box key={t.id} sx={{ px: 1.25, py: 1, borderBottom: i < data!.transactions.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                    <Box key={t.id} sx={{ px: 1.25, py: 1, borderBottom: i < data!.transactions.length - 1 ? '1px solid var(--border-col)' : 'none' }}>
                       <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {t.id}
                       </Typography>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
                         <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{t.customer}</Typography>
-                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                           {t.amount.toLocaleString()}
                         </Typography>
                       </Box>
@@ -603,7 +603,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Tab bar */}
-          <Box sx={{ flexShrink: 0, bgcolor: '#ffffff', borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', px: 3 }}>
+          <Box sx={{ flexShrink: 0, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', px: 3 }}>
             {([['details', 'Details & Notes', '📋'], ['evidence', `Evidence (${evCount})`, '🔍'], ['timeline', `Timeline (${actCount})`, '⏱']] as const).map(([tab, label, icon]) => (
               <Box key={tab} onClick={() => setMainTab(tab)} sx={{
                 display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25, py: 1.5, mr: 3,
@@ -639,7 +639,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                   )}
 
                   {/* Risk score */}
-                  <Box sx={{ p: 1.5, border: '1px solid #eef0f4', bgcolor: cas.riskScore >= 70 ? '#fef2f200' : '#fafbfc' }}>
+                  <Box sx={{ p: 1.5, border: '1px solid var(--border-col)', bgcolor: cas.riskScore >= 70 ? '#fef2f200' : 'var(--section-bg)' }}>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.875, mb: 0.875 }}>
                       <Typography sx={{ fontSize: '2rem', fontWeight: 800, color: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', fontFamily: 'Jost', lineHeight: 1 }}>
                         {cas.riskScore}
@@ -649,13 +649,13 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                       </Typography>
                       <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
                     </Box>
-                    <Box sx={{ height: 5, bgcolor: '#f1f5f9', position: 'relative' }}>
+                    <Box sx={{ height: 5, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                       <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${cas.riskScore}%`, bgcolor: cas.riskScore >= 70 ? '#dc2626' : cas.riskScore >= 40 ? '#f59e0b' : '#10b981', transition: 'width 0.5s ease' }} />
                     </Box>
                   </Box>
 
                   {/* Details */}
-                  <Box sx={{ border: '1px solid #eef0f4', p: 1.5 }}>
+                  <Box sx={{ border: '1px solid var(--border-col)', p: 1.5 }}>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
                       Case Details
                     </Typography>
@@ -680,19 +680,19 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
                       Linked Transactions ({data?.transactions.length ?? 0})
                     </Typography>
-                    <Box sx={{ border: '1px solid #eef0f4' }}>
+                    <Box sx={{ border: '1px solid var(--border-col)' }}>
                       {!data?.transactions.length ? (
                         <Box sx={{ p: 1.5, textAlign: 'center' }}>
                           <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>None linked</Typography>
                         </Box>
                       ) : data!.transactions.map((t, i) => (
-                        <Box key={t.id} sx={{ px: 1.25, py: 1, borderBottom: i < data!.transactions.length - 1 ? '1px solid #f4f5f7' : 'none' }}>
+                        <Box key={t.id} sx={{ px: 1.25, py: 1, borderBottom: i < data!.transactions.length - 1 ? '1px solid var(--border-col)' : 'none' }}>
                           <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {t.id}
                           </Typography>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
                             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>{t.customer}</Typography>
-                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                               {t.amount.toLocaleString()}
                             </Typography>
                           </Box>
@@ -723,7 +723,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                       <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>Add Evidence</Typography>
                     </Box>
                   ) : (
-                    <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#ffffff', p: 2 }}>
+                    <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', p: 2 }}>
                       <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1.25 }}>
                         New Evidence
                       </Typography>
@@ -753,7 +753,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                       <Stack gap={1}>
                         <Box>
                           <MiniLabel>Title *</MiniLabel>
-                          <Box sx={{ border: '1px solid #e2e8f0', px: 1.25, py: 0.75, '&:focus-within': { borderColor: colorPalette.primary } }}>
+                          <Box sx={{ border: '1px solid var(--border-col)', px: 1.25, py: 0.75, '&:focus-within': { borderColor: colorPalette.primary } }}>
                             <InputBase value={evTitle} onChange={e => setEvTitle(e.target.value)} placeholder="Brief title for this evidence" fullWidth sx={{ fontSize: '0.8125rem', fontFamily: 'Jost' }} />
                           </Box>
                         </Box>
@@ -761,19 +761,19 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                           <MiniLabel>Detail</MiniLabel>
                           <Box component="textarea" value={evDetail} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEvDetail(e.target.value)}
                             placeholder="Full description, amounts, context…" rows={2}
-                            sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid #e2e8f0', px: 1.25, py: 0.75, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: '#00288e', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
+                            sx={{ width: '100%', display: 'block', resize: 'none', border: '1px solid var(--border-col)', px: 1.25, py: 0.75, fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif', color: 'var(--heading-color)', bgcolor: '#ffffff', outline: 'none', boxSizing: 'border-box', '&:focus': { borderColor: colorPalette.primary }, '&::placeholder': { color: '#94a3b8' } }}
                           />
                         </Box>
                         <Box>
                           <MiniLabel>Reference ID</MiniLabel>
-                          <Box sx={{ border: '1px solid #e2e8f0', px: 1.25, py: 0.75, '&:focus-within': { borderColor: colorPalette.primary } }}>
+                          <Box sx={{ border: '1px solid var(--border-col)', px: 1.25, py: 0.75, '&:focus-within': { borderColor: colorPalette.primary } }}>
                             <InputBase value={evRefId} onChange={e => setEvRefId(e.target.value)} placeholder="TXN-ID, DOC-REF, AUTH-ID…" fullWidth sx={{ fontSize: '0.8125rem', fontFamily: 'SF Mono, Monaco, monospace' }} />
                           </Box>
                         </Box>
                       </Stack>
 
                       <Stack direction="row" gap={1} justifyContent="flex-end" mt={1.5}>
-                        <Box onClick={() => { setAddEvOpen(false); setEvTitle(''); setEvDetail(''); setEvRefId('') }} sx={{ px: 1.75, py: 0.75, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer', '&:hover': { borderColor: '#94a3b8' } }}>
+                        <Box onClick={() => { setAddEvOpen(false); setEvTitle(''); setEvDetail(''); setEvRefId('') }} sx={{ px: 1.75, py: 0.75, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', color: '#64748b', border: '1px solid var(--border-col)', cursor: 'pointer', '&:hover': { borderColor: '#94a3b8' } }}>
                           Cancel
                         </Box>
                         <Box onClick={submitEvidence} sx={{
@@ -795,7 +795,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
               {loading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                   {[...Array(3)].map((_, i) => (
-                    <Box key={i} sx={{ height: 72, bgcolor: '#ffffff', border: '1px solid #eef0f4', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                    <Box key={i} sx={{ height: 72, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                   ))}
                 </Box>
               ) : !data?.evidence.length ? (
@@ -809,7 +809,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                   {data!.evidence.map(ev => {
                     const cfg = CATEGORY_CFG[ev.category as EvidenceCategory] ?? CATEGORY_CFG.other
                     return (
-                      <Box key={ev.id} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2 }}>
+                      <Box key={ev.id} sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                           {/* Category badge */}
                           <Box sx={{ px: 1, py: 0.375, bgcolor: cfg.bg, border: `1px solid ${cfg.color}30`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -819,11 +819,11 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                             </Typography>
                           </Box>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
                               {ev.title}
                             </Typography>
                             {ev.detail && (
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-line', mb: 0.5 }}>
+                              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5, whiteSpace: 'pre-line', mb: 0.5 }}>
                                 {ev.detail}
                               </Typography>
                             )}
@@ -834,7 +834,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                             )}
                           </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.25, pt: 1, borderTop: '1px solid #f4f5f7' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.25, pt: 1, borderTop: '1px solid var(--border-col)' }}>
                           <Avatar name={ev.addedByName} size={18} />
                           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
                             {ev.addedByName} · {fmtDate(ev.createdAt)}
@@ -855,7 +855,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                 {loading ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     {[...Array(4)].map((_, i) => (
-                      <Box key={i} sx={{ height: 48, bgcolor: '#ffffff', border: '1px solid #eef0f4', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
+                      <Box key={i} sx={{ height: 48, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                     ))}
                   </Box>
                 ) : !data?.activity.length ? (
@@ -865,12 +865,12 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {data!.activity.map(a => (
-                      <Box key={a.id} sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 1.75 }}>
+                      <Box key={a.id} sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 1.75 }}>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                           <Avatar name={a.actorName} size={28} />
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap', mb: 0.25 }}>
-                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                                 {a.actorName}
                               </Typography>
                               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -881,7 +881,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                               </Typography>
                             </Box>
                             {a.detail && (
-                              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', mt: 0.375 }}>
+                              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, whiteSpace: 'pre-wrap', mt: 0.375 }}>
                                 {a.detail}
                               </Typography>
                             )}
@@ -895,10 +895,10 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
 
               {/* Note input */}
               {cas && (
-                <Box sx={{ flexShrink: 0, borderTop: '1px solid #eef0f4', bgcolor: '#ffffff', p: 2 }}>
+                <Box sx={{ flexShrink: 0, borderTop: '1px solid var(--border-col)', bgcolor: 'var(--card-bg)', p: 2 }}>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
                     <Box sx={{
-                      flex: 1, border: '1px solid #e2e8f0', px: 1.25, py: 0.875, minHeight: 56,
+                      flex: 1, border: '1px solid var(--border-col)', px: 1.25, py: 0.875, minHeight: 56,
                       '&:focus-within': { borderColor: colorPalette.primary },
                     }}>
                       <InputBase
@@ -907,7 +907,7 @@ export default function InvestigationWorkspace({ caseId, open, onClose, onMinimi
                         onChange={e => setNote(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNote() }}
                         placeholder="Add a note for the audit trail… (Ctrl+Enter to submit)"
-                        sx={{ flex: 1, width: '100%', fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e', '& textarea': { resize: 'none' } }}
+                        sx={{ flex: 1, width: '100%', fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)', '& textarea': { resize: 'none' } }}
                       />
                     </Box>
                     <Box onClick={submitNote} sx={{
@@ -1051,8 +1051,8 @@ function CaseNotesSection({ notes, customerId }: { notes: string; customerId: st
 
         if (!isHeader) {
           return (
-            <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', borderRadius: 0.5 }}>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            <Box key={idx} sx={{ p: 1.5, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', borderRadius: 0.5 }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {section}
               </Typography>
             </Box>

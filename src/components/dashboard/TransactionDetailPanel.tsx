@@ -182,7 +182,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
           <Box onClick={onClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.3)', zIndex: 1200 }} />
           <Box sx={{
             position: 'fixed', top: 0, right: 0, bottom: 0,
-            width: 440, bgcolor: '#ffffff', zIndex: 1201,
+            width: 440, bgcolor: 'var(--card-bg)', zIndex: 1201,
             boxShadow: '-8px 0 40px rgba(15,23,42,0.14)',
             display: 'flex', flexDirection: 'column',
             animation: 'slideInPanel 0.24s cubic-bezier(0.4,0,0.2,1)',
@@ -190,7 +190,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
           }}>
 
             {/* ── Sticky header ───────────────────────────────────────── */}
-            <Box sx={{ flexShrink: 0, borderBottom: '1px solid #eef0f4' }}>
+            <Box sx={{ flexShrink: 0, borderBottom: '1px solid var(--border-col)' }}>
 
               {/* Row 1: ID + status badges + close */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2.5, pt: 2.5, pb: 1.25 }}>
@@ -198,7 +198,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.25 }}>
                     Transaction
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}>
                     {txn.id}
                   </Typography>
                 </Box>
@@ -237,14 +237,14 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                 >
                   View Profile
                 </Button>
-                <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: '#475569' } }}>
+                <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', '&:hover': { color: 'var(--on-surface-variant)' } }}>
                   <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
                 </IconButton>
               </Box>
 
               {/* Row 2: Amount */}
               <Box sx={{ px: 2.5, pb: 1.5 }}>
-                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.02em' }}>
                   {fmtAmount(txn.amount, txn.currency)}
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -266,9 +266,9 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
               </Box>
 
               {/* Row 4: Case CTA */}
-              <Box sx={{ px: 2.5, pb: 1.75, borderTop: '1px solid #f1f5f9', pt: 1.25 }}>
+              <Box sx={{ px: 2.5, pb: 1.75, borderTop: '1px solid var(--border-col)', pt: 1.25 }}>
                 {checkingCase ? (
-                  <Box sx={{ height: 40, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', px: 1.5 }}>
+                  <Box sx={{ height: 40, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', px: 1.5 }}>
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>Checking investigation status…</Typography>
                   </Box>
                 ) : existingCase ? (
@@ -289,17 +289,17 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                 ) : canOpenCase ? (
                   <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}
                     onClick={() => setIntakeOpen(true)}
-                    sx={{ px: 1.5, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` } }}>
+                    sx={{ px: 1.5, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: colorPalette.primary, bgcolor: `${colorPalette.primary}06` } }}>
                     <Stack direction="row" alignItems="center" gap={0.75}>
                       <GavelOutlinedIcon sx={{ fontSize: '0.9375rem', color: colorPalette.primary }} />
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                         Open Investigation Case
                       </Typography>
                     </Stack>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Escalate to AML →</Typography>
                   </Stack>
                 ) : (
-                  <Box sx={{ px: 1.5, py: 0.875, border: '1px solid #eef0f4', bgcolor: '#fafbfc', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box sx={{ px: 1.5, py: 0.875, border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)', display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <GavelOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#cbd5e1' }} />
                     <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                       Flag or escalate the transaction to open a case
@@ -316,7 +316,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
             <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
 
               {/* Risk score */}
-              <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid #eef0f4', bgcolor: `${rc}04` }}>
+              <Box sx={{ mb: 2.5, p: 1.5, border: '1px solid var(--border-col)', bgcolor: `${rc}04` }}>
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
                   <Typography sx={{ fontSize: '2.25rem', fontWeight: 800, color: rc, fontFamily: 'Jost', lineHeight: 1 }}>
                     {risk}
@@ -326,7 +326,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', ml: 'auto' }}>/100</Typography>
                 </Box>
-                <Box sx={{ height: 6, bgcolor: '#f1f5f9', position: 'relative' }}>
+                <Box sx={{ height: 6, bgcolor: 'var(--section-bg)', position: 'relative' }}>
                   <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${risk}%`, bgcolor: rc, transition: 'width 0.6s ease' }} />
                 </Box>
               </Box>
@@ -428,15 +428,15 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
           <Box sx={{
             position: 'fixed', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: 380, bgcolor: '#ffffff', zIndex: 1401,
+            width: 380, bgcolor: 'var(--card-bg)', zIndex: 1401,
             boxShadow: '0 24px 60px rgba(15,23,42,0.18)',
             animation: 'otpFadeIn 0.2s ease',
             '@keyframes otpFadeIn': { from: { opacity: 0, transform: 'translate(-50%, -48%)' }, to: { opacity: 1, transform: 'translate(-50%, -50%)' } },
           }}>
             {/* Dialog header */}
-            <Box sx={{ px: 2.5, pt: 2.5, pb: 1.75, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <Box sx={{ px: 2.5, pt: 2.5, pb: 1.75, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Confirm Status Change
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.375 }}>
@@ -449,7 +449,7 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
               </Box>
               <IconButton disableRipple size="small"
                 onClick={() => { setOtpPending(null); setOtpCode(''); setOtpError(null) }}
-                sx={{ borderRadius: 0, color: '#94a3b8', mt: -0.25, '&:hover': { color: '#475569' } }}>
+                sx={{ borderRadius: 0, color: '#94a3b8', mt: -0.25, '&:hover': { color: 'var(--on-surface-variant)' } }}>
                 <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
               </IconButton>
             </Box>
@@ -475,15 +475,15 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
                 autoFocus
                 sx={{
                   width: '100%', boxSizing: 'border-box',
-                  border: `1px solid ${otpError ? '#dc2626' : '#e2e8f0'}`,
-                  bgcolor: '#fafbfc',
+                  border: `1px solid ${otpError ? '#dc2626' : 'var(--border-col)'}`,
+                  bgcolor: 'var(--section-bg)',
                   px: 1.75, py: 1.25,
                   fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.35em',
                   fontFamily: 'SF Mono, Monaco, monospace',
-                  color: '#00288e', outline: 'none',
+                  color: 'var(--heading-color)', outline: 'none',
                   textAlign: 'center',
                   transition: 'border-color 0.15s',
-                  '&:focus': { borderColor: colorPalette.primary, bgcolor: '#ffffff' },
+                  '&:focus': { borderColor: colorPalette.primary, bgcolor: 'var(--card-bg)' },
                   '&::placeholder': { color: '#cbd5e1', letterSpacing: '0.2em' },
                 }}
               />
@@ -502,9 +502,9 @@ export default function TransactionDetailPanel({ transaction: txn, open, onClose
               <Box
                 onClick={() => { setOtpPending(null); setOtpCode(''); setOtpError(null) }}
                 sx={{
-                  px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+                  px: 2, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
                   color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-                  transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' },
+                  transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' },
                 }}
               >
                 Cancel
@@ -536,7 +536,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.14em', mb: 1 }}>
         {title}
       </Typography>
-      <Box sx={{ border: '1px solid #eef0f4', p: 1.5 }}>{children}</Box>
+      <Box sx={{ border: '1px solid var(--border-col)', p: 1.5 }}>{children}</Box>
     </Box>
   )
 }

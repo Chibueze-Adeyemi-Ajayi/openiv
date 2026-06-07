@@ -170,7 +170,7 @@ export default function ReportsPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Compliance
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               NFIU Reports &amp; Filings
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -180,12 +180,12 @@ export default function ReportsPage() {
           <Stack direction="row" gap={1.25}>
             {/* <Button onClick={() => setSchedOpen(true)}
               startIcon={<ScheduleRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{ bgcolor: '#fff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
+              sx={{ bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
               Schedule Report
             </Button> */}
             <Button onClick={() => { setViewReport(null); setViewReadOnly(false); setFileOpen(true) }}
               startIcon={<AddRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{ bgcolor: colorPalette.primary, color: '#fff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
+              sx={{ bgcolor: colorPalette.primary, color: '#fff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface)' } }}>
               File New Report
             </Button>
           </Stack>
@@ -205,7 +205,7 @@ export default function ReportsPage() {
               key={s.label}
               data-ai-analyzable="true"
               data-ai-description={`Regulatory Reporting KPI: ${s.label}. current value: ${s.value}. status: ${s.sub}.`}
-              sx={{ border: `1px solid ${s.alert ? '#fde68a' : '#eef0f4'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : '#fff' }}>
+              sx={{ border: `1px solid ${s.alert ? '#fde68a' : 'var(--border-col)'}`, p: 2, bgcolor: s.alert ? '#fffbeb' : 'var(--card-bg)' }}>
               <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>
                 {s.label}
               </Typography>
@@ -222,10 +222,10 @@ export default function ReportsPage() {
         </Box>
 
         {/* ── Report table ── */}
-        <Box sx={{ bgcolor: '#fff', border: '1px solid #eef0f4' }}>
+        <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
 
           {/* ── Filter bar ── */}
-          <Box sx={{ borderBottom: '1px solid #eef0f4' }}>
+          <Box sx={{ borderBottom: '1px solid var(--border-col)' }}>
 
             {/* Row 1: Type filter */}
             <Box sx={{ px: 2.5, pt: 1.25, pb: 0, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'nowrap', overflowX: 'auto' }}>
@@ -253,7 +253,7 @@ export default function ReportsPage() {
                       <Typography sx={{ fontSize: '0.75rem', fontWeight: active ? 700 : 500, color: active ? p.color : '#64748b', fontFamily: 'Jost', letterSpacing: '0.02em' }}>
                         {p.abbr}
                       </Typography>
-                      <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? p.color : '#f1f5f9', borderRadius: '10px' }}>
+                      <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? p.color : 'var(--section-bg)', borderRadius: '10px' }}>
                         <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: active ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
                           {count}
                         </Typography>
@@ -274,16 +274,16 @@ export default function ReportsPage() {
                     display: 'flex', alignItems: 'center', gap: 0.625, flexShrink: 0,
                     px: 1.25, py: 0.625, cursor: 'pointer', userSelect: 'none',
                     border: `1px solid ${showScheduled ? '#64748b' : '#e5e7eb'}`,
-                    bgcolor: showScheduled ? '#f1f5f9' : 'transparent',
+                    bgcolor: showScheduled ? 'var(--section-bg)' : 'transparent',
                     transition: 'all 0.15s',
-                    '&:hover': { borderColor: '#64748b', bgcolor: '#f8fafc' },
+                    '&:hover': { borderColor: '#64748b', bgcolor: 'var(--section-bg)' },
                   }}
                 >
                   <ScheduleRoundedIcon sx={{ fontSize: '0.75rem', color: showScheduled ? '#475569' : '#94a3b8' }} />
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: showScheduled ? 700 : 500, color: showScheduled ? '#475569' : '#64748b', fontFamily: 'Jost' }}>
                     Schedules
                   </Typography>
-                  <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: showScheduled ? '#475569' : '#f1f5f9', borderRadius: '10px' }}>
+                  <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: showScheduled ? '#475569' : 'var(--section-bg)', borderRadius: '10px' }}>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: showScheduled ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
                       {schedules.length}
                     </Typography>
@@ -313,15 +313,15 @@ export default function ReportsPage() {
                           display: 'flex', alignItems: 'center', gap: 0.75,
                           px: 1.5, py: 0.5, cursor: 'pointer', userSelect: 'none',
                           borderRight: i < 2 ? '1px solid #e5e7eb' : 'none',
-                          bgcolor: active ? opt.activeBg : '#fff',
+                          bgcolor: active ? opt.activeBg : 'var(--card-bg)',
                           transition: 'background 0.12s',
-                          '&:hover': { bgcolor: active ? opt.activeBg : '#fafbfc' },
+                          '&:hover': { bgcolor: active ? opt.activeBg : 'var(--section-bg)' },
                         }}
                       >
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: active ? 700 : 500, color: active ? opt.activeColor : '#94a3b8', fontFamily: 'Jost', whiteSpace: 'nowrap' }}>
                           {opt.label}
                         </Typography>
-                        <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? opt.activeColor : '#f1f5f9', borderRadius: '10px' }}>
+                        <Box sx={{ px: 0.625, minWidth: 18, textAlign: 'center', bgcolor: active ? opt.activeColor : 'var(--section-bg)', borderRadius: '10px' }}>
                           <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: active ? '#fff' : '#94a3b8', lineHeight: '16px' }}>
                             {opt.count}
                           </Typography>
@@ -351,7 +351,7 @@ export default function ReportsPage() {
                 </Box>
               ) : (
                 <Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.25, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                     {['Schedule name', 'Type', 'Frequency', 'Next due', 'Status', ''].map(h => (
                       <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
                     ))}
@@ -363,16 +363,16 @@ export default function ReportsPage() {
                         key={s.id} 
                         data-ai-analyzable="true"
                         data-ai-description={`Scheduled Report: ${s.name}. type: ${s.reportType}. frequency: ${s.frequency}. next due: ${new Date(s.nextDue).toLocaleDateString('en-GB')}. auto-file enabled: ${s.autoFile}.`}
-                        sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < schedules.length - 1 ? '1px solid #f4f5f7' : 'none', '&:hover': { bgcolor: '#fafbfc' } }}>
+                        sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 130px 100px 80px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < schedules.length - 1 ? '1px solid var(--border-col)' : 'none', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
                         <Box>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e' }}>{s.name}</Typography>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)' }}>{s.name}</Typography>
                           {s.autoFile && <Typography sx={{ fontSize: '0.625rem', color: colorPalette.primary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Auto-file</Typography>}
                         </Box>
                         <Chip label={TYPE_META[s.reportType]?.abbr ?? s.reportType} size="small"
                           sx={{ borderRadius: 0, height: 20, fontSize: '0.625rem', fontWeight: 700, bgcolor: `${TYPE_META[s.reportType]?.color}14`, color: TYPE_META[s.reportType]?.color, width: 'fit-content' }} />
-                        <Typography sx={{ fontSize: '0.8125rem', color: '#475569', textTransform: 'capitalize' }}>{s.frequency}</Typography>
+                        <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', textTransform: 'capitalize' }}>{s.frequency}</Typography>
                         <Box>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                             {new Date(s.nextDue).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </Typography>
                           <Typography sx={{ fontSize: '0.6875rem', color: due.color, fontWeight: 600 }}>{due.label}</Typography>
@@ -402,7 +402,7 @@ export default function ReportsPage() {
           ) : (
             <Box>
               {/* Table header */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.25, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.25, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                 {['Reference', 'Type', 'Title / Subject', 'Status', 'Filed', 'Amount', ''].map(h => (
                   <Typography key={h} sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</Typography>
                 ))}
@@ -430,10 +430,10 @@ export default function ReportsPage() {
                     data-ai-analyzable="true"
                     data-ai-description={`NFIU Report Filing: ${r.reference}. type: ${r.reportType}. status: ${r.status.toUpperCase()}. priority: ${r.priority.toUpperCase()}. title: ${r.title}.${r.subjectName ? ' subject: ' + r.subjectName : ''}.${r.filingDate ? ' filed on: ' + fmtDate(r.filingDate) : ' not yet filed.'}`}
                     onClick={() => openReport(r)}
-                    sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid #f4f5f7' : 'none', cursor: 'pointer', '&:hover': { bgcolor: '#f0f4ff' } }}>
+                    sx={{ display: 'grid', gridTemplateColumns: '140px 100px 1fr 130px 140px 120px 36px', gap: 2, px: 3, py: 1.75, alignItems: 'center', borderBottom: i < visibleReports.length - 1 ? '1px solid var(--border-col)' : 'none', cursor: 'pointer', '&:hover': { bgcolor: '#f0f4ff' } }}>
 
                     {/* Reference */}
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                       {r.reference}
                     </Typography>
 
@@ -446,7 +446,7 @@ export default function ReportsPage() {
 
                     {/* Title / subject */}
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.title}
                       </Typography>
                       {r.subjectName && (
@@ -466,12 +466,12 @@ export default function ReportsPage() {
                     </Box>
 
                     {/* Filed date */}
-                    <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                       {r.filingDate ? fmtDate(r.filingDate) : <span style={{ color: '#94a3b8' }}>Not filed</span>}
                     </Typography>
 
                     {/* Amount */}
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                       {r.amountNgn != null ? `₦${r.amountNgn.toLocaleString()}` : '—'}
                     </Typography>
 

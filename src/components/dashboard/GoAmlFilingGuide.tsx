@@ -129,7 +129,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
       PaperProps={{ sx: { borderRadius: 0, boxShadow: '0 24px 64px rgba(0,0,0,0.14)', maxHeight: '92vh' } }}
     >
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+      <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
             <Box sx={{ px: 1, py: 0.25, bgcolor: `${typeColor}14` }}>
@@ -137,20 +137,20 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
                 {report.reportType}
               </Typography>
             </Box>
-            <Box sx={{ px: 1, py: 0.25, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+            <Box sx={{ px: 1, py: 0.25, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#64748b', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '0.08em' }}>
                 {report.reference}
               </Typography>
             </Box>
           </Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Submit to NFIU goAML Portal
           </Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mt: 0.25 }}>
             {typeLabel}
           </Typography>
         </Box>
-        <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', mt: 0.25, '&:hover': { color: '#475569' } }}>
+        <IconButton disableRipple size="small" onClick={onClose} sx={{ borderRadius: 0, color: '#94a3b8', mt: 0.25, '&:hover': { color: 'var(--on-surface-variant)' } }}>
           <CloseRoundedIcon sx={{ fontSize: '1.125rem' }} />
         </IconButton>
       </Box>
@@ -159,7 +159,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
       <Box sx={{ overflowY: 'auto', flex: 1 }}>
 
         {/* ── Report summary card ──────────────────────────────────────────── */}
-        <Box sx={{ mx: 3, mt: 2.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4' }}>
+        <Box sx={{ mx: 3, mt: 2.5, p: 2, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
           <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 1.25 }}>
             Report summary
           </Typography>
@@ -178,7 +178,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
                 <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.25 }}>
                   {item.label}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#00288e', fontFamily: item.mono ? 'SF Mono, Monaco, monospace' : 'Jost', fontWeight: item.mono ? 400 : 600, wordBreak: 'break-all' }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: 'var(--heading-color)', fontFamily: item.mono ? 'SF Mono, Monaco, monospace' : 'Jost', fontWeight: item.mono ? 400 : 600, wordBreak: 'break-all' }}>
                   {item.value}
                 </Typography>
               </Box>
@@ -215,7 +215,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
                     {step.icon}
                   </Box>
                   {i < STEPS.length - 1 && (
-                    <Box sx={{ width: '1.5px', flex: 1, minHeight: 20, bgcolor: '#eef0f4', my: 0.5 }} />
+                    <Box sx={{ width: '1.5px', flex: 1, minHeight: 20, bgcolor: 'var(--border-col)', my: 0.5 }} />
                   )}
                 </Box>
 
@@ -226,10 +226,10 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
                       STEP {i + 1}
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
+                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.375 }}>
                     {step.title}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
                     {step.body}
                   </Typography>
                   {step.link && (
@@ -255,10 +255,10 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
         </Box>
 
         {/* ── Schema notes ─────────────────────────────────────────────────── */}
-        <Box sx={{ mx: 3, mb: 2.5, p: 2, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', gap: 1.25 }}>
+        <Box sx={{ mx: 3, mb: 2.5, p: 2, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', display: 'flex', gap: 1.25 }}>
           <InfoOutlinedIcon sx={{ fontSize: '0.9375rem', color: '#64748b', flexShrink: 0, mt: 0.125 }} />
           <Stack gap={0.625}>
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
               About the generated XML
             </Typography>
             <Typography sx={{ fontSize: '0.6875rem', color: '#64748b', lineHeight: 1.6 }}>
@@ -273,7 +273,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
 
       {/* ── Footer actions ───────────────────────────────────────────────────── */}
       <Divider />
-      <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, bgcolor: '#fafbfc' }}>
+      <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, bgcolor: 'var(--section-bg)' }}>
         <Box>
           {downloaded && !dlError && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
@@ -296,7 +296,7 @@ export default function GoAmlFilingGuide({ open, report, onClose }: Props) {
             sx={{
               fontSize: '0.8125rem', fontFamily: 'Jost', fontWeight: 600,
               color: '#64748b', textTransform: 'none', px: 2, py: 1,
-              borderRadius: 0, '&:hover': { bgcolor: '#f1f5f9' },
+              borderRadius: 0, '&:hover': { bgcolor: 'var(--section-bg)' },
             }}
           >
             Close

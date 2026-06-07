@@ -25,7 +25,7 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
       <Box sx={{
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 480, bgcolor: '#ffffff', zIndex: 1451,
+        width: 480, bgcolor: 'var(--card-bg)', zIndex: 1451,
         boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
         animation: 'invFadeIn 0.2s ease',
         '@keyframes invFadeIn': {
@@ -34,7 +34,7 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
         },
       }}>
         {/* Header */}
-        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid #eef0f4',
+        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid var(--border-col)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <Box sx={{ width: 34, height: 34, bgcolor: `${colorPalette.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -44,12 +44,12 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                 Start Investigation
               </Typography>
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                 Begin Active Investigation
               </Typography>
             </Box>
           </Box>
-          <Box onClick={onClose} sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, '&:hover': { color: '#475569' }, display: 'flex' }}>
+          <Box onClick={onClose} sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25, '&:hover': { color: 'var(--on-surface-variant)' }, display: 'flex' }}>
             <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
           </Box>
         </Box>
@@ -57,7 +57,7 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
         {/* Body */}
         <Box sx={{ px: 2.5, py: 2.25 }}>
           {/* Case reference */}
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', border: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <Box>
               <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 Case
@@ -66,7 +66,7 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
                 {caseId}
               </Typography>
               {caseTitle && (
-                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'Jost', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'Jost', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>
                   {caseTitle}
                 </Typography>
               )}
@@ -83,7 +83,7 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
             ].map((item, i) => (
               <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                 <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: colorPalette.primary, mt: 0.625, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.5, fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5, fontFamily: 'Jost' }}>
                   {item}
                 </Typography>
               </Box>
@@ -100,11 +100,11 @@ export default function StartInvestigationModal({ open, caseId, caseTitle, onClo
         </Box>
 
         {/* Footer */}
-        <Box sx={{ px: 2.5, pb: 2.25, display: 'flex', gap: 1, justifyContent: 'flex-end', borderTop: '1px solid #eef0f4', pt: 1.75 }}>
+        <Box sx={{ px: 2.5, pb: 2.25, display: 'flex', gap: 1, justifyContent: 'flex-end', borderTop: '1px solid var(--border-col)', pt: 1.75 }}>
           <Box onClick={onClose} sx={{
-            px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+            px: 2, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
             color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-            transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' },
+            transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' },
           }}>
             Cancel
           </Box>

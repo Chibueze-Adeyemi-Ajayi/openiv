@@ -178,7 +178,7 @@ export default function RiskSeekbar({
                 width: THUMB,
                 height: THUMB,
                 borderRadius: '50%',
-                bgcolor: '#ffffff',
+                bgcolor: 'var(--card-bg)',
                 border: `2.5px solid ${color}`,
                 cursor: disabled ? 'default' : 'grab',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)',

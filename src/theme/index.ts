@@ -1,5 +1,5 @@
-export { theme } from './theme';
-export { colorPalette, type ColorKey } from './palette';
+export { theme, createAppTheme } from './theme';
+export { colorPalette, darkColorPalette, type ColorKey } from './palette';
 export { typographyConfig } from './typography';
 export * from './useTheme';
 export * from './utilities';

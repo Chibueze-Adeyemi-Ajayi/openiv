@@ -87,7 +87,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
   return (
     <Box sx={{
       position: 'fixed', bottom: 24, left: 24, width: 380,
-      bgcolor: '#ffffff', border: '1px solid #eef0f4',
+      bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)',
       boxShadow: '0 16px 48px rgba(15,23,42,0.16)',
       zIndex: 1500,
       animation: 'geoNotifIn 0.3s cubic-bezier(0.34,1.56,0.64,1)',
@@ -99,13 +99,13 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
 
       {/* Header */}
       <Box sx={{ px: 2, pt: 2, pb: 1.25, display: 'flex', alignItems: 'flex-start', gap: 1.25,
-        borderBottom: '1px solid #eef0f4' }}>
+        borderBottom: '1px solid var(--border-col)' }}>
         <Box sx={{ width: 32, height: 32, bgcolor: '#fff7ed', display: 'flex',
           alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.125 }}>
           <GpsNotFixedIcon sx={{ fontSize: '1rem', color: '#f59e0b' }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             Geo-access request
           </Typography>
           <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
@@ -113,7 +113,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
           </Typography>
         </Box>
         <IconButton disableRipple size="small" onClick={onDismiss}
-          sx={{ color: '#94a3b8', borderRadius: 0, p: 0.25, '&:hover': { color: '#475569' } }}>
+          sx={{ color: '#94a3b8', borderRadius: 0, p: 0.25, '&:hover': { color: 'var(--on-surface-variant)' } }}>
           <CloseRoundedIcon sx={{ fontSize: '0.9375rem' }} />
         </IconButton>
       </Box>
@@ -129,7 +129,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
               ? <CheckOutlinedIcon sx={{ fontSize: '1.25rem', color: '#10b981' }} />
               : <BlockOutlinedIcon sx={{ fontSize: '1.25rem', color: '#dc2626' }} />}
           </Box>
-          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {decision === 'approved' ? 'Access Granted' : 'Access Denied'}
           </Typography>
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.5 }}>
@@ -142,7 +142,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
         <>
           {/* Mini map */}
           {hasLocation && (
-            <Box sx={{ height: 156, overflow: 'hidden', borderBottom: '1px solid #eef0f4' }}>
+            <Box sx={{ height: 156, overflow: 'hidden', borderBottom: '1px solid var(--border-col)' }}>
               <MapContainer
                 center={[request.rawLat!, request.rawLng!]}
                 zoom={14}
@@ -217,7 +217,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
           {phase === 'confirm' && (
             <Box sx={{ px: 2, pb: 2 }}>
               <Typography sx={{
-                fontSize: '0.6875rem', fontWeight: 700, color: '#475569',
+                fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)',
                 textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1,
               }}>
                 {pending === 'approved' ? 'Confirm approval with TOTP' : 'Confirm denial with TOTP'}
@@ -234,15 +234,15 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
                   mb: err ? 0.75 : 1,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 0,
-                    bgcolor: '#f8fafc',
-                    '& fieldset': { borderColor: '#e2e8f0' },
+                    bgcolor: 'var(--section-bg)',
+                    '& fieldset': { borderColor: 'var(--border-col)' },
                     '&:hover fieldset': { borderColor: '#94a3b8' },
                     '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
                   },
                   '& input': {
                     textAlign: 'center', py: '10px',
                     fontFamily: 'SF Mono, Monaco, monospace',
-                    fontSize: '1.25rem', letterSpacing: '0.25em', color: '#00288e',
+                    fontSize: '1.25rem', letterSpacing: '0.25em', color: 'var(--heading-color)',
                   },
                 }}
               />
@@ -253,7 +253,7 @@ export default function GeoAccessNotification({ request, onDismiss }: Props) {
                 <Box
                   onClick={() => { setPhase('view'); setErr(null) }}
                   sx={{
-                    px: 1.5, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+                    px: 1.5, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center',
                     '&:hover': { borderColor: '#94a3b8' },
                   }}
@@ -301,7 +301,7 @@ function Detail({ label, value, mono = false }: { label: string; value: string; 
         {label}
       </Typography>
       <Typography sx={{
-        fontSize: '0.75rem', color: '#00288e', wordBreak: 'break-all',
+        fontSize: '0.75rem', color: 'var(--heading-color)', wordBreak: 'break-all',
         fontFamily: mono ? 'SF Mono, Monaco, monospace' : 'Jost',
         fontWeight: mono ? 500 : 400,
       }}>

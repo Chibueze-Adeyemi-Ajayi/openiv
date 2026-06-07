@@ -30,7 +30,7 @@ export default function IngestionPage() {
         <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
           Configure
         </Typography>
-        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+        <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
           Data Ingestion
         </Typography>
         <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -52,7 +52,7 @@ export default function IngestionPage() {
             data-ai-description={`Data Ingestion Source: ${s.title}. type: ${s.id}. capabilities: ${s.desc}.`}
             sx={{
               p: 2.5,
-              bgcolor: '#ffffff',
+              bgcolor: 'var(--card-bg)',
               border: '1px solid',
               borderColor: source === s.id ? colorPalette.primary : '#eef0f4',
               cursor: 'pointer',
@@ -85,7 +85,7 @@ export default function IngestionPage() {
             >
               {s.icon}
             </Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
               {s.title}
             </Typography>
             <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>{s.desc}</Typography>
@@ -94,9 +94,9 @@ export default function IngestionPage() {
       </Box>
 
       {/* Source config */}
-      <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+      <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
             {source === 'file' && 'Upload spreadsheet'}
             {source === 'url' && 'Configure URL source'}
             {source === 'api' && 'API connection details'}
@@ -121,7 +121,7 @@ export default function IngestionPage() {
               {uploaded ? (
                 <Stack alignItems="center" gap={1.25}>
                   <CheckCircleOutlineRoundedIcon sx={{ fontSize: '2.5rem', color: '#10b981' }} />
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     transactions_apr_2026.xlsx
                   </Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -131,7 +131,7 @@ export default function IngestionPage() {
               ) : (
                 <Stack alignItems="center" gap={1.25}>
                   <CloudUploadOutlinedIcon sx={{ fontSize: '2.5rem', color: '#94a3b8' }} />
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                     Drop your file here or click to browse
                   </Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: '#64748b' }}>
@@ -145,7 +145,7 @@ export default function IngestionPage() {
           {source === 'url' && (
             <Stack gap={2}>
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                   Source URL
                 </Typography>
                 <TextField
@@ -153,7 +153,7 @@ export default function IngestionPage() {
                   placeholder="https://core.fcmb.com/api/transactions.csv"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: '#f5f3fb',
+                      bgcolor: 'var(--section-bg)',
                       borderRadius: 0,
                       '& fieldset': { border: '1px solid transparent' },
                       '&.Mui-focused fieldset': { borderColor: colorPalette.primary },
@@ -163,7 +163,7 @@ export default function IngestionPage() {
                 />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                   Refresh schedule
                 </Typography>
                 <Stack direction="row" gap={1}>
@@ -190,14 +190,14 @@ export default function IngestionPage() {
                   ))}
                 </Stack>
               </Box>
-              <Button onClick={() => setUploaded(true)} sx={{ alignSelf: 'flex-start', bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}>
+              <Button onClick={() => setUploaded(true)} sx={{ alignSelf: 'flex-start', bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', boxShadow: 'none', '&:hover': { bgcolor: 'var(--on-surface)' } }}>
                 Test Connection & Preview
               </Button>
             </Stack>
           )}
 
           {source === 'api' && (
-            <Box sx={{ bgcolor: '#00288e', color: '#e2e8f0', p: 2.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto' }}>
+            <Box sx={{ bgcolor: 'var(--heading-color)', color: '#e2e8f0', p: 2.5, fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre', overflowX: 'auto' }}>
               {`POST https://api.openiv.ng/api/v1/ingest
 Authorization: Bearer ${'<YOUR_API_KEY>'}
 Content-Type: application/json
@@ -219,10 +219,10 @@ Content-Type: application/json
       {/* Preview Section */}
       {uploaded && (
         <Box sx={{ animation: 'fadeIn 0.3s ease', '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(8px)' }, to: { opacity: 1, transform: 'translateY(0)' } } }}>
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', mb: 3 }}>
-            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
+            <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Preview · 8,420 records detected
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -247,7 +247,7 @@ Content-Type: application/json
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, mb: 0.25 }}>
                   Eureka detected your schema
                 </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.55 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', lineHeight: 1.55 }}>
                   Auto-mapped 11 of 12 columns to OpenIV's transaction schema. Column "ref_code" doesn't match — would you like to map it as <strong>internal_reference</strong>?
                 </Typography>
               </Box>
@@ -256,7 +256,7 @@ Content-Type: application/json
             {/* Mini Table */}
             <Box sx={{ overflowX: 'auto', m: 3, mt: 2 }}>
               <Box sx={{ display: 'inline-block', minWidth: '100%' }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 100px 100px 90px 80px', gap: 0, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '130px 110px 130px 100px 100px 90px 80px', gap: 0, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                   {['Txn ID', 'Date', 'Amount', 'From', 'To', 'Channel', 'Mapped'].map((h) => (
                     <Box key={h} sx={{ px: 1.5, py: 1.25 }}>
                       <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -274,27 +274,27 @@ Content-Type: application/json
                       display: 'grid',
                       gridTemplateColumns: '130px 110px 130px 100px 100px 90px 80px',
                       gap: 0,
-                      borderBottom: i === previewData.length - 1 ? 'none' : '1px solid #f4f5f7',
-                      '&:hover': { bgcolor: '#fafbfc' },
+                      borderBottom: i === previewData.length - 1 ? 'none' : '1px solid var(--border-col)',
+                      '&:hover': { bgcolor: 'var(--card-bg)' },
                     }}
                   >
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: '#00288e' }}>{row.txnId}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontFamily: 'SF Mono, Monaco, monospace', color: 'var(--heading-color)' }}>{row.txnId}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{row.date}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{row.date}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.amount}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.from}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.from}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.to}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>{row.to}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#475569' }}>{row.channel}</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{row.channel}</Typography>
                     </Box>
                     <Box sx={{ px: 1.5, py: 1.25 }}>
                       {row.mapped ? (
@@ -310,9 +310,9 @@ Content-Type: application/json
           </Box>
 
           {/* Action Bar */}
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', p: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', p: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mb: 0.25 }}>
+              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.25 }}>
                 Ready to ingest
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -322,8 +322,8 @@ Content-Type: application/json
             <Button
               onClick={() => setUploaded(false)}
               sx={{
-                bgcolor: '#ffffff',
-                color: '#475569',
+                bgcolor: 'var(--card-bg)',
+                color: 'var(--on-surface-variant)',
                 border: '1px solid #e5e7eb',
                 px: 2.25,
                 py: 1.125,
@@ -332,7 +332,7 @@ Content-Type: application/json
                 fontFamily: 'Jost',
                 borderRadius: 0,
                 textTransform: 'none',
-                '&:hover': { bgcolor: '#f8fafc' },
+                '&:hover': { bgcolor: 'var(--section-bg)' },
               }}
             >
               Cancel
@@ -349,7 +349,7 @@ Content-Type: application/json
                 borderRadius: 0,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e293b' },
+                '&:hover': { bgcolor: 'var(--on-surface)' },
               }}
             >
               Ingest 8,420 Records

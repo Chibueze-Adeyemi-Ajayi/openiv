@@ -108,7 +108,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
       <Box sx={{
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 460, bgcolor: '#ffffff', zIndex: 1451,
+        width: 460, bgcolor: 'var(--card-bg)', zIndex: 1451,
         boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
         animation: 'evidFadeIn 0.2s ease',
         '@keyframes evidFadeIn': {
@@ -118,10 +118,10 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
       }}>
 
         {/* Header */}
-        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid #eef0f4',
+        <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid var(--border-col)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
               {title}
             </Typography>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', mt: 0.5,
@@ -133,7 +133,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
             </Box>
           </Box>
           <Box onClick={handleClose} sx={{ cursor: 'pointer', color: '#94a3b8', mt: 0.25,
-            '&:hover': { color: '#475569' }, display: 'flex' }}>
+            '&:hover': { color: 'var(--on-surface-variant)' }, display: 'flex' }}>
             <CloseRoundedIcon sx={{ fontSize: '1rem' }} />
           </Box>
         </Box>
@@ -157,8 +157,8 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 border: `1px solid ${reason.length > 0 && !reasonOk ? '#dc2626' : '#e2e8f0'}`,
                 px: 1.25, py: 0.875,
                 fontSize: '0.8125rem', fontFamily: 'Jost, sans-serif',
-                color: '#00288e', bgcolor: '#fafbfc', outline: 'none',
-                '&:focus': { borderColor: colorPalette.primary, bgcolor: '#ffffff' },
+                color: 'var(--heading-color)', bgcolor: 'var(--card-bg)', outline: 'none',
+                '&:focus': { borderColor: colorPalette.primary, bgcolor: 'var(--card-bg)' },
                 '&::placeholder': { color: '#94a3b8' },
               }}
             />
@@ -183,14 +183,14 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 </Typography>
               )}
               {allowSkipDocument && skippedDoc && (
-                <Typography onClick={() => setSkippedDoc(false)} sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, cursor: 'pointer', '&:hover': { color: '#475569' } }}>
+                <Typography onClick={() => setSkippedDoc(false)} sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 600, cursor: 'pointer', '&:hover': { color: 'var(--on-surface-variant)' } }}>
                   Add document
                 </Typography>
               )}
             </Box>
 
             {skippedDoc ? (
-              <Box sx={{ p: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ p: 1.5, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>No document — proceeding without evidence file</Typography>
               </Box>
             ) : uploadState === 'done' ? (
@@ -198,7 +198,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 p: 1.25, bgcolor: '#f0fdf4', border: '1px solid #86efac' }}>
                 <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1.125rem', color: '#10b981', flexShrink: 0 }} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e',
+                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)',
                     fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {filename}
                   </Typography>
@@ -240,7 +240,7 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
                 ) : (
                   <>
                     <UploadFileOutlinedIcon sx={{ fontSize: '1.75rem', color: '#94a3b8', mb: 0.75 }} />
-                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost', mb: 0.375 }}>
+                    <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.375 }}>
                       {uploadState === 'error' ? 'Upload failed — try again' : 'Click or drag a file here'}
                     </Typography>
                     <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
@@ -262,9 +262,9 @@ export default function ActionEvidenceDialog({ open, onClose, onConfirm, title, 
         {/* Footer */}
         <Box sx={{ px: 2.5, pb: 2.25, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <Box onClick={handleClose}
-            sx={{ px: 2, py: 0.875, border: '1px solid #e2e8f0', cursor: 'pointer',
+            sx={{ px: 2, py: 0.875, border: '1px solid var(--border-col)', cursor: 'pointer',
               color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost',
-              transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: '#334155' } }}>
+              transition: 'all 0.15s', '&:hover': { borderColor: '#94a3b8', color: 'var(--on-surface-variant)' } }}>
             Cancel
           </Box>
           <Box onClick={handleConfirm} sx={{

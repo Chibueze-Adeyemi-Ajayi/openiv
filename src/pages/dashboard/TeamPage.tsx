@@ -71,7 +71,7 @@ function MemberDetailDialog({
       <Box onClick={onClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(2px)', zIndex: 1290 }} />
       <Box sx={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        width: '100%', maxWidth: 660, bgcolor: '#ffffff', zIndex: 1291,
+        width: '100%', maxWidth: 660, bgcolor: 'var(--card-bg)', zIndex: 1291,
         boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
         animation: 'mdfadeIn 0.22s cubic-bezier(0.4,0,0.2,1)',
         '@keyframes mdfadeIn': {
@@ -139,7 +139,7 @@ function MemberDetailDialog({
                 <Box>
                   <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Email</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.875, flexWrap: 'wrap' }}>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155', fontFamily: 'SF Mono, Monaco, monospace', wordBreak: 'break-all' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace', wordBreak: 'break-all' }}>
                       {member.email}
                     </Typography>
                     <Box sx={{ px: 0.75, py: 0.15, bgcolor: member.emailVerified ? '#dcfce7' : '#fee2e2', flexShrink: 0 }}>
@@ -153,18 +153,18 @@ function MemberDetailDialog({
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                   <Box>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Member Since</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155' }}>{joinDate}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>{joinDate}</Typography>
                   </Box>
                   <Box>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Last Active</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155' }}>{member.lastActive || '—'}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>{member.lastActive || '—'}</Typography>
                   </Box>
                 </Box>
 
                 {member.accountType && (
                   <Box>
                     <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>Account Type</Typography>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#334155', textTransform: 'capitalize' }}>{member.accountType}</Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', textTransform: 'capitalize' }}>{member.accountType}</Typography>
                   </Box>
                 )}
 
@@ -193,15 +193,15 @@ function MemberDetailDialog({
               {role ? (
                 <Stack spacing={0}>
                   {permissionMatrix.map((section, si) => (
-                    <Box key={section.area} sx={{ py: 1.25, borderBottom: si < permissionMatrix.length - 1 ? '1px solid #f4f5f7' : 'none', display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#475569', minWidth: 104, lineHeight: 1.5, pt: 0.1, flexShrink: 0 }}>
+                    <Box key={section.area} sx={{ py: 1.25, borderBottom: si < permissionMatrix.length - 1 ? '1px solid var(--border-col)' : 'none', display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--on-surface-variant)', minWidth: 104, lineHeight: 1.5, pt: 0.1, flexShrink: 0 }}>
                         {section.area}
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                         {section.actions.map(a => {
                           const has = getPermission(role, a.key)
                           return (
-                            <Box key={a.key} sx={{ px: 0.875, py: 0.25, bgcolor: has ? '#f0fdf4' : '#f8fafc', border: `1px solid ${has ? '#bbf7d0' : '#e2e8f0'}` }}>
+                            <Box key={a.key} sx={{ px: 0.875, py: 0.25, bgcolor: has ? '#f0fdf4' : 'var(--section-bg)', border: `1px solid ${has ? '#bbf7d0' : 'var(--border-col)'}` }}>
                               <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.04em', color: has ? '#15803d' : '#94a3b8' }}>
                                 {a.label}
                               </Typography>
@@ -222,7 +222,7 @@ function MemberDetailDialog({
         </Box>
 
         {/* ── Footer ── */}
-        <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             {canRemove && (
               <Button
@@ -234,7 +234,7 @@ function MemberDetailDialog({
               </Button>
             )}
           </Box>
-          <Button onClick={onClose} sx={{ bgcolor: '#ffffff', color: '#475569', border: '1px solid #e5e7eb', px: 2.25, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: '#f8fafc' } }}>
+          <Button onClick={onClose} sx={{ bgcolor: 'var(--card-bg)', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', px: 2.25, py: 1, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: 'var(--section-bg)' } }}>
             Close
           </Button>
         </Box>
@@ -486,7 +486,7 @@ export default function TeamPage() {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
               Manage
             </Typography>
-            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
               Team & Roles
             </Typography>
             <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
@@ -507,7 +507,7 @@ export default function TeamPage() {
               borderRadius: 0,
               textTransform: 'none',
               boxShadow: 'none',
-              '&:hover': { bgcolor: '#1e293b' },
+              '&:hover': { bgcolor: 'var(--on-surface)' },
             }}
           >
             Invite Member
@@ -534,10 +534,10 @@ export default function TeamPage() {
                 fontFamily: 'Jost',
                 cursor: 'pointer',
                 color: tab === t.id ? colorPalette.primary : '#64748b',
-                bgcolor: tab === t.id ? '#ffffff' : 'transparent',
+                bgcolor: tab === t.id ? 'var(--card-bg)' : 'transparent',
                 border: '1px solid',
                 borderColor: tab === t.id ? '#eef0f4' : 'transparent',
-                borderBottom: tab === t.id ? '1px solid #ffffff' : '1px solid #eef0f4',
+                borderBottom: tab === t.id ? '1px solid #ffffff' : '1px solid var(--border-col)',
                 marginBottom: '-1px',
                 transition: 'all 0.15s',
                 '&:hover': { color: colorPalette.primary },
@@ -546,14 +546,14 @@ export default function TeamPage() {
               {t.label}
             </Box>
           ))}
-          <Box sx={{ flex: 1, borderBottom: '1px solid #eef0f4' }} />
+          <Box sx={{ flex: 1, borderBottom: '1px solid var(--border-col)' }} />
         </Box>
 
         {/* MEMBERS TAB */}
         {tab === 'members' && (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderTop: 'none' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderTop: 'none' }}>
             {/* Filter bar */}
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eef0f4', display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Stack direction="row" gap={0.5}>
                 {[{ id: 'all', label: `All (${members.length})` }, ...roles.map((r) => ({ id: r.id, label: `${r.name.split(' ')[0]} (${members.filter((m) => m.role === r.id).length})` }))].map((f) => (
                   <Box
@@ -582,12 +582,12 @@ export default function TeamPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'var(--input-bg)',
                   px: 1.5,
                   height: 32,
                   minWidth: 240,
                   border: '1px solid transparent',
-                  '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary },
+                  '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary },
                 }}
               >
                 <SearchOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />
@@ -596,7 +596,7 @@ export default function TeamPage() {
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Search by name or email…"
                   inputProps={{ autoComplete: 'off', name: 'team-member-search' }}
-                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: '#00288e' }}
+                  sx={{ flex: 1, fontSize: '0.8125rem', fontFamily: 'Jost', color: 'var(--heading-color)' }}
                 />
               </Box>
             </Box>
@@ -609,8 +609,8 @@ export default function TeamPage() {
                 gap: 2,
                 px: 3,
                 py: 1.5,
-                bgcolor: '#fafbfc',
-                borderBottom: '1px solid #eef0f4',
+                bgcolor: 'var(--card-bg)',
+                borderBottom: '1px solid var(--border-col)',
               }}
             >
               {['Name', 'Email', 'Role', 'Last Active', ''].map((h) => (
@@ -643,7 +643,7 @@ export default function TeamPage() {
                       px: 3,
                       py: 2,
                       alignItems: 'center',
-                      borderBottom: i === pageRows.length - 1 ? 'none' : '1px solid #f4f5f7',
+                      borderBottom: i === pageRows.length - 1 ? 'none' : '1px solid var(--border-col)',
                       transition: 'background 0.15s',
                       cursor: 'pointer',
                       '&:hover': { bgcolor: '#f0f4ff' },
@@ -651,7 +651,7 @@ export default function TeamPage() {
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                       <MemberAvatar name={m.name} initials={m.initials} avatarUrl={m.avatarUrl} />
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'Jost' }}>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                         {m.name}
                         {m.email === currentUserEmail && (
                           <Box component="span" sx={{ color: colorPalette.primary, ml: 1, fontWeight: 700, fontSize: '0.75rem' }}>
@@ -660,12 +660,12 @@ export default function TeamPage() {
                         )}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#475569', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                    <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                       {m.email}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: role.color }} />
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569' }}>
+                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                         {role.name}
                       </Typography>
                     </Box>
@@ -697,7 +697,7 @@ export default function TeamPage() {
                 alignItems: 'center',
                 px: 3,
                 py: 1.5,
-                borderTop: '1px solid #eef0f4',
+                borderTop: '1px solid var(--border-col)',
               }}
             >
               <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -764,11 +764,11 @@ export default function TeamPage() {
 
         {/* PENDING TAB */}
         {tab === 'pending' && (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderTop: 'none' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderTop: 'none' }}>
             {pending.length === 0 ? (
               <Box sx={{ p: 6, textAlign: 'center' }}>
                 <MailOutlineRoundedIcon sx={{ fontSize: '2.25rem', color: '#cbd5e1', mb: 1 }} />
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.5 }}>
                   No pending invitations
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
@@ -784,8 +784,8 @@ export default function TeamPage() {
                     gap: 2,
                     px: 3,
                     py: 1.5,
-                    bgcolor: '#fafbfc',
-                    borderBottom: '1px solid #eef0f4',
+                    bgcolor: 'var(--card-bg)',
+                    borderBottom: '1px solid var(--border-col)',
                   }}
                 >
                   {['Email', 'Role', 'Invited by', 'Invited', ''].map((h) => (
@@ -808,8 +808,8 @@ export default function TeamPage() {
                         px: 3,
                         py: 2,
                         alignItems: 'center',
-                        borderBottom: i === pending.length - 1 ? 'none' : '1px solid #f4f5f7',
-                        '&:hover': { bgcolor: '#fafbfc' },
+                        borderBottom: i === pending.length - 1 ? 'none' : '1px solid var(--border-col)',
+                        '&:hover': { bgcolor: 'var(--section-bg)' },
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -829,7 +829,7 @@ export default function TeamPage() {
                           <MailOutlineRoundedIcon sx={{ fontSize: '1rem' }} />
                         </Box>
                         <Box>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#00288e', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
                             {p.email}
                           </Typography>
                           <Chip
@@ -851,7 +851,7 @@ export default function TeamPage() {
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: role.color }} />
-                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569' }}>
+                        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--on-surface-variant)' }}>
                           {role.name}
                         </Typography>
                       </Box>
@@ -891,11 +891,11 @@ export default function TeamPage() {
 
         {/* ROLES TAB */}
         {tab === 'roles' && (
-          <Box sx={{ bgcolor: '#ffffff', border: '1px solid #eef0f4', borderTop: 'none' }}>
+          <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderTop: 'none' }}>
             {/* Roles header with Create button */}
-            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                   Roles & permissions
                 </Typography>
                 <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
@@ -907,7 +907,7 @@ export default function TeamPage() {
 
             <Box sx={{ overflowX: 'auto' }}>
               <Box sx={{ minWidth: 1100 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: `260px repeat(${roles.length}, 1fr)`, bgcolor: '#fafbfc', borderBottom: '1px solid #eef0f4' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: `260px repeat(${roles.length}, 1fr)`, bgcolor: 'var(--card-bg)', borderBottom: '1px solid var(--border-col)' }}>
                   <Box sx={{ px: 3, py: 2 }}>
                     <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                       Permission
@@ -916,10 +916,10 @@ export default function TeamPage() {
                   {roles.map((r) => {
                     const isCustom = r.id.startsWith('custom-')
                     return (
-                      <Box key={r.id} sx={{ px: 1.5, py: 2, textAlign: 'center', borderLeft: '1px solid #eef0f4', position: 'relative', '&:hover .role-actions': { opacity: 1 } }}>
+                      <Box key={r.id} sx={{ px: 1.5, py: 2, textAlign: 'center', borderLeft: '1px solid var(--border-col)', position: 'relative', '&:hover .role-actions': { opacity: 1 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.625, mb: 0.5 }}>
                           <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: r.color }} />
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost' }}>
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                             {r.name}
                           </Typography>
                         </Box>
@@ -935,8 +935,8 @@ export default function TeamPage() {
 
                 {permissionMatrix.map((section, si) => (
                   <Box key={section.area}>
-                    <Box sx={{ px: 3, py: 1.25, bgcolor: '#fafbfc' }}>
-                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    <Box sx={{ px: 3, py: 1.25, bgcolor: 'var(--card-bg)' }}>
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         {section.area}
                       </Typography>
                     </Box>
@@ -948,12 +948,12 @@ export default function TeamPage() {
                         sx={{
                           display: 'grid',
                           gridTemplateColumns: `260px repeat(${roles.length}, 1fr)`,
-                          borderBottom: si === permissionMatrix.length - 1 && ai === section.actions.length - 1 ? 'none' : '1px solid #f4f5f7',
-                          '&:hover': { bgcolor: '#fafbfc' },
+                          borderBottom: si === permissionMatrix.length - 1 && ai === section.actions.length - 1 ? 'none' : '1px solid var(--border-col)',
+                          '&:hover': { bgcolor: 'var(--section-bg)' },
                         }}
                       >
                         <Box sx={{ px: 3, py: 1.5 }}>
-                          <Typography sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+                          <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>
                             {action.label}
                           </Typography>
                         </Box>
@@ -966,7 +966,7 @@ export default function TeamPage() {
                                 px: 2,
                                 py: 1.5,
                                 textAlign: 'center',
-                                borderLeft: '1px solid #f4f5f7',
+                                borderLeft: '1px solid var(--border-col)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -977,7 +977,7 @@ export default function TeamPage() {
                                   <CheckRoundedIcon sx={{ fontSize: '0.875rem', color: '#ffffff' }} />
                                 </Box>
                               ) : (
-                                <Box sx={{ width: 20, height: 20, bgcolor: '#f4f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Box sx={{ width: 20, height: 20, bgcolor: 'var(--section-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                   <RemoveRoundedIcon sx={{ fontSize: '0.875rem', color: '#cbd5e1' }} />
                                 </Box>
                               )}
@@ -1028,7 +1028,7 @@ export default function TeamPage() {
                 transform: 'translate(-50%, -50%)',
                 width: '100%',
                 maxWidth: 460,
-                bgcolor: '#ffffff',
+                bgcolor: 'var(--card-bg)',
                 zIndex: 1291,
                 boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
                 animation: 'modalIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1038,12 +1038,12 @@ export default function TeamPage() {
                 },
               }}
             >
-              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #eef0f4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                     Invite member
                   </Typography>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#00288e', fontFamily: 'Jost', mt: 0.125 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mt: 0.125 }}>
                     Send a secure invitation
                   </Typography>
                 </Box>
@@ -1059,7 +1059,7 @@ export default function TeamPage() {
               <Box sx={{ px: 3, py: 3 }}>
                 <Stack gap={2}>
                   <Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                       Email address
                     </Typography>
                     <TextField
@@ -1075,29 +1075,29 @@ export default function TeamPage() {
                       }}
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          bgcolor: '#f5f3fb',
+                          bgcolor: 'var(--section-bg)',
                           borderRadius: 0,
                           '& fieldset': { border: '1px solid transparent' },
                           '&:hover fieldset': { borderColor: '#e4dff2' },
                           '&.Mui-focused fieldset': { borderColor: colorPalette.primary, borderWidth: '1px' },
-                          '&.Mui-focused': { bgcolor: '#ffffff', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                          '&.Mui-focused': { bgcolor: 'var(--card-bg)', boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                         },
-                        '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: '#00288e' },
+                        '& input': { fontSize: '0.875rem', fontFamily: 'Jost', py: '14px', color: 'var(--heading-color)' },
                       }}
                     />
                   </Box>
 
                   <Box>
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.875, fontFamily: 'Jost' }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', mb: 0.875, fontFamily: 'Jost' }}>
                       Assign role
                     </Typography>
                     <Box
                       sx={{
                         position: 'relative',
-                        bgcolor: '#f5f3fb',
+                        bgcolor: 'var(--section-bg)',
                         border: '1px solid transparent',
                         transition: 'all 0.18s',
-                        '&:focus-within': { bgcolor: '#ffffff', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
+                        '&:focus-within': { bgcolor: 'var(--card-bg)', borderColor: colorPalette.primary, boxShadow: `0 0 0 3px ${colorPalette.primary}14` },
                       }}
                     >
                       <Box
@@ -1115,7 +1115,7 @@ export default function TeamPage() {
                           pr: 4,
                           fontSize: '0.875rem',
                           fontFamily: 'Jost',
-                          color: '#00288e',
+                          color: 'var(--heading-color)',
                           cursor: 'pointer',
                         }}
                       >
@@ -1143,13 +1143,13 @@ export default function TeamPage() {
                 </Stack>
               </Box>
 
-              <Box sx={{ px: 3, py: 2, borderTop: '1px solid #eef0f4', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 <Button
                   onClick={() => setInviteOpen(false)}
                   sx={{
-                    bgcolor: '#ffffff',
-                    color: '#475569',
-                    border: '1px solid #e5e7eb',
+                    bgcolor: 'var(--card-bg)',
+                    color: 'var(--on-surface-variant)',
+                    border: '1px solid var(--border-col)',
                     px: 2.25,
                     py: 1,
                     fontSize: '0.8125rem',
@@ -1157,7 +1157,7 @@ export default function TeamPage() {
                     fontFamily: 'Jost',
                     borderRadius: 0,
                     textTransform: 'none',
-                    '&:hover': { bgcolor: '#f8fafc' },
+                    '&:hover': { bgcolor: 'var(--section-bg)' },
                   }}
                 >
                   Cancel
@@ -1176,7 +1176,7 @@ export default function TeamPage() {
                     borderRadius: 0,
                     textTransform: 'none',
                     boxShadow: 'none',
-                    '&:hover:not(:disabled)': { bgcolor: '#1e293b' },
+                    '&:hover:not(:disabled)': { bgcolor: 'var(--on-surface)' },
                     '&:disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
                   }}
                 >
