@@ -57,8 +57,8 @@ export default function Footer() {
             <Stack sx={{ gap: 1, mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>Support</Typography>
-                <Box component="a" href="mailto:support@openiv.ng" sx={{ textDecoration: 'none', fontSize: '0.875rem', color: '#cbd5e1', '&:hover': { color: '#ffffff' } }}>
-                  support@openiv.ng
+                <Box component="a" href="mailto:hello@openiv.ng" sx={{ textDecoration: 'none', fontSize: '0.875rem', color: '#cbd5e1', '&:hover': { color: '#ffffff' } }}>
+                  hello@openiv.ng
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>

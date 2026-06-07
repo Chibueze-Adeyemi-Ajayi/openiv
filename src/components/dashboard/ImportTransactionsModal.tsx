@@ -466,10 +466,10 @@ export default function ImportTransactionsModal({ open, onClose, onImported }: P
             <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', px: 2.5, py: 1.5, mb: 3, display: 'inline-block' }}>
               <Typography
                 component="a"
-                href="mailto:support@openiv.ng"
+                href="mailto:hello@openiv.ng"
                 sx={{ fontSize: '0.9375rem', fontWeight: 700, color: colorPalette.primary, textDecoration: 'none', fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '-0.01em' }}
               >
-                support@openiv.ng
+                hello@openiv.ng
               </Typography>
             </Box>
 
