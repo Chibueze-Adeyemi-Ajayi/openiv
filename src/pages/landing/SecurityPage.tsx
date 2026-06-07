@@ -213,7 +213,7 @@ export default function SecurityPage() {
               responsibly to our security team before any public disclosure. We investigate every report, acknowledge
               receipt within 24 hours, and provide a resolution timeline within 48 hours. Please include a clear
               description of the issue, steps to reproduce, and the potential impact. Contact:{' '}
-              <EmailLink email="support@openiv.ng" />.
+              <EmailLink email="hello@openiv.ng" />.
             </Body>
           </Section>
 

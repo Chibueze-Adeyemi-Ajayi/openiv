@@ -271,7 +271,7 @@ export default function BillingPage() {
               </Button>
               {isEnterprise && (
                 <Button
-                  href="mailto:support@openiv.com"
+                  href="mailto:hello@openiv.com"
                   startIcon={<MailOutlineRoundedIcon sx={{ fontSize: '1rem !important' }} />}
                   sx={{
                     border: `1px solid ${accent}40`, color: accent, borderRadius: 0,
