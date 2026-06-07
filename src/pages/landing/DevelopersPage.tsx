@@ -382,7 +382,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-interface SidebarGroup { label: string; color: string; items: { id: string; method: string; path: string }[] }
+interface SidebarGroup { label: string; color: string; items: { id: string; method: string; path: string }[]; hidden?: boolean }
 
 function Sidebar({ groups, activeId, onSelect }: {
   groups: SidebarGroup[]
@@ -467,7 +467,7 @@ function Sidebar({ groups, activeId, onSelect }: {
       <Box sx={{ my: 1.5, mx: 2.5, height: '1px', bgcolor: 'rgba(255,255,255,0.1)' }} />
 
       {/* Groups */}
-      {groups.map(g => (
+      {groups.filter(g => !g.hidden).map(g => (
         <Box key={g.label} sx={{ mt: 2.5 }}>
           <Typography sx={{ px: 2.5, fontSize: '0.625rem', fontWeight: 800,
             color: 'rgba(255,255,255,0.4)',
@@ -860,6 +860,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
   {
     label: 'Intelligence', color: '#f78c6c',
     items: ENDPOINTS.filter(e => e.id.startsWith('intelligence')).map(e => ({ id: e.id, method: e.method, path: e.path })),
+    hidden: true, // Temporarily hidden — flip to false when ready to ship.
   },
 ]
 
@@ -954,7 +955,7 @@ curl -X POST https://api.openiv.ng/api/v1/beam/transactions \\
           </Box>
 
           {/* Divider + group headers */}
-          {SIDEBAR_GROUPS.map(group => (
+          {SIDEBAR_GROUPS.filter(group => !group.hidden).map(group => (
             <Box key={group.label}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4, mt: 2 }}>
                 <Box sx={{ height: 1, flex: 1, bgcolor: '#e2e8f0' }} />
