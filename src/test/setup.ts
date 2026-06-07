@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // clipboard API not available in jsdom
 Object.assign(navigator, {
@@ -6,7 +7,7 @@ Object.assign(navigator, {
 })
 
 // IntersectionObserver not available in jsdom
-global.IntersectionObserver = class {
+globalThis.IntersectionObserver = class {
   observe() {}
   unobserve() {}
   disconnect() {}

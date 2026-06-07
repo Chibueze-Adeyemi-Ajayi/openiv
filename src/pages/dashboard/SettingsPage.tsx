@@ -1685,7 +1685,7 @@ function AppearanceSection() {
     setSaving(false)
   }
 
-  const options: { value: 'light' | 'dark'; label: string; icon: JSX.Element; desc: string }[] = [
+  const options: { value: 'light' | 'dark'; label: string; icon: React.ReactElement; desc: string }[] = [
     { value: 'light', label: 'Light', icon: <LightModeOutlinedIcon sx={{ fontSize: '1.25rem' }} />, desc: 'Clean, high-contrast workspace' },
     { value: 'dark',  label: 'Dark',  icon: <DarkModeOutlinedIcon  sx={{ fontSize: '1.25rem' }} />, desc: 'Easy on the eyes, night-friendly' },
   ]
