@@ -22,7 +22,17 @@ public final class Migrations {
   private static final Logger log = LoggerFactory.getLogger(Migrations.class);
 
   // Must match the highest V-number in db/migration/
-  private static final int LATEST_VERSION = 106;
+  private static final int LATEST_VERSION = 108;
+
+  // Schema artifacts that must all exist before we'll trust the DB enough to
+  // baseline at LATEST_VERSION. Each entry was added by an early migration that
+  // has never been removed since — their presence proves V2 → V106 actually ran
+  // against this DB (vs. someone restoring just a partial dump).
+  private static final String[] PROOF_TABLES = {
+      "users",                 // V2  — auth bootstrap
+      "subscription_plans",    // V102 — billing core
+      "subscription_invoices", // V106 — payments
+  };
 
   private Migrations() {}
 
@@ -64,7 +74,10 @@ public final class Migrations {
    * <ol>
    *   <li>flyway_schema_history exists</li>
    *   <li>max applied version in that history is below LATEST_VERSION</li>
-   *   <li>the {@code users} table already exists (proof V2+ was applied)</li>
+   *   <li>EVERY table in {@link #PROOF_TABLES} exists — proof that the migrations
+   *       up to LATEST_VERSION genuinely ran (vs. someone restoring a partial dump
+   *       that has {@code users} but is missing {@code subscription_plans}, which
+   *       previously caused V108 to fail mid-deploy).</li>
    * </ol>
    */
   private static void repairStaleHistory(DataSource ds) throws SQLException {
@@ -88,8 +101,17 @@ public final class Migrations {
       }
       if (historyMax >= LATEST_VERSION) return; // history is current, nothing to do
 
-      // 3. Verify the schema was actually applied (users table from V2 exists)
-      if (!tableExists(conn, "users")) return; // truly fresh DB, not a restore
+      // 3. Verify the schema was actually applied — every proof table must exist.
+      // A partial DB with only `users` (V2) but missing later artifacts is NOT a
+      // safe baseline target; let Flyway run the missing migrations instead.
+      for (String t : PROOF_TABLES) {
+        if (!tableExists(conn, t)) {
+          log.info("Flyway history at v{} but proof table '{}' is missing — "
+              + "skipping auto-baseline so Flyway can replay missing migrations.",
+              historyMax, t);
+          return;
+        }
+      }
 
       // History is stale — truncate and insert a single baseline at LATEST_VERSION
       log.warn(

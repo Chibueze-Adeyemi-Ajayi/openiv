@@ -142,15 +142,24 @@ public final class UserRepository {
         .mapEmpty();
   }
 
-  public Future<Void> recordFailedLogin(long userId, int threshold, int lockMinutes) {
+  /**
+   * Increments the failed-login counter and applies the lock if the threshold is reached.
+   * Returns {@code true} when this call is the one that just put the account into a locked
+   * state (so the caller can fire a one-shot security notification).
+   */
+  public Future<Boolean> recordFailedLogin(long userId, int threshold, int lockMinutes) {
     String sql = "UPDATE users SET failed_login_attempts = failed_login_attempts + 1, "
         + "locked_until = CASE WHEN failed_login_attempts + 1 >= $2 "
         + "                    THEN now() + ($3 || ' minutes')::interval "
         + "                    ELSE locked_until END, "
-        + "updated_at = now() WHERE id = $1";
+        + "updated_at = now() WHERE id = $1 "
+        + "RETURNING failed_login_attempts >= $2 AS just_locked";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(userId, threshold, Integer.toString(lockMinutes)))
-        .mapEmpty();
+        .map(rs -> {
+          var it = rs.iterator();
+          return it.hasNext() && Boolean.TRUE.equals(it.next().getBoolean("just_locked"));
+        });
   }
 
   public Future<Void> resetFailedLogins(long userId) {

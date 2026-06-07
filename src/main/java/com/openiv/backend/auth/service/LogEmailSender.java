@@ -40,6 +40,14 @@ public final class LogEmailSender implements EmailSender {
   }
 
   @Override
+  public Future<Void> sendAccountLockoutSecurity(String toEmail, String fullName,
+      String ip, String userAgent, int lockMinutes, String timestamp) {
+    log.warn("[DEV EMAIL] account-lockout security alert for {} ({}): {} min lock from ip={} ua={} at {}",
+        fullName, toEmail, lockMinutes, ip, userAgent, timestamp);
+    return Future.succeededFuture();
+  }
+
+  @Override
   public Future<Void> sendCaseNotification(String toEmail, String caseId, String caseTitle,
       String priority, String brief) {
     log.warn("[DEV EMAIL] case-notification to {}: {} [{}] {} - {}",
