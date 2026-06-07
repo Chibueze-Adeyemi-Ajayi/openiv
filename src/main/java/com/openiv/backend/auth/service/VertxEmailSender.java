@@ -61,6 +61,15 @@ public final class VertxEmailSender implements EmailSender {
   }
 
   @Override
+  public Future<Void> sendAccountLockoutSecurity(String toEmail, String fullName,
+      String ip, String userAgent, int lockMinutes, String timestamp) {
+    return send(toEmail,
+        "OpenIV — Account Temporarily Locked",
+        "We've locked your account for " + lockMinutes + " minutes after multiple failed sign-in attempts at " + timestamp + " UTC from IP " + (ip == null ? "Unknown" : ip) + ".",
+        EmailTemplates.accountLockoutSecurity(fullName, ip, userAgent, lockMinutes, timestamp));
+  }
+
+  @Override
   public Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
       String userName, String userEmail, String timestamp) {
     return send(toEmail,

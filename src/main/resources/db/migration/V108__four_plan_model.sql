@@ -21,7 +21,66 @@ DECLARE
   enterprise_id UUID;
 BEGIN
 
-  -- ── New cap columns ───────────────────────────────────────────────────────
+  -- ── Self-healing bootstrap ────────────────────────────────────────────────
+  -- A prior Migrations.repairStaleHistory bug could leave the schema baselined
+  -- at V106 without actually having applied V102–V105. Recreate the table and
+  -- catch up missing columns + base seed rows so V108's own work below can run.
+  -- Safe on already-correct DBs because everything is IF NOT EXISTS / ON CONFLICT.
+  CREATE TABLE IF NOT EXISTS subscription_plans (
+    id                          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                        TEXT        NOT NULL,
+    slug                        TEXT        NOT NULL UNIQUE,
+    monthly_price_ngn           NUMERIC(14,2) NOT NULL DEFAULT 0,
+    max_users                   INTEGER     NOT NULL DEFAULT -1,
+    max_monthly_transactions    BIGINT      NOT NULL DEFAULT -1,
+    max_active_cases            INTEGER     NOT NULL DEFAULT -1,
+    ai_features_enabled         BOOLEAN     NOT NULL DEFAULT false,
+    api_rate_limit_per_min      INTEGER     NOT NULL DEFAULT 60,
+    included_transaction_units  BIGINT      NOT NULL DEFAULT 0,
+    features                    TEXT[]      NOT NULL DEFAULT '{}',
+    is_active                   BOOLEAN     NOT NULL DEFAULT true,
+    sort_order                  INTEGER     NOT NULL DEFAULT 0,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  -- Catch-up columns from V103 (feature flags + max_aml_rules)
+  ALTER TABLE subscription_plans
+    ADD COLUMN IF NOT EXISTS feature_kyc_enabled        BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS feature_webhooks_enabled   BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS feature_network_enabled    BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS feature_behavioral_enabled BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS feature_reports_export     BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS max_aml_rules              INTEGER NOT NULL DEFAULT 10;
+
+  -- Catch-up column from V104 (KYC cap)
+  ALTER TABLE subscription_plans
+    ADD COLUMN IF NOT EXISTS max_monthly_kyc_lookups    INTEGER NOT NULL DEFAULT -1;
+
+  -- Catch-up columns on institutions from V102/V104 (subscription lifecycle + counters)
+  ALTER TABLE institutions
+    ADD COLUMN IF NOT EXISTS plan_id                UUID        REFERENCES subscription_plans(id),
+    ADD COLUMN IF NOT EXISTS subscription_status    TEXT        NOT NULL DEFAULT 'trial',
+    ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS trial_ends_at          TIMESTAMPTZ DEFAULT (now() + INTERVAL '30 days'),
+    ADD COLUMN IF NOT EXISTS subscription_renews_at TIMESTAMPTZ DEFAULT (now() + INTERVAL '30 days'),
+    ADD COLUMN IF NOT EXISTS monthly_txn_used       INTEGER     NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS monthly_kyc_used       INTEGER     NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS usage_period_start     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS subscription_blocked   BOOLEAN     NOT NULL DEFAULT FALSE;
+
+  -- Seed the three base plans if they're not already present (V102's original INSERT).
+  -- V108's UPDATEs below need these rows to exist by slug.
+  INSERT INTO subscription_plans
+    (name, slug, monthly_price_ngn, max_users, max_monthly_transactions,
+     max_active_cases, api_rate_limit_per_min, included_transaction_units,
+     features, sort_order)
+  VALUES
+    ('Starter',    'starter',    50000.00,  5,  10000,  20,  30,   10000000,  ARRAY[]::TEXT[], 1),
+    ('Growth',     'growth',     150000.00, 20, 100000, 200, 120,  100000000, ARRAY[]::TEXT[], 2),
+    ('Enterprise', 'enterprise', 500000.00, -1, -1,     -1,  600,  1000000000,ARRAY[]::TEXT[], 3)
+  ON CONFLICT (slug) DO NOTHING;
+
+  -- ── New cap columns (original V108 work starts here) ──────────────────────
   ALTER TABLE subscription_plans
     ADD COLUMN IF NOT EXISTS max_monthly_nfiu_filings INTEGER NOT NULL DEFAULT -1,
     ADD COLUMN IF NOT EXISTS max_monthly_cases        INTEGER NOT NULL DEFAULT -1;

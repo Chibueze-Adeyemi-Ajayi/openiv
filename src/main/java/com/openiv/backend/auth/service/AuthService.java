@@ -150,7 +150,17 @@ public final class AuthService {
       if (user.isLocked()) throw AuthException.locked();
       if (!PasswordHasher.verify(password, user.passwordHash())) {
         return users.recordFailedLogin(user.id(), FAILED_LOGIN_THRESHOLD, LOGIN_LOCK_MINUTES)
-            .compose(v -> Future.<LoginResult>failedFuture(AuthException.invalid("credentials")));
+            .compose(justLocked -> {
+              if (Boolean.TRUE.equals(justLocked)) {
+                // Fire-and-forget: don't delay the auth response on email delivery
+                emailSender.sendAccountLockoutSecurity(
+                        user.email(), user.fullName(), ip, userAgent,
+                        LOGIN_LOCK_MINUTES, Instant.now().toString())
+                    .onFailure(e -> log.warn("[Security] lockout email to {} failed: {}",
+                        user.email(), e.getMessage()));
+              }
+              return Future.<LoginResult>failedFuture(AuthException.invalid("credentials"));
+            });
       }
       return users.resetFailedLogins(user.id())
           .compose(v -> checkDeviceConflict(user, deviceId, ip, userAgent, lat, lon, accuracy));

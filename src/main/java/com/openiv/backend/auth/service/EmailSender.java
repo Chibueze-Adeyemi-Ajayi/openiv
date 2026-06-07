@@ -15,6 +15,13 @@ public interface EmailSender {
 
   Future<Void> sendStepUpLockout(String toEmail, String fullName, String timestamp);
 
+  /**
+   * Sent when an account is temporarily locked after the failed-login threshold is reached.
+   * Includes context about the attempt source so the owner can recognise (or not) the activity.
+   */
+  Future<Void> sendAccountLockoutSecurity(String toEmail, String fullName,
+      String ip, String userAgent, int lockMinutes, String timestamp);
+
   Future<Void> sendStepUpLockoutAdmin(String toEmail, String adminName,
       String userName, String userEmail, String timestamp);
 
