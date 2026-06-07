@@ -47,7 +47,7 @@ class MainVerticleTest {
         db,
         security,
         new TotpCipherConfig("", ""),
-        new AppConfig.EmailConfig("localhost", null, false), null, null);
+        new AppConfig.EmailConfig("localhost", null, false), null, null, null, null);
   }
 
   @Test

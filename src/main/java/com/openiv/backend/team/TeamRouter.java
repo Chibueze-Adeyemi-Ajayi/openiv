@@ -3,6 +3,8 @@ package com.openiv.backend.team;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthService;
+import com.openiv.backend.billing.PlanGuard;
+import com.openiv.backend.billing.SubscriptionRepository;
 import com.openiv.backend.security.Permission;
 import com.openiv.backend.security.RoleAuthHandler;
 import io.vertx.core.Handler;
@@ -29,6 +31,7 @@ public final class TeamRouter {
 
     Handler<RoutingContext> teamView   = RoleAuthHandler.require(users, Permission.TEAM_VIEW);
     Handler<RoutingContext> teamManage = RoleAuthHandler.require(users, Permission.TEAM_MANAGE);
+    Handler<RoutingContext> seatGuard  = PlanGuard.teamSeat(new SubscriptionRepository(pool), users);
 
     router.get("/members").handler(teamView).handler(handlers.listMembers());
     router.delete("/members/:id").handler(teamManage).handler(handlers.removeMember());
@@ -37,7 +40,7 @@ public final class TeamRouter {
     router.delete("/pending/:id").handler(teamManage).handler(handlers.revokeInvitation());
     router.post("/pending/:id/resend").handler(teamManage).handler(handlers.resendInvitation());
 
-    router.post("/invite").handler(teamManage).handler(handlers.invite());
+    router.post("/invite").handler(teamManage).handler(seatGuard).handler(handlers.invite());
     router.get("/roles").handler(teamView).handler(handlers.roles());
 
     router.get("/custom-roles").handler(teamView).handler(handlers.listCustomRoles());

@@ -17,12 +17,18 @@ public record AppConfig(
     TotpCipherConfig totp,
     EmailConfig email,
     DojaConfig doja,
-    CloudinaryConfig cloudinary
+    CloudinaryConfig cloudinary,
+    BillingConfig billing,
+    SuperAdminConfig superAdmin
 ) {
 
   public record EmailConfig(String apiToken, String from, boolean enabled) {}
 
   public record CloudinaryConfig(String cloudName, String apiKey, String apiSecret) {}
+
+  public record BillingConfig(String paystackSecretKey, String paystackPublicKey, String paystackWebhookSecret) {}
+
+  public record SuperAdminConfig(String password) {}
 
   public static AppConfig from(JsonObject json) {
     JsonObject httpJson = json.getJsonObject("http", new JsonObject());
@@ -33,6 +39,7 @@ public record AppConfig(
     boolean emailPresent = json.containsKey("email") && emailJson.getString("apiToken") != null;
     JsonObject dojaJson       = json.getJsonObject("doja",       new JsonObject());
     JsonObject cloudinaryJson = json.getJsonObject("cloudinary", new JsonObject());
+    JsonObject billingJson    = json.getJsonObject("billing",    new JsonObject());
     String env = json.getString("environment", "production");
 
     // Env-var overrides take precedence over application.json values
@@ -43,6 +50,13 @@ public record AppConfig(
     String cloudName   = envOr("CLOUDINARY_CLOUD_NAME",  cloudinaryJson.getString("cloudName",  ""));
     String cloudApiKey = envOr("CLOUDINARY_API_KEY",      cloudinaryJson.getString("apiKey",     ""));
     String cloudSecret = envOr("CLOUDINARY_API_SECRET",   cloudinaryJson.getString("apiSecret",  ""));
+
+    String paystackSecret  = envOr("PAYSTACK_SECRET_KEY",     billingJson.getString("paystackSecretKey",  ""));
+    String paystackPublic  = envOr("PAYSTACK_PUBLIC_KEY",     billingJson.getString("paystackPublicKey",  ""));
+    String paystackWebhook = envOr("PAYSTACK_WEBHOOK_SECRET", billingJson.getString("paystackWebhookSecret", ""));
+
+    JsonObject superAdminJson = json.getJsonObject("superadmin", new JsonObject());
+    String superAdminPassword = envOr("SUPER_ADMIN_PASSWORD", superAdminJson.getString("password", ""));
 
     return new AppConfig(
         env,
@@ -59,7 +73,9 @@ public record AppConfig(
             emailJson.getBoolean("enabled", emailPresent)
         ),
         new DojaConfig(dojaUrl, dojaAppId, dojaApiKey, dojaJson.getBoolean("enabled", true)),
-        new CloudinaryConfig(cloudName, cloudApiKey, cloudSecret)
+        new CloudinaryConfig(cloudName, cloudApiKey, cloudSecret),
+        new BillingConfig(paystackSecret, paystackPublic, paystackWebhook),
+        new SuperAdminConfig(superAdminPassword)
     );
   }
 

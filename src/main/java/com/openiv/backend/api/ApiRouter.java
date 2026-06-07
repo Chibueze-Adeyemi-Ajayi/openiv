@@ -85,7 +85,8 @@ public final class ApiRouter {
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig) {
+      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig,
+      AppConfig.BillingConfig billingConfig) {
     router.route().handler(RequestId.create());
     if (devMode) {
       router.route().handler(com.openiv.backend.security.RequestDebugLogger.create());
@@ -137,7 +138,7 @@ public final class ApiRouter {
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
         beamService, kycService, heatmapService, dashboardService, geoFenceService,
-        customerService, cloudinaryConfig));
+        customerService, cloudinaryConfig, billingConfig));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

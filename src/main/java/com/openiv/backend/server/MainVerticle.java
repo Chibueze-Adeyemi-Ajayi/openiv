@@ -111,7 +111,7 @@ public final class MainVerticle extends AbstractVerticle {
         authService, accessRequestService, teamService, transactionService,
         caseService, thresholdService, webhookService, config.isDevelopment(), beamService,
         kycService, heatmapService, dashboardService, geoFenceService, customerService,
-        config.cloudinary());
+        config.cloudinary(), config.billing());
 
     var serverBuilder = vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(

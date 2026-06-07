@@ -205,6 +205,63 @@ public final class DojaClient {
         });
   }
 
+  // ── Phone Fraud Screening ─────────────────────────────────────────────────
+
+  public Future<PhoneFraudResult> screenPhoneFraud(String phone) {
+    if (!config.isConfigured())
+      return Future.succeededFuture(PhoneFraudResult.unresolved("not_configured"));
+
+    log.info("[Doja] >> GET fraud/phone | phone={}", phone);
+
+    return httpClient
+        .getAbs(config.baseUrl() + "/api/v1/fraud/phone")
+        .addQueryParam("phone", phone)
+        .putHeader("AppId",         config.appId())
+        .putHeader("Authorization", config.apiKey())
+        .putHeader("Accept",        "text/event-stream")
+        .timeout(15_000)
+        .send()
+        .<PhoneFraudResult>map(resp -> {
+          String raw = resp.bodyAsString();
+          log.info("[Doja] << GET fraud/phone | status={} body={}", resp.statusCode(), raw);
+          if (resp.statusCode() != 200) return PhoneFraudResult.unresolved(raw);
+          return parsePhoneFraud(extractSseJson(raw), raw);
+        })
+        .recover(err -> {
+          log.error("[Doja] !! GET fraud/phone error phone={}: {}", phone, err.getMessage());
+          return Future.succeededFuture(PhoneFraudResult.unresolved(err.getMessage()));
+        });
+  }
+
+  // ── NUBAN (Bank Account) Lookup ──────────────────────────────────────────
+
+  public Future<NubanResult> lookupNuban(String accountNumber, String bankCode) {
+    if (!config.isConfigured())
+      return Future.succeededFuture(NubanResult.unresolved("not_configured"));
+
+    log.info("[Doja] >> GET nuban | account={} bank={}", accountNumber, bankCode);
+
+    return httpClient
+        .getAbs(config.baseUrl() + "/api/v1/kyc/nuban")
+        .addQueryParam("account_number", accountNumber)
+        .addQueryParam("bank_code",      bankCode)
+        .putHeader("AppId",         config.appId())
+        .putHeader("Authorization", config.apiKey())
+        .putHeader("Accept",        "text/event-stream")
+        .timeout(15_000)
+        .send()
+        .<NubanResult>map(resp -> {
+          String raw = resp.bodyAsString();
+          log.info("[Doja] << GET nuban | status={} body={}", resp.statusCode(), raw);
+          if (resp.statusCode() != 200) return NubanResult.unresolved(raw);
+          return parseNubanLookup(extractSseJson(raw), raw);
+        })
+        .recover(err -> {
+          log.error("[Doja] !! GET nuban error account={}: {}", accountNumber, err.getMessage());
+          return Future.succeededFuture(NubanResult.unresolved(err.getMessage()));
+        });
+  }
+
   // ── AML / PEP Screening ───────────────────────────────────────────────────
 
   public Future<JsonObject> screenAml(String name, String dob, String uniqueRef) {
@@ -294,6 +351,48 @@ public final class DojaClient {
         false, -1,
         json.encode(),
         e.getString("photo"));
+  }
+
+  private PhoneFraudResult parsePhoneFraud(JsonObject json, String rawJson) {
+    JsonObject e = json.getJsonObject("entity", json);
+    if (e == null || !Boolean.TRUE.equals(e.getBoolean("valid"))) {
+      return PhoneFraudResult.unresolved(rawJson);
+    }
+    JsonObject info = e.getJsonObject("information", new JsonObject());
+    return new PhoneFraudResult(
+        true,
+        e.getString("phone"),
+        Boolean.TRUE.equals(e.getBoolean("valid")),
+        info.getString("carrier"),
+        info.getString("type"),
+        info.getString("country"),
+        e.getInteger("risk_score",  0),
+        Boolean.TRUE.equals(e.getBoolean("leaked")),
+        Boolean.TRUE.equals(e.getBoolean("spammer")),
+        Boolean.TRUE.equals(e.getBoolean("disposable")),
+        Boolean.TRUE.equals(e.getBoolean("suspicious")),
+        Boolean.TRUE.equals(e.getBoolean("recent_abuse")),
+        Boolean.TRUE.equals(e.getBoolean("active")),
+        rawJson);
+  }
+
+  private NubanResult parseNubanLookup(JsonObject json, String rawJson) {
+    JsonObject e = json.getJsonObject("entity", json);
+    String firstName = e.getString("first_name");
+    if (firstName == null || firstName.isBlank()) return NubanResult.unresolved(rawJson);
+    return new NubanResult(
+        true,
+        e.getString("account_name"),
+        firstName,
+        e.getString("last_name"),
+        e.getString("other_names"),
+        e.getString("dob"),
+        e.getString("phone"),
+        e.getString("identity_number"),
+        e.getString("identity_type"),
+        e.getString("city"),
+        e.getString("state_code"),
+        rawJson);
   }
 
   private DojaVerificationResult parseSelfieVerify(String type, String ref, JsonObject json) {

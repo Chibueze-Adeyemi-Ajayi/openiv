@@ -52,16 +52,16 @@ class SubscriptionLifecycleServiceTest {
     return new SubscriptionPlan(
         UUID.randomUUID().toString(), "Starter", "starter",
         STARTER_PRICE, 5, 10_000L, 10,
-        false, 60, 100_000L, List.of(), 0,
-        false, false, false, false, false, 5, 50);
+        60, 100_000L, List.of(), 0,
+        false, false, false, false, false, 5, 50, 10, 100);
   }
 
   private static SubscriptionPlan growthPlan() {
     return new SubscriptionPlan(
         UUID.randomUUID().toString(), "Growth", "growth",
         GROWTH_PRICE, 25, -1L, 50,
-        true, 300, 500_000L, List.of(), 1,
-        true, true, true, true, true, 29, -1);
+        300, 500_000L, List.of(), 1,
+        true, true, true, true, true, 29, -1, -1, -1);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

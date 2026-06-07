@@ -1,5 +1,6 @@
 package com.openiv.backend.cases;
 
+import com.openiv.backend.billing.UsageRepository;
 import com.openiv.backend.transactions.Transaction;
 import com.openiv.backend.transactions.TransactionScorer;
 import io.vertx.core.Future;
@@ -11,20 +12,51 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 public final class AutoCaseCreationService {
-  @SuppressWarnings("unused")
   private static final Logger log = LoggerFactory.getLogger(AutoCaseCreationService.class);
 
   private final CaseRepository caseRepository;
+  private UsageRepository usageRepository;
 
   public AutoCaseCreationService(CaseRepository caseRepository) {
     this.caseRepository = caseRepository;
   }
 
+  /** Wires the cap counter so auto-created cases consume monthly slots like manual ones. */
+  public void attachUsageRepository(UsageRepository usageRepository) {
+    this.usageRepository = usageRepository;
+  }
+
   /**
    * Auto-create a case from a flagged transaction.
    * Called when TransactionScorer flags a transaction.
+   *
+   * <p>If the institution has hit its monthly case cap the call resolves to
+   * {@code null} instead of failing — the transaction continues to flow but
+   * no case is opened. Counter is consumed atomically before insert so two
+   * concurrent flagged transactions cannot race past the final slot.
    */
   public Future<CaseRecord> createCaseFromTransaction(
+      long institutionId,
+      Transaction transaction,
+      TransactionScorer.ScoringResult scoringResult) {
+
+    Future<Boolean> gate = (usageRepository == null)
+        ? Future.succeededFuture(true)
+        : usageRepository.checkAndIncrementCase(institutionId).map(r -> {
+            if (!r.allowed()) {
+              log.info("Auto-case skipped — institution {} has hit monthly case cap ({}/{} on {})",
+                  institutionId, r.used(), r.limit(), r.planSlug());
+            }
+            return r.allowed();
+          });
+
+    return gate.compose(allowed -> {
+      if (!allowed) return Future.succeededFuture(null);
+      return createInternal(institutionId, transaction, scoringResult);
+    });
+  }
+
+  private Future<CaseRecord> createInternal(
       long institutionId,
       Transaction transaction,
       TransactionScorer.ScoringResult scoringResult) {

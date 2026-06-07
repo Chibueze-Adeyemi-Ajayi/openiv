@@ -3,7 +3,6 @@ package com.openiv.backend.customers;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public final class CustomerTransactionRuleService {
@@ -39,14 +38,6 @@ public final class CustomerTransactionRuleService {
 
   public Future<Void> toggleActive(long institutionId, long id, boolean isActive) {
     return repo.toggleActive(institutionId, id, isActive);
-  }
-
-  public Future<BigDecimal> sumTodayAmount(long institutionId, String externalCustomerId) {
-    return repo.sumTodayAmount(institutionId, externalCustomerId);
-  }
-
-  public Future<BigDecimal> sumMonthAmount(long institutionId, String externalCustomerId) {
-    return repo.sumMonthAmount(institutionId, externalCustomerId);
   }
 
   public Future<Long> countInVelocityWindow(long institutionId, String externalCustomerId, int hours) {

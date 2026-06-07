@@ -1,7 +1,6 @@
 package com.openiv.backend.cases;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
-import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.billing.PlanGuard;
 import com.openiv.backend.billing.PlanLimitException;
 import com.openiv.backend.transactions.Transaction;
@@ -14,12 +13,10 @@ import java.util.Set;
 
 public final class CaseHandlers {
 
-  private final CaseService    service;
-  private final BillingService billing;
+  private final CaseService service;
 
-  public CaseHandlers(CaseService service, BillingService billing) {
+  public CaseHandlers(CaseService service) {
     this.service = service;
-    this.billing = billing;
   }
 
   // GET /cases/metrics
@@ -137,10 +134,7 @@ public final class CaseHandlers {
 
       service.create(session, title, typology, priority, riskScore, assignedTo, notes,
           transactionId, reason, documentId, customerId, customerName)
-          .onSuccess(cas -> {
-            ok(ctx, new JsonObject().put("case", caseJson(cas)));
-            billing.chargeCaseOpenAsync(session);
-          })
+          .onSuccess(cas -> ok(ctx, new JsonObject().put("case", caseJson(cas))))
           .onFailure(err -> {
             if (err instanceof PlanLimitException pex) {
               String planLabel = pex.currentPlan().isEmpty() ? pex.currentPlan()

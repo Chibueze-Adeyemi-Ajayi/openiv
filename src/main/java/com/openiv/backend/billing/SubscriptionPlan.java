@@ -11,7 +11,6 @@ public record SubscriptionPlan(
     int          maxUsers,
     long         maxMonthlyTransactions,
     int          maxActiveCases,
-    boolean      aiFeaturesEnabled,
     int          apiRateLimitPerMin,
     long         includedTransactionUnits,
     List<String> features,
@@ -24,5 +23,7 @@ public record SubscriptionPlan(
     boolean      featureReportsExport,
     int          maxAmlRules,
     // usage caps
-    int          maxMonthlyKycLookups
+    int          maxMonthlyKycLookups,
+    int          maxMonthlyNfiuFilings,
+    int          maxMonthlyCases
 ) {}

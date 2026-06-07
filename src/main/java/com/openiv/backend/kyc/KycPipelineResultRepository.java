@@ -31,7 +31,7 @@ public final class KycPipelineResultRepository {
       Long monthlyInflow, Long monthlyOutflow, Integer institutionKycTier) {
 
     PipelineStepResult bvn  = findStep(result, "bvn_nin");
-    PipelineStepResult ph   = findStep(result, "phone_match");
+    PipelineStepResult ph   = aggregatePhoneSteps(result);
     PipelineStepResult liv  = findStep(result, "liveness");
     PipelineStepResult pep  = findStep(result, "pep_check");
 
@@ -286,6 +286,42 @@ public final class KycPipelineResultRepository {
 
   private static PipelineStepResult findStep(PipelineVerificationResult r, String name) {
     return r.steps().stream().filter(s -> name.equals(s.step())).findFirst().orElse(null);
+  }
+
+  /**
+   * The pipeline emits up to 4 phone steps (record_basic, record_fraud,
+   * beam_basic, beam_fraud) but the legacy {@code kyc_pipeline_results} table
+   * carries a single {@code phone_*} triplet. Aggregate by worst-status:
+   * any {@code fail} wins, then {@code error}, then {@code unverified},
+   * else {@code pass}. Detail concatenates the offending step messages.
+   * Skipped same-phone steps are ignored.
+   */
+  private static PipelineStepResult aggregatePhoneSteps(PipelineVerificationResult r) {
+    var phoneSteps = r.steps().stream()
+        .filter(s -> s.step() != null && s.step().startsWith("phone_") && !s.skipped())
+        .toList();
+    if (phoneSteps.isEmpty()) return null;
+
+    // Status priority: fail > error > unverified > pass
+    String aggregateStatus = "pass";
+    for (var s : phoneSteps) {
+      if ("fail".equals(s.status())) { aggregateStatus = "fail"; break; }
+      if ("error".equals(s.status()) && !"fail".equals(aggregateStatus)) aggregateStatus = "error";
+      else if ("unverified".equals(s.status()) && "pass".equals(aggregateStatus)) aggregateStatus = "unverified";
+    }
+
+    int maxScore = phoneSteps.stream().mapToInt(PipelineStepResult::riskScore).max().orElse(50);
+    long totalMs = phoneSteps.stream().mapToLong(PipelineStepResult::durationMs).sum();
+    boolean anyDojahCalled = phoneSteps.stream().anyMatch(PipelineStepResult::dojahCalled);
+
+    StringBuilder detail = new StringBuilder();
+    for (var s : phoneSteps) {
+      if (detail.length() > 0) detail.append(" · ");
+      detail.append(s.step()).append(": ").append(s.detail());
+    }
+
+    return new PipelineStepResult("phone_match", aggregateStatus, detail.toString(),
+        totalMs, maxScore, anyDojahCalled);
   }
 
   private static String status(PipelineStepResult s) { return s != null ? s.status() : null; }

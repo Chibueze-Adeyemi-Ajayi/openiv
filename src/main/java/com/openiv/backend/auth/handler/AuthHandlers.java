@@ -228,16 +228,19 @@ public final class AuthHandlers {
                     .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
                     .put("createdAt",         u.createdAt().toString())
                     .put("avatarUrl",         u.avatarUrl())
+                    .put("theme",             u.theme())
                     .put("institutionName",   instName)
                     .put("monthlyTxnUsed",    usageSummary.monthlyTxnUsed())
                     .put("monthlyKycUsed",    usageSummary.monthlyKycUsed())
+                    .put("monthlyNfiuUsed",   usageSummary.monthlyNfiuUsed())
+                    .put("monthlyCasesUsed",  usageSummary.monthlyCasesUsed())
                     .put("usagePeriodStart",  usageSummary.usagePeriodStart() != null
                         ? usageSummary.usagePeriodStart().toString() : null);
                 subOpt.ifPresent(sub -> {
                   var p = sub.plan();
                   json.put("planSlug",                p.slug())
                       .put("planName",                p.name())
-                      .put("aiFeaturesEnabled",       p.aiFeaturesEnabled())
+                      .put("monthlyPriceNgn",         p.monthlyPriceNgn())
                       .put("featureKycEnabled",       p.featureKycEnabled())
                       .put("featureWebhooksEnabled",  p.featureWebhooksEnabled())
                       .put("featureNetworkEnabled",   p.featureNetworkEnabled())
@@ -247,6 +250,8 @@ public final class AuthHandlers {
                       .put("maxActiveCases",          p.maxActiveCases())
                       .put("maxMonthlyTransactions",  p.maxMonthlyTransactions())
                       .put("maxMonthlyKycLookups",    p.maxMonthlyKycLookups())
+                      .put("maxMonthlyNfiuFilings",   p.maxMonthlyNfiuFilings())
+                      .put("maxMonthlyCases",         p.maxMonthlyCases())
                       .put("maxUsers",                p.maxUsers())
                       .put("subscriptionStatus",      sub.status())
                       .put("trialEndsAt",             sub.trialEndsAt() != null ? sub.trialEndsAt().toString() : null)
@@ -274,6 +279,21 @@ public final class AuthHandlers {
               .put("fullName", u.fullName())
               .put("jobTitle", u.jobTitle())
               .put("avatarUrl", u.avatarUrl()))
+          .onSuccess(json -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json")
+              .end(json.encode()))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  public Handler<RoutingContext> updateTheme() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      JsonObject body = ctx.body().asJsonObject();
+      if (body == null) { ctx.fail(400); return; }
+      String theme = body.getString("theme");
+      auth.updateTheme(session, theme)
+          .map(v -> new JsonObject().put("ok", true).put("theme", theme))
           .onSuccess(json -> ctx.response().setStatusCode(200)
               .putHeader("Content-Type", "application/json")
               .end(json.encode()))

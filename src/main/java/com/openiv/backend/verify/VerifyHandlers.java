@@ -2,6 +2,8 @@ package com.openiv.backend.verify;
 
 import com.openiv.backend.doja.DojaClient;
 import com.openiv.backend.doja.DojaVerificationResult;
+import com.openiv.backend.doja.NubanResult;
+import com.openiv.backend.doja.PhoneFraudResult;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -117,7 +119,69 @@ public final class VerifyHandlers {
     };
   }
 
+  // POST /verify/nuban  { "account_number": "0123456789", "bank_code": "033" }
+  public Handler<RoutingContext> verifyNuban() {
+    return ctx -> {
+      JsonObject body = parseBody(ctx);
+      if (body == null) return;
+      String accountNumber = body.getString("account_number");
+      String bankCode      = body.getString("bank_code");
+      if (accountNumber == null || accountNumber.isBlank()) { badRequest(ctx, "account_number is required"); return; }
+      if (bankCode      == null || bankCode.isBlank())      { badRequest(ctx, "bank_code is required");      return; }
+
+      doja.lookupNuban(accountNumber, bankCode)
+          .onSuccess(r -> ok(ctx, nubanJson(r)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /verify/phone-fraud  { "phone": "2348101234567" }
+  public Handler<RoutingContext> screenPhoneFraud() {
+    return ctx -> {
+      JsonObject body = parseBody(ctx);
+      if (body == null) return;
+      String phone = body.getString("phone");
+      if (phone == null || phone.isBlank()) { badRequest(ctx, "phone is required"); return; }
+
+      doja.screenPhoneFraud(phone)
+          .onSuccess(r -> ok(ctx, phoneFraudJson(r)))
+          .onFailure(ctx::fail);
+    };
+  }
+
   // ── helpers ───────────────────────────────────────────────────────────────
+
+  private static JsonObject nubanJson(NubanResult r) {
+    return new JsonObject()
+        .put("resolved",       r.resolved())
+        .put("account_name",   r.accountName())
+        .put("first_name",     r.firstName())
+        .put("last_name",      r.lastName())
+        .put("other_names",    r.otherNames())
+        .put("dob",            r.dob())
+        .put("masked_phone",   r.phone())
+        .put("masked_bvn",     r.bvn())
+        .put("identity_type",  r.identityType())
+        .put("city",           r.city())
+        .put("state",          r.state());
+  }
+
+  private static JsonObject phoneFraudJson(PhoneFraudResult r) {
+    return new JsonObject()
+        .put("resolved",      r.resolved())
+        .put("phone",         r.phone())
+        .put("valid",         r.valid())
+        .put("carrier",       r.carrier())
+        .put("line_type",     r.lineType())
+        .put("country",       r.country())
+        .put("risk_score",    r.riskScore())
+        .put("leaked",        r.leaked())
+        .put("spammer",       r.spammer())
+        .put("disposable",    r.disposable())
+        .put("suspicious",    r.suspicious())
+        .put("recent_abuse",  r.recentAbuse())
+        .put("active",        r.active());
+  }
 
   private static JsonObject resultJson(DojaVerificationResult r) {
     return new JsonObject()

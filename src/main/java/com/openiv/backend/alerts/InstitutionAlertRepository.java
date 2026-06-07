@@ -109,7 +109,8 @@ public final class InstitutionAlertRepository {
   ) {}
 
   private static InstitutionAlert map(Row r) {
-    String meta = r.getString("metadata");
+    // metadata is JSONB — Vert.x returns it as a JsonObject, not a String.
+    JsonObject meta = r.getJsonObject("metadata");
     return new InstitutionAlert(
         r.getLong("id"),
         r.getLong("institution_id"),
@@ -118,7 +119,7 @@ public final class InstitutionAlertRepository {
         r.getString("message"),
         r.getString("severity"),
         r.getString("status"),
-        meta != null ? new JsonObject(meta) : new JsonObject(),
+        meta != null ? meta : new JsonObject(),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"));
   }

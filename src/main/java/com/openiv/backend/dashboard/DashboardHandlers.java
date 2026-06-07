@@ -5,7 +5,6 @@ import com.openiv.backend.auth.model.Session;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.beam.OtpAlert;
 import com.openiv.backend.beam.OtpAlertRepository;
-import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.geofence.GeoFenceRepository;
 import com.openiv.backend.geofence.GeoFenceService;
 import com.openiv.backend.notifications.NotificationService;
@@ -32,14 +31,12 @@ public final class DashboardHandlers {
   private final DashboardService    service;
   private final GeoFenceService     geoFenceService;
   private final Vertx               vertx;
-  private final BillingService      billing;
   private final NotificationService notifications;
   private final UserRepository      users;
 
   public DashboardHandlers(DashboardService service, GeoFenceService geoFenceService, Vertx vertx,
-      BillingService billing, NotificationService notifications, UserRepository users) {
+      NotificationService notifications, UserRepository users) {
     this.service         = service;
-    this.billing         = billing;
     this.geoFenceService = geoFenceService;
     this.notifications   = notifications;
     this.vertx           = vertx;
@@ -389,14 +386,11 @@ public final class DashboardHandlers {
       var to       = parseDateTime(first(ctx, "to"),   OffsetDateTime.now(ZoneOffset.UTC));
       String fname = "openiv-report-" + to.toLocalDate() + ".csv";
       service.exportCsv(session, from, to)
-          .onSuccess(csv -> {
-            ctx.response()
-                .setStatusCode(200)
-                .putHeader("content-type", "text/csv; charset=utf-8")
-                .putHeader("content-disposition", "attachment; filename=\"" + fname + "\"")
-                .end(csv);
-            billing.chargeReportExportAsync(session);
-          })
+          .onSuccess(csv -> ctx.response()
+              .setStatusCode(200)
+              .putHeader("content-type", "text/csv; charset=utf-8")
+              .putHeader("content-disposition", "attachment; filename=\"" + fname + "\"")
+              .end(csv))
           .onFailure(ctx::fail);
     };
   }
@@ -412,19 +406,16 @@ public final class DashboardHandlers {
       LocalDate from  = parseDate(body != null ? body.getString("from") : null, today);
       LocalDate to    = parseDate(body != null ? body.getString("to")   : null, today);
       service.fileNfiuReturn(session, from, to)
-          .onSuccess(nr -> {
-            ok(ctx, new JsonObject()
-                .put("id",                 nr.id())
-                .put("reference",          nr.reference())
-                .put("periodFrom",         nr.periodFrom().toString())
-                .put("periodTo",           nr.periodTo().toString())
-                .put("totalTransactions",  nr.totalTransactions())
-                .put("flaggedCount",       nr.flaggedCount())
-                .put("totalFlaggedAmount", nr.totalFlaggedAmount())
-                .put("status",             nr.status())
-                .put("submittedAt",        nr.submittedAt().toString()));
-            billing.chargeNfiuReturnAsync(session);
-          })
+          .onSuccess(nr -> ok(ctx, new JsonObject()
+              .put("id",                 nr.id())
+              .put("reference",          nr.reference())
+              .put("periodFrom",         nr.periodFrom().toString())
+              .put("periodTo",           nr.periodTo().toString())
+              .put("totalTransactions",  nr.totalTransactions())
+              .put("flaggedCount",       nr.flaggedCount())
+              .put("totalFlaggedAmount", nr.totalFlaggedAmount())
+              .put("status",             nr.status())
+              .put("submittedAt",        nr.submittedAt().toString())))
           .onFailure(ctx::fail);
     };
   }

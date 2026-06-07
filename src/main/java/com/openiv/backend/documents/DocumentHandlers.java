@@ -3,7 +3,6 @@ package com.openiv.backend.documents;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.service.AuthException;
-import com.openiv.backend.billing.BillingService;
 import com.openiv.backend.cloudinary.CloudinaryService;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -30,14 +29,12 @@ public final class DocumentHandlers {
   private final DocumentRepository repository;
   private final UserRepository      users;
   private final CloudinaryService   cloudinary;
-  private final BillingService      billing;
 
   public DocumentHandlers(DocumentRepository repository, UserRepository users,
-      Vertx vertx, BillingService billing, CloudinaryService cloudinary) {
+      Vertx vertx, CloudinaryService cloudinary) {
     this.repository = repository;
     this.users      = users;
     this.cloudinary = cloudinary;
-    this.billing    = billing;
   }
 
   /** POST /api/v1/documents/upload */
@@ -79,10 +76,7 @@ public final class DocumentHandlers {
                     .put("url",      result.secureUrl())
                     .put("filename", filename))));
           })
-          .onSuccess(json -> {
-            ok(ctx, json);
-            billing.chargeDocumentUploadAsync(session);
-          })
+          .onSuccess(json -> ok(ctx, json))
           .onFailure(ctx::fail);
     };
   }

@@ -426,6 +426,13 @@ public final class AuthService {
     return users.updateProfile(session.userId(), fullName, jobTitle);
   }
 
+  public Future<Void> updateTheme(Session session, String theme) {
+    if (!"light".equals(theme) && !"dark".equals(theme)) {
+      return Future.failedFuture("invalid_theme");
+    }
+    return users.updateTheme(session.userId(), theme);
+  }
+
   public Future<User> updateAvatarUrl(Session session, String avatarUrl, long documentId) {
     return users.updateAvatarUrl(session.userId(), avatarUrl, documentId);
   }

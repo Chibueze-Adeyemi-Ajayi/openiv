@@ -1,7 +1,6 @@
 package com.openiv.backend.beam;
 
 import com.openiv.backend.auth.handler.SessionAuthHandler;
-import com.openiv.backend.billing.BillingService;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -10,11 +9,9 @@ import io.vertx.ext.web.RoutingContext;
 public final class BeamHandlers {
 
   private final BeamService service;
-  private final BillingService billing;
 
-  public BeamHandlers(BeamService service, BillingService billing) {
+  public BeamHandlers(BeamService service) {
     this.service = service;
-    this.billing = billing;
   }
 
   public Handler<RoutingContext> ingest() {
@@ -41,8 +38,6 @@ public final class BeamHandlers {
       service.ingest(institutionId, stream, idempotencyKey, body.encode(),
           ip, userAgent, headersJson.encode(), payloadBytes, (int)(System.currentTimeMillis() - start))
           .onSuccess(res -> {
-            billing.chargeBeamIngestAsync(institutionId, "beam_" + res.record().id());
-
             var response = new JsonObject()
                 .put("ok", true)
                 .put("record_id", res.record().id())
@@ -86,7 +81,10 @@ public final class BeamHandlers {
       writeSse(resp, "started", new JsonObject()
           .put("customerId", customerId)
           .put("steps", new io.vertx.core.json.JsonArray()
-              .add("bvn_nin").add("phone_match").add("liveness").add("pep_check")));
+              .add("bvn_nin")
+              .add("phone_record_basic").add("phone_record_fraud")
+              .add("phone_beam_basic").add("phone_beam_fraud")
+              .add("liveness").add("pep_check")));
 
       String ip        = ctx.request().remoteAddress().hostAddress();
       String userAgent = ctx.request().getHeader("User-Agent");
@@ -95,7 +93,6 @@ public final class BeamHandlers {
       service.processKycStream(institutionId, body.encode(), ip, userAgent, bytes,
               stepEvent -> writeSse(resp, "step", stepEvent))
           .onSuccess(res -> {
-            billing.chargeBeamIngestAsync(institutionId, "beam_kyc_" + res.record().id());
             writeSse(resp, "result", res.analysis() != null ? res.analysis() : new JsonObject());
             writeSse(resp, "done",   new JsonObject());
             resp.end();

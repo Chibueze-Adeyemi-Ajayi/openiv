@@ -428,14 +428,15 @@ public final class TransactionRepository {
   }
 
   private static Transaction buildTransaction(Row r, boolean seen) {
-    // Deserialize flag_reasons JSONB array → List<String>
+    // Deserialize flag_reasons JSONB array → List<String>.
+    // Vert.x returns JSONB arrays as JsonArray, not String.
     java.util.List<String> flagReasons = new java.util.ArrayList<>();
-    String flagReasonsJson = r.getString("flag_reasons");
-    if (flagReasonsJson != null && !flagReasonsJson.isBlank()) {
-      try {
-        io.vertx.core.json.JsonArray arr = new io.vertx.core.json.JsonArray(flagReasonsJson);
-        for (int i = 0; i < arr.size(); i++) flagReasons.add(arr.getString(i));
-      } catch (Exception ignored) {}
+    io.vertx.core.json.JsonArray flagReasonsArr = r.getJsonArray("flag_reasons");
+    if (flagReasonsArr != null) {
+      for (int i = 0; i < flagReasonsArr.size(); i++) {
+        String s = flagReasonsArr.getString(i);
+        if (s != null) flagReasons.add(s);
+      }
     }
     String dir = r.getString("direction");
     return new Transaction(
