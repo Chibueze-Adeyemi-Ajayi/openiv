@@ -80,6 +80,39 @@ BEGIN
     ('Enterprise', 'enterprise', 500000.00, -1, -1,     -1,  600,  1000000000,ARRAY[]::TEXT[], 3)
   ON CONFLICT (slug) DO NOTHING;
 
+  -- Catch-up V106 (subscription_invoices + subscription_reminder_log).
+  -- RenewalReminderScheduler queries these tables on a Vertx timer; missing the
+  -- tables produces 42P01 errors every interval. Recreate idempotently.
+  CREATE TABLE IF NOT EXISTS subscription_invoices (
+    id                    UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id        BIGINT        NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    plan_id               UUID          NOT NULL REFERENCES subscription_plans(id),
+    invoice_type          VARCHAR(20)   NOT NULL CHECK (invoice_type IN ('upgrade','downgrade','renewal')),
+    amount_ngn            NUMERIC(12,2) NOT NULL,
+    discount_percent      NUMERIC(4,2)  NOT NULL DEFAULT 0,
+    discounted_amount_ngn NUMERIC(12,2) NOT NULL,
+    coupon_code           VARCHAR(64)   UNIQUE,
+    coupon_expires_at     TIMESTAMPTZ,
+    paystack_reference    VARCHAR(100),
+    status                VARCHAR(20)   NOT NULL DEFAULT 'pending'
+                              CHECK (status IN ('pending','paid','expired','cancelled')),
+    created_at            TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    paid_at               TIMESTAMPTZ
+  );
+  CREATE INDEX IF NOT EXISTS idx_sub_invoices_institution ON subscription_invoices(institution_id);
+  CREATE INDEX IF NOT EXISTS idx_sub_invoices_reference   ON subscription_invoices(paystack_reference)
+    WHERE paystack_reference IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS subscription_reminder_log (
+    id               BIGSERIAL   PRIMARY KEY,
+    institution_id   BIGINT      NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    reminder_type    VARCHAR(10) NOT NULL CHECK (reminder_type IN ('7d','3d','24h')),
+    for_renewal_date DATE        NOT NULL,
+    invoice_id       UUID        REFERENCES subscription_invoices(id),
+    sent_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (institution_id, reminder_type, for_renewal_date)
+  );
+
   -- ── New cap columns (original V108 work starts here) ──────────────────────
   ALTER TABLE subscription_plans
     ADD COLUMN IF NOT EXISTS max_monthly_nfiu_filings INTEGER NOT NULL DEFAULT -1,
