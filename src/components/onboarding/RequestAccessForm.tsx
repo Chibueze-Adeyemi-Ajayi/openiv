@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  InputAdornment,
   Link,
   MenuItem,
   Select,
@@ -73,6 +74,31 @@ const labelSx = {
   fontFamily: 'Jost',
 }
 
+const errorSx = {
+  fontSize: '0.75rem',
+  color: '#dc2626',
+  mt: 0.75,
+  fontFamily: 'Jost',
+}
+
+const errorInputSx = {
+  ...{},
+  '& .MuiOutlinedInput-root': {
+    borderRadius: 0,
+    fontFamily: 'Jost',
+    fontSize: '0.9375rem',
+    color: '#000000',
+    '& fieldset': { borderColor: '#dc2626', transition: 'all 0.2s ease' },
+    '&:hover fieldset': { borderColor: '#dc2626' },
+    '&.Mui-focused fieldset': { borderColor: '#dc2626', borderWidth: '1px' },
+    '&.Mui-focused': { boxShadow: '0 0 0 4px rgba(220, 38, 38, 0.08)' },
+    '& input::placeholder': { color: '#94a3b8', opacity: 1 },
+  },
+  '& .MuiOutlinedInput-input': { py: '20px', px: '20px' },
+  '& .MuiInputBase-multiline': { p: 0 },
+  '& .MuiInputBase-multiline .MuiInputBase-input': { py: '18px', px: '20px' },
+}
+
 const primaryButtonSx = {
   bgcolor: colorPalette.primary,
   color: '#ffffff',
@@ -107,19 +133,47 @@ export default function RequestAccessForm({
     description: '',
   })
 
+  type FieldErrors = Partial<Record<'institutionName' | 'contactName' | 'contactEmail' | 'contactPhone', string>>
+  const [errors, setErrors] = useState<FieldErrors>({})
+
   const update = <K extends keyof RequestAccessFormValues>(
     key: K,
     v: RequestAccessFormValues[K],
-  ) => setValues((prev) => ({ ...prev, [key]: v }))
+  ) => {
+    setValues((prev) => ({ ...prev, [key]: v }))
+    // Clear the inline error for this field as soon as the user starts editing
+    if (key in errors) setErrors((prev) => ({ ...prev, [key]: undefined }))
+  }
 
-  const isValid =
-    values.institutionName.trim() &&
-    values.contactName.trim() &&
-    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.contactEmail.trim())
+  // Strip the user's input down to digits-only and prepend +234 on submit.
+  // This way the value the user sees ('801 234 5678') is just their local number.
+  const normalizePhone = (raw: string): string => {
+    const digits = raw.replace(/\D+/g, '').replace(/^234/, '').replace(/^0+/, '')
+    return digits.length === 0 ? '' : '+234' + digits
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isValid) onSubmit?.(values)
+  const validate = (v: RequestAccessFormValues): FieldErrors => {
+    const e: FieldErrors = {}
+    if (!v.institutionName.trim()) e.institutionName = 'Institution name is required'
+    if (!v.contactName.trim())     e.contactName     = 'Contact name is required'
+    const email = v.contactEmail.trim()
+    if (!email) e.contactEmail = 'Email address is required'
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) e.contactEmail = 'Enter a valid email address'
+    const phoneDigits = v.contactPhone.replace(/\D+/g, '').replace(/^234/, '').replace(/^0+/, '')
+    if (phoneDigits && (phoneDigits.length < 7 || phoneDigits.length > 11)) {
+      e.contactPhone = 'Enter a valid Nigerian phone number'
+    }
+    return e
+  }
+
+  const handleSubmit = (event: React.SyntheticEvent) => {
+    event.preventDefault()
+    const fieldErrors = validate(values)
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors)
+      return
+    }
+    onSubmit?.({ ...values, contactPhone: normalizePhone(values.contactPhone) })
   }
 
   if (succeeded) {
@@ -195,8 +249,9 @@ export default function RequestAccessForm({
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
-                sx={inputSx}
+                sx={errors.institutionName ? errorInputSx : inputSx}
               />
+              {errors.institutionName && <Typography sx={errorSx}>{errors.institutionName}</Typography>}
             </Box>
             <Box>
               <Typography sx={labelSx}>Institution Type</Typography>
@@ -232,8 +287,9 @@ export default function RequestAccessForm({
                 onChange={(e) => update('contactName', e.target.value)}
                 autoComplete="off"
                 spellCheck={false}
-                sx={inputSx}
+                sx={errors.contactName ? errorInputSx : inputSx}
               />
+              {errors.contactName && <Typography sx={errorSx}>{errors.contactName}</Typography>}
             </Box>
             <Box>
               <Typography sx={labelSx}>
@@ -264,8 +320,9 @@ export default function RequestAccessForm({
                 onChange={(e) => update('contactEmail', e.target.value)}
                 autoComplete="off"
                 spellCheck={false}
-                sx={inputSx}
+                sx={errors.contactEmail ? errorInputSx : inputSx}
               />
+              {errors.contactEmail && <Typography sx={errorSx}>{errors.contactEmail}</Typography>}
             </Box>
             <Box>
               <Typography sx={labelSx}>
@@ -274,13 +331,35 @@ export default function RequestAccessForm({
               </Typography>
               <TextField
                 fullWidth
-                placeholder="+234 ..."
+                placeholder="801 234 5678"
                 value={values.contactPhone}
-                onChange={(e) => update('contactPhone', e.target.value)}
-                autoComplete="off"
+                onChange={(e) => {
+                  // Accept digits, spaces, dashes — store as the user typed, strip on submit
+                  const cleaned = e.target.value.replace(/[^\d\s-]/g, '')
+                  update('contactPhone', cleaned)
+                }}
+                autoComplete="tel-national"
                 spellCheck={false}
-                sx={inputSx}
+                inputMode="tel"
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ mr: 1.5 }}>
+                        <Box sx={{
+                          display: 'flex', alignItems: 'center', gap: 0.75,
+                          fontFamily: 'Jost', fontSize: '0.9375rem',
+                          color: '#0f172a', fontWeight: 600,
+                        }}>
+                          <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1 }}>🇳🇬</Box>
+                          <Box component="span">+234</Box>
+                        </Box>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={errors.contactPhone ? errorInputSx : inputSx}
               />
+              {errors.contactPhone && <Typography sx={errorSx}>{errors.contactPhone}</Typography>}
             </Box>
           </Box>
 
@@ -305,7 +384,7 @@ export default function RequestAccessForm({
           <Button
             fullWidth
             type="submit"
-            disabled={!isValid || submitting}
+            disabled={submitting}
             sx={{ ...primaryButtonSx, mt: 1 }}
           >
             {submitting ? 'Submitting…' : 'Submit Request'}
