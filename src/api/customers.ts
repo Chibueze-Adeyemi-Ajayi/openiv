@@ -14,6 +14,8 @@ export interface Customer {
   bvn: string | null
   nin: string | null
   photo: string | null
+  selfiePhoto: string | null
+  identityPhoto: string | null
   accountNumber: string | null
   subjectType: 'individual' | 'corporate' | null
   dob: string | null
@@ -23,6 +25,28 @@ export interface Customer {
   watchlisted: boolean
   watchlistedAt: string | null
   watchlistedReason: string | null
+  lastEvaluatedAt: string | null
+  cddRiskScore: number | null
+  cddConcerns: CddConcern[] | null
+  cddStepScores: CddStepScore[] | null
+}
+
+export interface CddConcern {
+  step: string
+  type: 'not_found' | 'name_mismatch' | 'phone_name_mismatch' | 'fraud_signals'
+  field: string
+  message: string
+  resolveAction: 'rescreen' | 'investigate'
+}
+
+export interface CddStepScore {
+  type: string
+  status: 'pass' | 'match' | 'not_found' | 'skipped' | 'error'
+  detail: string
+  score: number | null
+  isConcern?: boolean
+  dobMismatch?: boolean
+  ms: number
 }
 
 export interface UpdateCustomerProfileRequest {
@@ -65,4 +89,13 @@ export const customerApi = {
 
   highRisk: (page = 1, pageSize = 20) =>
     apiRequest<HighRiskPage>(`/api/v1/customers/high-risk?page=${page}&pageSize=${pageSize}`),
+
+  rescreen: (externalId: string) =>
+    apiRequest<{ outcome: string }>(`/api/v1/customers/${externalId}/rescreen`, { method: 'POST' }),
+
+  rescreenAll: () =>
+    apiRequest<{ runId: number | null; totalCustomers: number; message: string }>(`/api/v1/customers/rescreen-all`, { method: 'POST' }),
+
+  resolveStep: (externalId: string, req: { type: string; resolution: 'pass' | 'fail'; score?: number; note: string }) =>
+    apiRequest<Customer>(`/api/v1/customers/${externalId}/resolve-step`, { method: 'POST', body: req }),
 }

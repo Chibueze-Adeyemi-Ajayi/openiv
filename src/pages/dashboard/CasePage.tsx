@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 import type { ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Box, Typography, Stack, IconButton, InputBase, Tooltip } from '@mui/material'
@@ -70,6 +72,15 @@ const EVIDENCE_CATEGORY_CFG: Record<string, { color: string; label: string }> = 
 }
 
 const AVATAR_COLORS = ['#1e40af', '#0891b2', '#7c3aed', '#be123c', '#b45309', '#065f46']
+
+function preprocessNotes(text: string): string {
+  return text
+    .replace(/\[FAILED\]/g, '<span style="color:#dc2626;font-weight:700">[FAILED]</span>')
+    .replace(/\[PASSED\]/g, '<span style="color:#16a34a;font-weight:700">[PASSED]</span>')
+    .replace(/\[NOT FOUND\]/g, '<span style="color:#d97706;font-weight:700">[NOT FOUND]</span>')
+    .replace(/\bLiveness\b/g, 'Facial Recognition')
+    .replace(/\bliveness\b/g, 'facial recognition')
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -199,7 +210,10 @@ export default function CasePage() {
     const cid = data?.case?.customerId
     if (!cid) { setCustomerPhoto(null); return }
     customerApi.getCustomer(cid)
-      .then(c => setCustomerPhoto(c.photo ?? null))
+      .then(c => {
+        const p = c.photo ?? null
+        setCustomerPhoto(p ? (p.startsWith('data:') ? p : `data:image/jpeg;base64,${p}`) : null)
+      })
       .catch(() => setCustomerPhoto(null))
   }, [data?.case?.customerId])
 
@@ -494,8 +508,17 @@ export default function CasePage() {
             {cas?.notes && (
               <Box sx={{ px: 2.5, pb: 2 }}>
                 <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', mb: 0.75 }}>Notes</Typography>
-                <Box sx={{ p: 1.5, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
-                  <Typography sx={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cas.notes}</Typography>
+                <Box sx={{
+                  p: 1.5, bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)',
+                  '& h1': { fontSize: '0.9rem', fontWeight: 800, color: 'var(--heading-color)', mt: 0, mb: 0.5, fontFamily: 'Jost' },
+                  '& h2': { fontSize: '0.8rem', fontWeight: 700, color: 'var(--heading-color)', mt: 1.5, mb: 0.5, fontFamily: 'Jost' },
+                  '& p': { fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.7, mt: 0, mb: 0.75 },
+                  '& ol, & ul': { pl: 2.5, mb: 0.75 },
+                  '& li': { fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.7, mb: 0.25 },
+                  '& hr': { border: 'none', borderTop: '1px solid var(--border-col)', my: 1 },
+                  '& code': { fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.75rem', bgcolor: 'var(--section-bg)', px: 0.5, borderRadius: 0.5 },
+                }}>
+                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>{preprocessNotes(cas.notes)}</ReactMarkdown>
                 </Box>
               </Box>
             )}

@@ -25,6 +25,7 @@ const KEYS = {
   inviteCode: 'openiv.inviteCode',
   loginEmail: 'openiv.loginEmail',
   loginName: 'openiv.loginName',
+  loginAvatar: 'openiv.loginAvatar',
 } as const
 
 type Key = (typeof KEYS)[keyof typeof KEYS]
@@ -34,6 +35,8 @@ export type SessionState =
   | 'must_change_password'
   | 'pending_totp_setup'
   | 'pending_totp_challenge'
+  | 'pending_biometric_setup'
+  | 'pending_biometric_challenge'
   | 'authenticated'
 
 const cache = new Map<string, string | null>()
@@ -81,6 +84,9 @@ export const getLoginEmail = () => readCached(KEYS.loginEmail)
 
 export const setLoginName = (v: string | null) => writeEncrypted(KEYS.loginName, v)
 export const getLoginName = () => readCached(KEYS.loginName)
+
+export const setLoginAvatar = (v: string | null) => writeEncrypted(KEYS.loginAvatar, v)
+export const getLoginAvatar = () => readCached(KEYS.loginAvatar)
 
 /**
  * Load all breadcrumbs from (encrypted) sessionStorage into the in-memory cache. Call once at

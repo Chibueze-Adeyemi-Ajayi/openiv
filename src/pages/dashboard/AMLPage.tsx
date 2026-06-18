@@ -309,7 +309,7 @@ export default function AMLPage() {
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: colorPalette.primary, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
                   Active Investigations
                 </Typography>
-                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
+                <Typography component="div" sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
                   {allCasesCount == null
                     ? <Box sx={{ width: 56, height: 40, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                     : (allCasesCount > 0 ? allCasesCount : '—')}
@@ -337,7 +337,7 @@ export default function AMLPage() {
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.75 }}>
                     Interest Requests
                   </Typography>
-                  <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
+                  <Typography component="div" sx={{ fontSize: '2rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 0.5 }}>
                     {interestCaseCount == null
                       ? <Box sx={{ width: 56, height: 40, bgcolor: 'var(--section-bg)', borderRadius: 0.5, animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } } }} />
                       : (interestCaseCount > 0 ? interestCaseCount : '—')}

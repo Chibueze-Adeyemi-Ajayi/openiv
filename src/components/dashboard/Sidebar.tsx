@@ -11,18 +11,14 @@ import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined'
 import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined'
-import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined'
-import WebhookOutlinedIcon from '@mui/icons-material/WebhookOutlined'
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
-import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined'
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined'
-import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined'
-import CallMadeIcon from '@mui/icons-material/CallMade'
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
+import TrackChangesOutlinedIcon from '@mui/icons-material/TrackChangesOutlined'
 import { authApi } from '@/api/auth'
 import { caseApi } from '@/api/cases'
 import { transactionApi } from '@/api/transactions'
@@ -43,6 +39,7 @@ interface NavItem {
   badge?: string
   permission?: Permission
   planFeature?: PlanFeature
+  activeOn?: string[]
 }
 
 interface ActiveNavItem {
@@ -64,33 +61,24 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Investigate',
     items: [
-      { to: '/dashboard/aml',       icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'AML & Cases', permission: 'cases.view' },
-      { to: '/dashboard/customers', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Customers',   permission: 'customers.view' },
+      { to: '/dashboard/aml',       icon: <GavelOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'AML & Cases', permission: 'cases.view', activeOn: ['/dashboard/cases/'] },
+      { to: '/dashboard/customers', icon: <BadgeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Customers',   permission: 'customers.view', activeOn: ['/dashboard/users/'] },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { to: '/dashboard/cbn',     icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance',   badge: '52d', permission: 'reports.view' },
-      { to: '/dashboard/reports', icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Reports & Filings',              permission: 'reports.view' },
-    ],
-  },
-  {
-    label: 'Integrate',
-    items: [
-      { to: '/dashboard/beam',       icon: <CallMadeIcon sx={{ fontSize: '1.25rem' }} />,        label: 'Beam to OpenIV', permission: 'integrations.view' },
-      { to: '/dashboard/thresholds', icon: <PolicyOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'Rules',          permission: 'rules.view' },
-      { to: '/dashboard/webhooks',   icon: <WebhookOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Webhooks',       permission: 'integrations.view', planFeature: 'webhooks' },
-      { to: '/dashboard/network',    icon: <RssFeedOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Network',        permission: 'integrations.view', planFeature: 'network'   },
+      // { to: '/dashboard/cbn',       icon: <VerifiedUserOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'CBN Compliance',   badge: '52d', permission: 'reports.view' },
+      { to: '/dashboard/reports',   icon: <AssessmentOutlinedIcon sx={{ fontSize: '1.25rem' }} />,   label: 'Reports & Filings',              permission: 'reports.view' },
+      { to: '/dashboard/workflows', icon: <AccountTreeOutlinedIcon sx={{ fontSize: '1.25rem' }} />,  label: 'CDD Workflows',                      permission: 'rules.view' },
+      { to: '/dashboard/transaction-monitoring', icon: <TrackChangesOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Transaction Monitoring', permission: 'rules.view' },
     ],
   },
   {
     label: 'Workspace',
     items: [
       { to: '/dashboard/team',         icon: <GroupOutlinedIcon sx={{ fontSize: '1.25rem' }} />,                label: 'Team & Roles',    permission: 'team.view' },
-      { to: '/dashboard/billing',      icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.25rem' }} />, label: 'Billing & Usage', permission: 'billing.view' },
-      { to: '/dashboard/subscription', icon: <WorkspacePremiumOutlinedIcon sx={{ fontSize: '1.25rem' }} />,    label: 'Subscription',    permission: 'billing.view' },
-      { to: '/dashboard/settings',     icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings',        permission: 'settings.view' },
+{ to: '/dashboard/settings',     icon: <SettingsOutlinedIcon sx={{ fontSize: '1.25rem' }} />,             label: 'Settings',        permission: 'settings.view' },
     ],
   },
 ]
@@ -229,41 +217,54 @@ export default function Sidebar() {
         py: 2.5,
       }}
     >
-      {/* Brand */}
+      {/* Brand — institution logo (white-label) */}
       <Box sx={{ px: 3, pb: 2.5, mb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-          <Box sx={{ position: 'relative' }}>
+        {resolveMediaUrl(profile?.institutionLogoUrl) ? (
+          <Box
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#ffffff',
+              borderRadius: '4px',
+              p: '6px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+            }}
+          >
             <Box
-              sx={{
-                position: 'absolute',
-                top: -4,
-                left: 0,
-                width: 24,
-                height: '2px',
-                bgcolor: 'var(--card-bg)',
-                borderRadius: '1px',
-              }}
+              component="img"
+              src={resolveMediaUrl(profile.institutionLogoUrl!)!}
+              alt={profile?.institutionName ?? ''}
+              sx={{ height: 40, maxWidth: 120, objectFit: 'contain', display: 'block', borderRadius: '4px' }}
             />
-            <Typography
-              sx={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                fontFamily: 'Jost',
-                letterSpacing: '0.1em',
-                color: '#ffffff',
-              }}
-            >
-              OPENIV
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              bgcolor: 'rgba(255,255,255,0.12)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'Jost', color: '#ffffff', letterSpacing: '0.04em' }}>
+              {getInitials(profile?.institutionName, null)}
             </Typography>
           </Box>
-        </Box>
+        )}
         <Typography
           sx={{
             fontSize: '0.6875rem',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.5)',
-            mt: 1,
-            letterSpacing: '0.04em',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.45)',
+            mt: 1.25,
+            letterSpacing: '0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
         >
           {profile?.institutionName ?? '—'}
@@ -308,7 +309,10 @@ export default function Sidebar() {
               {group.label}
             </Typography>
             {group.items.map((item) => {
-              const active = location.pathname === item.to
+              const active = item.to === '/dashboard'
+                ? location.pathname === '/dashboard'
+                : location.pathname === item.to || location.pathname.startsWith(item.to + '/') ||
+                  (item.activeOn?.some(p => location.pathname.startsWith(p)) ?? false)
 
               return (
                 <NavLink
@@ -380,6 +384,9 @@ export default function Sidebar() {
                         fontWeight: active ? 600 : 500,
                         fontFamily: 'Jost',
                         flex: 1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
                       {item.label}
@@ -463,6 +470,13 @@ export default function Sidebar() {
             />
           </Tooltip>
         </Box>
+      </Box>
+
+      {/* Powered by */}
+      <Box sx={{ px: 3, pt: 1.5, pb: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography sx={{ fontSize: '0.625rem', fontWeight: 500, color: 'rgba(255,255,255,0.28)', letterSpacing: '0.06em', userSelect: 'none' }}>
+          POWERED BY OPENIV
+        </Typography>
       </Box>
 
       {/* AI hover bubble */}

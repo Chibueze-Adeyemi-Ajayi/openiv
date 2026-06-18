@@ -36,7 +36,7 @@ export function fmtThreshold(rule: ThresholdRule, value: number): string {
   return String(value)
 }
 
-// ── Behavioural-pattern category config (icon + colour) ───────────────────────
+// ── Behavioural rule sub-category config (icon + colour) ─────────────────────
 
 export const categoryConfig: Record<string, { color: string; icon: React.ReactNode }> = {
   Geo:      { color: '#7c3aed', icon: <LocationOnOutlinedIcon sx={{ fontSize: '1rem' }} /> },

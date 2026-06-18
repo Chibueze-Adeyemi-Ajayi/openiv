@@ -64,8 +64,12 @@ export interface KycCustomer {
   identityPhoto: string | null
   firstName: string | null
   lastName: string | null
+  name?: string | null
   phone: string | null
   dateOfBirth: string | null
+  cddStepScores?: string | null
+  selfiePhoto?: string | null
+  hasActiveCase?: boolean
 }
 
 export interface KycEvaluationConfig {
@@ -122,7 +126,7 @@ export const kycApi = {
   },
 
   getStats: () =>
-    apiRequest<{ total: number; highRisk: number; lowRisk: number; verified: number; flagged: number }>(
+    apiRequest<{ total: number; highRisk: number; mediumRisk: number; lowRisk: number; verified: number; flagged: number }>(
       '/api/v1/kyc/customers/stats'),
 
   getCustomerKyc: (customerId: string) =>

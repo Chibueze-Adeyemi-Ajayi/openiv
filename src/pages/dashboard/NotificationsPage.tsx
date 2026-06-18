@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import { useDashboardEvents, useDashboardEventsMut } from '@/contexts/DashboardEventsContext'
 import { notificationsApi, notifSeverity, type NotificationItem } from '@/api/notifications'
 import { institutionAlertsApi, type InstitutionAlert } from '@/api/institutionAlerts'
@@ -143,6 +144,8 @@ function NotifRow({
     if (unread) onRead(n.id)
     const dest = n.entityType === 'transaction'
       ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : n.entityType === 'workflow'
+      ? `/dashboard/workflows`
       : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
     navigate(dest, {
       state: { breadcrumbs: [{ label: 'Notifications', path: '/dashboard/notifications' }] },
@@ -251,10 +254,12 @@ function NotifRow({
             sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1, py: 0.375, bgcolor: `${colorPalette.primary}0c`, border: `1px solid ${colorPalette.primary}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${colorPalette.primary}18` } }}>
             {n.entityType === 'transaction'
               ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.75rem', color: colorPalette.primary }} />
+              : n.entityType === 'workflow'
+              ? <AccountTreeOutlinedIcon sx={{ fontSize: '0.75rem', color: colorPalette.primary }} />
               : <GavelOutlinedIcon sx={{ fontSize: '0.75rem', color: colorPalette.primary }} />
             }
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+              {n.entityType === 'transaction' ? 'View Transaction' : n.entityType === 'workflow' ? 'View Workflow' : 'View Case'}
             </Typography>
             <OpenInNewRoundedIcon sx={{ fontSize: '0.625rem', color: colorPalette.primary, opacity: 0.7 }} />
           </Box>
@@ -288,6 +293,8 @@ function NotifDetailDrawer({
     if (!n?.entityId || !n.entityType) return
     const dest = n.entityType === 'transaction'
       ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : n.entityType === 'workflow'
+      ? `/dashboard/workflows`
       : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
     onClose()
     navigate(dest, {
@@ -423,6 +430,8 @@ function NotifDetailDrawer({
                 startIcon={
                   n.entityType === 'transaction'
                     ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />
+                    : n.entityType === 'workflow'
+                    ? <AccountTreeOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />
                     : <GavelOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />
                 }
                 endIcon={<OpenInNewRoundedIcon sx={{ fontSize: '0.75rem !important' }} />}
@@ -435,7 +444,7 @@ function NotifDetailDrawer({
                   '&:hover': { bgcolor: 'var(--on-surface)', boxShadow: 'none' },
                 }}
               >
-                View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+                {n.entityType === 'transaction' ? 'View Transaction' : n.entityType === 'workflow' ? 'View Workflow' : 'View Case'}
               </Button>
             )}
             {n.status === 'unread' ? (

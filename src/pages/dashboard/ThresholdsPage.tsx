@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { isBuildOne } from '@/utils/build'
-import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogTitle, Grid, Tabs, Tab, Tooltip } from '@mui/material'
+import { Box, Typography, Stack, TextField, Slider, Switch, Chip, Button, Dialog, DialogContent, DialogTitle, DialogActions, Grid, Tabs, Tab, Tooltip, FormControl, InputLabel, Select, MenuItem, IconButton } from '@mui/material'
 import { useRbac } from '@/contexts/RbacContext'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
@@ -14,7 +14,9 @@ import MadLibInput from '@/components/dashboard/MadLibInput'
 import RiskSeekbar from '@/components/dashboard/RiskSeekbar'
 import { tagColors, fmtThreshold, categoryConfig, severityConfig, patternLanguage, plainEnglishDescriptions, ruleLanguage } from '@/data/ruleMetadata'
 import { thresholdApi, type ThresholdRule, type ThresholdMetrics, type KycTierRecord, type ThresholdChange } from '@/api/thresholds'
-import { behavioralRuleApi, type BehavioralRule } from '@/api/behavioralRules'
+import { behavioralRuleApi, type BehavioralRule, type TemplateType, TEMPLATE_META } from '@/api/behavioralRules'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { amlApi, type AmlSettings } from '@/api/aml'
 
 export default function ThresholdsPage() {
@@ -66,6 +68,16 @@ export default function ThresholdsPage() {
   const [behLoading, setBehLoading] = useState(true)
   const [behDrafts, setBehDrafts] = useState<Record<number, Record<string, any>>>({})
   const [behPendingSave, setBehPendingSave] = useState<{ rule: BehavioralRule; newParams?: Record<string, any>; newActive?: boolean } | null>(null)
+  const [behPolicyDrafts, setBehPolicyDrafts] = useState<Record<number, string>>({})
+  const [behPolicySaving, setBehPolicySaving] = useState<number | null>(null)
+  const [behCreateOpen, setBehCreateOpen] = useState(false)
+  const [behCreateTemplate, setBehCreateTemplate] = useState<TemplateType>('velocity_ring')
+  const [behCreateName, setBehCreateName] = useState('')
+  const [behCreateSeverity, setBehCreateSeverity] = useState<'critical'|'high'|'medium'>('medium')
+  const [behCreatePolicy, setBehCreatePolicy] = useState('')
+  const [behCreateParams, setBehCreateParams] = useState<Record<string, any>>({})
+  const [behCreating, setBehCreating] = useState(false)
+  const [behDeleting, setBehDeleting] = useState<number | null>(null)
 
   // ── KYC tiers ─────────────────────────────────────────────────────────────
   const [kycTiers, setKycTiers] = useState<KycTierRecord[]>([])
@@ -190,6 +202,46 @@ export default function ThresholdsPage() {
     }
   }
 
+  const savePolicyStatement = async (rule: BehavioralRule) => {
+    const draft = behPolicyDrafts[rule.id]
+    if (draft === undefined) return
+    setBehPolicySaving(rule.id)
+    try {
+      await behavioralRuleApi.update(rule.id, { policyStatement: draft })
+      setBehPolicyDrafts(prev => { const n = { ...prev }; delete n[rule.id]; return n })
+      await loadData()
+    } finally { setBehPolicySaving(null) }
+  }
+
+  const handleBehCreate = async () => {
+    const meta = TEMPLATE_META[behCreateTemplate]
+    setBehCreating(true)
+    try {
+      await behavioralRuleApi.create({
+        templateType: behCreateTemplate,
+        name: behCreateName.trim(),
+        category: meta.category,
+        severity: behCreateSeverity,
+        policyStatement: behCreatePolicy.trim(),
+        params: { ...meta.defaultParams, ...behCreateParams },
+      })
+      setBehCreateOpen(false)
+      setBehCreateName('')
+      setBehCreatePolicy('')
+      setBehCreateParams({})
+      await loadData()
+    } finally { setBehCreating(false) }
+  }
+
+  const handleBehDelete = async (rule: BehavioralRule) => {
+    if (!window.confirm(`Delete rule "${rule.name}"? This cannot be undone.`)) return
+    setBehDeleting(rule.id)
+    try {
+      await behavioralRuleApi.delete(rule.id)
+      await loadData()
+    } finally { setBehDeleting(null) }
+  }
+
   // ── Mad-libs sentence builder for behavioural rules ───────────────────────
   const renderMadLibs = (rule: BehavioralRule) => {
     const params = behDrafts[rule.id] ? { ...rule.params, ...behDrafts[rule.id] } : rule.params
@@ -276,7 +328,7 @@ export default function ThresholdsPage() {
             Detection Thresholds
           </Typography>
           <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Tune the rules that flag suspicious activity across transaction detection, behavioral patterns, and risk scoring
+            Tune the rules that flag suspicious activity across transaction rules, behavioural rules, and risk scoring
           </Typography>
         </Box>
       </Box>
@@ -297,7 +349,7 @@ export default function ThresholdsPage() {
         }}
       >
         <Tab label="Transaction Rules" />
-        {!isBuildOne && <Tab label="Behavioural Pattern Rules" />}
+        {!isBuildOne && <Tab label="Behavioural Rules" />}
         <Tab label="Risk Score Configuration" />
       </Tabs>
 
@@ -384,6 +436,11 @@ export default function ThresholdsPage() {
                         <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
                           {lang?.friendlyName ?? rule.name}
                         </Typography>
+                        <Box sx={{ px: 0.75, py: 0.25, bgcolor: '#0f4c8110', borderRadius: 0 }}>
+                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#0f4c81', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            Transaction Rule
+                          </Typography>
+                        </Box>
                         <Box sx={{ px: 0.75, py: 0.25, bgcolor: `${tagColor}10`, borderRadius: 0 }}>
                           <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: tagColor, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                             {rule.tag}
@@ -669,20 +726,26 @@ export default function ThresholdsPage() {
           </>
         )}
 
-        {/* ── Tab 1: Behavioural Pattern Rules (non-Build-One only) ───────── */}
+        {/* ── Tab 1: Behavioural Rules (non-Build-One only) ───────────────── */}
         {(activeTab === 1 && !isBuildOne) && (
           <Box sx={{ position: 'relative' }}>
-            <ComingSoonOverlay title="Behavioral Pattern Rules" />
+            <ComingSoonOverlay title="Behavioural Rules" />
             <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', borderRadius: 0 }}>
               <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
-                    Behavioral Pattern Rules
+                    Behavioural Rules
                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                    Configure parameters for detecting complex fraud topologies
+                    Configure parameters and describe your institution's policy rationale for each rule
                   </Typography>
                 </Box>
+                {canModify && (
+                  <Button startIcon={<AddRoundedIcon />} onClick={() => { setBehCreateTemplate('velocity_ring'); setBehCreateName(''); setBehCreatePolicy(''); setBehCreateParams({}); setBehCreateOpen(true) }}
+                    sx={{ textTransform: 'none', fontWeight: 700, fontFamily: 'Jost', borderRadius: 0, px: 2, border: '1px solid var(--border-col)', color: 'var(--heading-color)', '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                    New rule
+                  </Button>
+                )}
               </Box>
 
               {behLoading && (
@@ -694,6 +757,82 @@ export default function ThresholdsPage() {
               )}
 
               <Stack gap={0}>
+                {/* Rule creation dialog */}
+                <Dialog open={behCreateOpen} onClose={() => setBehCreateOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
+                  <DialogTitle sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1rem', borderBottom: '1px solid var(--border-col)', pb: 2 }}>
+                    New behavioural rule
+                  </DialogTitle>
+                  <DialogContent sx={{ pt: 2.5 }}>
+                    <Stack gap={2.5}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel sx={{ fontFamily: 'Jost' }}>Rule template</InputLabel>
+                        <Select
+                          value={behCreateTemplate}
+                          label="Rule template"
+                          onChange={e => { setBehCreateTemplate(e.target.value as TemplateType); setBehCreateParams({}) }}
+                          sx={{ borderRadius: 0, fontFamily: 'Jost' }}
+                        >
+                          {(Object.keys(TEMPLATE_META) as TemplateType[]).map(t => (
+                            <MenuItem key={t} value={t} sx={{ fontFamily: 'Jost' }}>
+                              {TEMPLATE_META[t].label}
+                              <Typography component="span" sx={{ ml: 1, fontSize: '0.6875rem', color: '#94a3b8' }}>
+                                ({TEMPLATE_META[t].category})
+                              </Typography>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <TextField
+                        label="Rule name" size="small" fullWidth
+                        value={behCreateName}
+                        onChange={e => setBehCreateName(e.target.value)}
+                        InputProps={{ sx: { borderRadius: 0, fontFamily: 'Jost' } }}
+                        InputLabelProps={{ sx: { fontFamily: 'Jost' } }}
+                      />
+                      <FormControl fullWidth size="small">
+                        <InputLabel sx={{ fontFamily: 'Jost' }}>Severity</InputLabel>
+                        <Select
+                          value={behCreateSeverity}
+                          label="Severity"
+                          onChange={e => setBehCreateSeverity(e.target.value as 'critical'|'high'|'medium')}
+                          sx={{ borderRadius: 0, fontFamily: 'Jost' }}
+                        >
+                          {(['critical','high','medium'] as const).map(s => (
+                            <MenuItem key={s} value={s} sx={{ fontFamily: 'Jost', textTransform: 'capitalize' }}>{s}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {TEMPLATE_META[behCreateTemplate].paramDefs.map(pd => (
+                        <TextField key={pd.key}
+                          label={pd.label} size="small" fullWidth
+                          type={pd.type === 'number' ? 'number' : 'text'}
+                          value={behCreateParams[pd.key] ?? TEMPLATE_META[behCreateTemplate].defaultParams[pd.key] ?? ''}
+                          onChange={e => setBehCreateParams(prev => ({ ...prev, [pd.key]: pd.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                          InputProps={{ sx: { borderRadius: 0, fontFamily: 'Jost' } }}
+                          InputLabelProps={{ sx: { fontFamily: 'Jost' } }}
+                        />
+                      ))}
+                      <TextField
+                        label="Policy statement (optional)" size="small" fullWidth multiline rows={3}
+                        placeholder="Describe in plain English why this rule applies to your institution..."
+                        value={behCreatePolicy}
+                        onChange={e => setBehCreatePolicy(e.target.value)}
+                        InputProps={{ sx: { borderRadius: 0, fontFamily: 'Jost' } }}
+                        InputLabelProps={{ sx: { fontFamily: 'Jost' } }}
+                      />
+                    </Stack>
+                  </DialogContent>
+                  <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', gap: 1 }}>
+                    <Button onClick={() => setBehCreateOpen(false)} sx={{ textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)', borderRadius: 0 }}>
+                      Cancel
+                    </Button>
+                    <Button variant="contained" disabled={behCreating || !behCreateName.trim()} onClick={handleBehCreate}
+                      sx={{ bgcolor: colorPalette.primary, color: '#fff', textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', boxShadow: 'none', borderRadius: 0 }}>
+                      {behCreating ? 'Creating…' : 'Create rule'}
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+
                 {!behLoading && behRules.map((p) => {
                   const cat = categoryConfig[p.category] || categoryConfig['Temporal']
                   const sev = severityConfig[p.severity]  || severityConfig['medium']
@@ -703,7 +842,7 @@ export default function ThresholdsPage() {
                     <Box
                       key={p.id}
                       data-ai-analyzable="true"
-                      data-ai-description={`Behavioral Pattern Config: "${p.name}". Severity: ${p.severity}. Matched Typology: ${p.matchedTypology}. Active: ${p.isActive}.`}
+                      data-ai-description={`Behavioural Rule: "${p.name}". Severity: ${p.severity}. Matched Typology: ${p.matchedTypology}. Active: ${p.isActive}.`}
                       sx={{ borderBottom: '1px solid var(--border-col)', overflow: 'hidden', opacity: p.isActive ? 1 : 0.6, '&:last-child': { borderBottom: 'none' } }}
                     >
                       {/* Header */}
@@ -718,6 +857,12 @@ export default function ThresholdsPage() {
                                 {p.name}
                               </Typography>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Box sx={{ px: 0.75, py: 0.25, bgcolor: '#7c3aed10', borderRadius: 0 }}>
+                                  <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#7c3aed', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                    Behavioural Rule
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ width: 3, height: 3, bgcolor: '#cbd5e1' }} />
                                 <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: cat.color, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                   {p.category}
                                 </Typography>
@@ -740,6 +885,20 @@ export default function ThresholdsPage() {
                             size="small"
                             sx={{ bgcolor: sev.bg, color: sev.color, fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.1em', borderRadius: 0, height: 24 }}
                           />
+                          {canModify && p.ruleId.startsWith('custom-') && (
+                            <Tooltip title="Delete rule" placement="left">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={behDeleting === p.id}
+                                  onClick={() => handleBehDelete(p)}
+                                  sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fff1f2' } }}
+                                >
+                                  <DeleteOutlineRoundedIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
                           <Tooltip title={!canModify ? 'Requires rules.modify permission' : ''} placement="left">
                             <span>
                               <Switch
@@ -767,6 +926,36 @@ export default function ThresholdsPage() {
                           </Box>
                         </Box>
                       )}
+
+                      {/* Policy statement */}
+                      <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)' }}>
+                        <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>
+                          Institution policy rationale
+                        </Typography>
+                        <textarea
+                          rows={3}
+                          placeholder="Describe in plain English why your institution applies this rule and under what conditions it should trigger (e.g. 'Flag transactions when the same IP is shared by ≥4 customer accounts within 30 minutes — common in SIM-swap fraud targeting our retail segment.')..."
+                          value={behPolicyDrafts[p.id] !== undefined ? behPolicyDrafts[p.id] : p.policyStatement}
+                          disabled={!canModify}
+                          onChange={e => setBehPolicyDrafts(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.8125rem', lineHeight: 1.65, padding: '8px 10px', border: '1px solid var(--border-col)', borderRadius: 0, outline: 'none', background: canModify ? '#fff' : '#f8fafc', color: 'var(--on-surface-variant)' }}
+                        />
+                        {behPolicyDrafts[p.id] !== undefined && behPolicyDrafts[p.id] !== p.policyStatement && canModify && (
+                          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+                            <Button size="small"
+                              onClick={() => setBehPolicyDrafts(prev => { const n = { ...prev }; delete n[p.id]; return n })}
+                              sx={{ textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, color: 'var(--on-surface-variant)', border: '1px solid var(--border-col)' }}>
+                              Discard
+                            </Button>
+                            <Button size="small" variant="contained"
+                              disabled={behPolicySaving === p.id}
+                              onClick={() => savePolicyStatement(p)}
+                              sx={{ bgcolor: colorPalette.primary, color: '#fff', textTransform: 'none', fontWeight: 600, fontFamily: 'Jost', boxShadow: 'none', borderRadius: 0 }}>
+                              {behPolicySaving === p.id ? 'Saving…' : 'Save policy'}
+                            </Button>
+                          </Box>
+                        )}
+                      </Box>
 
                       {/* Mad Libs builder */}
                       <Box sx={{ px: 3, pt: 2.5, pb: 2, bgcolor: '#fbfcfd' }}>

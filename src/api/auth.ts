@@ -17,6 +17,9 @@ export interface LoginResponse {
   state: SessionState
   accountType: AccountType
   fullName?: string
+  avatarUrl?: string | null
+  institutionName?: string | null
+  institutionLogoUrl?: string | null
 }
 
 export interface SessionStateResponse {

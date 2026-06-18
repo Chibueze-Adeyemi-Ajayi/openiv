@@ -24,10 +24,10 @@ export default function VerifyEmailPage() {
     try {
       const { state } = await authApi.verifyEmail(code)
       await setSessionState(state)
-      if (state === 'pending_totp_setup') {
-        navigate('/auth/setup-2fa')
-      } else if (state === 'pending_totp_challenge') {
-        navigate('/auth/verify-otp')
+      if (state === 'pending_biometric_setup') {
+        navigate('/auth/setup-biometric')
+      } else if (state === 'pending_biometric_challenge') {
+        navigate('/auth/verify-biometric')
       } else if (state === 'authenticated') {
         navigate('/dashboard')
       }

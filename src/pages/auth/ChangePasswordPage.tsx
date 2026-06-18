@@ -24,10 +24,12 @@ export default function ChangePasswordPage() {
     setErrorMessage(null)
     try {
       const result = await authApi.changePassword(currentPassword, newPassword)
-      if (result.nextState) {
-        // First-login: session was transitioned (not revoked) — navigate to next step
-        await setSessionState(result.nextState as import('@/onboarding/state').SessionState)
-        navigate('/auth/setup-2fa')
+      if (result.nextState === 'pending_biometric_setup') {
+        await setSessionState('pending_biometric_setup')
+        navigate('/auth/setup-biometric')
+      } else if (result.nextState === 'authenticated') {
+        await setSessionState('authenticated')
+        navigate('/dashboard')
       } else {
         // Normal password change: backend revoked all sessions; return to login
         clearOnboardingState()

@@ -29,10 +29,12 @@ export default function ProtectedRoute({ children, requiredState = 'authenticate
 
       if (state !== requiredState) {
         switch (state) {
-          case 'pending_email_verification': setDenyTarget('/auth/verify-email'); break
-          case 'pending_totp_setup':         setDenyTarget('/auth/setup-2fa');    break
-          case 'pending_totp_challenge':     setDenyTarget('/auth/verify-otp');   break
-          case 'authenticated':              setDenyTarget('/dashboard');         break
+          case 'pending_email_verification': setDenyTarget('/auth/verify-email');     break
+          case 'pending_totp_setup':         setDenyTarget('/auth/setup-2fa');        break
+          case 'pending_totp_challenge':     setDenyTarget('/auth/verify-otp');       break
+          case 'pending_biometric_setup':      setDenyTarget('/auth/setup-biometric');    break
+          case 'pending_biometric_challenge':  setDenyTarget('/auth/verify-biometric');   break
+          case 'authenticated':              setDenyTarget('/dashboard');             break
           default:                           setDenyTarget('/auth/login');
         }
         setStatus('denied')

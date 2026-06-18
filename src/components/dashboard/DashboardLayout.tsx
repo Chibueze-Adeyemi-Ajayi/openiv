@@ -5,7 +5,6 @@ import Topbar from './Topbar'
 import EurekaAssistant from './EurekaAssistant'
 import InactivityGuard from './InactivityGuard'
 import EurekaCompanionGlow from './EurekaCompanionGlow'
-import { useAiEnabled } from '@/hooks/useAiEnabled'
 import MinimizedCaseBar from './MinimizedCaseBar'
 import InvestigationWorkspace from './InvestigationWorkspace'
 import { DashboardEventsProvider, useDashboardEvents } from '@/contexts/DashboardEventsContext'
@@ -78,7 +77,6 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
   setEurekaOpen: (v: boolean) => void
 }) {
   const { eurekaEnabled } = useEureka()
-  const isAiEnabled = useAiEnabled()
   const { securityEvents, geoAccessRequests, notifications } = useDashboardEvents()
   const navigate = useNavigate()
   const [dismissed,       setDismissed]       = useState<Set<string>>(new Set())
@@ -176,13 +174,13 @@ function DashboardContent({ children, eurekaOpen, setEurekaOpen }: {
             {children}
           </Box>
         </Box>
-        {isAiEnabled && <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />}
+        <EurekaAssistant open={eurekaOpen} onClose={() => setEurekaOpen(false)} />
         <InactivityGuard />
-        {isAiEnabled && eurekaEnabled && <EurekaCompanionGlow />}
+        {eurekaEnabled && import.meta.env.VITE_AI_FEATURES !== 'false' && <EurekaCompanionGlow />}
         <GlobalCaseWorkspace />
         <UpgradeModal />
 
-        {isAiEnabled && !eurekaOpen && (
+        {!eurekaOpen && (
           <Tooltip title="Ask Eureka" placement="left">
             <Box
               onClick={() => setEurekaOpen(true)}

@@ -212,7 +212,7 @@ export default function LoginForm({
 
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography sx={{ ...labelSx, mb: 0 }}>Passcode</Typography>
+              <Typography sx={{ ...labelSx, mb: 0 }}>Password</Typography>
               <Link
                 component={RouterLink}
                 to="/auth/reset-password"
@@ -231,7 +231,7 @@ export default function LoginForm({
             <TextField
               fullWidth
               type={showPassword ? 'text' : 'password'}
-              placeholder="Enter Your Passcode"
+              placeholder="Enter Your Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="off"

@@ -3,9 +3,10 @@ import {
   Tabs, Tab, Skeleton, Tooltip, Popover,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { kycApi, type KycCustomer } from '@/api/kyc'
+import { customerApi } from '@/api/customers'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
@@ -18,6 +19,8 @@ import PortraitOutlinedIcon from '@mui/icons-material/PortraitOutlined'
 import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined'
 import PhoneAndroidOutlinedIcon from '@mui/icons-material/PhoneAndroidOutlined'
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
+import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -25,22 +28,6 @@ function kycScoreColor(score: number) {
   if (score < 35) return { bg: '#dcfce7', fg: '#15803d' }
   if (score < 75) return { bg: '#fef9c3', fg: '#854d0e' }
   return { bg: '#fee2e2', fg: '#b91c1c' }
-}
-
-const KL_INT: Record<string, number> = { t1: 1, t2: 2, t3: 3 }
-const KL_SHORT: Record<string, string> = { t1: 'T1', t2: 'T2', t3: 'T3' }
-
-function TierBars({ level }: { level: string | null | undefined }) {
-  if (!level) return <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</Typography>
-  const n = KL_INT[level] ?? 1
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-      {[1, 2, 3].map(t => (
-        <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= n ? colorPalette.primary : '#e5e7eb' }} />
-      ))}
-      <Typography sx={{ fontSize: '0.75rem', color: '#64748b', ml: 0.5 }}>{KL_SHORT[level] ?? level}</Typography>
-    </Box>
-  )
 }
 
 // ── Verification pipeline step metadata ────────────────────────────────────────
@@ -71,15 +58,15 @@ const VERIFICATION_STEPS = [
     },
   },
   {
-    label: 'Liveness',
-    fullName: 'Biometric Liveness Check',
+    label: 'Facial Recog.',
+    fullName: 'Biometric Facial Recognition Check',
     getStatus: (c: KycCustomer) => c.livenessStatus,
     getScore:  (c: KycCustomer) => c.livenessScore,
     context: {
-      pass: { note: "The biometric check confirmed that the submitted photo is of a real, live person — not a printed photo, deepfake, or screen replay. The face matches the identity documents.", action: null },
-      fail: { note: "The liveness check failed. The submitted image did not pass anti-spoofing tests. This may indicate a photo attack, deepfake, or that someone is attempting to register using another person's photograph.", action: "Reject the biometric submission. Require the customer to attend an in-person verification or submit a live video call with a compliance officer before the account can be activated." },
-      warn: { note: "Liveness confidence is low — the check is inconclusive. The image was not definitively flagged as spoofed, but it does not meet the confidence threshold for approval.", action: "Request a fresh selfie taken under good lighting, or escalate to a video call verification. Do not approve high-risk transactions until re-verification is complete." },
-      none: { note: "No biometric photo was submitted, so liveness verification could not be performed.", action: "Request a selfie from the customer to enable biometric verification." },
+      pass: { note: "The facial recognition check confirmed that the submitted photo is of a real, live person — not a printed photo, deepfake, or screen replay. The face matches the identity documents.", action: null },
+      fail: { note: "The facial recognition check failed. The submitted image did not pass anti-spoofing tests. This may indicate a photo attack, deepfake, or that someone is attempting to register using another person's photograph. A compliance officer must manually resolve this check.", action: "Do not allow account access. A compliance officer must use Compare & Resolve on the customer profile to manually verify and resolve this check after viewing the customer in person." },
+      warn: { note: "Facial recognition confidence is low — the check is inconclusive. The image was not definitively flagged as spoofed, but does not meet the confidence threshold for approval.", action: "A compliance officer must manually resolve this check via Compare & Resolve. Do not approve high-risk transactions until resolved." },
+      none: { note: "No facial recognition data was provided, so the check could not be performed. A compliance officer must manually resolve this check.", action: "A compliance officer must use Compare & Resolve on the customer profile to manually complete this check." },
     },
   },
   {
@@ -105,12 +92,82 @@ function resolveStatus(raw: string | null | undefined): StepContextKey {
   return 'none'
 }
 
+// ── CDD pipeline inline view (for list rows) ──────────────────────────────────
+
+const CDD_MINI_LABELS: Record<string, string> = {
+  identity_verify: 'ID', liveness_match: 'FaceRec', pep_sanctions_screen: 'PEP',
+  phone_basic: 'Phone', phone_fraud: 'Fraud', document_verify: 'Doc',
+  case_history: 'Cases', flagged_transactions: 'Txn',
+}
+
+function CddPipelineMini({ stepScoresJson }: { stepScoresJson: string }) {
+  const steps = React.useMemo(() => {
+    try { return (JSON.parse(stepScoresJson) as {type: string; status: string; score?: number; detail?: string}[]).filter(s => s.type !== 'case') }
+    catch { return [] }
+  }, [stepScoresJson])
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignContent: 'flex-start' }}>
+      {steps.map((s, i) => {
+        const isFail = s.status === 'match'
+        const isWarn = s.status === 'not_found'
+        const isPass = s.status === 'pass'
+        const bg = isFail ? '#fee2e2' : isWarn ? '#fef9c3' : isPass ? '#dcfce7' : '#f1f5f9'
+        const fg = isFail ? '#dc2626' : isWarn ? '#d97706' : isPass ? '#16a34a' : '#94a3b8'
+        const sym = isFail ? '✗' : isWarn ? '!' : isPass ? '✓' : '·'
+        const label = CDD_MINI_LABELS[s.type] ?? s.type
+        const tip = `${label}: ${s.status}${s.score != null ? ` (${s.score}/100)` : ''}${s.detail ? ' — ' + s.detail : ''}`
+        return (
+          <Tooltip key={i} title={tip} placement="left" arrow>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.375, px: 0.75, py: 0.25, bgcolor: bg, cursor: 'default' }}>
+              <Typography sx={{ fontSize: '0.5rem', fontWeight: 900, color: fg, lineHeight: 1 }}>{sym}</Typography>
+              <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: fg, lineHeight: 1, letterSpacing: '0.02em' }}>{label}</Typography>
+            </Box>
+          </Tooltip>
+        )
+      })}
+    </Box>
+  )
+}
+
+// CDD step type → canonical key used in cddDerived map
+const CDD_STEP_KEYS = ['identity_verify', 'phone', 'liveness_match', 'pep_sanctions_screen'] as const
+
+function cddStatusToPipeline(s: string): string | null {
+  if (s === 'pass') return 'pass'
+  if (s === 'match') return 'fail'
+  if (s === 'not_found') return 'warn'
+  return null
+}
+
 function VerificationPipeline({ customer }: { customer: KycCustomer }) {
+  const cddDerived = React.useMemo(() => {
+    if (!customer.cddStepScores) return { status: {} as Record<string, string | null>, score: {} as Record<string, number | null> }
+    try {
+      const steps = JSON.parse(customer.cddStepScores) as { type: string; status: string; score?: number }[]
+      const status: Record<string, string | null> = {}
+      const score: Record<string, number | null> = {}
+      const rank = (v: string | null) => v === 'fail' ? 3 : v === 'warn' ? 2 : v === 'pass' ? 1 : 0
+      for (const s of steps) {
+        const st = cddStatusToPipeline(s.status)
+        const key = (s.type === 'phone_basic' || s.type === 'phone_fraud') ? 'phone' : s.type
+        if (key === 'phone') {
+          if (rank(st) > rank(status[key] ?? null)) { status[key] = st; score[key] = s.score ?? null }
+        } else {
+          status[key] = st; score[key] = s.score ?? null
+        }
+      }
+      return { status, score }
+    } catch { return { status: {} as Record<string, string | null>, score: {} as Record<string, number | null> } }
+  }, [customer.cddStepScores])
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-      {VERIFICATION_STEPS.map(step => {
-        const key = resolveStatus(step.getStatus(customer))
-        const score = step.getScore(customer)
+      {VERIFICATION_STEPS.map((step, i) => {
+        const cddKey = CDD_STEP_KEYS[i]
+        const rawStatus = step.getStatus(customer) ?? cddDerived.status[cddKey] ?? null
+        const score = step.getScore(customer) ?? cddDerived.score[cddKey] ?? null
+        const key = resolveStatus(rawStatus)
         const ctx = step.context[key]
 
         const isFail = key === 'fail'
@@ -244,28 +301,33 @@ function StatCardSkeleton() {
 
 // ── KYC Customers tab ──────────────────────────────────────────────────────────
 
-type RiskFilter = 'All' | 'High Risk' | 'Low Risk' | 'Verified'
-const RISK_FILTERS: RiskFilter[] = ['All', 'High Risk', 'Low Risk', 'Verified']
+type RiskFilter = 'All' | 'High Risk' | 'Medium Risk' | 'Low Risk' | 'Verified' | 'Active Cases'
+const RISK_FILTERS: RiskFilter[] = ['All', 'High Risk', 'Medium Risk', 'Low Risk', 'Verified', 'Active Cases']
 
 const FILTER_TO_PARAM: Record<RiskFilter, string | undefined> = {
-  'All':       undefined,
-  'High Risk': 'high-risk',
-  'Low Risk':  'low-risk',
-  'Verified':  'verified',
+  'All':          undefined,
+  'High Risk':    'high-risk',
+  'Medium Risk':  'medium-risk',
+  'Low Risk':     'low-risk',
+  'Verified':     'verified',
+  'Active Cases': 'active-cases',
 }
 
-function KycCustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNavigate: (id: string) => void }) {
+function KycCustomerRow({ customer, onNavigate }: {
+  customer: KycCustomer
+  onNavigate: (id: string) => void
+}) {
   const displayScore = customer.totalRiskScore ?? customer.overallRiskScore
   const sc = kycScoreColor(displayScore)
   const photo = customer.identityPhoto
   const photoSrc = photo ? (photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`) : null
-  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ')
+  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.name || ''
   const actionMap: Record<string, { label: string; bg: string; fg: string }> = {
     clear:       { label: 'Clear',       bg: '#dcfce7', fg: '#15803d' },
     flagged:     { label: 'Flagged',     bg: '#fef9c3', fg: '#854d0e' },
     case_opened: { label: 'Case Opened', bg: '#fee2e2', fg: '#b91c1c' },
   }
-  const action = actionMap[customer.actionTaken] ?? { label: customer.actionTaken, bg: '#f1f5f9', fg: '#475569' }
+  const action = actionMap[customer.actionTaken] ?? { label: customer.actionTaken || '—', bg: '#f1f5f9', fg: '#475569' }
 
   return (
     <Box
@@ -287,9 +349,16 @@ function KycCustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNav
           }
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: fullName ? '#0f172a' : '#94a3b8', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {fullName || '—'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: fullName ? '#0f172a' : '#94a3b8', fontFamily: 'Jost', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {fullName || '—'}
+            </Typography>
+            {customer.hasActiveCase && (
+              <Tooltip title="Active investigation case open" arrow>
+                <WarningAmberRoundedIcon sx={{ fontSize: '0.875rem', color: '#f59e0b', flexShrink: 0 }} />
+              </Tooltip>
+            )}
+          </Box>
           <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: colorPalette.primary, fontFamily: 'SF Mono, Monaco, monospace', mt: 0.25 }}>
             {customer.customerId}
           </Typography>
@@ -301,22 +370,24 @@ function KycCustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNav
           <Typography sx={{ fontSize: '0.875rem', fontWeight: 800, color: sc.fg, lineHeight: 1 }}>{displayScore}</Typography>
           <Typography sx={{ fontSize: '0.4375rem', fontWeight: 700, color: sc.fg, textTransform: 'uppercase', letterSpacing: '0.06em' }}>risk</Typography>
         </Box>
-        <TierBars level={customer.knowledgeLevel} />
       </Box>
 
-      <Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'flex-start' }}>
         <Box sx={{ display: 'inline-flex', px: 1.25, py: 0.375, bgcolor: action.bg, fontSize: '0.6875rem', fontWeight: 700, color: action.fg }}>
           {action.label}
         </Box>
       </Box>
 
-      <VerificationPipeline customer={customer} />
+      {customer.cddStepScores
+        ? <CddPipelineMini stepScoresJson={customer.cddStepScores} />
+        : <VerificationPipeline customer={customer} />
+      }
     </Box>
   )
 }
 
 interface KycStats {
-  total: number; highRisk: number; lowRisk: number; verified: number; flagged: number
+  total: number; highRisk: number; mediumRisk: number; lowRisk: number; verified: number; flagged: number; activeCases?: number
 }
 
 function KycCustomersView({ initialFilter }: { initialFilter?: string }) {
@@ -330,6 +401,21 @@ function KycCustomersView({ initialFilter }: { initialFilter?: string }) {
     initialFilter === 'high-risk' ? 'High Risk' : initialFilter === 'low-risk' ? 'Low Risk' : initialFilter === 'verified' ? 'Verified' : 'All'
   )
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [rescreeningAll, setRescreeningAll]       = useState(false)
+  const [rescreenAllMsg, setRescreenAllMsg]        = useState<string | null>(null)
+  const handleRescreenAll = async () => {
+    setRescreeningAll(true)
+    setRescreenAllMsg(null)
+    try {
+      const res = await customerApi.rescreenAll()
+      setRescreenAllMsg(res.message)
+    } catch (e: any) {
+      setRescreenAllMsg(e?.message ?? 'Re-evaluation failed')
+    } finally {
+      setRescreeningAll(false)
+    }
+  }
 
   // Fetch stats once (for cards + tab badges)
   useEffect(() => {
@@ -360,10 +446,12 @@ function KycCustomersView({ initialFilter }: { initialFilter?: string }) {
   }
 
   const filterCounts: Record<RiskFilter, number> = {
-    'All':       stats?.total    ?? 0,
-    'High Risk': stats?.highRisk ?? 0,
-    'Low Risk':  stats?.lowRisk  ?? 0,
-    'Verified':  stats?.verified ?? 0,
+    'All':          stats?.total       ?? 0,
+    'High Risk':    stats?.highRisk    ?? 0,
+    'Medium Risk':  stats?.mediumRisk  ?? 0,
+    'Low Risk':     stats?.lowRisk     ?? 0,
+    'Verified':     stats?.verified    ?? 0,
+    'Active Cases': stats?.activeCases ?? 0,
   }
 
   return (
@@ -391,16 +479,35 @@ function KycCustomersView({ initialFilter }: { initialFilter?: string }) {
 
       {/* ── Customer records table ── */}
       <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
-        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Customer Records</Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>One record per customer — click a row to open the full profile.</Typography>
+        <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Customer Records</Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>One record per customer — click a row to open the full profile.</Typography>
+          </Box>
+          <Box sx={{ flex: 1 }} />
+          {rescreenAllMsg && (
+            <Typography sx={{ fontSize: '0.75rem', color: rescreenAllMsg.includes('fail') || rescreenAllMsg.includes('No active') ? '#dc2626' : '#10b981', maxWidth: 280, textAlign: 'right' }}>
+              {rescreenAllMsg}
+            </Typography>
+          )}
+          <Button
+            onClick={handleRescreenAll}
+            disabled={rescreeningAll}
+            startIcon={rescreeningAll
+              ? <SyncRoundedIcon sx={{ fontSize: '0.875rem !important', animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />
+              : <PlayArrowRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
+            size="small"
+            sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', px: 2, flexShrink: 0, bgcolor: colorPalette.primary, color: '#fff', '&:hover': { bgcolor: '#1e3a8a' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
+          >
+            {rescreeningAll ? 'Running…' : 'Re-evaluate All'}
+          </Button>
         </Box>
 
         <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 2 }}>
           <Stack direction="row" gap={0.5}>
             {RISK_FILTERS.map(f => {
               const count   = filterCounts[f]
-              const isThreat = f === 'High Risk' && count > 0
+              const isThreat = (f === 'High Risk' || f === 'Active Cases') && count > 0
               const isActive = riskFilter === f
               return (
                 <Box
@@ -482,7 +589,11 @@ function KycCustomersView({ initialFilter }: { initialFilter?: string }) {
           </Box>
         ) : (
           customers.map(c => (
-            <KycCustomerRow key={c.customerId} customer={c} onNavigate={id => navigate(`/dashboard/users/${id}`)} />
+            <KycCustomerRow
+              key={c.customerId}
+              customer={c}
+              onNavigate={id => navigate(`/dashboard/users/${id}`)}
+            />
           ))
         )}
       </Box>
