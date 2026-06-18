@@ -601,6 +601,18 @@ function RuleForm({
   const abortRef = useRef<AbortController | null>(null)
   useEffect(() => () => { abortRef.current?.abort() }, [])
 
+  // Restore PDF templates from localStorage (valid for 6 hours)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('openiv_pdf_monitoring')
+      if (raw) {
+        const { templates, ts } = JSON.parse(raw) as { templates: RuleTemplate[]; ts: number }
+        if (Date.now() - ts < 6 * 60 * 60 * 1000) setPdfTemplates(templates)
+        else localStorage.removeItem('openiv_pdf_monitoring')
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   const handleCardEnter = (t: RuleTemplate, e: MouseEvent<HTMLDivElement>) => {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
     setHoveredCard({ tpl: t, rect: e.currentTarget.getBoundingClientRect() })
@@ -707,7 +719,8 @@ function RuleForm({
         if (type === 'keepalive' || !dataStr) return
         const payload = JSON.parse(dataStr)
         if (type === 'step') {
-          const { step: sid, status, chars, words, count } = payload as { step: string; status: PdfStepStatus; chars?: number; words?: number; count?: number }
+          const { step: sid, status: rawStatus, chars, words, count } = payload as { step: string; status: string; chars?: number; words?: number; count?: number }
+          const status = (rawStatus === 'in_progress' ? 'active' : rawStatus) as PdfStepStatus
           const meta = status === 'done'
             ? sid === 'extract'   ? `${chars?.toLocaleString() ?? '?'} chars extracted`
             : sid === 'summarise' ? `${words?.toLocaleString() ?? '?'} word summary`
@@ -716,9 +729,11 @@ function RuleForm({
             : undefined
           setPdfSteps(prev => prev ? setPdfStepStatus(prev, sid, status, meta) : prev)
         } else if (type === 'result') {
-          setPdfTemplates((payload as { templates: RuleTemplate[] }).templates)
+          const tpls = (payload as { templates: RuleTemplate[] }).templates
+          setPdfTemplates(tpls)
           setSelectedPdf(new Set())
           setPdfSteps(null)
+          try { localStorage.setItem('openiv_pdf_monitoring', JSON.stringify({ templates: tpls, ts: Date.now() })) } catch { /* ignore */ }
         } else if (type === 'error') {
           throw new Error((payload as { error: string }).error)
         }
@@ -1009,8 +1024,8 @@ function RuleForm({
                       </Box>
                     )}
                     {pdfSteps && (
-                      <Box sx={{ py: 2, px: 1 }}>
-                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#6b7280', mb: 2, textAlign: 'center', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      <Box sx={{ py: 2, px: 1.5 }}>
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#6b7280', mb: 2.5, textAlign: 'center', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                           Analysing document
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
@@ -1021,22 +1036,24 @@ function RuleForm({
                             const isLast    = i === pdfSteps.length - 1
                             return (
                               <Box key={s.id} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-                                {/* Left connector */}
-                                {i > 0 && <Box sx={{ position: 'absolute', top: 13, right: '50%', left: 0, height: 2, bgcolor: pdfSteps[i - 1].status === 'done' ? '#16a34a' : '#e5e7eb', transition: 'background-color 0.4s ease' }} />}
-                                {/* Right connector */}
-                                {!isLast && <Box sx={{ position: 'absolute', top: 13, left: '50%', right: 0, height: 2, bgcolor: isDone ? '#16a34a' : '#e5e7eb', transition: 'background-color 0.4s ease' }} />}
-                                {/* Icon */}
-                                <Box sx={{ position: 'relative', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.75, zIndex: 1 }}>
-                                  {isActive  && <CircularProgress size={32} thickness={2.5} sx={{ color: '#eab308', position: 'absolute', top: -2, left: -2 }} />}
-                                  {isDone    && <CheckCircleRoundedIcon sx={{ fontSize: '1.375rem', color: '#16a34a' }} />}
-                                  {isActive  && <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: '#eab308' }} />}
-                                  {isPending && <Box sx={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #d1d5db' }} />}
+                                {/* Connectors behind icon */}
+                                {i > 0 && <Box sx={{ position: 'absolute', top: 14, right: '50%', left: 0, height: 2, zIndex: 0, bgcolor: pdfSteps[i - 1].status === 'done' ? '#16a34a' : '#e5e7eb', transition: 'background-color 0.4s ease' }} />}
+                                {!isLast && <Box sx={{ position: 'absolute', top: 14, left: '50%', right: 0, height: 2, zIndex: 0, bgcolor: isDone ? '#16a34a' : '#e5e7eb', transition: 'background-color 0.4s ease' }} />}
+                                {/* Icon — all visual state on outer container; opaque bg masks the line */}
+                                <Box sx={{
+                                  position: 'relative', zIndex: 1, mb: 0.75,
+                                  width: 28, height: 28, borderRadius: '50%',
+                                  boxSizing: 'border-box',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  bgcolor: isDone ? 'var(--card-bg)' : isActive ? '#fef9c3' : '#d1d5db',
+                                  border: isActive ? '2px solid #eab308' : isPending ? '2.5px solid white' : 'none',
+                                }}>
+                                  {isDone   && <CheckCircleRoundedIcon sx={{ fontSize: '1.5rem', color: '#16a34a' }} />}
+                                  {isActive && <CircularProgress size={14} thickness={5} sx={{ color: '#ca8a04' }} />}
                                 </Box>
-                                {/* Label */}
-                                <Typography sx={{ fontSize: '0.6875rem', fontWeight: isActive ? 700 : 500, color: isDone ? '#16a34a' : isActive ? '#ca8a04' : '#9ca3af', textAlign: 'center', lineHeight: 1.3 }}>
+                                <Typography sx={{ fontSize: '0.6875rem', fontWeight: isActive ? 700 : 500, color: isDone ? '#16a34a' : isActive ? '#ca8a04' : '#9ca3af', textAlign: 'center', lineHeight: 1.3, px: 0.25 }}>
                                   {s.label}
                                 </Typography>
-                                {/* Sub-label */}
                                 <Typography sx={{ fontSize: '0.5625rem', color: isDone ? '#16a34a' : isActive ? '#d97706' : '#d1d5db', textAlign: 'center', mt: 0.25, lineHeight: 1.3 }}>
                                   {isActive ? <PdfElapsedTimer startedAt={s.startedAt} /> : isDone && s.meta ? s.meta : s.detail}
                                 </Typography>
@@ -1057,7 +1074,7 @@ function RuleForm({
                           <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed' }}>
                             {pdfTemplates.length} rules extracted — select to batch-create or click name to write
                           </Typography>
-                          <Box component="button" onClick={() => { setPdfTemplates(null); setPdfError(null); setSelectedPdf(new Set()); setTimeout(() => pdfInputRef.current?.click(), 50) }}
+                          <Box component="button" onClick={() => { setPdfTemplates(null); setPdfError(null); setSelectedPdf(new Set()); try { localStorage.removeItem('openiv_pdf_monitoring') } catch { /* ignore */ } setTimeout(() => pdfInputRef.current?.click(), 50) }}
                             sx={{ fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Jost', color: '#7c3aed', bgcolor: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                             Upload different
                           </Box>
