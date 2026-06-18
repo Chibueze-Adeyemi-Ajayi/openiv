@@ -83,7 +83,7 @@ function CustomerProfileDialog({ customer, open, onClose }: {
   const sc = scoreColor(customer.overallRiskScore)
   const photo = customer.identityPhoto
   const photoSrc = photo
-    ? (photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`)
+    ? (photo.startsWith('data:') || photo.startsWith('http') ? photo : `data:image/jpeg;base64,${photo}`)
     : null
 
   const actionMap: Record<string, { label: string; bg: string; fg: string }> = {
@@ -180,7 +180,7 @@ function CustomerRow({ customer, onNavigate }: { customer: KycCustomer; onNaviga
   const sc = scoreColor(customer.overallRiskScore)
   const photo = customer.identityPhoto
   const photoSrc = photo
-    ? (photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`)
+    ? (photo.startsWith('data:') || photo.startsWith('http') ? photo : `data:image/jpeg;base64,${photo}`)
     : null
   const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ')
 

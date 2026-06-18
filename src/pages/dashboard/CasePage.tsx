@@ -212,7 +212,7 @@ export default function CasePage() {
     customerApi.getCustomer(cid)
       .then(c => {
         const p = c.photo ?? null
-        setCustomerPhoto(p ? (p.startsWith('data:') ? p : `data:image/jpeg;base64,${p}`) : null)
+        setCustomerPhoto(p ? (p.startsWith('data:') || p.startsWith('http') ? p : `data:image/jpeg;base64,${p}`) : null)
       })
       .catch(() => setCustomerPhoto(null))
   }, [data?.case?.customerId])

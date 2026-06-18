@@ -8,7 +8,7 @@ const CHANNEL_NAME = 'openiv_session'
 type ChannelMsg = { type: 'logout' }
 
 export default function InactivityGuard() {
-  const idleTimer  = useRef<ReturnType<typeof setTimeout>>()
+  const idleTimer  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const channelRef = useRef<BroadcastChannel | null>(null)
 
   const doLogout = useCallback(async () => {
