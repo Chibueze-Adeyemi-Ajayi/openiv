@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, BASE_URL } from './client'
 
 export type InstitutionIndustry =
   | 'commercial_bank'
@@ -67,7 +67,7 @@ export const institutionApi = {
   uploadLogo: async (file: File): Promise<{ logoUrl: string }> => {
     const fd = new FormData()
     fd.append('logo', file)
-    const res = await fetch('/api/v1/institution/logo', {
+    const res = await fetch(`${BASE_URL}/api/v1/institution/logo`, {
       method: 'POST',
       credentials: 'include',
       body: fd,
