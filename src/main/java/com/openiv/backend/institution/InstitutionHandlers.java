@@ -12,12 +12,16 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
 public final class InstitutionHandlers {
+
+  private static final Logger log = LoggerFactory.getLogger(InstitutionHandlers.class);
 
   private final InstitutionRepository institutions;
   private final UserRepository         users;
@@ -241,7 +245,10 @@ public final class InstitutionHandlers {
           .onSuccess(inst -> ok(ctx, new JsonObject()
               .put("logoUrl", inst.logoUrl())
               .put("ok", true)))
-          .onFailure(ctx::fail);
+          .onFailure(err -> {
+            log.error("[Logo] Upload failed for user {}: {}", session.userId(), err.getMessage(), err);
+            ctx.fail(err);
+          });
     };
   }
 
