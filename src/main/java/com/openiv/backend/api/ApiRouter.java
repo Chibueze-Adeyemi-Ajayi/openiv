@@ -127,7 +127,7 @@ public final class ApiRouter {
     // Institution logo upload — up to 2 MB image.
     router.post("/api/v1/institution/logo")
         .handler(BodyHandler.create().setBodyLimit(2L * 1024 * 1024)
-            .setHandleFileUploads(true).setUploadsDirectory("uploads/tmp"));
+            .setHandleFileUploads(true).setUploadsDirectory(System.getProperty("java.io.tmpdir")));
     router.route().handler(BodyHandler.create().setBodyLimit(security.maxBodyBytes()));
     router.route().handler(ContentTypeGuard.create());
     // SSE stream must not be subject to the per-request timeout — bypass it for that path.
