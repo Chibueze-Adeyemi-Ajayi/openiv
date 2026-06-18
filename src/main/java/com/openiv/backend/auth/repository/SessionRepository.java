@@ -61,7 +61,9 @@ public final class SessionRepository {
   }
 
   public Future<Void> touch(long sessionId) {
-    return pool.preparedQuery("UPDATE sessions SET last_used_at = now() WHERE id = $1")
+    return pool.preparedQuery(
+            "UPDATE sessions SET last_used_at = now(), expires_at = now() + interval '1440 minutes' "
+            + "WHERE id = $1 AND revoked_at IS NULL")
         .execute(Tuple.of(sessionId))
         .mapEmpty();
   }

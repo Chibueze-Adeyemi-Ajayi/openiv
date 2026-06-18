@@ -1,6 +1,7 @@
 package com.openiv.backend.auth.handler;
 
 import com.openiv.backend.auth.model.Session;
+import com.openiv.backend.auth.repository.InstitutionRepository;
 import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.billing.SubscriptionRepository;
@@ -31,10 +32,8 @@ public final class AuthHandlers {
 
   private static final Logger log = LoggerFactory.getLogger(AuthHandlers.class);
 
-  /**
-   * Matches AuthService SESSION_TTL_MINUTES (24h); used as the cookie's Max-Age.
-   */
-  private static final int SESSION_COOKIE_SECONDS = 24 * 60 * 60;
+  // 30-day browser cookie — the DB session is the real gate (slides 24 h on every touch).
+  private static final int SESSION_COOKIE_SECONDS = 30 * 24 * 60 * 60;
 
   private final AuthService            auth;
   private final boolean                productionCookies;
@@ -43,11 +42,12 @@ public final class AuthHandlers {
   private final DocumentRepository     documents;
   private final SubscriptionRepository subscriptions;
   private final UsageRepository        usage;
+  private final InstitutionRepository  institutions;
 
   public AuthHandlers(AuthService auth, boolean productionCookies,
       CustomerService customerService, CloudinaryService cloudinary,
       DocumentRepository documents, SubscriptionRepository subscriptions,
-      UsageRepository usage) {
+      UsageRepository usage, InstitutionRepository institutions) {
     this.auth              = auth;
     this.productionCookies = productionCookies;
     this.customerService   = customerService;
@@ -55,6 +55,7 @@ public final class AuthHandlers {
     this.documents         = documents;
     this.subscriptions     = subscriptions;
     this.usage             = usage;
+    this.institutions      = institutions;
   }
 
   public Handler<RoutingContext> verifyInvite() {
@@ -77,16 +78,22 @@ public final class AuthHandlers {
       Double lat = body.getDouble("lat");
       Double lon = body.getDouble("lon");
       Double acc = body.getDouble("accuracy");
-      return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc, deviceId).map(result -> {
+      return auth.login(email, password, inviteCode, ip, ua, lat, lon, acc, deviceId).compose(result -> {
         AuditLog.authSuccess(ctx, email);
         SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
         customerService.refreshAllScores(result.institutionId())
             .onFailure(e -> log.warn("[Login] Background risk refresh failed for institution {}: {}",
                 result.institutionId(), e.getMessage()));
-        return new JsonObject()
-            .put("state",       result.state().dbValue())
-            .put("accountType", result.accountType().dbValue())
-            .put("fullName",    result.fullName());
+        return institutions.findById(result.institutionId()).map(instOpt -> {
+          var inst = instOpt.orElse(null);
+          return new JsonObject()
+              .put("state",              result.state().dbValue())
+              .put("accountType",        result.accountType().dbValue())
+              .put("fullName",           result.fullName())
+              .put("avatarUrl",          result.avatarUrl())
+              .put("institutionName",    inst != null ? inst.name()    : null)
+              .put("institutionLogoUrl", inst != null ? inst.logoUrl() : null);
+        });
       });
     });
   }
@@ -103,15 +110,21 @@ public final class AuthHandlers {
       Double lon = body.getDouble("lon");
       Double acc = body.getDouble("accuracy");
       return auth.transferSession(transferRef, totpCode, deviceId, ip, ua, lat, lon, acc)
-          .map(result -> {
+          .compose(result -> {
             SessionCookie.set(ctx, result.sessionToken(), SESSION_COOKIE_SECONDS, productionCookies);
             customerService.refreshAllScores(result.institutionId())
                 .onFailure(e -> log.warn("[TransferSession] Background risk refresh failed for institution {}: {}",
                     result.institutionId(), e.getMessage()));
-            return new JsonObject()
-                .put("state",       result.state().dbValue())
-                .put("accountType", result.accountType().dbValue())
-                .put("fullName",    result.fullName());
+            return institutions.findById(result.institutionId()).map(instOpt -> {
+              var inst = instOpt.orElse(null);
+              return new JsonObject()
+                  .put("state",              result.state().dbValue())
+                  .put("accountType",        result.accountType().dbValue())
+                  .put("fullName",           result.fullName())
+                  .put("avatarUrl",          result.avatarUrl())
+                  .put("institutionName",    inst != null ? inst.name()    : null)
+                  .put("institutionLogoUrl", inst != null ? inst.logoUrl() : null);
+            });
           });
     });
   }
@@ -211,25 +224,27 @@ public final class AuthHandlers {
       auth.getProfile(session).compose(u ->
           auth.getInstitutionId(session).compose(instId ->
               Future.all(
-                  auth.getInstitutionName(session),
+                  institutions.findById(instId),
                   subscriptions.getByInstitution(instId),
                   usage.getSummary(instId)
               ).map(cf -> {
-                String instName = cf.resultAt(0);
+                var instOpt = cf.<java.util.Optional<com.openiv.backend.auth.model.Institution>>resultAt(0);
+                var inst    = instOpt.orElse(null);
                 var subOpt = cf.<java.util.Optional<com.openiv.backend.billing.InstitutionSubscription>>resultAt(1);
                 var usageSummary = cf.<com.openiv.backend.billing.UsageRepository.UsageSummary>resultAt(2);
                 var json = new JsonObject()
-                    .put("id",                u.id())
-                    .put("email",             u.email())
-                    .put("fullName",          u.fullName())
-                    .put("jobTitle",          u.jobTitle())
-                    .put("role",              u.role())
-                    .put("accountType",       u.accountType().dbValue())
-                    .put("passwordUpdatedAt", u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
-                    .put("createdAt",         u.createdAt().toString())
-                    .put("avatarUrl",         u.avatarUrl())
-                    .put("theme",             u.theme())
-                    .put("institutionName",   instName)
+                    .put("id",                   u.id())
+                    .put("email",                u.email())
+                    .put("fullName",             u.fullName())
+                    .put("jobTitle",             u.jobTitle())
+                    .put("role",                 u.role())
+                    .put("accountType",          u.accountType().dbValue())
+                    .put("passwordUpdatedAt",    u.passwordUpdatedAt() != null ? u.passwordUpdatedAt().toString() : null)
+                    .put("createdAt",            u.createdAt().toString())
+                    .put("avatarUrl",            u.avatarUrl())
+                    .put("theme",                u.theme())
+                    .put("institutionName",      inst != null ? inst.name()    : null)
+                    .put("institutionLogoUrl",   inst != null ? inst.logoUrl() : null)
                     .put("monthlyTxnUsed",    usageSummary.monthlyTxnUsed())
                     .put("monthlyKycUsed",    usageSummary.monthlyKycUsed())
                     .put("monthlyNfiuUsed",   usageSummary.monthlyNfiuUsed())

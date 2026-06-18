@@ -166,6 +166,54 @@ public final class TransactionRepository {
     return pool.preparedQuery(sql).executeBatch(tuples).map(ignored -> rows.size());
   }
 
+  /** Insert a single transaction originating from a monitoring pipeline evaluation. */
+  public Future<Void> insertPipelineTransaction(long institutionId, TransactionImport row, String flagReason) {
+    String sql =
+        "INSERT INTO transactions"
+        + " (id, institution_id, customer_id, customer_name, amount,"
+        + "  channel, counterparty, risk_score, status, flagged_status, location, lat, lng, occurred_at,"
+        + "  sender_account, sender_bank, recipient_name, recipient_account, recipient_bank,"
+        + "  currency, narration, device_id, ip_address, category, direction, flag_reason, created_at)"
+        + " VALUES ($1,$2,$3,$4,$5,"
+        + "  $6,$7,$8,$9,$10::text,$11::text,$12::double precision,$13::double precision,$14,"
+        + "  $15::text,$16::text,$17::text,$18::text,$19::text,"
+        + "  $20,$21::text,$22::text,$23::text,$24::text,$25::text,$26::text,now())"
+        + " ON CONFLICT (id) DO UPDATE SET"
+        + "  status = EXCLUDED.status, flagged_status = EXCLUDED.flagged_status,"
+        + "  flag_reason = EXCLUDED.flag_reason, updated_at = now()";
+
+    var p = new ArrayList<Object>();
+    p.add(row.id());             p.add(institutionId);
+    p.add(row.customerId());     p.add(row.customerName());
+    p.add(row.amount());
+    p.add(row.channel());        p.add(row.counterparty());
+    p.add(row.riskScore());      p.add(row.status());
+    p.add(row.flaggedStatus());  p.add(row.location());
+    p.add(row.lat());            p.add(row.lng());
+    p.add(row.occurredAt());
+    p.add(row.senderAccount());  p.add(row.senderBank());
+    p.add(row.recipientName());  p.add(row.recipientAccount());
+    p.add(row.recipientBank());  p.add(row.currency() != null ? row.currency() : "NGN");
+    p.add(row.narration());      p.add(row.deviceId());
+    p.add(row.ipAddress());      p.add(row.category());
+    p.add(row.direction() != null ? row.direction() : "outward");
+    p.add(flagReason);
+    return pool.preparedQuery(sql).execute(buildTuple(p)).mapEmpty();
+  }
+
+  public Future<io.vertx.core.json.JsonObject> flaggedSummaryForCustomer(long institutionId, String customerId) {
+    String sql = "SELECT "
+        + "COUNT(*) AS total_flagged, "
+        + "COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '180 days') AS recent_flagged "
+        + "FROM transactions WHERE institution_id=$1 AND customer_id=$2 AND flagged_status='flagged'";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, customerId)).map(rs -> {
+      Row row = rs.iterator().next();
+      return new io.vertx.core.json.JsonObject()
+          .put("totalFlagged",  row.getLong("total_flagged"))
+          .put("recentFlagged", row.getLong("recent_flagged"));
+    });
+  }
+
   public Future<List<Transaction>> exportAll(long institutionId, String status, String flaggedStatus,
       String q, String range, String channel, Integer minRisk, Integer maxRisk) {
 
@@ -293,6 +341,33 @@ public final class TransactionRepository {
         });
   }
 
+  /** Full-schema search for Eureka AI — matches across all text columns. */
+  public Future<List<Transaction>> aiSearch(long institutionId, String q, int limit) {
+    String sql = "SELECT " + SELECT_COLS + ", FALSE AS seen FROM transactions"
+        + " WHERE institution_id = $1"
+        + "   AND ($2::text IS NULL OR"
+        + "        LOWER(id)               LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(customer_id)      LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(customer_name)    LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(narration)        LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(recipient_name)   LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(recipient_account)LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(sender_account)   LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(channel)          LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(location)         LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(category)         LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(counterparty)     LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(flag_reason)      LIKE '%' || LOWER($2) || '%')"
+        + " ORDER BY risk_score DESC, occurred_at DESC"
+        + " LIMIT $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, q, limit))
+        .map(rs -> {
+          List<Transaction> list = new ArrayList<>();
+          rs.forEach(r -> list.add(mapList(r)));
+          return list;
+        });
+  }
+
   public Future<Void> markSeen(String transactionId, long institutionId, long userId) {
     return pool.preparedQuery(
             "INSERT INTO transaction_views (transaction_id, institution_id, user_id)"
@@ -410,6 +485,24 @@ public final class TransactionRepository {
       case "ytd" -> "created_at >= date_trunc('year', now())";
       default    -> "created_at > now() - interval '30 days'";
     };
+  }
+
+  /**
+   * Find all transactions that share a counterparty account number (sender OR recipient).
+   * Covers all customers — used to detect structuring networks and layering patterns.
+   */
+  public Future<List<Transaction>> findByCounterpartyAccount(long institutionId, String account, int limit) {
+    if (account == null || account.isBlank()) return Future.succeededFuture(List.of());
+    String sql = "SELECT " + SELECT_COLS + ", FALSE AS seen FROM transactions"
+        + " WHERE institution_id = $1 AND (sender_account = $2 OR recipient_account = $2)"
+        + " ORDER BY occurred_at DESC LIMIT $3";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(institutionId, account, limit))
+        .map(rs -> {
+          var list = new ArrayList<Transaction>();
+          rs.forEach(r -> list.add(map(r)));
+          return List.copyOf(list);
+        });
   }
 
   private static Tuple buildTuple(List<Object> params) {

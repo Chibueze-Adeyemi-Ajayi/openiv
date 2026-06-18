@@ -149,24 +149,29 @@ public final class Main {
           emailSender = new VertxEmailSender(vertx, config.email());
         } else {
           emailSender = new LogEmailSender();
-          log.warn("No email config; using LogEmailSender. Add an \"email\" block with \"apiToken\" to application.json to enable Mailtrap.");
+          log.warn(
+              "No email config; using LogEmailSender. Add an \"email\" block with \"apiToken\" to application.json to enable Mailtrap.");
         }
 
         TotpCipher totpCipher = TotpCipher.fromPem(
             config.totp().publicKeyPem(), config.totp().privateKeyPem());
         log.info("TOTP cipher initialized (RSA-OAEP-SHA256)");
 
+        com.openiv.backend.webauthn.WebAuthnRepository webAuthnRepository =
+            new com.openiv.backend.webauthn.WebAuthnRepository(pool);
         AuthService authService = new AuthService(
             users, invitations, institutions, codes, totp, sessions, emailSender, totpCipher,
-            blockedDevices, transfers, vertx);
+            blockedDevices, transfers, webAuthnRepository, vertx);
         AccessRequestService accessRequestService = new AccessRequestService(accessRequests, emailSender);
         CustomRoleRepository customRoles = new CustomRoleRepository(pool);
         TeamService teamService = new TeamService(users, institutions, customRoles, emailSender);
         CustomerRepository customerRepository = new CustomerRepository(pool);
-        com.openiv.backend.kyc.KycPipelineResultRepository kycPipelineResultRepository =
-            new com.openiv.backend.kyc.KycPipelineResultRepository(pool);
+        com.openiv.backend.kyc.KycPipelineResultRepository kycPipelineResultRepository = new com.openiv.backend.kyc.KycPipelineResultRepository(
+            pool);
         CustomerService customerService = new CustomerService(customerRepository, kycPipelineResultRepository);
-        TransactionService transactionService = new TransactionService(new TransactionRepository(pool), users, customerService);
+        var transactionRepository = new TransactionRepository(pool);
+        TransactionService transactionService = new TransactionService(transactionRepository, users,
+            customerService);
         var caseRepository = new com.openiv.backend.cases.CaseRepository(pool);
         AmlSettingsRepository amlSettingsRepository = new AmlSettingsRepository(pool);
         var notificationServiceForCases = new com.openiv.backend.notifications.NotificationService(pool, vertx);
@@ -192,8 +197,8 @@ public final class Main {
         autoCaseService.attachUsageRepository(new com.openiv.backend.billing.UsageRepository(pool));
 
         // Doja.io identity verification client
-        com.openiv.backend.doja.DojaClient dojaClient =
-            new com.openiv.backend.doja.DojaClient(webClient, config.doja());
+        com.openiv.backend.dojah.DojahClient dojaClient = new com.openiv.backend.dojah.DojahClient(webClient,
+            config.doja());
         if (config.doja().isConfigured()) {
           log.info("[Doja] Sandbox client configured → {}", config.doja().baseUrl());
         } else {
@@ -201,7 +206,9 @@ public final class Main {
         }
 
         // KYC service — needed by fraud pipeline for automatic KYC lookups
-        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService, notificationService, customerService, dojaClient, new com.openiv.backend.kyc.KycPipelineResultRepository(pool), webhookRepository);
+        KycService kycService = new KycService(new KycRepository(pool), users, webClient, caseService,
+            notificationService, customerService, dojaClient,
+            new com.openiv.backend.kyc.KycPipelineResultRepository(pool), webhookRepository);
 
         var hybridAnalysis = new com.openiv.backend.transactions.HybridTransactionAnalysisService(
             new com.openiv.backend.transactions.TransactionScorer(),
@@ -219,13 +226,14 @@ public final class Main {
         var orchestrator = new com.openiv.backend.transactions.TransactionProcessingOrchestrator(
             hybridAnalysis, notificationService);
 
-        // Behavioral beam analyzer — handles login, activity, location, device, and OTP timestamp rules
+        // Behavioral beam analyzer — handles login, activity, location, device, and OTP
+        // timestamp rules
         BehavioralAlertRepository behavioralAlertRepository = new BehavioralAlertRepository(pool, vertx);
         BehavioralBeamAnalyzer behavioralBeamAnalyzer = new BehavioralBeamAnalyzer(
             behavioralAlertRepository, notificationService, caseRepository);
 
-        com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo =
-            new com.openiv.backend.kyc.KycEvaluationConfigRepository(pool);
+        com.openiv.backend.kyc.KycEvaluationConfigRepository evalConfigRepo = new com.openiv.backend.kyc.KycEvaluationConfigRepository(
+            pool);
         BeamService beamService = new BeamService(beamRepository, users, otpAnalyzer, transactionService,
             webhookService, orchestrator, notificationService, customerService,
             amlSettingsRepository, behavioralBeamAnalyzer, kycService, autoCaseService, evalConfigRepo);
@@ -238,6 +246,14 @@ public final class Main {
         RiskReportService riskReportService = new RiskReportService(
             customerRepository, users, emailSender, notificationService);
 
+        // Workflows — institution-defined CDD re-screening pipelines
+        var workflowRepository = new com.openiv.backend.workflows.WorkflowRepository(pool);
+        var workflowExecutor = new com.openiv.backend.workflows.WorkflowExecutor(
+            workflowRepository, dojaClient, caseRepository, transactionRepository, customerService, notificationService);
+        var workflowAudit = new com.openiv.backend.workflows.WorkflowAuditRepository(pool);
+        var workflowService = new com.openiv.backend.workflows.WorkflowService(
+            workflowRepository, users, workflowExecutor, workflowAudit, notificationService, customerService);
+
         return sessions.clearStaleSocketActive()
             .compose(ignored -> SuperAdminSeeder.run(users, config.superAdmin().password()))
             .compose(ignored -> DevInviteSeeder.runIfDev(config.isDevelopment(), invitations, institutions))
@@ -245,8 +261,10 @@ public final class Main {
             .compose(ignored -> deployVerticles(
                 vertx, config, pool, sessions, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService, geoFenceService, customerService, cores))
+                beamService, kycService, heatmapService, dashboardService, geoFenceService,
+                customerService, workflowService, cores))
             .onSuccess(res -> {
+              // CDD workflow scheduler disabled — evaluations are triggered manually per customer or in bulk.
               scheduleWebhookAutoRotation(vertx, webhookService);
               scheduleNightlyRiskReport(vertx, riskReportService);
               String appBaseUrl = System.getenv().getOrDefault("APP_BASE_URL", "https://app.openiv.ng");
@@ -271,13 +289,15 @@ public final class Main {
       WebhookService webhookService, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService, int instances) {
+      CustomerService customerService, com.openiv.backend.workflows.WorkflowService workflowService,
+      int instances) {
     DeploymentOptions opts = new DeploymentOptions().setInstances(instances);
     return vertx
         .deployVerticle(
             () -> new MainVerticle(config, pool, sessions, authService, accessRequestService,
                 teamService, transactionService, caseService, thresholdService, webhookService,
-                beamService, kycService, heatmapService, dashboardService, geoFenceService, customerService),
+                beamService, kycService, heatmapService, dashboardService, geoFenceService,
+                customerService, workflowService),
             opts)
         .onSuccess(id -> log.info("Deployed {} MainVerticle instance(s)", instances))
         .mapEmpty();
@@ -306,7 +326,8 @@ public final class Main {
     var invoiceRepo = new com.openiv.backend.billing.InvoiceRepository(pool);
     var subRepo = new com.openiv.backend.billing.SubscriptionRepository(pool);
     var paystackClient = new com.openiv.backend.billing.PaystackClient(webClient, billingConfig.paystackSecretKey());
-    new com.openiv.backend.billing.RenewalReminderScheduler(vertx, invoiceRepo, subRepo, emailSender, paystackClient, appBaseUrl).start();
+    new com.openiv.backend.billing.RenewalReminderScheduler(vertx, invoiceRepo, subRepo, emailSender, paystackClient,
+        appBaseUrl).start();
   }
 
   private static void scheduleWebhookAutoRotation(Vertx vertx, WebhookService webhookService) {

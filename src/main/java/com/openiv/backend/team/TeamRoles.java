@@ -35,7 +35,9 @@ public final class TeamRoles {
             .put("rules", new JsonObject().put("view", true).put("modify", true))
             .put("reports", new JsonObject().put("view", true).put("file", true))
             .put("team", new JsonObject().put("view", true).put("manage", true))
-            .put("integrations", new JsonObject().put("view", true).put("modify", true))));
+            .put("integrations", new JsonObject().put("view", true).put("modify", true))
+            .put("cdd", new JsonObject().put("view", true).put("manage", true).put("evaluate", true))
+            .put("pipeline", new JsonObject().put("view", true).put("modify", true))));
 
     arr.add(role("cco", "Chief Compliance Officer",
         "Files NFIU reports and signs off on STRs.", "#1e40af",
@@ -45,7 +47,9 @@ public final class TeamRoles {
             .put("rules", new JsonObject().put("view", true).put("modify", true))
             .put("reports", new JsonObject().put("view", true).put("file", true))
             .put("team", new JsonObject().put("view", true).put("manage", false))
-            .put("integrations", new JsonObject().put("view", true).put("modify", false))));
+            .put("integrations", new JsonObject().put("view", true).put("modify", false))
+            .put("cdd", new JsonObject().put("view", true).put("manage", true).put("evaluate", true))
+            .put("pipeline", new JsonObject().put("view", true).put("modify", true))));
 
     arr.add(role("analyst", "Fraud Analyst",
         "Investigates cases, escalates to seniors.", "#10b981",
@@ -55,7 +59,9 @@ public final class TeamRoles {
             .put("rules", new JsonObject().put("view", true).put("modify", false))
             .put("reports", new JsonObject().put("view", true).put("file", false))
             .put("team", new JsonObject().put("view", false).put("manage", false))
-            .put("integrations", new JsonObject().put("view", false).put("modify", false))));
+            .put("integrations", new JsonObject().put("view", false).put("modify", false))
+            .put("cdd", new JsonObject().put("view", true).put("manage", false).put("evaluate", true))
+            .put("pipeline", new JsonObject().put("view", true).put("modify", false))));
 
     arr.add(role("developer", "Developer",
         "Wires integrations, webhooks, API connections.", "#0891b2",
@@ -65,7 +71,9 @@ public final class TeamRoles {
             .put("rules", new JsonObject().put("view", true).put("modify", false))
             .put("reports", new JsonObject().put("view", false).put("file", false))
             .put("team", new JsonObject().put("view", false).put("manage", false))
-            .put("integrations", new JsonObject().put("view", true).put("modify", true))));
+            .put("integrations", new JsonObject().put("view", true).put("modify", true))
+            .put("cdd", new JsonObject().put("view", true).put("manage", false).put("evaluate", false))
+            .put("pipeline", new JsonObject().put("view", true).put("modify", true))));
 
     arr.add(role("auditor", "Auditor",
         "View-only access for internal/external examinations and audits.", "#475569",
@@ -75,7 +83,9 @@ public final class TeamRoles {
             .put("rules", new JsonObject().put("view", true).put("modify", false))
             .put("reports", new JsonObject().put("view", true).put("file", false))
             .put("team", new JsonObject().put("view", true).put("manage", false))
-            .put("integrations", new JsonObject().put("view", true).put("modify", false))));
+            .put("integrations", new JsonObject().put("view", true).put("modify", false))
+            .put("cdd", new JsonObject().put("view", true).put("manage", false).put("evaluate", false))
+            .put("pipeline", new JsonObject().put("view", true).put("modify", false))));
 
     return arr;
   }

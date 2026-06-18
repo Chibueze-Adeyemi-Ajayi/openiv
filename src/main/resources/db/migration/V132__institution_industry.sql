@@ -1,0 +1,1 @@
+ALTER TABLE institutions ADD COLUMN IF NOT EXISTS industry TEXT;

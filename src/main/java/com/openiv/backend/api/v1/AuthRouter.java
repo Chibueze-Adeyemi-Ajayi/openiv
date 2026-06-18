@@ -2,6 +2,7 @@ package com.openiv.backend.api.v1;
 
 import com.openiv.backend.auth.handler.AuthHandlers;
 import com.openiv.backend.auth.handler.SessionAuthHandler;
+import com.openiv.backend.auth.repository.InstitutionRepository;
 import com.openiv.backend.auth.service.AuthService;
 import com.openiv.backend.billing.SubscriptionRepository;
 import com.openiv.backend.billing.UsageRepository;
@@ -27,9 +28,10 @@ public final class AuthRouter {
 
   public static Router create(Vertx vertx, AuthService authService, boolean productionCookies,
       CustomerService customerService, CloudinaryService cloudinary, DocumentRepository documents,
-      SubscriptionRepository subscriptions, UsageRepository usage) {
+      SubscriptionRepository subscriptions, UsageRepository usage,
+      InstitutionRepository institutionRepository) {
     AuthHandlers handlers = new AuthHandlers(authService, productionCookies, customerService,
-        cloudinary, documents, subscriptions, usage);
+        cloudinary, documents, subscriptions, usage, institutionRepository);
     Router router = Router.router(vertx);
 
     // Public

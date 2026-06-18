@@ -7,10 +7,10 @@ import com.openiv.backend.auth.service.AuthException;
 import com.openiv.backend.billing.UsageRepository;
 import com.openiv.backend.cases.CaseService;
 import com.openiv.backend.customers.CustomerService;
-import com.openiv.backend.doja.DojaClient;
-import com.openiv.backend.doja.DojaVerificationPipeline;
-import com.openiv.backend.doja.PipelineStepResult;
-import com.openiv.backend.doja.PipelineVerificationResult;
+import com.openiv.backend.dojah.DojahClient;
+import com.openiv.backend.dojah.DojahVerificationPipeline;
+import com.openiv.backend.dojah.PipelineStepResult;
+import com.openiv.backend.dojah.PipelineVerificationResult;
 import com.openiv.backend.notifications.NotificationService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonArray;
@@ -37,7 +37,7 @@ public final class KycService {
   private final CaseService cases;
   private final NotificationService notifications;
   private final CustomerService customerService;
-  private final DojaClient dojaClient;
+  private final DojahClient dojaClient;
   private final KycPipelineResultRepository pipelineResults;
   private final WebhookRepository webhookRepository;
   // Optional — wired by V1Router after construction. When present, KYC
@@ -52,19 +52,19 @@ public final class KycService {
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService,
-      DojaClient dojaClient) {
+      DojahClient dojaClient) {
     this(repository, users, client, cases, notifications, customerService, dojaClient, null, null);
   }
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService,
-      DojaClient dojaClient, KycPipelineResultRepository pipelineResults) {
+      DojahClient dojaClient, KycPipelineResultRepository pipelineResults) {
     this(repository, users, client, cases, notifications, customerService, dojaClient, pipelineResults, null);
   }
 
   public KycService(KycRepository repository, UserRepository users, WebClient client,
       CaseService cases, NotificationService notifications, CustomerService customerService,
-      DojaClient dojaClient, KycPipelineResultRepository pipelineResults,
+      DojahClient dojaClient, KycPipelineResultRepository pipelineResults,
       WebhookRepository webhookRepository) {
     this.repository = repository;
     this.users = users;
@@ -77,7 +77,9 @@ public final class KycService {
     this.webhookRepository = webhookRepository;
   }
 
-  public DojaClient dojaClient() { return dojaClient; }
+  public DojahClient dojaClient() {
+    return dojaClient;
+  }
 
   /** Wire the cap counter — invoked once from V1Router after construction. */
   public void attachUsageRepository(UsageRepository usageRepository) {
@@ -113,84 +115,96 @@ public final class KycService {
 
     String uniqueRef = "pep-search-" + System.currentTimeMillis();
 
-    return resolveUser(session).compose(u ->
-        dojaClient.screenAml(query.trim(), null, uniqueRef)
-            .compose(amlResult -> {
-              if (amlResult.containsKey("error"))
-                return Future.failedFuture("AML screening error: " + amlResult.getString("error"));
+    return resolveUser(session).compose(u -> dojaClient.screenAml(query.trim(), null, uniqueRef)
+        .compose(amlResult -> {
+          if (amlResult.containsKey("error"))
+            return Future.failedFuture("AML screening error: " + amlResult.getString("error"));
 
-              JsonObject entity   = amlResult.getJsonObject("entity", new JsonObject());
-              String  entityId    = entity.getString("entity_id", uniqueRef);
-              String  riskLevel   = entity.getString("risk_level", "");
-              int     totalResults = entity.getInteger("total_results", 0);
+          JsonObject entity = amlResult.getJsonObject("entity", new JsonObject());
+          String entityId = entity.getString("entity_id", uniqueRef);
+          String riskLevel = entity.getString("risk_level", "");
+          int totalResults = entity.getInteger("total_results", 0);
 
-              JsonArray mapped = new JsonArray();
-              if (totalResults == 0) return Future.succeededFuture(mapped);
+          JsonArray mapped = new JsonArray();
+          if (totalResults == 0)
+            return Future.succeededFuture(mapped);
 
-              // results may be a single JsonObject or a JsonArray
-              java.util.List<JsonObject> resultList = new java.util.ArrayList<>();
-              Object raw = entity.getValue("results");
-              if (raw instanceof JsonArray arr) {
-                for (int i = 0; i < arr.size(); i++) resultList.add(arr.getJsonObject(i));
-              } else if (raw instanceof JsonObject obj) {
-                resultList.add(obj);
-              }
+          // results may be a single JsonObject or a JsonArray
+          java.util.List<JsonObject> resultList = new java.util.ArrayList<>();
+          Object raw = entity.getValue("results");
+          if (raw instanceof JsonArray arr) {
+            for (int i = 0; i < arr.size(); i++)
+              resultList.add(arr.getJsonObject(i));
+          } else if (raw instanceof JsonObject obj) {
+            resultList.add(obj);
+          }
 
-              for (int i = 0; i < resultList.size(); i++) {
-                JsonObject r = resultList.get(i);
-                String srcType = r.getString("source_type", "");
+          for (int i = 0; i < resultList.size(); i++) {
+            JsonObject r = resultList.get(i);
+            String srcType = r.getString("source_type", "");
 
-                // Prefer structured name parts over the top-level "name" field
-                String name = buildName(r, query);
+            // Prefer structured name parts over the top-level "name" field
+            String name = buildName(r, query);
 
-                // Position — prefer positions array, fall back to pep_type
-                String position = "";
-                JsonArray positions = r.getJsonArray("positions");
-                if (positions != null && !positions.isEmpty()) position = positions.getString(0);
-                if (position.isBlank()) position = r.getString("pep_type", "PEP");
+            // Position — prefer positions array, fall back to pep_type
+            String position = "";
+            JsonArray positions = r.getJsonArray("positions");
+            if (positions != null && !positions.isEmpty())
+              position = positions.getString(0);
+            if (position.isBlank())
+              position = r.getString("pep_type", "PEP");
 
-                // Organization — political affiliation or media_category
-                String org = "";
-                JsonArray polAff = r.getJsonArray("political_affiliation");
-                if (polAff != null && !polAff.isEmpty()) org = polAff.getString(0);
-                if (org.isBlank()) org = r.getString("media_category", "");
-                if (org.isBlank()) org = "AML Screening Database";
+            // Organization — political affiliation or media_category
+            String org = "";
+            JsonArray polAff = r.getJsonArray("political_affiliation");
+            if (polAff != null && !polAff.isEmpty())
+              org = polAff.getString(0);
+            if (org.isBlank())
+              org = r.getString("media_category", "");
+            if (org.isBlank())
+              org = "AML Screening Database";
 
-                String country = r.getString("country", "Unknown");
+            String country = r.getString("country", "Unknown");
 
-                // Derive risk level: sanctions always High; PEP uses entity-level risk_level
-                JsonArray sanctionDetails = r.getJsonArray("sanction_details");
-                boolean hasSanction = "SANCTION".equalsIgnoreCase(srcType)
-                    || (sanctionDetails != null && !sanctionDetails.isEmpty());
-                String resolvedRisk;
-                if (hasSanction || "High".equalsIgnoreCase(riskLevel))         resolvedRisk = "High";
-                else if ("Medium".equalsIgnoreCase(riskLevel))                 resolvedRisk = "Medium";
-                else                                                            resolvedRisk = "Medium";
+            // Derive risk level: sanctions always High; PEP uses entity-level risk_level
+            JsonArray sanctionDetails = r.getJsonArray("sanction_details");
+            boolean hasSanction = "SANCTION".equalsIgnoreCase(srcType)
+                || (sanctionDetails != null && !sanctionDetails.isEmpty());
+            String resolvedRisk;
+            if (hasSanction || "High".equalsIgnoreCase(riskLevel))
+              resolvedRisk = "High";
+            else if ("Medium".equalsIgnoreCase(riskLevel))
+              resolvedRisk = "Medium";
+            else
+              resolvedRisk = "Medium";
 
-                mapped.add(new JsonObject()
-                    .put("id",          entityId + "-" + i)
-                    .put("name",        name)
-                    .put("position",    position.isBlank() ? "PEP"     : position)
-                    .put("organization", org)
-                    .put("country",     country.isBlank() ? "Unknown"  : country.toUpperCase())
-                    .put("riskLevel",   resolvedRisk)
-                    .put("lastUpdated", r.getString("date_of_birth", "On record")));
-              }
-              return Future.succeededFuture(mapped);
-            }));
+            mapped.add(new JsonObject()
+                .put("id", entityId + "-" + i)
+                .put("name", name)
+                .put("position", position.isBlank() ? "PEP" : position)
+                .put("organization", org)
+                .put("country", country.isBlank() ? "Unknown" : country.toUpperCase())
+                .put("riskLevel", resolvedRisk)
+                .put("lastUpdated", r.getString("date_of_birth", "On record")));
+          }
+          return Future.succeededFuture(mapped);
+        }));
   }
 
   private static String buildName(JsonObject r, String fallback) {
     JsonArray given = r.getJsonArray("given_names");
-    JsonArray last  = r.getJsonArray("last_names");
+    JsonArray last = r.getJsonArray("last_names");
     if ((given != null && !given.isEmpty()) || (last != null && !last.isEmpty())) {
       StringBuilder sb = new StringBuilder();
-      if (given != null && !given.isEmpty()) sb.append(given.getString(0));
-      if (last  != null && !last.isEmpty()) {
-        if (sb.length() > 0) sb.append(' ');
+      if (given != null && !given.isEmpty())
+        sb.append(given.getString(0));
+      if (last != null && !last.isEmpty()) {
+        if (sb.length() > 0)
+          sb.append(' ');
         sb.append(last.getString(0));
       }
-      if (!sb.isEmpty()) return sb.toString();
+      if (!sb.isEmpty())
+        return sb.toString();
     }
     String n = r.getString("name");
     return (n != null && !n.isBlank()) ? n : fallback;
@@ -221,82 +235,82 @@ public final class KycService {
           long ts = System.currentTimeMillis() / 1_000;
           String sig = hmacSha256(secret, ts + "." + customerRef);
           req = req.putHeader("X-OpenIV-Timestamp", String.valueOf(ts))
-                   .putHeader("X-OpenIV-Signature", sig);
+              .putHeader("X-OpenIV-Signature", sig);
         }
 
-      return req.send().compose(resp -> {
-        int durationMs = (int) (System.currentTimeMillis() - start);
-        int code = resp.statusCode();
-        boolean success = code >= 200 && code < 300;
-        String logStatus = success ? "success" : "failed";
+        return req.send().compose(resp -> {
+          int durationMs = (int) (System.currentTimeMillis() - start);
+          int code = resp.statusCode();
+          boolean success = code >= 200 && code < 300;
+          String logStatus = success ? "success" : "failed";
 
-        JsonObject body = null;
-        Integer tier = null;
-        String kycStatus = null;
-        String errorMsg = null;
+          JsonObject body = null;
+          Integer tier = null;
+          String kycStatus = null;
+          String errorMsg = null;
 
-        if (success) {
-          try {
-            body = resp.bodyAsJsonObject();
-            if (body != null) {
-              tier = body.getInteger("tier");
-              kycStatus = body.getString("status");
+          if (success) {
+            try {
+              body = resp.bodyAsJsonObject();
+              if (body != null) {
+                tier = body.getInteger("tier");
+                kycStatus = body.getString("status");
+              }
+            } catch (Exception e) {
+              log.warn("KYC response not JSON for ref={}: {}", customerRef, e.getMessage());
+              body = new JsonObject().put("raw", resp.bodyAsString());
             }
-          } catch (Exception e) {
-            log.warn("KYC response not JSON for ref={}: {}", customerRef, e.getMessage());
-            body = new JsonObject().put("raw", resp.bodyAsString());
+          } else {
+            errorMsg = "HTTP " + code + ": " + resp.bodyAsString();
           }
-        } else {
-          errorMsg = "HTTP " + code + ": " + resp.bodyAsString();
-        }
 
-        final JsonObject kycBody = body != null ? body : new JsonObject();
-        final Integer finalTier = tier;
-        final String finalKycStatus = kycStatus;
-        final String finalError = errorMsg;
-        final boolean lookupOk = success;
+          final JsonObject kycBody = body != null ? body : new JsonObject();
+          final Integer finalTier = tier;
+          final String finalKycStatus = kycStatus;
+          final String finalError = errorMsg;
+          final boolean lookupOk = success;
 
-        return repository.saveLog(u.institutionId(), customerRef, src,
-            logStatus, code, durationMs, finalTier, finalKycStatus, finalError)
-            .compose(ignored -> {
-              JsonObject base = new JsonObject()
-                  .put("customerId", customerRef)
-                  .put("kyc", kycBody);
-              if (!openCase)
-                return Future.succeededFuture(base);
+          return repository.saveLog(u.institutionId(), customerRef, src,
+              logStatus, code, durationMs, finalTier, finalKycStatus, finalError)
+              .compose(ignored -> {
+                JsonObject base = new JsonObject()
+                    .put("customerId", customerRef)
+                    .put("kyc", kycBody);
+                if (!openCase)
+                  return Future.succeededFuture(base);
 
-              String casePriority = lookupOk ? "medium" : "high";
-              int riskScore = finalTier != null ? Math.max(0, (4 - finalTier) * 25) : 50;
-              String notes = kycNotes(customerRef, finalKycStatus, finalTier, finalError);
-              return cases.create(session, "KYC Review: " + customerRef,
-                  "kyc_review", casePriority, riskScore, null, notes, null,
-                  "Automatically opened by KYC review", null, customerRef, null)
-                  .map(cas -> base.put("case", new JsonObject()
-                      .put("id", cas.id())
-                      .put("title", cas.title())
-                      .put("status", cas.status())
-                      .put("priority", cas.priority())
-                      .put("riskScore", cas.riskScore())
-                      .put("slaDeadline", cas.slaDeadline().toString())
-                      .put("createdAt", cas.createdAt().toString())));
-            });
-      }).recover(err -> {
-        int elapsed = (int) (System.currentTimeMillis() - start);
-        boolean isTimeout = err.getMessage() != null
-            && err.getMessage().toLowerCase().contains("timeout");
-        String failStatus = isTimeout ? "timeout" : "failed";
-        return repository.saveLog(u.institutionId(), customerRef, src,
-            failStatus, null, elapsed, null, null, err.getMessage())
-            .compose(ignored -> Future.<JsonObject>failedFuture(err));
-      }); // end req.send()
+                String casePriority = lookupOk ? "medium" : "high";
+                int riskScore = finalTier != null ? Math.max(0, (4 - finalTier) * 25) : 50;
+                String notes = kycNotes(customerRef, finalKycStatus, finalTier, finalError);
+                return cases.create(session, "KYC Review: " + customerRef,
+                    "kyc_review", casePriority, riskScore, null, notes, null,
+                    "Automatically opened by KYC review", null, customerRef, null)
+                    .map(cas -> base.put("case", new JsonObject()
+                        .put("id", cas.id())
+                        .put("title", cas.title())
+                        .put("status", cas.status())
+                        .put("priority", cas.priority())
+                        .put("riskScore", cas.riskScore())
+                        .put("slaDeadline", cas.slaDeadline().toString())
+                        .put("createdAt", cas.createdAt().toString())));
+              });
+        }).recover(err -> {
+          int elapsed = (int) (System.currentTimeMillis() - start);
+          boolean isTimeout = err.getMessage() != null
+              && err.getMessage().toLowerCase().contains("timeout");
+          String failStatus = isTimeout ? "timeout" : "failed";
+          return repository.saveLog(u.institutionId(), customerRef, src,
+              failStatus, null, elapsed, null, null, err.getMessage())
+              .compose(ignored -> Future.<JsonObject>failedFuture(err));
+        }); // end req.send()
       }); // end getInstitutionWebhookSecret compose
     }));
   }
 
   // ── Doja Verification Pipeline ────────────────────────────────────────────
 
-  /** Step order delegated to {@link DojaVerificationPipeline}. */
-  public static final List<String> DEFAULT_PIPELINE = DojaVerificationPipeline.DEFAULT_PIPELINE;
+  /** Step order delegated to {@link DojahVerificationPipeline}. */
+  public static final List<String> DEFAULT_PIPELINE = DojahVerificationPipeline.DEFAULT_PIPELINE;
 
   /**
    * Run the Doja verification pipeline for a customer beamed via the KYC stream.
@@ -365,8 +379,8 @@ public final class KycService {
             String detail = reservation.limit() == -1
                 ? "Monthly KYC cap reached."
                 : "Pipeline needs " + worstCase + " KYC steps but only "
-                  + remaining + " remain in your monthly cap (used "
-                  + reservation.used() + " of " + reservation.limit() + ").";
+                    + remaining + " remain in your monthly cap (used "
+                    + reservation.used() + " of " + reservation.limit() + ").";
             log.info("[Pipeline] Cap reached for institution={}: {}", institutionId, detail);
             PipelineVerificationResult capped = new PipelineVerificationResult(
                 customerId,
@@ -377,22 +391,22 @@ public final class KycService {
             // concrete event rather than silence.
             if (stepCallback != null) {
               stepCallback.accept(new io.vertx.core.json.JsonObject()
-                  .put("step",       "preflight")
-                  .put("status",     "skipped")
-                  .put("detail",     detail)
+                  .put("step", "preflight")
+                  .put("status", "skipped")
+                  .put("detail", detail)
                   .put("durationMs", 0)
                   .put("stepRiskScore", 0)
-                  .put("dojahCalled",   false)
-                  .put("runningScore",  0)
-                  .put("capReached",    true));
+                  .put("dojahCalled", false)
+                  .put("runningScore", 0)
+                  .put("capReached", true));
             }
             return Future.succeededFuture(capped);
           }
 
-          DojaVerificationPipeline pipeline = new DojaVerificationPipeline(dojaClient);
+          DojahVerificationPipeline pipeline = new DojahVerificationPipeline(dojaClient);
           return pipeline.run(customerId, bvn, nin, phone, photo, DEFAULT_PIPELINE, stepCallback, beamedName)
               .compose(result -> {
-                int actualUsed   = (int) result.steps().stream().filter(PipelineStepResult::dojahCalled).count();
+                int actualUsed = (int) result.steps().stream().filter(PipelineStepResult::dojahCalled).count();
                 int refundAmount = Math.max(0, worstCase - actualUsed);
                 long remainingAfter = Math.max(0L, reservation.limit() == -1
                     ? -1L
@@ -433,24 +447,31 @@ public final class KycService {
   /** Forecast the worst-case Dojah call count from the inputs we have. */
   static int forecastWorstCase(String bvn, String nin, String phone, String photo, String beamedName) {
     boolean hasIdentity = (bvn != null && !bvn.isBlank()) || (nin != null && !nin.isBlank());
-    boolean hasPhone    = phone != null && !phone.isBlank();
-    boolean hasPhoto    = photo != null && !photo.isBlank();
-    boolean hasName     = beamedName != null && !beamedName.isBlank();
+    boolean hasPhone = phone != null && !phone.isBlank();
+    boolean hasPhoto = photo != null && !photo.isBlank();
+    boolean hasName = beamedName != null && !beamedName.isBlank();
 
     int worstCase = 0;
-    if (hasIdentity) worstCase++;                  // BVN or NIN lookup
-    if (hasIdentity || hasPhone) worstCase += 4;   // up to 2 phones × (basic + fraud)
-    if (hasPhoto && hasIdentity) worstCase++;      // liveness needs identity as reference
-    if (hasName || hasIdentity) worstCase++;       // AML needs a name (beamed or derived)
+    if (hasIdentity)
+      worstCase++; // BVN or NIN lookup
+    if (hasIdentity || hasPhone)
+      worstCase += 4; // up to 2 phones × (basic + fraud)
+    if (hasPhoto && hasIdentity)
+      worstCase++; // liveness needs identity as reference
+    if (hasName || hasIdentity)
+      worstCase++; // AML needs a name (beamed or derived)
     return worstCase;
   }
 
-  /** Plain pipeline run with no reservation / refund — used when usage repo is absent. */
+  /**
+   * Plain pipeline run with no reservation / refund — used when usage repo is
+   * absent.
+   */
   private Future<PipelineVerificationResult> runUnmeteredPipeline(
       long institutionId, String customerId,
       String bvn, String nin, String phone, String photo,
       Consumer<JsonObject> stepCallback, String beamedName) {
-    DojaVerificationPipeline pipeline = new DojaVerificationPipeline(dojaClient);
+    DojahVerificationPipeline pipeline = new DojahVerificationPipeline(dojaClient);
     return pipeline.run(customerId, bvn, nin, phone, photo, DEFAULT_PIPELINE, stepCallback, beamedName)
         .compose(result -> {
           String logStatus = result.flagged() ? "failed" : "success";
@@ -552,7 +573,7 @@ public final class KycService {
    * Called automatically when a BEAM transaction arrives with no KYC on file.
    * Checks whether the institution has a webhook lookup URL configured; if so,
    * fetches the customer record, registers it, runs the KYC pipeline, and returns
-   * the saved {@link KycPipelineResult}.  Returns {@link Optional#empty()} if no
+   * the saved {@link KycPipelineResult}. Returns {@link Optional#empty()} if no
    * URL is configured or if the remote call / pipeline fails.
    */
   public Future<Optional<KycPipelineResult>> lookupAndRegisterFromBeam(
@@ -580,75 +601,76 @@ public final class KycService {
           long ts = System.currentTimeMillis() / 1_000;
           String sig = hmacSha256(secret, ts + "." + customerId);
           req = req.putHeader("X-OpenIV-Timestamp", String.valueOf(ts))
-                   .putHeader("X-OpenIV-Signature", sig);
+              .putHeader("X-OpenIV-Signature", sig);
         }
 
-      return req.send().compose(resp -> {
-        int durationMs = (int) (System.currentTimeMillis() - start);
-        int code = resp.statusCode();
+        return req.send().compose(resp -> {
+          int durationMs = (int) (System.currentTimeMillis() - start);
+          int code = resp.statusCode();
 
-        if (code < 200 || code >= 300) {
-          String errMsg = "HTTP " + code;
-          log.warn("[Beam/Lookup] Webhook {} for customer={} inst={}", errMsg, customerId, institutionId);
+          if (code < 200 || code >= 300) {
+            String errMsg = "HTTP " + code;
+            log.warn("[Beam/Lookup] Webhook {} for customer={} inst={}", errMsg, customerId, institutionId);
+            return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+                "failed", code, durationMs, null, null, errMsg)
+                .map(ignored -> Optional.<KycPipelineResult>empty());
+          }
+
+          JsonObject body;
+          try {
+            body = resp.bodyAsJsonObject();
+          } catch (Exception e) {
+            log.warn("[Beam/Lookup] Non-JSON response for customer={}: {}", customerId, e.getMessage());
+            return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+                "failed", code, durationMs, null, null, "Non-JSON response")
+                .map(ignored -> Optional.<KycPipelineResult>empty());
+          }
+
+          if (body == null)
+            return Future.succeededFuture(Optional.empty());
+
+          String name = body.getString("name");
+          String bvn = body.getString("bvn");
+          String nin = body.getString("nin");
+          String phone = body.getString("phone", body.getString("phone_number"));
+          String photo = body.getString("photo");
+          Long monthlyInflow = body.containsKey("monthly_inflow") ? body.getLong("monthly_inflow") : null;
+          Long monthlyOutflow = body.containsKey("monthly_outflow") ? body.getLong("monthly_outflow") : null;
+          Integer kycTier = body.containsKey("customer_kyc_tier") ? body.getInteger("customer_kyc_tier") : null;
+
+          log.info(
+              "[Beam/Lookup] Webhook returned data for customer={} inst={} tier={} — registering and running pipeline",
+              customerId, institutionId, kycTier);
+
+          long pipelineStart = System.currentTimeMillis();
+          return customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
+              .compose(customer -> runPipeline(institutionId, customerId, bvn, nin, phone, photo, name))
+              .compose(result -> {
+                int score = result.overallRiskScore();
+                String actionTaken = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
+                return customerService.updateRiskScore(institutionId, customerId, score)
+                    .compose(v -> savePipelineResultWithTier(institutionId, customerId, result,
+                        actionTaken, monthlyInflow, monthlyOutflow, kycTier))
+                    .compose(saved -> {
+                      int totalMs = (int) (System.currentTimeMillis() - pipelineStart);
+                      return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
+                          "success", code, totalMs, result.kycTier(), result.overallStatus(), null)
+                          .map(ignored -> Optional.of(saved));
+                    });
+              })
+              .recover(e -> {
+                log.error("[Beam/Lookup] Pipeline failed for customer={} after webhook success: {}",
+                    customerId, e.getMessage());
+                return Future.succeededFuture(Optional.empty());
+              });
+        }).recover(e -> {
+          int elapsed = (int) (System.currentTimeMillis() - start);
+          log.warn("[Beam/Lookup] Webhook call failed for customer={} inst={}: {}",
+              customerId, institutionId, e.getMessage());
           return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
-              "failed", code, durationMs, null, null, errMsg)
+              "failed", null, elapsed, null, null, e.getMessage())
               .map(ignored -> Optional.<KycPipelineResult>empty());
-        }
-
-        JsonObject body;
-        try {
-          body = resp.bodyAsJsonObject();
-        } catch (Exception e) {
-          log.warn("[Beam/Lookup] Non-JSON response for customer={}: {}", customerId, e.getMessage());
-          return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
-              "failed", code, durationMs, null, null, "Non-JSON response")
-              .map(ignored -> Optional.<KycPipelineResult>empty());
-        }
-
-        if (body == null)
-          return Future.succeededFuture(Optional.empty());
-
-        String name  = body.getString("name");
-        String bvn   = body.getString("bvn");
-        String nin   = body.getString("nin");
-        String phone = body.getString("phone", body.getString("phone_number"));
-        String photo = body.getString("photo");
-        Long monthlyInflow  = body.containsKey("monthly_inflow")  ? body.getLong("monthly_inflow")  : null;
-        Long monthlyOutflow = body.containsKey("monthly_outflow") ? body.getLong("monthly_outflow") : null;
-        Integer kycTier = body.containsKey("customer_kyc_tier") ? body.getInteger("customer_kyc_tier") : null;
-
-        log.info("[Beam/Lookup] Webhook returned data for customer={} inst={} tier={} — registering and running pipeline",
-            customerId, institutionId, kycTier);
-
-        long pipelineStart = System.currentTimeMillis();
-        return customerService.updateKycProfile(institutionId, customerId, name, bvn, nin, photo)
-            .compose(customer -> runPipeline(institutionId, customerId, bvn, nin, phone, photo, name))
-            .compose(result -> {
-              int score = result.overallRiskScore();
-              String actionTaken = score < 51 ? "clear" : score < 81 ? "flagged" : "case_opened";
-              return customerService.updateRiskScore(institutionId, customerId, score)
-                  .compose(v -> savePipelineResultWithTier(institutionId, customerId, result,
-                      actionTaken, monthlyInflow, monthlyOutflow, kycTier))
-                  .compose(saved -> {
-                    int totalMs = (int) (System.currentTimeMillis() - pipelineStart);
-                    return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
-                        "success", code, totalMs, result.kycTier(), result.overallStatus(), null)
-                        .map(ignored -> Optional.of(saved));
-                  });
-            })
-            .recover(e -> {
-              log.error("[Beam/Lookup] Pipeline failed for customer={} after webhook success: {}",
-                  customerId, e.getMessage());
-              return Future.succeededFuture(Optional.empty());
-            });
-      }).recover(e -> {
-        int elapsed = (int) (System.currentTimeMillis() - start);
-        log.warn("[Beam/Lookup] Webhook call failed for customer={} inst={}: {}",
-            customerId, institutionId, e.getMessage());
-        return repository.saveLog(institutionId, customerId, "beam_auto_lookup",
-            "failed", null, elapsed, null, null, e.getMessage())
-            .map(ignored -> Optional.<KycPipelineResult>empty());
-      }); // end req.send()
+        }); // end req.send()
       }); // end getInstitutionWebhookSecret compose
     });
   }
@@ -671,7 +693,8 @@ public final class KycService {
   }
 
   private Future<String> getInstitutionWebhookSecret(long institutionId) {
-    if (webhookRepository == null) return Future.succeededFuture(null);
+    if (webhookRepository == null)
+      return Future.succeededFuture(null);
     return webhookRepository.findOrCreateSecret(institutionId)
         .map(s -> s.secret())
         .otherwise((String) null);
@@ -683,7 +706,8 @@ public final class KycService {
       mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
       byte[] bytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder(bytes.length * 2);
-      for (byte b : bytes) sb.append(String.format("%02x", b));
+      for (byte b : bytes)
+        sb.append(String.format("%02x", b));
       return sb.toString();
     } catch (Exception e) {
       throw new RuntimeException("HMAC signing failed", e);

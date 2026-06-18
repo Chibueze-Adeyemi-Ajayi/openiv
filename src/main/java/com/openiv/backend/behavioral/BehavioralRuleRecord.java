@@ -20,6 +20,8 @@ public record BehavioralRuleRecord(
     String emergence,
     JsonObject params,
     JsonArray recommendedActions,
+    String templateType,
+    String policyStatement,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {}

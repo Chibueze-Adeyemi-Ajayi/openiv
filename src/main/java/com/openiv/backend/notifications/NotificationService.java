@@ -140,20 +140,16 @@ public class NotificationService {
   }
 
   public Future<Notification> notifyRiskReport(long instId, int highRiskCount, int highestScore, String topCustomerName) {
+    if (highRiskCount == 0) return Future.succeededFuture(null);
+
     String title = "Daily Risk Alert — " + highRiskCount + " customer" + (highRiskCount == 1 ? "" : "s") + " need your attention";
-    String body;
-    if (highRiskCount == 0) {
-      body = "Your nightly fraud check is complete. All customers are within acceptable risk levels today. "
-          + "No immediate action is required, but routine monitoring continues.";
-    } else {
-      body = "Your overnight fraud monitoring has completed. We found " + highRiskCount
-          + " customer" + (highRiskCount == 1 ? "" : "s") + " with an overall risk score above 75 — "
-          + "the level at which the risk of financial crime is considered significant. "
-          + "The highest-risk customer scored " + highestScore + " out of 100"
-          + (topCustomerName != null ? " (" + topCustomerName + ")" : "") + ". "
-          + "What you should do: open the High-Risk Customers section, review each profile, "
-          + "and either open a formal investigation case or file a Suspicious Activity Report (SAR) with the NFIU.";
-    }
+    String body = "Your overnight fraud monitoring has completed. We found " + highRiskCount
+        + " customer" + (highRiskCount == 1 ? "" : "s") + " with an overall risk score above 75 — "
+        + "the level at which the risk of financial crime is considered significant. "
+        + "The highest-risk customer scored " + highestScore + " out of 100"
+        + (topCustomerName != null ? " (" + topCustomerName + ")" : "") + ". "
+        + "What you should do: open the High-Risk Customers section, review each profile, "
+        + "and either open a formal investigation case or file a Suspicious Activity Report (SAR) with the NFIU.";
     return registerNotification(instId, "risk_report_daily", title, body,
         null, null, null, ROLES_COMPLIANCE_UP);
   }
@@ -175,6 +171,27 @@ public class NotificationService {
     return registerNotification(instId, "case_interest_accepted",
         "Case Assigned to You — " + caseId, body,
         "case", caseId, toUserId, null);
+  }
+
+  // ── Workflow notifications ─────────────────────────────────────────────────
+
+  public Future<Notification> notifyWorkflowSubmitted(long instId, long workflowId,
+      String workflowName, String submitterName) {
+    String body = submitterName + " submitted the CDD workflow \"" + workflowName + "\" (#" + workflowId + ") "
+        + "for approval. Open Workflows to review the block sequence and approve or reject it. "
+        + "Maker-checker rule: you must be a different officer than the submitter to approve.";
+    return registerNotification(instId, "workflow_pending_approval",
+        "Workflow Awaiting Approval — " + workflowName, body,
+        "workflow", String.valueOf(workflowId), null, ROLES_COMPLIANCE_UP);
+  }
+
+  public Future<Notification> notifyWorkflowApproved(long instId, long workflowId,
+      String workflowName, String approverName) {
+    String body = approverName + " approved and activated \"" + workflowName + "\" (#" + workflowId + "). "
+        + "The workflow is now live and will begin scheduling CDD re-screenings.";
+    return registerNotification(instId, "workflow_approved",
+        "Workflow Activated — " + workflowName, body,
+        "workflow", String.valueOf(workflowId), null, ROLES_COMPLIANCE_UP);
   }
 
   public Future<Notification> notifyCyberBreachTimestampAnomaly(long institutionId,

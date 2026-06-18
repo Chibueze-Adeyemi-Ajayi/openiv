@@ -12,8 +12,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.util.Base64;
@@ -21,7 +19,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class CustomerHandlers {
-  private static final Logger log = LoggerFactory.getLogger(CustomerHandlers.class);
   private final CustomerService    service;
   private final UserRepository     users;
   private final CloudinaryService  cloudinary;
@@ -117,12 +114,9 @@ public final class CustomerHandlers {
       users.findById(session.userId())
           .compose(uOpt -> {
             User u = uOpt.orElseThrow(() -> AuthException.invalid("session"));
-            return service.getCustomer(u.institutionId(), externalId)
-                .map(cOpt -> Map.entry(u.institutionId(), cOpt));
+            return service.getCustomer(u.institutionId(), externalId);
           })
-          .onSuccess(entry -> {
-            long instId = entry.getKey();
-            var cOpt = entry.getValue();
+          .onSuccess(cOpt -> {
             if (cOpt.isEmpty()) {
               ctx.response().setStatusCode(404)
                   .putHeader("Content-Type", "application/json")
@@ -132,10 +126,6 @@ public final class CustomerHandlers {
               ctx.response().setStatusCode(200)
                   .putHeader("Content-Type", "application/json")
                   .end(toJson(c).encode());
-              int score = (int) Math.round(
-                  c.riskScore() * 0.20 + c.riskProfileScore() * 0.55 + c.transactionRiskScore() * 0.25);
-              service.updateOverallRiskScore(instId, c.externalId(), score)
-                  .onFailure(e -> log.warn("Failed to persist overall risk score for {}: {}", c.externalId(), e.getMessage()));
             }
           })
           .onFailure(ctx::fail);
@@ -261,6 +251,51 @@ public final class CustomerHandlers {
     };
   }
 
+  // POST /customers/:id/resolve-step
+  public Handler<RoutingContext> resolveStep() {
+    return ctx -> {
+      Session session = SessionAuthHandler.require(ctx);
+      String externalId = ctx.pathParam("id");
+      JsonObject body;
+      try {
+        body = ctx.body().asJsonObject();
+        if (body == null) throw new IllegalArgumentException("Missing body");
+      } catch (Exception e) {
+        ctx.response().setStatusCode(400).putHeader("Content-Type", "application/json")
+            .end(new JsonObject().put("error", "Invalid request body").encode());
+        return;
+      }
+      String stepType   = body.getString("type");
+      String resolution = body.getString("resolution");
+      String note       = body.getString("note", "Manually reviewed and resolved by compliance officer");
+      if (stepType == null || resolution == null) {
+        ctx.response().setStatusCode(400).putHeader("Content-Type", "application/json")
+            .end(new JsonObject().put("error", "'type' and 'resolution' are required").encode());
+        return;
+      }
+      boolean markPass = "pass".equals(resolution);
+      int score = body.getInteger("score", markPass ? 80 : 10);
+      users.findById(session.userId())
+          .compose(uOpt -> {
+            User u = uOpt.orElseThrow(() -> AuthException.invalid("session"));
+            return service.resolveStep(u.institutionId(), externalId, stepType, markPass, score, note);
+          })
+          .onSuccess(c -> ctx.response().setStatusCode(200)
+              .putHeader("Content-Type", "application/json").end(toJson(c).encode()))
+          .onFailure(e -> {
+            if (e.getMessage() != null && (e.getMessage().contains("not found") || e.getMessage().contains("not found"))) {
+              ctx.response().setStatusCode(404).putHeader("Content-Type", "application/json")
+                  .end(new JsonObject().put("error", e.getMessage()).encode());
+            } else if (e instanceof IllegalArgumentException) {
+              ctx.response().setStatusCode(400).putHeader("Content-Type", "application/json")
+                  .end(new JsonObject().put("error", e.getMessage()).encode());
+            } else {
+              ctx.fail(e);
+            }
+          });
+    };
+  }
+
   // PATCH /customers/:id/unwatchlist
   public Handler<RoutingContext> unwatchlistCustomer() {
     return ctx -> {
@@ -277,10 +312,8 @@ public final class CustomerHandlers {
   }
 
   static JsonObject toJson(Customer c) {
-    int overallRiskScore = (int) Math.round(
-        c.riskScore()            * 0.20
-        + c.riskProfileScore()   * 0.55
-        + c.transactionRiskScore() * 0.25);
+    // risk_score in DB is always set to cdd_risk_score after workflow evaluation.
+    int overallRiskScore = c.cddRiskScore() != null ? c.cddRiskScore() : c.riskScore();
     var obj = new JsonObject()
         .put("id",                   c.id())
         .put("institutionId",        c.institutionId())
@@ -288,9 +321,7 @@ public final class CustomerHandlers {
         .put("name",                 c.name())
         .put("email",                c.email())
         .put("phone",                c.phone())
-        .put("riskScore",            c.riskScore())
-        .put("riskProfileScore",     c.riskProfileScore())
-        .put("transactionRiskScore", c.transactionRiskScore())
+        .put("riskScore",            overallRiskScore)
         .put("overallRiskScore",     overallRiskScore)
         .put("bvn",           c.bvn())
         .put("nin",           c.nin())
@@ -301,9 +332,21 @@ public final class CustomerHandlers {
         .put("createdAt",     c.createdAt().toString())
         .put("updatedAt",     c.updatedAt().toString())
         .put("watchlisted",   c.watchlisted());
-    if (c.dob() != null)            obj.put("dob",              c.dob().toString());
-    if (c.watchlistedAt() != null)  obj.put("watchlistedAt",    c.watchlistedAt().toString());
+    if (c.dob() != null)             obj.put("dob",              c.dob().toString());
+    if (c.watchlistedAt() != null)   obj.put("watchlistedAt",    c.watchlistedAt().toString());
     if (c.watchlistedReason() != null) obj.put("watchlistedReason", c.watchlistedReason());
+    if (c.lastEvaluatedAt() != null) obj.put("lastEvaluatedAt",  c.lastEvaluatedAt().toString());
+    if (c.cddRiskScore() != null)    obj.put("cddRiskScore",     c.cddRiskScore());
+    if (c.cddConcerns() != null && !c.cddConcerns().isBlank()) {
+      try { obj.put("cddConcerns", new io.vertx.core.json.JsonArray(c.cddConcerns())); }
+      catch (Exception ignored) {}
+    }
+    if (c.cddStepScores() != null && !c.cddStepScores().isBlank()) {
+      try { obj.put("cddStepScores", new io.vertx.core.json.JsonArray(c.cddStepScores())); }
+      catch (Exception ignored) {}
+    }
+    if (c.selfiePhoto() != null)    obj.put("selfiePhoto",    c.selfiePhoto());
+    if (c.identityPhoto() != null)  obj.put("identityPhoto",  c.identityPhoto());
     return obj;
   }
 }

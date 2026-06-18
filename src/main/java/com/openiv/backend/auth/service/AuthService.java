@@ -17,6 +17,7 @@ import com.openiv.backend.auth.repository.SessionTransferRepository;
 import com.openiv.backend.auth.repository.TotpSecretRepository;
 import com.openiv.backend.auth.repository.UserRepository;
 import com.openiv.backend.auth.repository.VerificationCodeRepository;
+import com.openiv.backend.webauthn.WebAuthnRepository;
 import com.openiv.backend.geofence.GeoAccessRequest;
 import com.openiv.backend.geofence.GeoFenceService;
 import io.vertx.core.Future;
@@ -65,6 +66,7 @@ public final class AuthService {
   private final TotpCipher totpCipher;
   private final BlockedDeviceRepository blockedDevices;
   private final SessionTransferRepository transfers;
+  private final WebAuthnRepository webAuthn;
   private final Vertx vertx;
   private GeoFenceService geoFence; // set after construction to avoid circular dep
 
@@ -76,7 +78,7 @@ public final class AuthService {
       InstitutionRepository institutions, VerificationCodeRepository codes,
       TotpSecretRepository totp, SessionRepository sessions, EmailSender emailSender,
       TotpCipher totpCipher, BlockedDeviceRepository blockedDevices,
-      SessionTransferRepository transfers, Vertx vertx) {
+      SessionTransferRepository transfers, WebAuthnRepository webAuthn, Vertx vertx) {
     this.users = users;
     this.invitations = invitations;
     this.institutions = institutions;
@@ -87,6 +89,7 @@ public final class AuthService {
     this.totpCipher = totpCipher;
     this.blockedDevices = blockedDevices;
     this.transfers = transfers;
+    this.webAuthn = webAuthn;
     this.vertx = vertx;
   }
 
@@ -229,7 +232,7 @@ public final class AuthService {
           if (!Totp.verify(secret, totpCode.trim())) throw AuthException.invalid("code");
           return sessions.revokeAllForUser(user.id())
               .compose(v -> issueSession(user, SessionState.AUTHENTICATED, deviceId, ip, userAgent, lat, lon, accuracy))
-              .map(sess -> new LoginResult(sess.token(), SessionState.AUTHENTICATED, user.accountType(), user.displayName(), user.institutionId()));
+              .map(sess -> new LoginResult(sess.token(), SessionState.AUTHENTICATED, user.accountType(), user.displayName(), user.institutionId(), user.avatarUrl()));
         });
       });
     });
@@ -252,12 +255,14 @@ public final class AuthService {
     if (user.mustChangePassword()) {
       return issueSession(user, SessionState.MUST_CHANGE_PASSWORD, deviceId, ip, userAgent, lat, lon, accuracy)
           .map(sess -> new LoginResult(sess.token(), SessionState.MUST_CHANGE_PASSWORD,
-              user.accountType(), user.displayName(), user.institutionId()));
+              user.accountType(), user.displayName(), user.institutionId(), user.avatarUrl()));
     }
-    return totp.isEnabled(user.id()).compose(enabled -> {
-      SessionState next = enabled ? SessionState.PENDING_TOTP_CHALLENGE : SessionState.PENDING_TOTP_SETUP;
-      return issueSession(user, next, deviceId, ip, userAgent, lat, lon, accuracy)
-          .map(sess -> new LoginResult(sess.token(), next, user.accountType(), user.displayName(), user.institutionId()));
+    // Gate on biometric enrollment: first-time users must set up Face ID / Touch ID.
+    return webAuthn.countByUser(user.id()).compose(count -> {
+      SessionState state = count > 0 ? SessionState.PENDING_BIOMETRIC_CHALLENGE : SessionState.PENDING_BIOMETRIC_SETUP;
+      return issueSession(user, state, deviceId, ip, userAgent, lat, lon, accuracy)
+          .map(sess -> new LoginResult(sess.token(), state,
+              user.accountType(), user.displayName(), user.institutionId(), user.avatarUrl()));
     });
   }
 
@@ -265,7 +270,7 @@ public final class AuthService {
       String ip, String userAgent, Double lat, Double lon, Double accuracy) {
     return issueSession(user, SessionState.PENDING_EMAIL_VERIFICATION, deviceId, ip, userAgent, lat, lon, accuracy)
         .compose(sess -> generateAndSendEmailCode(user).map(v -> new LoginResult(
-            sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType(), user.displayName(), user.institutionId())));
+            sess.token(), SessionState.PENDING_EMAIL_VERIFICATION, user.accountType(), user.displayName(), user.institutionId(), user.avatarUrl())));
   }
 
   // --- Email verification -------------------------------------------------
@@ -286,14 +291,14 @@ public final class AuthService {
             if (consumed.isEmpty()) {
               throw AuthException.invalid("code");
             }
+            // Check biometric enrollment before granting AUTHENTICATED.
             return users.markEmailVerified(user.id())
-                .compose(v -> totp.isEnabled(user.id()))
-                .compose(enabled -> {
-                  SessionState next = enabled
-                      ? SessionState.AUTHENTICATED
-                      : SessionState.PENDING_TOTP_SETUP;
-                  return sessions.transitionState(session.id(), next)
-                      .map(v -> new VerifyResult(next));
+                .compose(v -> webAuthn.countByUser(user.id()))
+                .compose(count -> {
+                  SessionState target = count > 0
+                      ? SessionState.AUTHENTICATED : SessionState.PENDING_BIOMETRIC_SETUP;
+                  return sessions.transitionState(session.id(), target)
+                      .map(v -> new VerifyResult(target));
                 });
           });
     });
@@ -460,10 +465,15 @@ public final class AuthService {
       }
       String newHash = PasswordHasher.hash(newPassword);
       if (isFirstLogin) {
-        // First login: transition the session to TOTP setup rather than revoking it
+        // Check biometric enrollment; new users land on setup page first.
         return users.updatePassword(user.id(), newHash, false)
-            .compose(v -> sessions.transitionState(session.id(), SessionState.PENDING_TOTP_SETUP))
-            .map(v -> new ChangeResult(SessionState.PENDING_TOTP_SETUP));
+            .compose(v -> webAuthn.countByUser(user.id()))
+            .compose(count -> {
+              SessionState target = count > 0
+                  ? SessionState.AUTHENTICATED : SessionState.PENDING_BIOMETRIC_SETUP;
+              return sessions.transitionState(session.id(), target)
+                  .map(v -> new ChangeResult(target));
+            });
       }
       // Normal password change: revoke all sessions so the user must re-authenticate
       return users.updatePassword(user.id(), newHash, false)
@@ -612,7 +622,7 @@ public final class AuthService {
       com.openiv.backend.auth.model.AccountType accountType) {}
 
   public record LoginResult(String sessionToken, SessionState state,
-      com.openiv.backend.auth.model.AccountType accountType, String fullName, long institutionId) {}
+      com.openiv.backend.auth.model.AccountType accountType, String fullName, long institutionId, String avatarUrl) {}
 
   public record VerifyResult(SessionState state, GeoAccessRequest geoRequest) {
     public VerifyResult(SessionState state) { this(state, null); }

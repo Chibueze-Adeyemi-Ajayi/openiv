@@ -39,13 +39,10 @@
     "authRequired": false
   },
   "email": {
-    "_comment": "SMTP settings. Omit user/password for unauthenticated servers (Mailpit, MailHog). Set useSsl to true only for implicit TLS (port 465); for STARTTLS (port 587) leave it false.",
-    "host": "smtp.example.com",
-    "port": 587,
-    "user": "smtp-user@example.com",
-    "password": "smtp-password",
-    "from": "noreply@example.com",
-    "useSsl": false
+    "_comment": "Mailtrap sending API. Get your token from mailtrap.io → API Tokens. Override at runtime with MAILTRAP_API_TOKEN env var.",
+    "apiToken": "REPLACE_WITH_MAILTRAP_API_TOKEN",
+    "from": "noreply@yourdomain.com",
+    "enabled": true
   },
   "billing": {
     "_comment": "Pay-as-you-go billing via Paystack. Keys sourced from env vars first, then this block. Generate encryptionKey with:  openssl rand -base64 32",
@@ -64,6 +61,20 @@
     "_comment": "DEV ONLY. Regenerate for production and source from a KMS/HSM via OPENIV_TOTP_PUBLIC_KEY / OPENIV_TOTP_PRIVATE_KEY env vars. The keypair encrypts TOTP secrets at rest (RSA-OAEP-SHA256).",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqAtN2IZX8rAn0z0VNf/G\ndztWGIT5v2JIGDj8XxAKrGYyE38ldfrC0s0ht9sfucUhc+CkuoUI5m3sbXzmhdV0\nY+iilj5u3uxR5az932BT0/X3L6lth5raFe+NeeiHYZZBroNG2WlrpGGEUAHGj4Ez\n1sdTVZIJNSkR+0xOY34749iNpMm6bL/cDQsgC/Oxq4Slol24jztlaYM/jj3jnVLK\nU3h8uIPr1HRHBBoUXO+CRhTkdHcfBX0PmiehtbActyttJ5SJXkcJM1ymiudmouiK\n4QSJAfy3aR1Lmp0MzyQtYAvGWM+KnxN0YhPK5ZkJA7wA02jmmqRfRfgiz8gAl0ny\n4wIDAQAB\n-----END PUBLIC KEY-----",
     "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCoC03YhlfysCfT\nPRU1/8Z3O1YYhPm/YkgYOPxfEAqsZjITfyV1+sLSzSG32x+5xSFz4KS6hQjmbext\nfOaF1XRj6KKWPm7e7FHlrP3fYFPT9fcvqW2HmtoV74156IdhlkGug0bZaWukYYRQ\nAcaPgTPWx1NVkgk1KRH7TE5jfjvj2I2kybpsv9wNCyAL87GrhKWiXbiPO2Vpgz+O\nPeOdUspTeHy4g+vUdEcEGhRc74JGFOR0dx8FfQ+aJ6G1sBy3K20nlIleRwkzXKaK\n52ai6IrhBIkB/LdpHUuanQzPJC1gC8ZYz4qfE3RiE8rlmQkDvADTaOaapF9F+CLP\nyACXSfLjAgMBAAECggEAMMXzJrS7YwuAy51PgjhGFMYqk3xI9qTicvFbQoYn6ujQ\ngPsm1src8A0sy620VBlkv7rEZQSG1Ea0WATn7ZFKMlNLmVrumBI0JPrkRoixW/Ro\ndbNxwGmQAczhHbCBVrAjSTD+B81Cule5bPVO+cjQ0HZS+COmO4E7oFoB6Huzi0oO\nm+VulnRK9a12p7YUps5Vp/j8SQKxkLOb3j+Akxend96j8KYi4J5yfx/vR9UG8Lc+\n6CXa8OKG0O0B2YFXdYQgLztep3rpWXR1JFHV6I4seoh9e3I049YQxFBEDIZrt37k\nt69u6q7IJl8Uj8EtLRgfp+wegGEtCx9IvxmXLrz2iQKBgQC6KkJRcWgFiulroXym\nuSPF76EoAwmh4W98Xm20OTjp9X00WG4zzSy1zrovz51i+IwrCXgiLoBKPR9u++Wv\nWeOU58SERexONFc1xAN85BBTzfOIfP4Q8sVa0MzXcOBvrRWMEMbnVqxQ5WHUp6jX\n6Y/gc7MUl3EyJwcF1+io3hgC+QKBgQDnFNz8YxbXasu1HQWacT6mRE7cfmZWljaE\nmaOISGhAPPP767HxumaG3xYs5PVGhH06p3mNd8Tt2pMqnDFpao5nmppC+qhOqgUu\n+0VZZfa+xD2cIIShoU9rhIIxEHfqizQ9yUetBLlwd6bhNyAEcYU7RRzVGDFVXv/r\nUlJ518i/uwKBgQCyDh0j/E27j2M1+FxashUPCeSfelhKJm4VC9PtXhWbX5sC59lv\nXjv3H+RgOjiUIpkdyI7IUqWNW+ymn/LMxjKvhwUkZiRfoBwRZorXduJO5VqaHsJ5\nv1kXRUHGhUWESo2jS6CSPwnMzbfGRx1sdQ2RZdfQSBCSIVXMNvdmHBXnMQKBgB0z\nu8GBXC+Y5Wlb44ti6EHmu/iNWK10iiszp0DftZz4lvStEm2z2qUMqCbAQGbK83Bo\nHapNCmvshVCLMItb1ect2HTCbGaUgdcwFdF4Wzg8YHTMfzZVxk2WD0XYCO9w7Acq\n2o343N5joIkxiDBHkEivMTeUuRdKzBiW7KlNJadlAoGAIkVrGCj5fex93gQne2r2\ne4nvJvJ3sKy4YDk3UYowFj6mPIemWBAc7zs37e74eXGSL/gaB0hABjBr1s/O0zMK\n1Tz3biR0A/nrUt3QhNInQehpzworlmzPP+n/QCLwGlRi/SOiawomPKL2/K/qhyk3\n55i5UWFcGHS/VrGZvpxc7P0=\n-----END PRIVATE KEY-----"
+  },
+  "redis": {
+    "_comment": "Redis cache for AI-generated rule templates (24 h TTL per institution). Override with REDIS_URL env var. Leave url empty to disable — service falls back to in-memory cache.",
+    "url": "redis://localhost:6379"
+  },
+  "ai": {
+    "_comment": "Provider priority: freeModelApiKey wins when set; groqApiKey is fallback. Env overrides: FREE_MODEL_API_KEY, GROQ_API_KEY, AI_MODEL, SERP_API_KEY.",
+    "_comment_freemodel": "FreeModel.dev — OpenAI-compatible, $300 free credits (freemodel.dev). Models: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex",
+    "_comment_serp": "SerpAPI — web search + live exchange rates. Get key at https://serpapi.com.",
+    "_comment_geocoding": "Geocoding uses OpenStreetMap Nominatim — free, no key needed.",
+    "freeModelApiKey": "",
+    "groqApiKey": "gsk_REPLACE_WITH_YOUR_GROQ_KEY",
+    "model": "gpt-5.5",
+    "serpApiKey": "REPLACE_WITH_YOUR_SERP_API_KEY"
   },
   "kyc": {
     "_comment": "KYC Integration settings. The backend reads OPEN_SANCTIONS_API_KEY from environment variables for live PEP screening.",

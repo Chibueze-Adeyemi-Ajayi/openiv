@@ -14,6 +14,8 @@ public record Institution(
     String officialSignature,
     Long stampDocumentId,
     Long signatureDocumentId,
+    String logoUrl,
+    String industry,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {

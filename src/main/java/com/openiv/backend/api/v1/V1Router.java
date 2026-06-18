@@ -67,6 +67,11 @@ import com.openiv.backend.webhooks.WebhookService;
 import com.openiv.backend.behavioral.BehavioralRuleHandlers;
 import com.openiv.backend.behavioral.BehavioralRuleRepository;
 import com.openiv.backend.behavioral.BehavioralRuleService;
+import com.openiv.backend.nomos.InstitutionRuleHandlers;
+import com.openiv.backend.nomos.InstitutionRuleRepository;
+import com.openiv.backend.nomos.InstitutionRuleService;
+import com.openiv.backend.nomos.NomosAiClient;
+import com.openiv.backend.nomos.WasmRuleExecutor;
 import com.openiv.backend.transactions.TransactionHandlers;
 import com.openiv.backend.transactions.TransactionRepository;
 import com.openiv.backend.transactions.TransactionService;
@@ -112,8 +117,13 @@ public final class V1Router {
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig,
-      AppConfig.BillingConfig billingConfig) {
+      CustomerService customerService,
+      com.openiv.backend.workflows.WorkflowService workflowService,
+      AppConfig.CloudinaryConfig cloudinaryConfig,
+      AppConfig.BillingConfig billingConfig,
+      AppConfig.AiConfig aiConfig,
+      AppConfig.WebAuthnConfig webAuthnConfig,
+      AppConfig.RedisConfig redisConfig) {
     Router router = Router.router(vertx);
 
     // Shared user repo used by session auth and role checks throughout this router.
@@ -149,10 +159,49 @@ public final class V1Router {
     UsageRepository usageRepository = new UsageRepository(dbPool);
 
     router.route("/auth/*").subRouter(AuthRouter.create(vertx, authService, !devMode,
-        customerService, cloudinary, documentRepository, subscriptionRepository, usageRepository));
+        customerService, cloudinary, documentRepository, subscriptionRepository, usageRepository,
+        new com.openiv.backend.auth.repository.InstitutionRepository(dbPool)));
+
+    // WebAuthn biometric endpoints — accessible with any valid session (any state).
+    com.openiv.backend.webauthn.WebAuthnRepository webAuthnRepo =
+        new com.openiv.backend.webauthn.WebAuthnRepository(dbPool);
+    com.openiv.backend.auth.repository.SessionRepository webAuthnSessions =
+        new com.openiv.backend.auth.repository.SessionRepository(dbPool);
+    com.openiv.backend.webauthn.WebAuthnService webAuthnService =
+        new com.openiv.backend.webauthn.WebAuthnService(
+            webAuthnRepo, webAuthnSessions, sharedUsers, vertx,
+            webAuthnConfig.rpId(), webAuthnConfig.rpOrigin());
+    com.openiv.backend.webauthn.WebAuthnHandlers webAuthnHandlers =
+        new com.openiv.backend.webauthn.WebAuthnHandlers(webAuthnService, sharedUsers, !devMode);
+    Handler<RoutingContext> wanAny = SessionAuthHandler.any(authService);
+    Handler<RoutingContext> wanAuth = SessionAuthHandler.authenticated(authService);
+    router.get("/auth/webauthn/status")
+        .handler(wanAny).handler(webAuthnHandlers.status());
+    router.post("/auth/webauthn/register/start")
+        .handler(wanAny).handler(webAuthnHandlers.registerStart());
+    router.post("/auth/webauthn/register/finish")
+        .handler(wanAny).handler(webAuthnHandlers.registerFinish());
+    router.post("/auth/webauthn/authenticate/start")
+        .handler(wanAuth).handler(webAuthnHandlers.authenticateStart());
+    router.post("/auth/webauthn/authenticate/finish")
+        .handler(wanAuth).handler(webAuthnHandlers.authenticateFinish());
+    router.post("/auth/webauthn/challenge/start")
+        .handler(wanAny).handler(webAuthnHandlers.challengeStart());
+    router.post("/auth/webauthn/challenge/finish")
+        .handler(wanAny).handler(webAuthnHandlers.challengeFinish());
+    // Unauthenticated biometric login — no session required
+    router.post("/auth/webauthn/login/start")
+        .handler(webAuthnHandlers.loginStart());
 
     // Team management — session + role-based gates inside TeamRouter.
     router.route("/team/*").subRouter(TeamRouter.create(vertx, authService, teamService, dbPool, sharedUsers));
+
+    // Biometric credential management — CCO/admin can view & revoke member keys
+    Handler<RoutingContext> teamManage = RoleAuthHandler.require(sharedUsers, Permission.TEAM_MANAGE);
+    router.get("/team/members/:userId/credentials")
+        .handler(wanAuth).handler(teamManage).handler(webAuthnHandlers.listMemberCredentials());
+    router.delete("/team/members/:userId/credentials/:credId")
+        .handler(wanAuth).handler(teamManage).handler(webAuthnHandlers.revokeMemberCredential());
 
     // Billing — instantiated first; referenced by Transactions, Cases, Beam, KYC,
     // Dashboard
@@ -288,6 +337,32 @@ public final class V1Router {
     router.patch("/thresholds/:id").handler(thresholdAuth).handler(rulesModify).handler(thresholdHandlers.update());
     router.get("/thresholds/:id/history").handler(thresholdAuth).handler(rulesView).handler(thresholdHandlers.history());
 
+    // Workflows — institution-defined CDD re-screening pipelines
+    // Write access: admin + CCO only (WORKFLOWS_MODIFY). All roles can read (WORKFLOWS_VIEW).
+    // Import endpoint: API-key authenticated (same BeamApiKeyHandler used by /beam/* routes).
+    com.openiv.backend.workflows.WorkflowHandlers workflowHandlers =
+        new com.openiv.backend.workflows.WorkflowHandlers(workflowService);
+    Handler<RoutingContext> wfAuth      = SessionAuthHandler.authenticated(authService);
+    Handler<RoutingContext> wfView      = RoleAuthHandler.require(sharedUsers, Permission.WORKFLOWS_VIEW);
+    Handler<RoutingContext> wfModify    = RoleAuthHandler.require(sharedUsers, Permission.WORKFLOWS_MODIFY);
+    Handler<RoutingContext> wfImportAuth = new com.openiv.backend.beam.BeamApiKeyHandler(beamService, authService).resolve();
+    router.get("/workflows").handler(wfAuth).handler(wfView).handler(workflowHandlers.list());
+    router.get("/workflows/enrichment-count").handler(wfAuth).handler(wfView).handler(workflowHandlers.enrichmentCount());
+    router.post("/workflows").handler(wfAuth).handler(wfModify).handler(workflowHandlers.create());
+    router.get("/workflows/:id").handler(wfAuth).handler(wfView).handler(workflowHandlers.get());
+    router.put("/workflows/:id").handler(wfAuth).handler(wfModify).handler(workflowHandlers.update());
+    router.post("/workflows/:id/submit").handler(wfAuth).handler(wfModify).handler(workflowHandlers.submit());
+    router.post("/workflows/:id/approve").handler(wfAuth).handler(wfModify).handler(workflowHandlers.approve());
+    router.post("/workflows/:id/retire").handler(wfAuth).handler(wfModify).handler(workflowHandlers.retire());
+    router.post("/workflows/:id/new-version").handler(wfAuth).handler(wfModify).handler(workflowHandlers.newVersion());
+    router.post("/workflows/:id/run").handler(wfAuth).handler(wfModify).handler(workflowHandlers.runNow());
+    router.get("/workflows/:id/payload-schema").handler(wfAuth).handler(wfView).handler(workflowHandlers.payloadSchema());
+    router.get("/workflows/:id/estimate").handler(wfAuth).handler(wfView).handler(workflowHandlers.estimate());
+    router.get("/workflows/:id/runs").handler(wfAuth).handler(wfView).handler(workflowHandlers.listRuns());
+    router.get("/workflow-runs/:runId/items").handler(wfAuth).handler(wfView).handler(workflowHandlers.listRunItems());
+    router.delete("/workflows/:id").handler(wfAuth).handler(wfModify).handler(workflowHandlers.delete());
+    router.post("/workflows/:id/import").handler(wfImportAuth).handler(workflowHandlers.importBatch());
+
     // Behavioral rules
     BehavioralRuleService behavioralRuleService = new BehavioralRuleService(
         new BehavioralRuleRepository(dbPool), new UserRepository(dbPool));
@@ -295,7 +370,72 @@ public final class V1Router {
     Handler<RoutingContext> behavioralAuth  = SessionAuthHandler.authenticated(authService);
     Handler<RoutingContext> planBehavioral  = PlanGuard.feature(subscriptionRepository, sharedUsers, "behavioral", "growth");
     router.get("/behavioral-rules").handler(behavioralAuth).handler(rulesView).handler(planBehavioral).handler(behavioralRuleHandlers.list());
+    router.post("/behavioral-rules").handler(behavioralAuth).handler(rulesModify).handler(planBehavioral).handler(behavioralRuleHandlers.create());
     router.patch("/behavioral-rules/:id").handler(behavioralAuth).handler(rulesModify).handler(planBehavioral).handler(behavioralRuleHandlers.update());
+    router.delete("/behavioral-rules/:id").handler(behavioralAuth).handler(rulesModify).handler(planBehavioral).handler(behavioralRuleHandlers.delete());
+
+    // Nomos — institution-defined rule functions
+    NomosAiClient anthropicClient = new NomosAiClient(vertx, aiConfig);
+    InstitutionRuleHandlers nomosHandlers = new InstitutionRuleHandlers(
+        new InstitutionRuleService(
+            new InstitutionRuleRepository(dbPool),
+            new UserRepository(dbPool),
+            anthropicClient,
+            new WasmRuleExecutor(),
+            vertx,
+            redisConfig != null ? redisConfig.url() : null));
+    Handler<RoutingContext> nomosAuth = SessionAuthHandler.authenticated(authService);
+    // Stateless SSE streams (no rule ID needed — used by the create flow)
+    router.post("/nomos/comprehend").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.comprehendStateless());
+    router.post("/nomos/suggest").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.suggestFromDocument());
+    router.post("/nomos/generate").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.generateStateless());
+    router.get("/nomos/templates").handler(nomosAuth).handler(rulesView).handler(nomosHandlers.suggestTemplates());
+    // Read-only
+    router.get("/nomos/rules").handler(nomosAuth).handler(rulesView).handler(nomosHandlers.list());
+    router.get("/nomos/rules/:id").handler(nomosAuth).handler(rulesView).handler(nomosHandlers.get());
+    // CCO authoring
+    router.post("/nomos/rules").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.create());
+    router.post("/nomos/rules/batch").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.createBatch());
+    router.delete("/nomos/rules/:id").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.delete());
+    router.post("/nomos/rules/:id/reprocess").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.reprocessDraft());
+    router.get("/nomos/rules/:id/comprehend").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.comprehend());
+    router.get("/nomos/rules/:id/generate").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.generate());
+    router.patch("/nomos/rules/:id/actions").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.updateActions());
+    router.post("/nomos/rules/:id/submit-for-review").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.submitForDevReview());
+    // Developer review — service enforces role=developer|admin
+    router.post("/nomos/rules/:id/dev-accept").handler(nomosAuth).handler(nomosHandlers.devAccept());
+    router.post("/nomos/rules/:id/dev-submit").handler(nomosAuth).handler(nomosHandlers.devSubmitEdits());
+    // CCO approval of developer edits
+    router.post("/nomos/rules/:id/cco-approve-edits").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.ccoApproveEdits());
+    router.post("/nomos/rules/:id/cco-reject-edits").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.ccoRejectEdits());
+    // IT vetting — service enforces role=developer|admin
+    router.post("/nomos/rules/:id/test").handler(nomosAuth).handler(nomosHandlers.runTests());
+    router.post("/nomos/rules/:id/deploy").handler(nomosAuth).handler(nomosHandlers.deploy());
+    // Legacy + lifecycle
+    router.post("/nomos/rules/:id/approve").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.approve());
+    router.post("/nomos/rules/:id/retire").handler(nomosAuth).handler(rulesModify).handler(nomosHandlers.retire());
+
+    // Transaction Monitoring — pipelines + rules
+    com.openiv.backend.monitoring.MonitoringPipelineHandlers monitorHandlers =
+        new com.openiv.backend.monitoring.MonitoringPipelineHandlers(
+            new com.openiv.backend.monitoring.MonitoringPipelineService(
+                new com.openiv.backend.monitoring.MonitoringPipelineRepository(dbPool),
+                new UserRepository(dbPool),
+                new com.openiv.backend.customers.CustomerRepository(dbPool),
+                new TransactionRepository(dbPool),
+                vertx, dbPool),
+            anthropicClient);
+    Handler<RoutingContext> monitorAuth = SessionAuthHandler.authenticated(authService);
+    router.post("/monitoring/rules/comprehend")                          .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.comprehendRule());
+    router.get("/monitoring/pipelines")                                  .handler(monitorAuth).handler(rulesView)  .handler(monitorHandlers.list());
+    router.post("/monitoring/pipelines")                                 .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.create());
+    router.get("/monitoring/pipelines/:id")                              .handler(monitorAuth).handler(rulesView)  .handler(monitorHandlers.get());
+    router.patch("/monitoring/pipelines/:id")                            .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.update());
+    router.delete("/monitoring/pipelines/:id")                           .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.delete());
+    router.post("/monitoring/pipelines/:id/rules")                       .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.addRule());
+    router.patch("/monitoring/pipelines/:id/rules/:ruleId")              .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.updateRule());
+    router.delete("/monitoring/pipelines/:id/rules/:ruleId")             .handler(monitorAuth).handler(rulesModify).handler(monitorHandlers.deleteRule());
+    router.post("/monitoring/pipelines/:id/evaluate")                    .handler(new com.openiv.backend.beam.BeamApiKeyHandler(beamService, authService).resolve()).handler(monitorHandlers.evaluate());
 
     // Beam API key auth for ingest endpoints
     BeamHandlers beamHandlers = new BeamHandlers(beamService);
@@ -429,6 +569,7 @@ public final class V1Router {
     router.patch("/institution/profile").handler(institutionAuth).handler(institutionModify).handler(institutionHandlers.updateProfile());
     router.get("/institution/signing-credentials").handler(institutionAuth).handler(institutionView).handler(institutionHandlers.getSigningCredentials());
     router.patch("/institution/signing-credentials").handler(institutionAuth).handler(institutionModify).handler(institutionHandlers.updateSigningCredentials());
+    router.post("/institution/logo").handler(institutionAuth).handler(institutionModify).handler(institutionHandlers.uploadLogo());
 
     // Customers — static paths before /:id to avoid param capture
     CustomerHandlers customerHandlers = new CustomerHandlers(
@@ -442,6 +583,9 @@ public final class V1Router {
     router.patch("/customers/:id/profile").handler(customerAuth).handler(customersEdit).handler(customerHandlers.updateProfile());
     router.patch("/customers/:id/watchlist").handler(customerAuth).handler(customersEdit).handler(customerHandlers.watchlistCustomer());
     router.patch("/customers/:id/unwatchlist").handler(customerAuth).handler(customersEdit).handler(customerHandlers.unwatchlistCustomer());
+    router.post("/customers/rescreen-all").handler(customerAuth).handler(customersEdit).handler(workflowHandlers.rescreenAll());
+    router.post("/customers/:id/rescreen").handler(customerAuth).handler(customersEdit).handler(workflowHandlers.rescreenCustomer());
+    router.post("/customers/:id/resolve-step").handler(customerAuth).handler(customersEdit).handler(customerHandlers.resolveStep());
 
     // Per-customer transaction rules
     CustomerTransactionRuleHandlers ruleHandlers = new CustomerTransactionRuleHandlers(
@@ -508,6 +652,26 @@ public final class V1Router {
     Handler<RoutingContext> eurekaAuth = SessionAuthHandler.authenticated(authService);
     router.get("/settings/eureka").handler(eurekaAuth).handler(eurekaHandlers.getSetting());
     router.put("/settings/eureka").handler(eurekaAuth).handler(eurekaHandlers.updateSetting());
+
+    // Eureka AI Chat — session authenticated; uses tool-calling loop with platform data + web search
+    if (aiConfig.enabled()) {
+      com.openiv.backend.eureka.EurekaService eurekaService = new com.openiv.backend.eureka.EurekaService(
+          vertx, aiConfig,
+          new com.openiv.backend.customers.CustomerRepository(dbPool),
+          new com.openiv.backend.transactions.TransactionRepository(dbPool),
+          new com.openiv.backend.cases.CaseRepository(dbPool),
+          new com.openiv.backend.dashboard.DashboardRepository(dbPool));
+      com.openiv.backend.eureka.EurekaHandler eurekaChatHandlers =
+          new com.openiv.backend.eureka.EurekaHandler(
+              eurekaService, new UserRepository(dbPool),
+              new com.openiv.backend.auth.repository.InstitutionRepository(dbPool));
+      router.post("/chat/eureka")
+          .handler(eurekaAuth)
+          .handler(eurekaChatHandlers.chat());
+      router.post("/chat/eureka/stream")
+          .handler(eurekaAuth)
+          .handler(eurekaChatHandlers.streamChat());
+    }
 
     // Super-admin — double-gated: valid session + email must be the platform owner
     String frontendUrl = System.getenv().getOrDefault("FRONTEND_URL", "http://localhost:5173");

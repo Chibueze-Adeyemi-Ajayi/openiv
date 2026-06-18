@@ -103,8 +103,45 @@ public final class CustomerService {
             institutionId, externalId, e.getMessage()));
   }
 
-  public Future<Void> updateLastEvaluated(long institutionId, String externalId) {
-    return repository.updateLastEvaluated(institutionId, externalId);
+  public Future<Void> updateCddEvaluation(long institutionId, String externalId,
+      int cddRiskScore, io.vertx.core.json.JsonArray concerns,
+      io.vertx.core.json.JsonArray stepScores, String selfie, String idPhoto) {
+    return repository.updateCddEvaluation(institutionId, externalId, cddRiskScore, concerns, stepScores, selfie, idPhoto);
+  }
+
+  public Future<java.util.Optional<com.openiv.backend.workflows.WorkflowRepository.DueCustomer>> findAsDueCustomer(
+      long institutionId, String externalId) {
+    return repository.findAsDueCustomer(institutionId, externalId);
+  }
+
+  public Future<Void> upsertFromWorkflow(long institutionId, String externalId,
+      String name, String phone, String bvn, String nin, String dob) {
+    return repository.upsertFromWorkflow(institutionId, externalId, name, phone, bvn, nin, dob);
+  }
+
+  public Future<java.util.Map<String, String[]>> findCredentialConflicts(long institutionId, java.util.List<String> externalIds) {
+    return repository.findCredentialConflicts(institutionId, externalIds);
+  }
+
+  public Future<Void> updateLastEvaluated(long institutionId, String externalId, Long workflowDefinitionId) {
+    return repository.updateLastEvaluated(institutionId, externalId, workflowDefinitionId);
+  }
+
+  public Future<Customer> resolveStep(long institutionId, String externalId,
+      String stepType, boolean markPass, int score, String note) {
+    return repository.resolveStep(institutionId, externalId, stepType, markPass, score, note);
+  }
+
+  public Future<Void> flagEnrichmentNeeded(long institutionId, long workflowDefinitionId) {
+    return repository.flagEnrichmentNeeded(institutionId, workflowDefinitionId);
+  }
+
+  public Future<Void> rebindWorkflowCustomers(long institutionId, long fromWorkflowId, long toWorkflowId) {
+    return repository.rebindWorkflowCustomers(institutionId, fromWorkflowId, toWorkflowId);
+  }
+
+  public Future<Long> countNeedsEnrichment(long institutionId) {
+    return repository.countNeedsEnrichment(institutionId);
   }
 
   public Future<Void> refreshAllScores(long institutionId) {

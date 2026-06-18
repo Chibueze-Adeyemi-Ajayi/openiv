@@ -11,8 +11,6 @@ public record Customer(
     String email,
     String phone,
     int riskScore,
-    int riskProfileScore,
-    int transactionRiskScore,
     String bvn,
     String nin,
     String photo,
@@ -25,5 +23,10 @@ public record Customer(
     boolean watchlisted,
     OffsetDateTime watchlistedAt,
     String watchlistedReason,
-    OffsetDateTime lastEvaluatedAt
+    OffsetDateTime lastEvaluatedAt,
+    Integer cddRiskScore,    // null = never CDD-evaluated
+    String cddConcerns,      // JSON array: 404 gaps + suspicious-field warnings
+    String cddStepScores,    // JSON array: enriched per-step results with authenticity scores
+    String selfiePhoto,      // base64 selfie submitted during CDD import (for manual resolution)
+    String identityPhoto     // base64 NIN/BVN record photo from identity lookup
 ) {}

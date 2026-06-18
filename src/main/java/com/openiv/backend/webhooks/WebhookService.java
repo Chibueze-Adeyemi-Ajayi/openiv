@@ -1,3 +1,12 @@
+// =============================================================================
+// DEPRECATED — The webhooks integration surface is superseded by the Nomos rule
+// engine. Institutions no longer need to pipe raw events via webhook for rule
+// evaluation; Nomos executes generated rule functions directly against transaction
+// records at ingest time inside the platform.
+//
+// DO NOT delete — active webhook subscribers may still rely on delivery.
+// DO NOT build new features here. New rule logic belongs in com.openiv.backend.nomos.
+// =============================================================================
 package com.openiv.backend.webhooks;
 
 import com.openiv.backend.auth.model.Session;
