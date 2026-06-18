@@ -233,7 +233,7 @@ export default function Sidebar() {
           >
             <Box
               component="img"
-              src={resolveMediaUrl(profile.institutionLogoUrl!)!}
+              src={resolveMediaUrl(profile?.institutionLogoUrl!)!}
               alt={profile?.institutionName ?? ''}
               sx={{ height: 40, maxWidth: 120, objectFit: 'contain', display: 'block', borderRadius: '4px' }}
             />

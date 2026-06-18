@@ -121,7 +121,7 @@ function CustomerPhoto({ photo, color, name }: { photo: string | null; color: st
     <Box sx={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', bgcolor: color + '18', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {photo
         ? <Box component="img"
-            src={photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`}
+            src={photo.startsWith('data:') || photo.startsWith('http') ? photo : `data:image/jpeg;base64,${photo}`}
             sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color, fontFamily: 'Jost' }}>{initials(name)}</Typography>
       }

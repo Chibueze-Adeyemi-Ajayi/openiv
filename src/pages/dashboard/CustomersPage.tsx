@@ -320,7 +320,7 @@ function KycCustomerRow({ customer, onNavigate }: {
   const displayScore = customer.totalRiskScore ?? customer.overallRiskScore
   const sc = kycScoreColor(displayScore)
   const photo = customer.identityPhoto
-  const photoSrc = photo ? (photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`) : null
+  const photoSrc = photo ? (photo.startsWith('data:') || photo.startsWith('http') ? photo : `data:image/jpeg;base64,${photo}`) : null
   const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.name || ''
   const actionMap: Record<string, { label: string; bg: string; fg: string }> = {
     clear:       { label: 'Clear',       bg: '#dcfce7', fg: '#15803d' },

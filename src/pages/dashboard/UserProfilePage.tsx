@@ -320,7 +320,7 @@ export default function UserProfilePage() {
             <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3, p: 3, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
               <Box sx={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', bgcolor: colorPalette.primary, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {photo
-                  ? <Box component="img" src={photo.startsWith('data:') ? photo : `data:image/jpeg;base64,${photo}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <Box component="img" src={photo.startsWith('data:') || photo.startsWith('http') ? photo : `data:image/jpeg;base64,${photo}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', fontFamily: 'Jost' }}>{initials}</Typography>
                 }
               </Box>
@@ -735,7 +735,7 @@ export default function UserProfilePage() {
                         {(kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) ? (
                           <Box
                             component="img"
-                            src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') ? s : `data:image/jpeg;base64,${s}` })()}
+                            src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') || s.startsWith('http') ? s : `data:image/jpeg;base64,${s}` })()}
                             sx={{ width: '100%', display: 'block', objectFit: 'cover', minHeight: 120 }}
                           />
                         ) : (
@@ -752,7 +752,7 @@ export default function UserProfilePage() {
                         {idRecordPhoto ? (
                           <Box
                             component="img"
-                            src={idRecordPhoto.startsWith('data:') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
+                            src={idRecordPhoto.startsWith('data:') || idRecordPhoto.startsWith('http') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
                             sx={{ width: '100%', display: 'block', objectFit: 'cover', minHeight: 120 }}
                           />
                         ) : (
@@ -1168,7 +1168,7 @@ export default function UserProfilePage() {
               {(kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) ? (
                 <Box
                   component="img"
-                  src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') ? s : `data:image/jpeg;base64,${s}` })()}
+                  src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') || s.startsWith('http') ? s : `data:image/jpeg;base64,${s}` })()}
                   sx={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
                 />
               ) : (
@@ -1185,7 +1185,7 @@ export default function UserProfilePage() {
               {idRecordPhoto ? (
                 <Box
                   component="img"
-                  src={idRecordPhoto.startsWith('data:') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
+                  src={idRecordPhoto.startsWith('data:') || idRecordPhoto.startsWith('http') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
                   sx={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
                 />
               ) : (

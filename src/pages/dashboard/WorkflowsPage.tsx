@@ -862,7 +862,7 @@ export default function WorkflowsPage() {
         const ErrorRow = ({ code, msg, reason }: { code: string; msg: string; reason: string }) => (
           <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid var(--border-col)', '&:last-child': { borderBottom: 'none' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <Chip label={code} size="small" sx={{ height: 18, fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'Jost', bgcolor: '#fef2f2', color: '#991b1b', borderRadius: '3px', ...mono, '& .MuiChip-label': { px: 0.75 } }} />
+              <Chip label={code} size="small" sx={{ height: 18, fontSize: '0.5625rem', fontWeight: 700, bgcolor: '#fef2f2', color: '#991b1b', borderRadius: '3px', ...mono, '& .MuiChip-label': { px: 0.75 } }} />
               <Typography sx={{ fontSize: '0.6875rem', ...mono, color: '#dc2626' }}>{msg}</Typography>
             </Box>
             <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.55 }}>{reason}</Typography>
