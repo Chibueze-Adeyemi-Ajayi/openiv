@@ -635,13 +635,15 @@ public final class InstitutionRuleService {
                 if (opt.isEmpty()) return Future.failedFuture(new IllegalArgumentException("not found"));
                 InstitutionRule rule = opt.get();
                 return ai.stream(COMPREHEND_SYSTEM, rule.policyStatement(), onToken, () -> {})
-                    .compose(fullText -> {
+                    .<Void>compose(fullText -> {
                         try {
                             JsonObject comprehension = new JsonObject(fullText.trim());
                             return repo.saveComprehension(id, u.institutionId(), comprehension)
                                 .onSuccess(v -> onComplete.accept(comprehension));
                         } catch (Exception e) {
-                            return Future.failedFuture(new RuntimeException(clean.startsWith("<") ? "AI service returned an unexpected response — please retry." : "AI returned malformed output — please retry."));
+                            return Future.<Void>failedFuture(fullText.startsWith("<")
+                                ? "AI service returned an unexpected response — please retry."
+                                : "AI returned malformed output — please retry.");
                         }
                     });
             })).mapEmpty();
