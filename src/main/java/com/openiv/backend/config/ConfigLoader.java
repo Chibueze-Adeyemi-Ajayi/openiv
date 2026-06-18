@@ -127,14 +127,16 @@ public final class ConfigLoader {
     moveBoolKey(merged, "OPENIV_DB_MIGRATE", db, "migrate");
     moveStringKey(merged, "OPENIV_DB_SSL_MODE", db, "sslMode");
 
-    // Auto-enable SSL in production environment (e.g. Render) if not explicitly
-    // overridden by the system env
+    // Force SSL when running on Render (RENDER=true) or when application environment
+    // is "production", unless SSL is already set to a non-disable value.
+    // We key off the RENDER env var (set by the platform on every Render service)
+    // rather than the application "environment" field alone, because the secrets file
+    // at /etc/secrets/application.json on Render overrides environment to "development"
+    // for legacy reasons — that must not prevent SSL from being enabled.
     String env = merged.getString("environment", "production");
-    // In production, force SSL to at least "require" if the resolved value is still
-    // "disable".  Checking the final resolved value (not the raw env var) means an
-    // explicit OPENIV_DB_SSL_MODE=disable can no longer silently bypass this guard.
+    boolean onRender = "true".equalsIgnoreCase(System.getenv("RENDER"));
     String resolvedSslMode = db.getString("sslMode", "disable");
-    if ("production".equalsIgnoreCase(env) && "disable".equalsIgnoreCase(resolvedSslMode)) {
+    if ((onRender || "production".equalsIgnoreCase(env)) && "disable".equalsIgnoreCase(resolvedSslMode)) {
       db.put("sslMode", "require");
     }
 
