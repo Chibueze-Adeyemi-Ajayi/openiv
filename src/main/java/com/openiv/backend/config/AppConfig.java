@@ -86,8 +86,9 @@ public record AppConfig(
     String anthropicModel  = envOr("AI_MODEL",           aiJson.getString("model",           "gpt-5.5"));
     String serpApiKey      = envOr("SERP_API_KEY",       aiJson.getString("serpApiKey",      ""));
 
-    String webAuthnRpId     = envOr("WEBAUTHN_RP_ID",     "localhost");
-    String webAuthnRpOrigin = envOr("WEBAUTHN_ORIGIN",    "http://localhost:5173");
+    JsonObject webAuthnJson = json.getJsonObject("webauthn", new JsonObject());
+    String webAuthnRpId     = envOr("WEBAUTHN_RP_ID",  webAuthnJson.getString("rpId",     "localhost"));
+    String webAuthnRpOrigin = envOr("WEBAUTHN_ORIGIN", webAuthnJson.getString("rpOrigin", "http://localhost:5173"));
 
     JsonObject redisJson = json.getJsonObject("redis", new JsonObject());
     String redisUrl = envOr("REDIS_URL", redisJson.getString("url", ""));
