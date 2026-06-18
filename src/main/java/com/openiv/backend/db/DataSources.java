@@ -42,6 +42,16 @@ public final class DataSources {
         .setTcpNoDelay(true)
         .setSslMode(toSslMode(db.sslMode()));
 
+    // setSslMode() alone tells the *protocol* to request SSL but does not wire up the
+    // Netty TLS context. Without trustAll (or explicit certs), Vert.x pgclient cannot
+    // complete the TLS handshake and falls back to plain-text — which Render/RDS reject
+    // with "FATAL: SSL/TLS required". trustAll is acceptable here: sslMode=require
+    // already enforces encryption; we only skip server-cert *authenticity* verification,
+    // which is the standard posture for managed Postgres providers (Render, Supabase, etc.).
+    if (!"disable".equalsIgnoreCase(db.sslMode())) {
+      connect.setTrustAll(true);
+    }
+
     PoolOptions poolOptions = new PoolOptions()
         .setMaxSize(db.reactivePoolSize())
         .setShared(true)
