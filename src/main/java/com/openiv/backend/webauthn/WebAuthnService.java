@@ -29,6 +29,7 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
@@ -89,7 +90,8 @@ public class WebAuthnService {
             .put("name", email)
             .put("displayName", displayName))
         .put("pubKeyCredParams", new JsonArray()
-            .add(new JsonObject().put("type", "public-key").put("alg", -7))) // ES256
+            .add(new JsonObject().put("type", "public-key").put("alg", -7))   // ES256 (ECDSA P-256) — preferred
+            .add(new JsonObject().put("type", "public-key").put("alg", -257))) // RS256 (RSASSA-PKCS1-v1_5) — Windows Hello / Android fallback
         .put("authenticatorSelection", new JsonObject()
             .put("authenticatorAttachment", "platform")
             .put("userVerification", "required")
@@ -146,19 +148,33 @@ public class WebAuthnService {
         byte[] credId   = Arrays.copyOfRange(authData, 55, 55 + credIdLen);
         byte[] coseBytes = Arrays.copyOfRange(authData, 55 + credIdLen, authData.length);
 
-        // 7. Parse COSE P-256 key → Java PublicKey
+        // 7. Parse COSE key → Java PublicKey (ES256/EC or RS256/RSA)
         List<DataItem> coseItems = CborDecoder.decode(coseBytes);
         co.nstant.in.cbor.model.Map coseMap =
             (co.nstant.in.cbor.model.Map) coseItems.get(0);
-        byte[] x = ((ByteString) coseGet(coseMap, -2)).getBytes();
-        byte[] y = ((ByteString) coseGet(coseMap, -3)).getBytes();
 
-        ECPoint point = new ECPoint(new BigInteger(1, x), new BigInteger(1, y));
-        AlgorithmParameters params = AlgorithmParameters.getInstance("EC");
-        params.init(new ECGenParameterSpec("secp256r1"));
-        ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
-        PublicKey pub = KeyFactory.getInstance("EC")
-            .generatePublic(new ECPublicKeySpec(point, ecSpec));
+        // COSE field 1 = kty: 2=EC2, 3=RSA
+        DataItem ktyItem = coseGet(coseMap, 1);
+        long kty = ktyItem instanceof UnsignedInteger u ? u.getValue().longValue() : -1L;
+
+        PublicKey pub;
+        if (kty == 3) {
+          // RS256: n = field -1 (modulus), e = field -2 (exponent)
+          byte[] n = ((ByteString) coseGet(coseMap, -1)).getBytes();
+          byte[] e = ((ByteString) coseGet(coseMap, -2)).getBytes();
+          pub = KeyFactory.getInstance("RSA")
+              .generatePublic(new RSAPublicKeySpec(new BigInteger(1, n), new BigInteger(1, e)));
+        } else {
+          // ES256 (kty=2, P-256): x = field -2, y = field -3
+          byte[] x = ((ByteString) coseGet(coseMap, -2)).getBytes();
+          byte[] y = ((ByteString) coseGet(coseMap, -3)).getBytes();
+          ECPoint point = new ECPoint(new BigInteger(1, x), new BigInteger(1, y));
+          AlgorithmParameters params = AlgorithmParameters.getInstance("EC");
+          params.init(new ECGenParameterSpec("secp256r1"));
+          ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
+          pub = KeyFactory.getInstance("EC")
+              .generatePublic(new ECPublicKeySpec(point, ecSpec));
+        }
 
         return new RegistrationData(credId, pub.getEncoded(), signCount, formatAaguid(aaguid));
       } catch (AuthException ae) {
@@ -245,11 +261,18 @@ public class WebAuthnService {
 
           long newSignCount = u32(authData, 33);
 
-          // Verify ECDSA signature: SHA256withECDSA over (authData || sha256(clientDataJSON))
+          // Verify signature: ES256 (SHA256withECDSA) or RS256 (SHA256withRSA)
           byte[] cdHash = MessageDigest.getInstance("SHA-256").digest(cdBytes);
-          PublicKey pub = KeyFactory.getInstance("EC")
-              .generatePublic(new X509EncodedKeySpec(cred.publicKeyDer()));
-          Signature sig = Signature.getInstance("SHA256withECDSA");
+          X509EncodedKeySpec keySpec = new X509EncodedKeySpec(cred.publicKeyDer());
+          PublicKey pub;
+          try {
+            pub = KeyFactory.getInstance("EC").generatePublic(keySpec);
+          } catch (Exception ex) {
+            pub = KeyFactory.getInstance("RSA").generatePublic(keySpec);
+          }
+          Signature sig = pub instanceof java.security.interfaces.ECPublicKey
+              ? Signature.getInstance("SHA256withECDSA")
+              : Signature.getInstance("SHA256withRSA");
           sig.initVerify(pub);
           sig.update(authData);
           sig.update(cdHash);
