@@ -12,6 +12,7 @@ export interface UserProfile {
   passwordUpdatedAt: string | null
   createdAt: string
   institutionName: string | null
+  institutionLogoUrl: string | null
   // Subscription — populated once an institution has a plan assigned
   planSlug?: 'starter' | 'growth' | 'scale' | 'enterprise'
   planName?: string

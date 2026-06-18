@@ -90,6 +90,23 @@ const permissionGroups: { area: keyof RolePermissions; label: string; actions: {
       { key: 'modify', label: 'Modify integrations', desc: 'Add, edit, and remove integrations' },
     ],
   },
+  {
+    area: 'cdd',
+    label: 'CDD Workflow',
+    actions: [
+      { key: 'view', label: 'View workflows', desc: 'See CDD workflow definitions and run history' },
+      { key: 'manage', label: 'Manage workflows', desc: 'Create, edit, and activate CDD workflows' },
+      { key: 'evaluate', label: 'Run evaluations', desc: 'Trigger individual or bulk CDD re-evaluations' },
+    ],
+  },
+  {
+    area: 'pipeline',
+    label: 'Transaction Pipeline',
+    actions: [
+      { key: 'view', label: 'View pipeline', desc: 'See transaction scoring pipeline and results' },
+      { key: 'modify', label: 'Modify pipeline', desc: 'Configure pipeline rules and thresholds' },
+    ],
+  },
 ]
 
 const emptyPermissions: RolePermissions = {
@@ -99,6 +116,8 @@ const emptyPermissions: RolePermissions = {
   reports: { view: false, file: false },
   team: { view: false, manage: false },
   integrations: { view: false, modify: false },
+  cdd: { view: false, manage: false, evaluate: false },
+  pipeline: { view: false, modify: false },
 }
 
 export default function RoleEditor({ open, mode, initial, onClose, onSubmit }: RoleEditorProps) {

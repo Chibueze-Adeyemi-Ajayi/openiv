@@ -160,7 +160,7 @@ function UsageRow({ icon, label, used, max, color, unit = '' }: UsageRowProps) {
 
 // ── page ──────────────────────────────────────────────────────────────────────
 
-export default function BillingPage() {
+export default function BillingPage({ onViewPlans }: { onViewPlans?: () => void } = {}) {
   const plan     = usePlan()
   const { profile } = useProfile()
   const navigate = useNavigate()
@@ -259,7 +259,7 @@ export default function BillingPage() {
             {/* Actions */}
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
-                onClick={() => navigate('/dashboard/subscription')}
+                onClick={() => onViewPlans ? onViewPlans() : navigate('/dashboard/subscription')}
                 endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
                 sx={{
                   bgcolor: accent, color: '#fff', borderRadius: 0, textTransform: 'none',
@@ -488,7 +488,7 @@ export default function BillingPage() {
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             <Button
-              onClick={() => navigate('/dashboard/subscription')}
+              onClick={() => onViewPlans ? onViewPlans() : navigate('/dashboard/subscription')}
               endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
               sx={{
                 bgcolor: '#1e40af', color: '#fff', borderRadius: 0, textTransform: 'none',

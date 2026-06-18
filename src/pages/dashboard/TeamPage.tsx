@@ -1,9 +1,9 @@
-import { Alert, Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField } from '@mui/material'
+import { Alert, Box, Typography, Stack, Button, Chip, IconButton, InputBase, TextField, CircularProgress, Tooltip } from '@mui/material'
 import { colorPalette } from '@/theme'
 import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 import RoleEditor, { type RoleDraft } from '@/components/dashboard/RoleEditor'
 import { useState, useMemo, useEffect } from 'react'
-import { teamApi, type TeamMember, type TeamPending, type TeamRole } from '@/api/team'
+import { teamApi, type TeamMember, type TeamPending, type TeamRole, type BiometricCredential } from '@/api/team'
 import { authApi } from '@/api/auth'
 import { ApiError, resolveMediaUrl } from '@/api/client'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
@@ -15,6 +15,8 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
+import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 // import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 
@@ -57,6 +59,39 @@ function MemberDetailDialog({
   onClose: () => void
   onRemove: () => void
 }) {
+  const canManageCreds = currentUserRole === 'cco' || currentUserRole === 'admin'
+  const [credentials, setCredentials] = useState<BiometricCredential[]>([])
+  const [credsLoading, setCredsLoading] = useState(false)
+  const [credsError, setCredsError]   = useState<string | null>(null)
+  const [revokeId, setRevokeId]       = useState<number | null>(null)
+  const [revoking, setRevoking]       = useState(false)
+
+  useEffect(() => {
+    if (!member || !canManageCreds) return
+    setCredsLoading(true)
+    setCredentials([])
+    setCredsError(null)
+    setRevokeId(null)
+    teamApi.listCredentials(member.id)
+      .then(r => setCredentials(r.credentials))
+      .catch(() => setCredsError('Could not load biometric credentials.'))
+      .finally(() => setCredsLoading(false))
+  }, [member?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRevoke = async (credId: number) => {
+    if (!member) return
+    setRevoking(true)
+    try {
+      await teamApi.revokeCredential(member.id, credId)
+      setCredentials(prev => prev.filter(c => c.id !== credId))
+      setRevokeId(null)
+    } catch {
+      setCredsError('Failed to revoke credential. Try again.')
+    } finally {
+      setRevoking(false)
+    }
+  }
+
   if (!member) return null
 
   const sc = STATUS_CONFIG[member.status] ?? STATUS_CONFIG.active
@@ -221,6 +256,106 @@ function MemberDetailDialog({
           </Box>
         </Box>
 
+        {/* ── Biometric Credentials (CCO / admin only) ── */}
+        {canManageCreds && (
+          <Box sx={{ px: 3, pt: 2, pb: 2.5, borderTop: '1px solid var(--border-col)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.75 }}>
+              <FingerprintIcon sx={{ fontSize: '0.875rem', color: '#7c3aed' }} />
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8',
+                textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                Biometric Credentials
+              </Typography>
+              {credsLoading && <CircularProgress size={10} sx={{ ml: 0.5, color: '#7c3aed' }} />}
+            </Box>
+
+            {credsError && (
+              <Alert severity="error" sx={{ borderRadius: 0, py: 0.5, fontSize: '0.8rem', mb: 1 }}>
+                {credsError}
+              </Alert>
+            )}
+
+            {!credsLoading && credentials.length === 0 && !credsError && (
+              <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                No biometric credentials registered.
+              </Typography>
+            )}
+
+            {credentials.map(cred => {
+              const registered = cred.createdAt
+                ? new Date(cred.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '—'
+              const lastUsed = cred.lastUsedAt
+                ? new Date(cred.lastUsedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                : 'Never'
+              const confirming = revokeId === cred.id
+
+              return (
+                <Box key={cred.id} sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  py: 1.25, px: 1.5, mb: 1,
+                  bgcolor: confirming ? '#fff5f5' : 'var(--section-bg)',
+                  border: `1px solid ${confirming ? '#fecaca' : 'var(--border-col)'}`,
+                  transition: 'all 0.15s',
+                }}>
+                  <Box sx={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    bgcolor: confirming ? '#fee2e2' : '#f0f0ff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FingerprintIcon sx={{ fontSize: '1rem', color: confirming ? '#dc2626' : '#7c3aed' }} />
+                  </Box>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--heading-color)', mb: 0.25 }}>
+                      {cred.aaguid ? `Device · ${cred.aaguid.slice(0, 8)}…` : 'Biometric key'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                      Registered {registered} · Last used {lastUsed}
+                    </Typography>
+                  </Box>
+
+                  {confirming ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600 }}>
+                        Revoke?
+                      </Typography>
+                      <Button
+                        onClick={() => handleRevoke(cred.id)}
+                        disabled={revoking}
+                        size="small"
+                        sx={{ minWidth: 0, px: 1.25, py: 0.375, bgcolor: '#dc2626', color: '#fff',
+                          borderRadius: 0, fontSize: '0.75rem', fontWeight: 700,
+                          fontFamily: 'Jost', textTransform: 'none', boxShadow: 'none',
+                          '&:hover': { bgcolor: '#b91c1c', boxShadow: 'none' },
+                          '&:disabled': { bgcolor: '#fca5a5', color: '#fff' } }}>
+                        {revoking ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : 'Yes, revoke'}
+                      </Button>
+                      <Button
+                        onClick={() => setRevokeId(null)}
+                        size="small"
+                        disabled={revoking}
+                        sx={{ minWidth: 0, px: 1.25, py: 0.375, color: '#64748b',
+                          borderRadius: 0, fontSize: '0.75rem', fontFamily: 'Jost',
+                          textTransform: 'none', border: '1px solid var(--border-col)',
+                          '&:hover': { bgcolor: 'var(--section-bg)' } }}>
+                        Cancel
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Tooltip title="Revoke this biometric key — the member will need to re-enroll" arrow>
+                      <IconButton
+                        onClick={() => setRevokeId(cred.id)}
+                        size="small"
+                        sx={{ borderRadius: 0, color: '#94a3b8', p: 0.75,
+                          '&:hover': { bgcolor: '#fee2e2', color: '#dc2626' } }}>
+                        <BlockRoundedIcon sx={{ fontSize: '1rem' }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              )
+            })}
+          </Box>
+        )}
+
         {/* ── Footer ── */}
         <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -252,6 +387,8 @@ const permissionMatrix = [
   { area: 'Reports', actions: [{ key: 'reports.view', label: 'View' }, { key: 'reports.file', label: 'File NFIU' }] },
   { area: 'Team', actions: [{ key: 'team.view', label: 'View' }, { key: 'team.manage', label: 'Manage' }] },
   { area: 'Integrations', actions: [{ key: 'integrations.view', label: 'View' }, { key: 'integrations.modify', label: 'Modify' }] },
+  { area: 'CDD Workflow', actions: [{ key: 'cdd.view', label: 'View' }, { key: 'cdd.manage', label: 'Manage' }, { key: 'cdd.evaluate', label: 'Run Evaluations' }] },
+  { area: 'Transaction Pipeline', actions: [{ key: 'pipeline.view', label: 'View' }, { key: 'pipeline.modify', label: 'Modify' }] },
 ]
 
 function getPermission(role: TeamRole, key: string): boolean {
@@ -1284,6 +1421,9 @@ function humanizeError(err: unknown, fallback: string): string {
     if (err.status === 403) return 'You need admin or compliance-officer privileges for this.'
     if (err.code === 'invalid' && err.detail === 'already_invited') {
       return 'That email already has a pending invitation in your institution.'
+    }
+    if (err.code === 'invalid' && err.detail === 'email_already_registered') {
+      return 'That email is already registered on another institution. Each user can only belong to one institution.'
     }
     if (err.code === 'invalid' && err.detail === 'cannot_remove_self') {
       return "You can't remove yourself from the team."

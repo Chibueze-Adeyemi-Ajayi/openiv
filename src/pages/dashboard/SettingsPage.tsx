@@ -1,4 +1,4 @@
-import { Box, Typography, Stack, TextField, Button, Chip, InputBase, Grid, Slider, RadioGroup, Radio, Alert, Tooltip } from '@mui/material'
+import { Box, Typography, Stack, TextField, Button, Chip, InputBase, Grid, Slider, RadioGroup, Radio, Alert, Tooltip, Divider } from '@mui/material'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import { useRbac } from '@/contexts/RbacContext'
 import { colorPalette } from '@/theme'
@@ -13,19 +13,26 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined'
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined'
 import { useEureka } from '@/contexts/EurekaContext'
+import { useProfile } from '@/contexts/ProfileContext'
 import { useSandbox } from '@/contexts/SandboxContext'
 import { amlApi, type AmlSettings } from '@/api/aml'
 import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
-import { institutionApi, type SigningCredentials } from '@/api/institution'
+import { institutionApi, INDUSTRY_OPTIONS, type SigningCredentials } from '@/api/institution'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import { kycApi, type KycEvaluationConfig } from '@/api/kyc'
 import { useThemeMode } from '@/components/dashboard/ThemeContext'
 import { profileApi } from '@/api/profile'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined'
+import BillingPageContent from './BillingPage'
+import SubscriptionPageContent from './SubscriptionPage'
 
 const labelSx = {
   fontSize: '0.75rem',
@@ -1557,6 +1564,7 @@ function KycReEvaluationSection() {
 }
 
 function OrganizationSection() {
+  const { refreshProfile } = useProfile()
   const { can } = useRbac()
   const canEdit = can('institution.modify')
 
@@ -1567,7 +1575,11 @@ function OrganizationSection() {
   const [cbnCode, setCbnCode] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [address, setAddress] = useState('')
-  const [savedState, setSavedState] = useState({ cbnCode: '', contactPhone: '', address: '' })
+  const [industry, setIndustry] = useState('')
+  const [savedState, setSavedState] = useState({ cbnCode: '', contactPhone: '', address: '', industry: '' })
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     institutionApi.getProfile()
@@ -1576,23 +1588,38 @@ function OrganizationSection() {
         setCbnCode(p.cbnCode ?? '')
         setContactPhone(p.contactPhone ?? '')
         setAddress(p.address ?? '')
-        setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '' })
+        setIndustry(p.industry ?? '')
+        setLogoUrl(p.logoUrl ?? null)
+        setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '', industry: p.industry ?? '' })
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  const isDirty = cbnCode !== savedState.cbnCode || contactPhone !== savedState.contactPhone || address !== savedState.address
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoUploading(true)
+    try {
+      const { logoUrl: url } = await institutionApi.uploadLogo(file)
+      setLogoUrl(url)
+      refreshProfile()
+    } catch { alert('Logo upload failed. Try again.') }
+    finally { setLogoUploading(false); if (logoInputRef.current) logoInputRef.current.value = '' }
+  }
+
+  const isDirty = cbnCode !== savedState.cbnCode || contactPhone !== savedState.contactPhone || address !== savedState.address || industry !== savedState.industry
 
   const doSave = async () => {
     setSaving(true)
     try {
-      const p = await institutionApi.updateProfile({ cbnCode: cbnCode || undefined, contactPhone: contactPhone || undefined, address: address || undefined })
+      const p = await institutionApi.updateProfile({ cbnCode: cbnCode || undefined, contactPhone: contactPhone || undefined, address: address || undefined, industry: industry || undefined })
       setName(p.name ?? name)
       setCbnCode(p.cbnCode ?? '')
       setContactPhone(p.contactPhone ?? '')
       setAddress(p.address ?? '')
-      setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '' })
+      setIndustry(p.industry ?? '')
+      setSavedState({ cbnCode: p.cbnCode ?? '', contactPhone: p.contactPhone ?? '', address: p.address ?? '', industry: p.industry ?? '' })
     } catch {
       alert('Failed to save. Please try again.')
     } finally {
@@ -1618,6 +1645,36 @@ function OrganizationSection() {
           {!canEdit && <Chip icon={<LockOutlinedIcon sx={{ fontSize: '0.75rem !important' }} />} label="View only" size="small" sx={{ bgcolor: 'var(--card-bg)', color: '#94a3b8', fontWeight: 600, fontSize: '0.625rem', borderRadius: '3px', height: 20 }} />}
         </Box>
         <Stack sx={{ p: 3 }} gap={2.5}>
+          {/* Logo upload */}
+          <Box>
+            <Typography sx={labelSx}>Institution logo</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.75 }}>
+              {logoUrl ? (
+                <Box component="img" src={logoUrl} alt={name}
+                  sx={{ height: 48, maxWidth: 140, objectFit: 'contain', border: '1px solid var(--border-col)', p: 0.5 }} />
+              ) : (
+                <Box sx={{ width: 80, height: 48, bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography sx={{ fontSize: '0.625rem', color: '#94a3b8', fontWeight: 600 }}>No logo</Typography>
+                </Box>
+              )}
+              {canEdit && (
+                <>
+                  <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                  <Button size="small" variant="outlined" disabled={logoUploading}
+                    onClick={() => logoInputRef.current?.click()}
+                    sx={{ borderRadius: 0, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Jost',
+                      borderColor: 'var(--border-col)', color: 'var(--heading-color)', textTransform: 'none',
+                      '&:hover': { borderColor: colorPalette.primary, color: colorPalette.primary } }}>
+                    {logoUploading ? 'Uploading…' : logoUrl ? 'Change logo' : 'Upload logo'}
+                  </Button>
+                </>
+              )}
+            </Box>
+            <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.75 }}>
+              PNG, JPG or SVG — shown on the biometric sign-in screen. Max 2 MB.
+            </Typography>
+          </Box>
           <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Institution name. current value: ${name}.`}>
             <Typography sx={labelSx}>Institution name</Typography>
             <TextField fullWidth value={name} disabled sx={inputSx} />
@@ -1633,6 +1690,26 @@ function OrganizationSection() {
           <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Address. current value: ${address}.`}>
             <Typography sx={labelSx}>Address</Typography>
             <TextField fullWidth value={address} disabled={!canEdit} onChange={e => setAddress(e.target.value)} sx={inputSx} />
+          </Box>
+          <Box data-ai-analyzable="true" data-ai-description={`Organization Setting: Industry sector. current value: ${industry}.`}>
+            <Typography sx={labelSx}>Industry</Typography>
+            <TextField
+              select
+              fullWidth
+              value={industry}
+              onChange={e => canEdit && setIndustry(e.target.value)}
+              SelectProps={{ native: true }}
+              inputProps={{ disabled: !canEdit }}
+              sx={{ ...inputSx, ...(canEdit ? {} : { pointerEvents: 'none', opacity: 0.7 }) }}
+            >
+              <option value="">— Select industry —</option>
+              {INDUSTRY_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </TextField>
+            <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.75 }}>
+              Helps calibrate AML thresholds and compliance rule recommendations for your sector.
+            </Typography>
           </Box>
           {canEdit && isDirty && (
             <Button
@@ -1666,6 +1743,7 @@ function OrganizationSection() {
           ...(cbnCode !== savedState.cbnCode ? [{ field: 'Regulator code', from: savedState.cbnCode || '—', to: cbnCode || '—' }] : []),
           ...(contactPhone !== savedState.contactPhone ? [{ field: 'Contact phone', from: savedState.contactPhone || '—', to: contactPhone || '—' }] : []),
           ...(address !== savedState.address ? [{ field: 'Address', from: savedState.address || '—', to: address || '—' }] : []),
+          ...(industry !== savedState.industry ? [{ field: 'Industry', from: INDUSTRY_OPTIONS.find(o => o.value === savedState.industry)?.label || savedState.industry || '—', to: INDUSTRY_OPTIONS.find(o => o.value === industry)?.label || industry || '—' }] : []),
         ]}
       />
     </>
@@ -1738,104 +1816,148 @@ function AppearanceSection() {
   )
 }
 
+type SettingsTab = 'organisation' | 'compliance' | 'security' | 'preferences' | 'billing' | 'subscription'
+
 export default function SettingsPage() {
   const { can } = useRbac()
+  const [tab, setTab] = useState<SettingsTab>('organisation')
   const [geoFenceOpen, setGeoFenceOpen] = useState(false)
+
+  type NavItem = { id: SettingsTab; icon: React.ReactNode; label: string; hidden?: boolean; divider?: boolean }
+  const nav: NavItem[] = [
+    { id: 'organisation', icon: <BusinessOutlinedIcon sx={{ fontSize: '1.05rem' }} />, label: 'Organisation' },
+    { id: 'compliance',   icon: <GavelOutlinedIcon   sx={{ fontSize: '1.05rem' }} />, label: 'Compliance' },
+    { id: 'security',     icon: <ShieldOutlinedIcon  sx={{ fontSize: '1.05rem' }} />, label: 'Security', hidden: !can('settings.modify') },
+    { id: 'preferences',  icon: <TuneOutlinedIcon    sx={{ fontSize: '1.05rem' }} />, label: 'Preferences' },
+    { id: 'billing',      icon: <AccountBalanceWalletOutlinedIcon sx={{ fontSize: '1.05rem' }} />, label: 'Billing & Usage', divider: true },
+    { id: 'subscription', icon: <WorkspacePremiumOutlinedIcon    sx={{ fontSize: '1.05rem' }} />, label: 'Subscription' },
+  ]
+
   return (
     <>
-      <Box sx={{ p: 4 }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: colorPalette.primary, letterSpacing: '0.14em', textTransform: 'uppercase', mb: 0.75 }}>
-            Manage
-          </Typography>
-          <Typography sx={{ fontSize: '1.625rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em', mb: 0.5 }}>
+      <Box sx={{ display: 'flex', height: '100%', minHeight: '100vh' }}>
+
+        {/* ── Left nav ── */}
+        <Box sx={{
+          width: 210, flexShrink: 0,
+          borderRight: '1px solid var(--border-col)',
+          bgcolor: 'var(--section-bg)',
+          pt: 4, pb: 2, px: 2,
+          position: 'sticky', top: 0, height: '100vh',
+          overflowY: 'auto',
+        }}>
+          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.12em', textTransform: 'uppercase', px: 1.5, mb: 1.5 }}>
             Settings
           </Typography>
-          <Typography sx={{ fontSize: '0.9375rem', color: '#64748b' }}>
-            Organization profile, compliance configuration, and security settings
-          </Typography>
-        </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-          {/* Organization */}
-          <OrganizationSection />
-
-          {/* AML Case Settings */}
-          <AmlSettingsSection />
-
-          {/* Beam Time Window */}
-          <BeamWindowSection />
-
-          {/* Appearance / Theme — hidden until dark theme is re-enabled */}
-          {/* <AppearanceSection /> */}
-
-          {/* Eureka Companion */}
-          <EurekaCompanionSection />
-
-          {/* Timezone Configuration */}
-          <TimezoneSection />
-
-          {/* Developer Sandbox */}
-          <DeveloperSandboxSection />
-
-          {/* Filing Credentials */}
-          <FilingCredentialsSection />
-
-          {/* KYC Re-evaluation Schedule */}
-          <KycReEvaluationSection />
-
-          {/* Security — admin only */}
-          {can('settings.modify') && (
-            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', gridColumn: { xs: '1', lg: '1 / -1' } }}>
-              <Box sx={{ px: 3, py: 2.25, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                <ShieldOutlinedIcon sx={{ fontSize: '1.1rem', color: colorPalette.primary }} />
-                <Box>
-                  <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
-                    Security
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
-                    Access control and physical security boundaries
-                  </Typography>
-                </Box>
-              </Box>
+          {nav.filter(n => !n.hidden).map(item => (
+            <Box key={item.id} sx={{ mb: 0.5 }}>
+              {item.divider && <Divider sx={{ my: 1.75, borderColor: 'var(--border-col)' }} />}
               <Box
-                onClick={() => setGeoFenceOpen(true)}
-                data-ai-analyzable="true"
-                data-ai-description="Geographical Access Fence: Advanced spatial security. Restrict dashboard access to specific coordinates or polygons using GPS calibration."
+                onClick={() => setTab(item.id)}
                 sx={{
-                  px: 3, py: 2.25,
-                  display: 'flex', alignItems: 'center', gap: 2,
+                  display: 'flex', alignItems: 'center', gap: 1.375,
+                  px: 1.5, py: 1.125,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'var(--section-bg)' },
-                  transition: 'background 0.15s',
+                  borderLeft: tab === item.id ? `2px solid ${colorPalette.primary}` : '2px solid transparent',
+                  bgcolor: tab === item.id ? `${colorPalette.primary}0d` : 'transparent',
+                  color: tab === item.id ? colorPalette.primary : '#64748b',
+                  transition: 'all 0.12s',
+                  '&:hover': { bgcolor: 'rgba(0,0,0,0.04)', color: 'var(--heading-color)' },
                 }}
               >
-                <Box sx={{
-                  width: 40, height: 40, borderRadius: '8px', flexShrink: 0,
-                  bgcolor: `${colorPalette.primary}12`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <PublicOutlinedIcon sx={{ fontSize: '1.25rem', color: colorPalette.primary }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
-                      Geographical Access Fence
+                {item.icon}
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: tab === item.id ? 700 : 500, fontFamily: 'Jost', lineHeight: 1 }}>
+                  {item.label}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+
+        {/* ── Content panel ── */}
+        <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+
+          {tab === 'organisation' && (
+            <Box sx={{ p: 4, maxWidth: 760 }}>
+              <SectionHeader title="Organisation" sub="Company profile and branding" />
+              <OrganizationSection />
+            </Box>
+          )}
+
+          {tab === 'compliance' && (
+            <Box sx={{ p: 4, maxWidth: 760 }}>
+              <SectionHeader title="Compliance" sub="AML engine, case rules, and NFIU filing credentials" />
+              <AmlSettingsSection />
+              <Box sx={{ mt: 3 }} />
+              <FilingCredentialsSection />
+            </Box>
+          )}
+
+          {tab === 'security' && (
+            <Box sx={{ p: 4, maxWidth: 760 }}>
+              <SectionHeader title="Security" sub="Access control and physical security boundaries" />
+              <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)' }}>
+                <Box
+                  onClick={() => setGeoFenceOpen(true)}
+                  data-ai-analyzable="true"
+                  data-ai-description="Geographical Access Fence: Restrict dashboard access to specific coordinates."
+                  sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', transition: 'background 0.15s', '&:hover': { bgcolor: 'var(--section-bg)' } }}
+                >
+                  <Box sx={{ width: 40, height: 40, borderRadius: '8px', flexShrink: 0, bgcolor: `${colorPalette.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PublicOutlinedIcon sx={{ fontSize: '1.25rem', color: colorPalette.primary }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>
+                        Geographical Access Fence
+                      </Typography>
+                      <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', borderRadius: '3px', height: 18 }} />
+                    </Stack>
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mt: 0.375, lineHeight: 1.55 }}>
+                      Draw a polygon on OpenStreetMap and restrict specific users to that zone. Real-time admin approval for out-of-zone login attempts.
                     </Typography>
-                    <Chip label="Super Admin" size="small" sx={{ bgcolor: '#f0fdf4', color: '#10b981', fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.06em', borderRadius: '3px', height: 18 }} />
-                  </Stack>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25, lineHeight: 1.5 }}>
-                    Draw a polygon on OpenStreetMap and restrict specific users to that zone. Calibrate for GPS drift. Real-time admin approval for out-of-zone login attempts.
-                  </Typography>
+                  </Box>
+                  <ChevronRightIcon sx={{ color: '#94a3b8', flexShrink: 0 }} />
                 </Box>
-                <ChevronRightIcon sx={{ color: '#94a3b8', flexShrink: 0 }} />
               </Box>
             </Box>
           )}
+
+          {tab === 'preferences' && (
+            <Box sx={{ p: 4, maxWidth: 760 }}>
+              <SectionHeader title="Preferences" sub="AI companion, timezone, and developer tools" />
+              <EurekaCompanionSection />
+              <Box sx={{ mt: 3 }} />
+              <TimezoneSection />
+              <Box sx={{ mt: 3 }} />
+              <DeveloperSandboxSection />
+            </Box>
+          )}
+
+          {tab === 'billing' && (
+            <BillingPageContent onViewPlans={() => setTab('subscription')} />
+          )}
+
+          {tab === 'subscription' && (
+            <SubscriptionPageContent />
+          )}
+
         </Box>
       </Box>
 
       <GeoFenceDialog open={geoFenceOpen} onClose={() => setGeoFenceOpen(false)} />
     </>
+  )
+}
+
+function SectionHeader({ title, sub }: { title: string; sub: string }) {
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.01em' }}>
+        {title}
+      </Typography>
+      <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mt: 0.375 }}>{sub}</Typography>
+    </Box>
   )
 }

@@ -131,21 +131,7 @@ function Hero() {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       textAlign: 'center', bgcolor: '#ffffff',
     }}>
-      <Box sx={{
-        display: 'inline-flex', alignItems: 'center', gap: 0.875,
-        bgcolor: '#e8f0ff', px: 1.75, py: 0.625, mb: 4,
-      }}>
-        <Box sx={{
-          width: 7, height: 7, bgcolor: '#dc2626', borderRadius: '50%',
-          animation: `${blink} 1.8s infinite`,
-        }} />
-        <Typography sx={{
-          fontSize: '0.72rem', fontWeight: 700, color: '#00288e',
-          letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Jost',
-        }}>
-          CBN Circular March 2026 — 18 months to comply
-        </Typography>
-      </Box>
+     ÷
 
       <Typography component="h1" sx={{
         fontSize: 'clamp(2.8rem, 5.5vw, 4.4rem)',

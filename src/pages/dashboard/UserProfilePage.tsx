@@ -1,6 +1,6 @@
 import {
   Box, Typography, Stack, Button, Chip, CircularProgress,
-  Tabs, Tab, IconButton, Drawer, Tooltip, Popover,
+  Tabs, Tab, IconButton, Drawer, Tooltip, Popover, InputBase, Dialog,
 } from '@mui/material'
 import { colorPalette } from '@/theme'
 import InteractionDetailPanel from '@/components/dashboard/InteractionDetailPanel'
@@ -14,7 +14,7 @@ import { transactionApi, type Transaction } from '@/api/transactions'
 import { beamApi, type BeamRecord } from '@/api/beam'
 import { customerApi, type Customer } from '@/api/customers'
 import { caseApi, type Case } from '@/api/cases'
-import { kycApi, type KycCustomer, streamKycBeam, type KycStepEvent } from '@/api/kyc'
+import { kycApi, type KycCustomer } from '@/api/kyc'
 import { analyticsApi } from '@/api/analytics'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
@@ -34,8 +34,8 @@ import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlin
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
-import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import TOTPConfirmation from '@/components/dashboard/TOTPConfirmation'
 
 const PAGE_SIZE = 10
 
@@ -91,59 +91,6 @@ function maskId(val: string | null | undefined, keep = 4): string {
   return val.slice(0, keep) + '****'
 }
 
-type PipelineRowState = 'done' | 'running' | 'pending'
-
-function StepRow({ label, status, score, detail, state = 'done' }: {
-  label: string; status?: string | null; score?: number | null; detail?: string | null; state?: PipelineRowState
-}) {
-  if (state === 'running') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)' }}>
-        <Box sx={{ flexShrink: 0, display: 'flex' }}><CircularProgress size={14} thickness={4} sx={{ color: colorPalette.primary }} /></Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)' }}>{label}</Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>Verifying…</Typography>
-        </Box>
-      </Box>
-    )
-  }
-  if (state === 'pending') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)', opacity: 0.35 }}>
-        <Box sx={{ color: '#94a3b8', flexShrink: 0 }}><HelpOutlineRoundedIcon sx={{ fontSize: '1rem' }} /></Box>
-        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b' }}>{label}</Typography>
-      </Box>
-    )
-  }
-  const s = status ?? 'unverified'
-  const cfg: Record<string, { color: string; bg: string; icon: ReactElement }> = {
-    pass:       { color: '#16a34a', bg: '#f0fdf4', icon: <CheckCircleOutlineRoundedIcon sx={{ fontSize: '1rem' }} /> },
-    fail:       { color: '#dc2626', bg: '#fef2f2', icon: <CancelOutlinedIcon sx={{ fontSize: '1rem' }} /> },
-    error:      { color: '#f59e0b', bg: '#fffbeb', icon: <WarningAmberRoundedIcon sx={{ fontSize: '1rem' }} /> },
-    unverified: { color: '#94a3b8', bg: '#f8fafc', icon: <HelpOutlineRoundedIcon sx={{ fontSize: '1rem' }} /> },
-  }
-  const c = cfg[s] ?? cfg.unverified
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25, borderBottom: '1px solid var(--border-col)' }}>
-      <Box sx={{ color: c.color, mt: 0.125, flexShrink: 0 }}>{c.icon}</Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 0.25 }}>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--heading-color)' }}>{label}</Typography>
-          {score != null && <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: c.color, fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0 }}>{score}</Typography>}
-        </Box>
-        {detail && <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>{detail}</Typography>}
-      </Box>
-      <Chip label={s.toUpperCase()} size="small" sx={{ bgcolor: c.bg, color: c.color, fontWeight: 700, fontSize: '0.5625rem', height: 18, borderRadius: 0, flexShrink: 0 }} />
-    </Box>
-  )
-}
-
-const PIPELINE_STEPS: { key: 'bvn_nin' | 'phone_match' | 'liveness' | 'pep_check'; label: string }[] = [
-  { key: 'bvn_nin',     label: 'Identity (BVN/NIN)' },
-  { key: 'phone_match', label: 'Phone Match' },
-  { key: 'liveness',    label: 'Liveness Check' },
-  { key: 'pep_check',   label: 'PEP Screening' },
-]
 
 export default function UserProfilePage() {
   const { id = '' } = useParams<{ id: string }>()
@@ -178,10 +125,53 @@ export default function UserProfilePage() {
   }, [])
 
   // ── Streaming state ───────────────────────────────────────────────────────
-  const [streaming, setStreaming]     = useState(false)
-  const [streamSteps, setStreamSteps] = useState<KycStepEvent[]>([])
-  const [streamError, setStreamError] = useState<string | null>(null)
-  const [riskAnchor, setRiskAnchor]   = useState<HTMLElement | null>(null)
+  const [riskAnchor, setRiskAnchor]       = useState<HTMLElement | null>(null)
+  const [rescreening, setRescreening]     = useState(false)
+  const [rescreenError, setRescreenError] = useState<string | null>(null)
+  const [resolveOpen, setResolveOpen]           = useState(false)
+  const [resolveTarget, setResolveTarget]       = useState<{ type: string; detail: string } | null>(null)
+  const [resolveNote, setResolveNote]           = useState('')
+  const [resolving, setResolving]               = useState(false)
+  const [resolveError, setResolveError]         = useState<string | null>(null)
+  const [resolveTotpOpen, setResolveTotpOpen]   = useState(false)
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false)
+
+
+  const handleRescreen = useCallback(async () => {
+    setRescreening(true)
+    setRescreenError(null)
+    try {
+      await customerApi.rescreen(id)
+      const res = await customerApi.getCustomer(id).catch(() => null)
+      setCustomer(res)
+    } catch (e: any) {
+      setRescreenError(e?.message ?? 'Re-evaluation failed')
+    } finally {
+      setRescreening(false)
+    }
+  }, [id])
+
+  const handleResolveStep = useCallback(async (resolution: 'pass' | 'fail') => {
+    if (!resolveTarget || !id) return
+    setResolving(true)
+    setResolveError(null)
+    try {
+      const updated = await customerApi.resolveStep(id, {
+        type: resolveTarget.type,
+        resolution,
+        score: resolution === 'pass' ? 80 : 10,
+        note: resolveNote.trim() || 'Manually reviewed and resolved by compliance officer',
+      })
+      setCustomer(updated)
+      setResolveOpen(false)
+      setResolveTarget(null)
+      setResolveNote('')
+    } catch (e: any) {
+      setResolveError(e?.message ?? 'Failed to resolve step')
+    } finally {
+      setResolving(false)
+    }
+  }, [resolveTarget, resolveNote, id])
 
   const loadKyc = useCallback(async () => {
     const [custRes, kycRes] = await Promise.all([
@@ -216,6 +206,21 @@ export default function UserProfilePage() {
 
   useEffect(() => { load() }, [load])
 
+  // Auto-refresh while CDD workflow is still processing (no step scores yet)
+  useEffect(() => {
+    if (!id) return
+    const hasCddData = (customer?.cddStepScores?.length ?? 0) > 0 || customer?.cddRiskScore != null
+    if (hasCddData) return
+    const timer = setInterval(async () => {
+      const res = await customerApi.getCustomer(id).catch(() => null)
+      if (res && ((res.cddStepScores?.length ?? 0) > 0 || res.cddRiskScore != null)) {
+        setCustomer(res)
+        clearInterval(timer)
+      }
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [id, customer?.cddStepScores?.length, customer?.cddRiskScore])
+
   useEffect(() => {
     if (!id) return
     setCasesLoading(true)
@@ -225,42 +230,6 @@ export default function UserProfilePage() {
       .finally(() => setCasesLoading(false))
   }, [id])
 
-  // ── Run verification stream ───────────────────────────────────────────────
-  const handleRunVerification = useCallback(async () => {
-    setStreaming(true)
-    setStreamSteps([])
-    setStreamError(null)
-
-    const payload: Record<string, unknown> = {
-      customer_id: id,
-      occurred_at: new Date().toISOString(),
-    }
-    const name = kyc?.firstName || kyc?.lastName
-      ? [kyc?.firstName, kyc?.lastName].filter(Boolean).join(' ')
-      : customer?.name ?? ''
-    if (name) payload.name = name
-    if (customer?.bvn)   payload.bvn   = customer.bvn
-    if (customer?.nin)   payload.nin   = customer.nin
-    if (customer?.phone) payload.phone = customer.phone
-    const photo = customer?.photo || kyc?.identityPhoto
-    if (photo) payload.photo = photo
-
-    await streamKycBeam(
-      payload,
-      step => setStreamSteps(prev => [...prev, step]),
-      _result => {
-        setStreaming(false)
-        loadKyc().then(() => {
-          setStreamSteps([])
-          setStreamError(null)
-        })
-      },
-      err => {
-        setStreamError(err)
-        setStreaming(false)
-      },
-    )
-  }, [id, customer, kyc, loadKyc])
 
   // ── Derived display values ────────────────────────────────────────────────
   const displayName = useMemo(() => {
@@ -274,7 +243,7 @@ export default function UserProfilePage() {
   }, [kyc, customer, transactions, beams, id])
 
   const lastIp = useMemo(() => beams.length > 0 ? (beams[0].ip || '—') : '—', [beams])
-  const overallRisk = customer?.overallRiskScore ?? kyc?.overallRiskScore ?? null
+  const overallRisk = customer?.cddRiskScore ?? null
 
   const timeline = useMemo(() => {
     const items: any[] = []
@@ -320,44 +289,25 @@ export default function UserProfilePage() {
     return <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}><CircularProgress sx={{ color: colorPalette.primary }} /></Box>
   }
 
-  const photo       = kyc?.identityPhoto || customer?.photo || null
+  const idRecordPhoto = kyc?.identityPhoto || customer?.identityPhoto || null
+  const photo         = customer?.selfiePhoto || customer?.photo || null
   const initials    = displayName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
   const txPages     = Math.max(1, Math.ceil(tTotal / PAGE_SIZE))
   const beamPages   = Math.max(1, Math.ceil(bTotal / PAGE_SIZE))
-  const KL_INT: Record<string, number> = { t1: 1, t2: 2, t3: 3 }
-  const KL_LABEL: Record<string, string> = { t1: 'T1 — Basic', t2: 'T2 — Intermediate', t3: 'T3 — Full KYC' }
-  const tierLabel   = kyc?.knowledgeLevel ? `${KL_LABEL[kyc.knowledgeLevel] ?? kyc.knowledgeLevel} ${kyc.overallStatus?.toUpperCase() ?? ''}` : null
-  const tierColor   = kyc?.overallStatus === 'verified' ? '#10b981' : kyc?.overallStatus === 'flagged' ? '#dc2626' : '#f59e0b'
-  const tierBg      = kyc?.overallStatus === 'verified' ? '#f0fdf4'  : kyc?.overallStatus === 'flagged' ? '#fef2f2'  : '#fffbeb'
-  const riskColor   = overallRisk == null ? '#64748b' : overallRisk >= 70 ? '#dc2626' : overallRisk >= 40 ? '#f59e0b' : '#10b981'
-
-  const isLiveMode = streaming || streamSteps.length > 0 || streamError != null
+  const riskColor = overallRisk == null ? '#64748b' : overallRisk >= 70 ? '#dc2626' : overallRisk >= 40 ? '#f59e0b' : '#10b981'
 
   return (
     <>
       <Box sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: kyc && kyc.overallRiskScore >= 70 ? 1.5 : 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <Box onClick={() => navigate(-1)} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', cursor: 'pointer', '&:hover': { color: colorPalette.primary } }}>
             <ArrowBackRoundedIcon sx={{ fontSize: '1rem' }} />
             Back
           </Box>
         </Box>
 
-        {kyc && kyc.overallRiskScore >= 70 && (
-          <Box sx={{ bgcolor: '#fef2f2', border: '1px solid #fecaca', px: 2.5, py: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <WarningAmberRoundedIcon sx={{ color: '#dc2626', fontSize: '1.25rem', flexShrink: 0 }} />
-            <Box>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#991b1b', fontFamily: 'Jost' }}>
-                Immediate Action Recommended
-              </Typography>
-              <Typography sx={{ fontSize: '0.8125rem', color: '#7f1d1d', lineHeight: 1.5 }}>
-                KYC risk score is critically high ({kyc.overallRiskScore}/100). Review the pipeline results and consider escalating to a case.
-              </Typography>
-            </Box>
-          </Box>
-        )}
 
-        {!loading && !customer && transactions.length === 0 && beams.length === 0 && !kyc ? (
+        {!loading && !customer && transactions.length === 0 && beams.length === 0 ? (
           <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', py: 12, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: 'var(--section-bg)', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}><SearchOffRoundedIcon sx={{ fontSize: '2.5rem' }} /></Box>
             <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', mb: 1 }}>Customer Not Found</Typography>
@@ -377,14 +327,6 @@ export default function UserProfilePage() {
               <Box sx={{ flex: 1, minWidth: 280 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1, flexWrap: 'wrap' }}>
                   <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', letterSpacing: '-0.015em' }}>{displayName}</Typography>
-                  {kyc?.overallStatus && (
-                    <Chip
-                      icon={<VerifiedOutlinedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                      label={kyc.overallStatus.toUpperCase()}
-                      size="small"
-                      sx={{ bgcolor: tierBg, color: tierColor, fontWeight: 700, fontSize: '0.625rem', letterSpacing: '0.1em', borderRadius: 0, height: 22, '& .MuiChip-icon': { color: tierColor, ml: 0.875 } }}
-                    />
-                  )}
                 </Box>
                 <Stack direction="row" gap={3} flexWrap="wrap" sx={{ mb: 2 }}>
                   {[
@@ -400,29 +342,6 @@ export default function UserProfilePage() {
                       <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>{d.value}</Typography>
                     </Box>
                   ))}
-                  {/* KYC Tier — always visible, shows tier bars + status */}
-                  <Box>
-                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', mb: 0.5 }}>KYC Tier</Typography>
-                    {kyc?.knowledgeLevel ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          {[1, 2, 3].map(t => (
-                            <Box key={t} sx={{ width: 8, height: 16, bgcolor: t <= (KL_INT[kyc.knowledgeLevel!] ?? 1) ? colorPalette.primary : '#e5e7eb', borderRadius: '2px' }} />
-                          ))}
-                        </Box>
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: colorPalette.primary, fontFamily: 'Jost' }}>
-                          {KL_LABEL[kyc.knowledgeLevel] ?? kyc.knowledgeLevel}
-                        </Typography>
-                        <Box sx={{ px: 0.875, py: 0.25, bgcolor: tierBg, borderRadius: '3px' }}>
-                          <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            {kyc.overallStatus}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    ) : (
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8', fontFamily: 'SF Mono, Monaco, monospace' }}>—</Typography>
-                    )}
-                  </Box>
                 </Stack>
                 <Stack direction="row" gap={1}>
                   <Button
@@ -511,70 +430,459 @@ export default function UserProfilePage() {
               )}
             </Box>
 
-            {/* ── KYC Identity ── */}
-            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3, p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <FilterCenterFocusOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.25rem' }} />
-                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>KYC Identity</Typography>
-                {kyc && <Chip label={`Score: ${kyc.overallRiskScore}`} size="small" sx={{ ml: 1, bgcolor: 'var(--section-bg)', color: riskColor, fontWeight: 700, fontSize: '0.6875rem', borderRadius: 0, height: 22 }} />}
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  onClick={handleRunVerification}
-                  disabled={streaming}
-                  startIcon={streaming ? <SyncRoundedIcon sx={{ fontSize: '0.875rem !important', animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} /> : <PlayArrowRoundedIcon sx={{ fontSize: '0.875rem !important' }} />}
-                  size="small"
-                  sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.8125rem', px: 2, bgcolor: colorPalette.primary, color: '#fff', '&:hover': { bgcolor: '#1e3a8a' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
-                >
-                  {streaming ? 'Running…' : 'Run Verification'}
-                </Button>
-              </Box>
-              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mb: 2 }}>
-                {kyc ? `Last verified ${new Date(kyc.runAt).toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'No verification run yet'}
-              </Typography>
+            {/* ── Screening & Verification (merged KYC + CDD card) ── */}
+            <Box sx={{ bgcolor: 'var(--card-bg)', border: '1px solid var(--border-col)', mb: 3 }}>
 
-              {/* Pipeline Results — unified: live during streaming, stored otherwise */}
-              {(kyc || isLiveMode) ? (
-                <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)', p: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: streamError ? 0.75 : 1.5 }}>
-                    {streaming
-                      ? <CircularProgress size={14} thickness={4} sx={{ color: colorPalette.primary }} />
-                      : streamError
-                      ? <CancelOutlinedIcon sx={{ fontSize: '1rem', color: '#dc2626' }} />
-                      : <AssignmentIndOutlinedIcon sx={{ color: '#10b981', fontSize: '1rem' }} />
-                    }
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline Results</Typography>
-                    {streamError && (
-                      <Button size="small" onClick={() => { setStreamSteps([]); setStreamError(null) }} sx={{ ml: 'auto', fontSize: '0.6875rem', color: '#94a3b8', textTransform: 'none', minWidth: 0, p: 0.5 }}>
-                        Clear
-                      </Button>
+              {/* Card header */}
+              <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <FilterCenterFocusOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '1.25rem' }} />
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost' }}>Screening & Verification</Typography>
+                {customer?.cddRiskScore != null && (
+                  <Chip
+                    label={`CDD ${customer.cddRiskScore}`}
+                    size="small"
+                    sx={{
+                      borderRadius: 0, height: 22, fontWeight: 700, fontSize: '0.6875rem',
+                      bgcolor: customer.cddRiskScore >= 70 ? '#fef2f2' : customer.cddRiskScore >= 40 ? '#fffbeb' : '#f0fdf4',
+                      color:   customer.cddRiskScore >= 70 ? '#dc2626' : customer.cddRiskScore >= 40 ? '#f59e0b' : '#10b981',
+                    }}
+                  />
+                )}
+                {/* Verification check chips — merged CDD steps + kyc fallback. Failed/unprocessed → TOTP → resolve */}
+                {(customer || kyc) && (() => {
+                  const CHIP_DEFS: { type: string; label: string; kycStatus: string | null; kycScore: number | null; kycDetail: string }[] = [
+                    { type: 'identity_verify',      label: 'ID',      kycStatus: kyc?.bvnNinStatus ?? null,   kycScore: kyc?.bvnNinScore ?? null,   kycDetail: kyc?.bvnNinDetail ?? 'Not processed' },
+                    { type: 'liveness_match',       label: 'FaceRec', kycStatus: kyc?.livenessStatus ?? null, kycScore: kyc?.livenessScore ?? null, kycDetail: kyc?.livenessDetail ?? 'Not processed' },
+                    { type: 'phone_basic',          label: 'Phone',   kycStatus: kyc?.phoneStatus ?? null,    kycScore: kyc?.phoneScore ?? null,    kycDetail: kyc?.phoneDetail ?? 'Not processed' },
+                    { type: 'phone_fraud',          label: 'Fraud',   kycStatus: null,                         kycScore: null,                        kycDetail: 'Not processed' },
+                    { type: 'pep_sanctions_screen', label: 'PEP',     kycStatus: kyc?.pepStatus ?? null,      kycScore: kyc?.pepScore ?? null,      kycDetail: kyc?.pepDetail ?? 'Not processed' },
+                    { type: 'flagged_transactions', label: 'Txn',     kycStatus: null,                         kycScore: null,                        kycDetail: 'Not processed' },
+                    { type: 'case_history',         label: 'Cases',   kycStatus: null,                         kycScore: null,                        kycDetail: 'Not processed' },
+                  ]
+                  const cddMap: Record<string, { status: string; score: number | null; detail: string }> = {}
+                  for (const s of customer?.cddStepScores ?? []) cddMap[s.type] = { status: s.status, score: s.score, detail: s.detail }
+
+                  const chips = CHIP_DEFS.map(def => {
+                    const cdd = cddMap[def.type]
+                    if (cdd) return { ...def, status: cdd.status, score: cdd.score, detail: cdd.detail }
+                    const ks = def.kycStatus
+                    const status = ks === 'pass' ? 'pass' : ks === 'match' ? 'match' : ks === 'not_found' ? 'not_found' : 'skipped'
+                    return { ...def, status, score: def.kycScore, detail: def.kycDetail }
+                  })
+
+                  return (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, ml: 0.5 }}>
+                      {chips.map((chip, i) => {
+                        const canResolve = chip.status !== 'pass'
+                        const isFail = chip.status === 'match'
+                        const isWarn = chip.status === 'not_found'
+                        const isPass = chip.status === 'pass'
+                        const bg = isFail ? '#fee2e2' : isWarn ? '#fef9c3' : isPass ? '#dcfce7' : '#f1f5f9'
+                        const fg = isFail ? '#dc2626' : isWarn ? '#d97706' : isPass ? '#16a34a' : '#94a3b8'
+                        const sym = isFail ? '✗' : isWarn ? '!' : isPass ? '✓' : '·'
+                        const tipText = `${chip.label}: ${chip.status}${chip.score != null ? ` (${chip.score}/100)` : ''}${chip.detail ? ' — ' + chip.detail : ''}${canResolve ? ' · click to resolve' : ''}`
+                        return (
+                          <Tooltip key={i} title={tipText} placement="bottom" arrow>
+                            <Box
+                              onClick={canResolve ? () => { setResolveTarget({ type: chip.type, detail: chip.detail }); setResolveNote(''); setResolveError(null); setResolveOpen(true) } : undefined}
+                              sx={{ display: 'flex', alignItems: 'center', gap: 0.375, px: 0.75, py: 0.375, bgcolor: bg, cursor: canResolve ? 'pointer' : 'default', border: `1px solid ${canResolve ? fg + '50' : 'transparent'}`, '&:hover': canResolve ? { bgcolor: fg + '18' } : {} }}
+                            >
+                              <Typography sx={{ fontSize: '0.5rem', fontWeight: 900, color: fg, lineHeight: 1 }}>{sym}</Typography>
+                              <Typography sx={{ fontSize: '0.5rem', fontWeight: 700, color: fg, lineHeight: 1, letterSpacing: '0.02em' }}>{chip.label}</Typography>
+                            </Box>
+                          </Tooltip>
+                        )
+                      })}
+                    </Box>
+                  )
+                })()}
+              </Box>
+
+
+              {/* ── Verification Checks ── */}
+              {(() => {
+                const CHECKS: {
+                  type: string
+                  label: string
+                  description: string
+                  kycStatus: string | null
+                  kycScore: number | null
+                  kycDetail: string | null
+                }[] = [
+                  { type: 'identity_verify',      label: 'Identity Verification',     description: 'BVN / NIN matching against government records',         kycStatus: kyc?.bvnNinStatus ?? null,   kycScore: kyc?.bvnNinScore ?? null,   kycDetail: kyc?.bvnNinDetail ?? null },
+                  { type: 'liveness_match',       label: 'Facial Recognition',        description: 'Biometric selfie-to-ID photo comparison',              kycStatus: kyc?.livenessStatus ?? null, kycScore: kyc?.livenessScore ?? null, kycDetail: kyc?.livenessDetail ?? null },
+                  { type: 'phone_basic',          label: 'Phone Number Lookup',       description: 'Carrier-level verification and identity linkage',        kycStatus: kyc?.phoneStatus ?? null,    kycScore: kyc?.phoneScore ?? null,    kycDetail: kyc?.phoneDetail ?? null },
+                  { type: 'phone_fraud',          label: 'Phone Fraud Intelligence',  description: 'SIM-swap, fraud signals and telco risk indicators',      kycStatus: null,                         kycScore: null,                        kycDetail: null },
+                  { type: 'pep_sanctions_screen', label: 'PEP & Sanctions Screen',    description: 'Global PEP databases and sanctions watchlists (CBN/OFAC)', kycStatus: kyc?.pepStatus ?? null,    kycScore: kyc?.pepScore ?? null,      kycDetail: kyc?.pepDetail ?? null },
+                  { type: 'flagged_transactions', label: 'Flagged Transactions',      description: 'AML rule hits and suspicious transaction patterns',      kycStatus: null,                         kycScore: null,                        kycDetail: null },
+                  { type: 'case_history',         label: 'Case History',              description: 'Open and historical investigation cases on this customer', kycStatus: null,                       kycScore: null,                        kycDetail: null },
+                ]
+
+                const cddMap: Record<string, { status: string; score: number | null; detail: string; manualOverride?: boolean; preserved?: boolean; isConcern?: boolean; dobMismatch?: boolean }> = {}
+                for (const s of customer?.cddStepScores ?? []) {
+                  if (s.type !== 'case') cddMap[s.type] = { status: s.status, score: s.score, detail: s.detail, manualOverride: (s as any).manualOverride, preserved: (s as any).preserved, isConcern: s.isConcern, dobMismatch: s.dobMismatch }
+                }
+
+                const rows = CHECKS.map(c => {
+                  const cdd = cddMap[c.type]
+                  if (cdd) return { ...c, status: cdd.status, score: cdd.score, detail: cdd.detail, manualOverride: cdd.manualOverride, preserved: cdd.preserved, isConcern: cdd.isConcern, dobMismatch: cdd.dobMismatch, fromCdd: true }
+                  const ks = c.kycStatus
+                  const status = ks === 'pass' ? 'pass' : ks === 'match' ? 'match' : ks === 'not_found' ? 'not_found' : 'skipped'
+                  return { ...c, status, score: c.kycScore, detail: c.kycDetail, manualOverride: false, preserved: false, isConcern: false, dobMismatch: false, fromCdd: false }
+                })
+
+                const STATUS_META: Record<string, { color: string; bg: string; border: string; label: string; sym: string }> = {
+                  pass:      { color: '#15803d', bg: '#f0fdf4', border: '#16a34a', label: 'PASSED',       sym: '✓' },
+                  match:     { color: '#b91c1c', bg: '#fff5f5', border: '#dc2626', label: 'FAILED',       sym: '✗' },
+                  not_found: { color: '#92400e', bg: '#fffbeb', border: '#f59e0b', label: 'NOT FOUND',    sym: '?' },
+                  skipped:   { color: '#64748b', bg: 'var(--section-bg)', border: '#e2e8f0', label: 'NOT VERIFIED', sym: '–' },
+                  error:     { color: '#9a3412', bg: '#fff7ed', border: '#ea580c', label: 'ERROR',        sym: '!' },
+                }
+
+                const hasEvaluation = rows.some(r => r.status !== 'skipped')
+                const evalDate = customer?.lastEvaluatedAt
+                  ? new Date(customer.lastEvaluatedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : null
+
+                return (
+                  <Box>
+                    {/* Sub-header */}
+                    <Box sx={{ px: 3, pt: 2, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid var(--border-col)' }}>
+                      <AssignmentIndOutlinedIcon sx={{ color: colorPalette.primary, fontSize: '0.875rem' }} />
+                      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>
+                        Verification Checks
+                        {evalDate && <Box component="span" sx={{ fontWeight: 400, ml: 1, textTransform: 'none', letterSpacing: 0, color: '#94a3b8' }}>· {evalDate}</Box>}
+                      </Typography>
+                      {!hasEvaluation && (
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', fontStyle: 'italic' }}>Awaiting CDD workflow run</Typography>
+                      )}
+                    </Box>
+
+                    {rescreenError && (
+                      <Box sx={{ mx: 3, mt: 1.5, p: 1.25, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#dc2626' }}>{rescreenError}</Typography>
+                      </Box>
+                    )}
+
+                    {/* Check rows */}
+                    {rows.map((row, i) => {
+                      const sm = STATUS_META[row.status] ?? STATUS_META.skipped
+                      const canResolve = row.status !== 'pass'
+                      const isLast = i === rows.length - 1
+                      const detailText = row.detail ?? row.description
+
+                      return (
+                        <Box
+                          key={row.type}
+                          sx={{
+                            display: 'flex', alignItems: 'stretch', gap: 0,
+                            borderBottom: isLast ? 'none' : '1px solid var(--border-col)',
+                            borderLeft: `3px solid ${sm.border}`,
+                            bgcolor: sm.bg,
+                            transition: 'background 0.15s',
+                          }}
+                        >
+                          {/* Status icon column */}
+                          <Box sx={{ width: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, py: 1.75 }}>
+                            <Box sx={{
+                              width: 26, height: 26, borderRadius: '50%',
+                              bgcolor: row.status === 'skipped' ? '#f1f5f9' : sm.border + '22',
+                              border: `1.5px solid ${row.status === 'skipped' ? '#e2e8f0' : sm.border + '66'}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <Typography sx={{ fontSize: '0.625rem', fontWeight: 900, color: sm.color, lineHeight: 1 }}>{sm.sym}</Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Content */}
+                          <Box sx={{ flex: 1, minWidth: 0, py: 1.75, pr: 2 }}>
+                            {/* Name row */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.25, flexWrap: 'wrap' }}>
+                              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: row.status === 'skipped' ? '#94a3b8' : 'var(--heading-color)', lineHeight: 1.3 }}>
+                                {row.label}
+                              </Typography>
+                              {row.isConcern && <WarningAmberRoundedIcon sx={{ fontSize: '0.75rem', color: '#f59e0b' }} />}
+                              {row.dobMismatch && (
+                                <Tooltip title="DOB sent does not match phone record" placement="top" arrow>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, px: 0.5, py: 0.125, bgcolor: '#fff7ed', border: '1px solid #fed7aa' }}>
+                                    <WarningAmberRoundedIcon sx={{ fontSize: '0.625rem', color: '#ea580c' }} />
+                                    <Typography sx={{ fontSize: '0.4375rem', fontWeight: 700, color: '#ea580c', letterSpacing: '0.04em' }}>DOB MISMATCH</Typography>
+                                  </Box>
+                                </Tooltip>
+                              )}
+                              {row.manualOverride && (
+                                <Chip label="MANUAL OVERRIDE" size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontSize: '0.4375rem', height: 15, borderRadius: 0, fontWeight: 700, letterSpacing: '0.04em' }} />
+                              )}
+                              {row.preserved && (
+                                <Chip label="PRIOR RUN" size="small" sx={{ bgcolor: '#f5f3ff', color: '#7c3aed', fontSize: '0.4375rem', height: 15, borderRadius: 0, fontWeight: 700 }} />
+                              )}
+                            </Box>
+
+                            {/* Detail text */}
+                            <Typography sx={{ fontSize: '0.75rem', color: row.status === 'skipped' ? '#94a3b8' : '#475569', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                              {row.status === 'skipped' ? row.description : detailText}
+                            </Typography>
+
+                            {/* Score bar */}
+                            {row.score != null && row.status !== 'skipped' && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.875 }}>
+                                <Box sx={{ flex: 1, height: 3, bgcolor: '#e2e8f0', overflow: 'hidden' }}>
+                                  <Box sx={{ width: `${row.score}%`, height: '100%', bgcolor: row.score >= 70 ? '#16a34a' : row.score >= 40 ? '#f59e0b' : '#dc2626', transition: 'width 0.5s ease' }} />
+                                </Box>
+                                <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: row.score >= 70 ? '#16a34a' : row.score >= 40 ? '#f59e0b' : '#dc2626', fontFamily: 'SF Mono, Monaco, monospace', flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
+                                  {row.score}/100
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+
+                          {/* Right column: badge + resolve */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.75, pr: 2.5, py: 1.75, flexShrink: 0, minWidth: 120 }}>
+                            <Box sx={{ px: 1, py: 0.25, bgcolor: row.status === 'skipped' ? '#f1f5f9' : sm.border + '18', border: `1px solid ${row.status === 'skipped' ? '#e2e8f0' : sm.border + '44'}` }}>
+                              <Typography sx={{ fontSize: '0.4375rem', fontWeight: 800, color: sm.color, letterSpacing: '0.07em', lineHeight: 1.6 }}>{sm.label}</Typography>
+                            </Box>
+                            {canResolve && (
+                              <Box
+                                component="button"
+                                onClick={() => { setResolveTarget({ type: row.type, detail: detailText }); setResolveNote(''); setResolveError(null); setResolveOpen(true) }}
+                                sx={{
+                                  display: 'flex', alignItems: 'center', gap: 0.5,
+                                  px: 1, py: 0.375, border: `1px solid ${colorPalette.primary}55`,
+                                  bgcolor: 'transparent', color: colorPalette.primary,
+                                  fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'Jost',
+                                  cursor: 'pointer', letterSpacing: '0.04em',
+                                  '&:hover': { bgcolor: `${colorPalette.primary}10`, borderColor: colorPalette.primary },
+                                }}
+                              >
+                                <PlayArrowRoundedIcon sx={{ fontSize: '0.625rem' }} />
+                                Resolve
+                              </Box>
+                            )}
+                          </Box>
+                        </Box>
+                      )
+                    })}
+
+                    {/* Concerns strip */}
+                    {customer?.cddConcerns && customer.cddConcerns.length > 0 && (
+                      <Box sx={{ borderTop: '1px solid var(--border-col)', px: 3, pt: 1.5, pb: 2 }}>
+                        <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>Compliance Concerns</Typography>
+                        {customer.cddConcerns.map((concern, i) => (
+                          <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 1.25, mb: 0.75, bgcolor: concern.type === 'not_found' ? '#fffbeb' : '#fef2f2', borderLeft: `3px solid ${concern.type === 'not_found' ? '#f59e0b' : '#dc2626'}` }}>
+                            <WarningAmberRoundedIcon sx={{ fontSize: '0.875rem', color: concern.type === 'not_found' ? '#f59e0b' : '#dc2626', mt: 0.125, flexShrink: 0 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--heading-color)', textTransform: 'capitalize' }}>
+                                {concern.type.replace(/_/g, ' ')} — {concern.field}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.6875rem', color: '#475569', lineHeight: 1.5, mt: 0.25 }}>{concern.message}</Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
                     )}
                   </Box>
-                  {streamError && (
-                    <Typography sx={{ fontSize: '0.75rem', color: '#dc2626', mb: 1.5, lineHeight: 1.5 }}>{streamError}</Typography>
-                  )}
-                  {PIPELINE_STEPS.map(({ key, label }, i) => {
-                    if (isLiveMode) {
-                      const done = streamSteps.find(s => s.step === key)
-                      if (done) return <StepRow key={key} label={label} status={done.status} score={done.stepRiskScore} detail={done.detail} />
-                      if (streaming && i === streamSteps.length) return <StepRow key={key} label={label} state="running" />
-                      return <StepRow key={key} label={label} state="pending" />
-                    }
-                    const stored = kyc ? ({
-                      bvn_nin:     { status: kyc.bvnNinStatus,   score: kyc.bvnNinScore,   detail: kyc.bvnNinDetail },
-                      phone_match: { status: kyc.phoneStatus,    score: kyc.phoneScore,    detail: kyc.phoneDetail },
-                      liveness:    { status: kyc.livenessStatus, score: kyc.livenessScore, detail: kyc.livenessDetail },
-                      pep_check:   { status: kyc.pepStatus,      score: kyc.pepScore,      detail: kyc.pepDetail },
-                    } as Record<string, { status: string | null; score: number | null; detail: string | null }>)[key] : null
-                    return <StepRow key={key} label={label} status={stored?.status ?? null} score={stored?.score ?? null} detail={stored?.detail ?? null} />
-                  })}
-                </Box>
-              ) : (
-                <Box sx={{ border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)', p: 3, textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
-                  No KYC verification has been run for this customer yet.
-                </Box>
-              )}
+                )
+              })()}
             </Box>
 
+            {/* ── Resolve TOTP gate ── */}
+            {resolveTotpOpen && resolveTarget && (
+              <TOTPConfirmation
+                open
+                title="Authenticate to Approve"
+                description={
+                  `Biometric authentication is required to manually approve this verification check. ` +
+                  `This action will be recorded in the compliance audit trail for ${displayName}.`
+                }
+                operation="update"
+                resourceType="Verification Check"
+                resourceName={resolveTarget.type.replace(/_/g, ' ')}
+                onConfirm={async () => {
+                  setResolveTotpOpen(false)
+                  await handleResolveStep('pass')
+                }}
+                onClose={() => setResolveTotpOpen(false)}
+              />
+            )}
+
+            {/* ── Step resolve drawer ── */}
+            <Drawer anchor="right" open={resolveOpen} onClose={() => !resolving && setResolveOpen(false)}
+              PaperProps={{ sx: { width: 400, p: 0, bgcolor: 'var(--card-bg)', borderLeft: '1px solid var(--border-col)' } }}>
+              <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid var(--border-col)', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <WarningAmberRoundedIcon sx={{ color: '#d97706', fontSize: '1.25rem' }} />
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'Jost', flex: 1 }}>
+                  {{
+                    liveness_match: 'Resolve Facial Recognition Check',
+                    phone_basic:    'Resolve Phone Lookup',
+                    phone_fraud:    'Resolve Phone Fraud Check',
+                  }[resolveTarget?.type ?? ''] ?? 'Resolve Check'}
+                </Typography>
+                <IconButton size="small" onClick={() => setResolveOpen(false)} disabled={resolving} sx={{ color: '#64748b' }}>
+                  <CancelOutlinedIcon sx={{ fontSize: '1.25rem' }} />
+                </IconButton>
+              </Box>
+
+              <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
+                {/* Identity photo comparison for liveness */}
+                {resolveTarget?.type === 'liveness_match' && (
+                  <Box sx={{ mb: 2.5 }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                      Photo Comparison — Submitted vs NIN/BVN Record
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
+                      {/* Submitted selfie — selfiePhoto fields first; customer.photo is the selfie when selfie_photo is unpopulated */}
+                      <Box sx={{ flex: 1, border: '1px solid var(--border-col)', overflow: 'hidden', bgcolor: 'var(--section-bg)', cursor: (kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) ? 'zoom-in' : 'default' }} onClick={() => (kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) && setPhotoLightboxOpen(true)}>
+                        {(kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) ? (
+                          <Box
+                            component="img"
+                            src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') ? s : `data:image/jpeg;base64,${s}` })()}
+                            sx={{ width: '100%', display: 'block', objectFit: 'cover', minHeight: 120 }}
+                          />
+                        ) : (
+                          <Box sx={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>No photo uploaded</Typography>
+                          </Box>
+                        )}
+                        <Box sx={{ px: 1, py: 0.5, bgcolor: '#eff6ff', borderTop: '1px solid #bfdbfe' }}>
+                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Customer Uploaded</Typography>
+                        </Box>
+                      </Box>
+                      {/* NIN / BVN record photo — kyc.identityPhoto (pipeline) or customer.identityPhoto (CDD-only) */}
+                      <Box sx={{ flex: 1, border: '1px solid var(--border-col)', overflow: 'hidden', bgcolor: 'var(--section-bg)', cursor: idRecordPhoto ? 'zoom-in' : 'default' }} onClick={() => idRecordPhoto && setPhotoLightboxOpen(true)}>
+                        {idRecordPhoto ? (
+                          <Box
+                            component="img"
+                            src={idRecordPhoto.startsWith('data:') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
+                            sx={{ width: '100%', display: 'block', objectFit: 'cover', minHeight: 120 }}
+                          />
+                        ) : (
+                          <Box sx={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>No photo from NIN/BVN record</Typography>
+                            <Typography sx={{ fontSize: '0.625rem', color: '#cbd5e1' }}>Not returned by identity lookup</Typography>
+                          </Box>
+                        )}
+                        <Box sx={{ px: 1, py: 0.5, bgcolor: 'var(--section-bg)', borderTop: '1px solid var(--border-col)' }}>
+                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>NIN / BVN Record Photo</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                    {/* Request Live Call — coming soon */}
+                    <Box
+                      sx={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        p: 1.25, border: '1px dashed #cbd5e1', bgcolor: '#f8fafc',
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', fontFamily: 'Jost' }}>
+                          Request Live Call
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', mt: 0.25 }}>
+                          Trigger a 1-on-1 video call with the customer to confirm identity in real time.
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0, ml: 2 }}>
+                        <Box sx={{ px: 0.75, py: 0.2, bgcolor: '#fef9c3', border: '1px solid #fde68a' }}>
+                          <Typography sx={{ fontSize: '0.4375rem', fontWeight: 800, color: '#854d0e', letterSpacing: '0.1em' }}>COMING SOON</Typography>
+                        </Box>
+                        <Button
+                          disabled
+                          size="small"
+                          sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 600, fontSize: '0.75rem', px: 1.5, py: 0.5, border: '1px solid #e2e8f0', color: '#94a3b8', bgcolor: 'transparent', '&.Mui-disabled': { color: '#94a3b8', border: '1px solid #e2e8f0' } }}
+                        >
+                          Request Call
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* BVN / NIN submitted values for identity check */}
+                {resolveTarget?.type === 'identity_verify' && (
+                  <Box sx={{ mb: 2.5 }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                      Submitted Identity Data
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                      {([
+                        { label: 'BVN', value: customer?.bvn },
+                        { label: 'NIN', value: customer?.nin },
+                      ] as const).map(({ label, value }) => (
+                        <Box key={label} sx={{ p: 1.25, border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
+                          <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>{label}</Typography>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                            {value || '—'}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Submitted phone for phone checks */}
+                {(resolveTarget?.type === 'phone_basic' || resolveTarget?.type === 'phone_fraud') && (
+                  <Box sx={{ mb: 2.5 }}>
+                    <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                      Submitted Phone Number
+                    </Typography>
+                    <Box sx={{ p: 1.25, border: '1px solid var(--border-col)', bgcolor: 'var(--section-bg)' }}>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--heading-color)', fontFamily: 'SF Mono, Monaco, monospace' }}>
+                        {kyc?.phone || customer?.phone || '—'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Failure detail */}
+                <Box sx={{ mb: 2, p: 1.5, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#dc2626', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>What Failed</Typography>
+                  <Typography sx={{ fontSize: '0.8125rem', color: '#7f1d1d', lineHeight: 1.5 }}>{resolveTarget?.detail}</Typography>
+                </Box>
+
+                <Box sx={{ mb: 1.5, p: 1.5, bgcolor: '#fffbeb', border: '1px solid #fde68a' }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#78350f', lineHeight: 1.5 }}>
+                    Only override this check if you have independently verified the customer's identity — for example, by inspecting their original ID document in person or via a video call.
+                    This override will be recorded in the audit trail.
+                  </Typography>
+                </Box>
+
+                <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>Reason for Override *</Typography>
+                <InputBase
+                  multiline
+                  minRows={3}
+                  placeholder="e.g. Customer presented original NIN slip at branch on 16 Jun 2026 — identity confirmed by compliance officer John Doe."
+                  value={resolveNote}
+                  onChange={e => setResolveNote(e.target.value)}
+                  disabled={resolving}
+                  sx={{ width: '100%', p: 1.25, fontSize: '0.8125rem', bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', borderRadius: 0, lineHeight: 1.6, '&.Mui-focused': { borderColor: colorPalette.primary }, mb: 2 }}
+                />
+
+                {resolveError && (
+                  <Box sx={{ mb: 1.5, p: 1.25, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#dc2626' }}>{resolveError}</Typography>
+                  </Box>
+                )}
+              </Box>
+
+              <Box sx={{ px: 3, py: 2, borderTop: '1px solid var(--border-col)', display: 'flex', gap: 1 }}>
+                <Button
+                  onClick={() => setResolveTotpOpen(true)}
+                  disabled={resolving || !resolveNote.trim()}
+                  fullWidth
+                  sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 700, fontSize: '0.8125rem', py: 1, bgcolor: '#16a34a', color: '#fff', '&:hover': { bgcolor: '#15803d' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
+                >
+                  {resolving ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : 'Mark as Passed'}
+                </Button>
+                <Button
+                  onClick={() => handleResolveStep('fail')}
+                  disabled={resolving || !resolveNote.trim()}
+                  fullWidth
+                  sx={{ borderRadius: 0, textTransform: 'none', fontFamily: 'Jost', fontWeight: 700, fontSize: '0.8125rem', py: 1, bgcolor: '#dc2626', color: '#fff', '&:hover': { bgcolor: '#b91c1c' }, '&.Mui-disabled': { bgcolor: '#94a3b8', color: '#fff' } }}
+                >
+                  {resolving ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : 'Confirm Failed'}
+                </Button>
+              </Box>
+            </Drawer>
 
             {/* ── Transaction Heatmap ── */}
             {tHeatmap && (
@@ -837,6 +1145,62 @@ export default function UserProfilePage() {
         }}
         prefillLocked
       />
+
+      {/* Photo lightbox — enlarged side-by-side comparison */}
+      <Dialog
+        open={photoLightboxOpen}
+        onClose={() => setPhotoLightboxOpen(false)}
+        maxWidth={false}
+        PaperProps={{ sx: { bgcolor: '#0f172a', m: 2, borderRadius: 0, maxWidth: '90vw', width: '90vw' } }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid #1e293b' }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Photo Comparison
+          </Typography>
+          <IconButton size="small" onClick={() => setPhotoLightboxOpen(false)} sx={{ color: '#64748b', '&:hover': { color: '#f8fafc' } }}>
+            <CancelOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 0, minHeight: '60vh' }}>
+          {/* Customer selfie */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #1e293b' }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: '#0f172a' }}>
+              {(kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo) ? (
+                <Box
+                  component="img"
+                  src={(() => { const s = kyc?.selfiePhoto || customer?.selfiePhoto || customer?.photo || ''; return s.startsWith('data:') ? s : `data:image/jpeg;base64,${s}` })()}
+                  sx={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
+                />
+              ) : (
+                <Typography sx={{ fontSize: '0.875rem', color: '#475569' }}>No photo uploaded</Typography>
+              )}
+            </Box>
+            <Box sx={{ px: 2, py: 1, bgcolor: '#0f172a', borderTop: '1px solid #1e293b' }}>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Customer Uploaded</Typography>
+            </Box>
+          </Box>
+          {/* NIN/BVN record photo */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: '#0f172a' }}>
+              {idRecordPhoto ? (
+                <Box
+                  component="img"
+                  src={idRecordPhoto.startsWith('data:') ? idRecordPhoto : `data:image/jpeg;base64,${idRecordPhoto}`}
+                  sx={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
+                />
+              ) : (
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#475569' }}>No photo from NIN/BVN record</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#334155', mt: 0.5 }}>Not returned by identity lookup</Typography>
+                </Box>
+              )}
+            </Box>
+            <Box sx={{ px: 2, py: 1, bgcolor: '#0f172a', borderTop: '1px solid #1e293b' }}>
+              <Typography sx={{ fontSize: '0.5625rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>NIN / BVN Record Photo</Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
     </>
   )
 }

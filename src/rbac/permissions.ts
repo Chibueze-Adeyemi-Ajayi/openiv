@@ -18,6 +18,13 @@ export type Permission =
   | 'reports.approve'
   | 'rules.view'
   | 'rules.modify'
+  | 'workflows.view'
+  | 'workflows.modify'
+  | 'cdd.view'
+  | 'cdd.manage'
+  | 'cdd.evaluate'
+  | 'pipeline.view'
+  | 'pipeline.modify'
   | 'team.view'
   | 'team.manage'
   | 'billing.view'
@@ -39,6 +46,9 @@ const ALL: Permission[] = [
   'customers.view', 'customers.edit',
   'reports.view', 'reports.create', 'reports.file', 'reports.approve',
   'rules.view', 'rules.modify',
+  'workflows.view', 'workflows.modify',
+  'cdd.view', 'cdd.manage', 'cdd.evaluate',
+  'pipeline.view', 'pipeline.modify',
   'team.view', 'team.manage',
   'billing.view', 'billing.manage',
   'integrations.view', 'integrations.modify',
@@ -58,6 +68,9 @@ export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     'customers.view', 'customers.edit',
     'reports.view', 'reports.create', 'reports.file', 'reports.approve',
     'rules.view', 'rules.modify',
+    'workflows.view', 'workflows.modify',
+    'cdd.view', 'cdd.manage', 'cdd.evaluate',
+    'pipeline.view', 'pipeline.modify',
     'team.view',
     'billing.view',
     'integrations.view',
@@ -74,6 +87,9 @@ export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     'customers.view', 'customers.edit',
     'reports.view',
     'rules.view',
+    'workflows.view',
+    'cdd.view', 'cdd.evaluate',
+    'pipeline.view',
     'kyc.view',
     'institution.view',
     'dashboard.view',
@@ -85,6 +101,9 @@ export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     'cases.view',
     'customers.view',
     'rules.view',
+    'workflows.view',
+    'cdd.view',
+    'pipeline.view', 'pipeline.modify',
     'integrations.view', 'integrations.modify',
     'kyc.view',
     'institution.view',
@@ -98,6 +117,9 @@ export const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     'customers.view',
     'reports.view',
     'rules.view',
+    'workflows.view',
+    'cdd.view',
+    'pipeline.view',
     'team.view',
     'billing.view',
     'integrations.view',

@@ -7,6 +7,7 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
@@ -95,6 +96,8 @@ export default function Topbar(_props?: Record<string, unknown>) {
     }
     const dest = n.entityType === 'transaction'
       ? `/dashboard/transactions?tx=${encodeURIComponent(n.entityId)}`
+      : n.entityType === 'workflow'
+      ? `/dashboard/workflows`
       : `/dashboard/aml?case=${encodeURIComponent(n.entityId)}`
     navigate(dest, {
       state: { breadcrumbs: [{ label: 'Notifications', path: '/dashboard/notifications' }] },
@@ -349,10 +352,12 @@ export default function Topbar(_props?: Record<string, unknown>) {
                       sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, px: 1, py: 0.25, bgcolor: `${muiTheme.palette.primary.main}0c`, border: `1px solid ${muiTheme.palette.primary.main}20`, borderRadius: '3px', cursor: 'pointer', '&:hover': { bgcolor: `${muiTheme.palette.primary.main}18` } }}>
                       {n.entityType === 'transaction'
                         ? <ReceiptLongOutlinedIcon sx={{ fontSize: '0.625rem', color: muiTheme.palette.primary.main }} />
+                        : n.entityType === 'workflow'
+                        ? <AccountTreeOutlinedIcon sx={{ fontSize: '0.625rem', color: muiTheme.palette.primary.main }} />
                         : <GavelOutlinedIcon sx={{ fontSize: '0.625rem', color: muiTheme.palette.primary.main }} />
                       }
                       <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: muiTheme.palette.primary.main, fontFamily: 'Jost', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        View {n.entityType === 'transaction' ? 'Transaction' : 'Case'}
+                        {n.entityType === 'transaction' ? 'View Transaction' : n.entityType === 'workflow' ? 'View Workflow' : 'View Case'}
                       </Typography>
                     </Box>
                   )}

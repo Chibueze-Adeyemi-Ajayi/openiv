@@ -2,6 +2,13 @@ import { apiRequest } from './client'
 import type { AccountType } from './auth'
 import type { RolePermissions } from '@/components/dashboard/RoleEditor'
 
+export interface BiometricCredential {
+  id: number
+  aaguid: string | null
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
 export type TeamRoleId = string // Support custom- prefixes
 
 export interface TeamMember {
@@ -59,4 +66,10 @@ export const teamApi = {
 
   deleteRole: (id: string) =>
     apiRequest<{ ok: boolean }>(`/api/v1/team/custom-roles/${id}`, { method: 'DELETE' }),
+
+  listCredentials: (memberId: number) =>
+    apiRequest<{ credentials: BiometricCredential[] }>(`/api/v1/team/members/${memberId}/credentials`),
+
+  revokeCredential: (memberId: number, credId: number) =>
+    apiRequest<{ ok: boolean }>(`/api/v1/team/members/${memberId}/credentials/${credId}`, { method: 'DELETE' }),
 }

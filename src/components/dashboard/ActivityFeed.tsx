@@ -51,6 +51,8 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
       navigate(`/dashboard/aml?case=${encodeURIComponent(e.entityId)}`)
     } else if (e.entityType === 'transaction') {
       navigate(`/dashboard/transactions?tx=${encodeURIComponent(e.entityId)}`)
+    } else if (e.entityType === 'workflow') {
+      navigate('/dashboard/workflows')
     }
   }
 
@@ -99,7 +101,7 @@ export default function ActivityFeed({ events: propEvents, connected: propConnec
 
         {events.map((e) => {
           const cfg = severityConfig[e.severity] ?? severityConfig.info
-          const navigable = !!e.entityId && (e.entityType === 'case' || e.entityType === 'transaction')
+          const navigable = !!e.entityId && (e.entityType === 'case' || e.entityType === 'transaction' || e.entityType === 'workflow')
           return (
             <Box
               key={e.id}

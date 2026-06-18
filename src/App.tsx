@@ -19,6 +19,8 @@ import AuthInvitePage from '@/pages/auth/InvitePage'
 import AuthLoginPage from '@/pages/auth/LoginPage'
 import AuthVerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import AuthSetup2FAPage from '@/pages/auth/Setup2FAPage'
+import SetupBiometricPage from '@/pages/auth/SetupBiometricPage'
+import BiometricChallengePage from '@/pages/auth/BiometricChallengePage'
 import AuthChangePasswordPage from '@/pages/auth/ChangePasswordPage'
 import AuthResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import RequestAccessPage from '@/pages/auth/RequestAccessPage'
@@ -30,6 +32,7 @@ import KYCPage from '@/pages/dashboard/KYCPage'
 import HeatmapsPage from '@/pages/dashboard/HeatmapsPage'
 import ReportsPage from '@/pages/dashboard/ReportsPage'
 import ThresholdsPage from '@/pages/dashboard/ThresholdsPage'
+import WorkflowsPage from '@/pages/dashboard/WorkflowsPage'
 import WebhooksPage from '@/pages/dashboard/WebhooksPage'
 import IngestionPage from '@/pages/dashboard/IngestionPage'
 import TeamPage from '@/pages/dashboard/TeamPage'
@@ -38,6 +41,8 @@ import BillingPage from '@/pages/dashboard/BillingPage'
 import SubscriptionPage from '@/pages/dashboard/SubscriptionPage'
 import OTPAlertsPage from '@/pages/dashboard/OTPAlertsPage'
 import DataBeamingPage from '@/pages/dashboard/DataBeamingPage'
+import NomosPage from '@/pages/dashboard/NomosPage'
+import TransactionMonitoringPage from '@/pages/dashboard/TransactionMonitoringPage'
 import NetworkPage from '@/pages/dashboard/NetworkPage'
 import CBNCompliancePage from '@/pages/dashboard/CBNCompliancePage'
 import BehavioralPatternsPage from '@/pages/dashboard/BehavioralPatternsPage'
@@ -88,6 +93,8 @@ function App() {
       <Route path="/auth/verify-email" element={<ProtectedRoute requiredState="pending_email_verification"><AuthVerifyEmailPage /></ProtectedRoute>} />
       <Route path="/auth/setup-2fa" element={<ProtectedRoute requiredState="pending_totp_setup"><AuthSetup2FAPage /></ProtectedRoute>} />
       <Route path="/auth/verify-otp" element={<ProtectedRoute requiredState="pending_totp_challenge"><AuthVerifyTOTPPage /></ProtectedRoute>} />
+      <Route path="/auth/setup-biometric" element={<ProtectedRoute requiredState="pending_biometric_setup"><SetupBiometricPage /></ProtectedRoute>} />
+      <Route path="/auth/verify-biometric" element={<ProtectedRoute requiredState="pending_biometric_challenge"><BiometricChallengePage /></ProtectedRoute>} />
       <Route path="/auth/geo-blocked" element={<GeoBlockedPage />} />
       <Route path="/auth/change-password" element={<AuthChangePasswordPage />} />
       <Route path="/auth/reset-password" element={<AuthResetPasswordPage />} />
@@ -112,6 +119,9 @@ function App() {
         <Route path="cbn" element={<RoleGuard permission="reports.view"><CBNCompliancePage /></RoleGuard>} />
         <Route path="reports" element={<RoleGuard permission="reports.view"><ReportsPage /></RoleGuard>} />
         <Route path="thresholds" element={<RoleGuard permission="rules.view"><ThresholdsPage /></RoleGuard>} />
+        <Route path="workflows" element={<RoleGuard permission="rules.view"><WorkflowsPage /></RoleGuard>} />
+        <Route path="nomos" element={<RoleGuard permission="rules.view"><NomosPage /></RoleGuard>} />
+        <Route path="transaction-monitoring" element={<RoleGuard permission="rules.view"><TransactionMonitoringPage /></RoleGuard>} />
         <Route path="network" element={<RoleGuard permission="integrations.view"><NetworkPage /></RoleGuard>} />
         <Route path="beam" element={<RoleGuard permission="integrations.view"><DataBeamingPage /></RoleGuard>} />
         <Route path="ingest" element={<RoleGuard permission="integrations.view"><IngestionPage /></RoleGuard>} />
