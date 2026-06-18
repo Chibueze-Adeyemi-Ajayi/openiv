@@ -45,10 +45,7 @@ public final class RiskReportService {
         .compose(highRisk -> {
           int count = highRisk.size();
           String topName = highRisk.isEmpty() ? null : highRisk.get(0).name();
-          int highestScore = highRisk.isEmpty() ? 0
-              : (int) Math.round(highRisk.get(0).riskScore() * 0.20
-                  + highRisk.get(0).riskProfileScore() * 0.55
-                  + highRisk.get(0).transactionRiskScore() * 0.25);
+          int highestScore = highRisk.isEmpty() ? 0 : highRisk.get(0).riskScore();
 
           // Build the email report section
           String reportHtml = buildReportHtml(highRisk);
@@ -93,23 +90,23 @@ public final class RiskReportService {
     sb.append("<tr style=\"background:#f1f5f9;\">");
     sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Customer</th>");
     sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Risk Score</th>");
-    sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">KYC</th>");
-    sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Case History</th>");
-    sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Transaction Behaviour</th>");
+    sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Customer ID</th>");
+    sb.append("<th style=\"padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;\">Last Evaluated</th>");
     sb.append("</tr>");
 
     for (int i = 0; i < highRisk.size(); i++) {
       Customer c = highRisk.get(i);
-      int overall = (int) Math.round(c.riskScore() * 0.20 + c.riskProfileScore() * 0.55 + c.transactionRiskScore() * 0.25);
+      int score = c.riskScore();
       String bg = (i % 2 == 0) ? "#ffffff" : "#fafbfc";
-      String scoreColor = overall >= 90 ? "#dc2626" : overall >= 80 ? "#f59e0b" : "#f97316";
+      String scoreColor = score >= 90 ? "#dc2626" : score >= 80 ? "#f59e0b" : "#f97316";
+      String lastEval = c.lastEvaluatedAt() != null
+          ? c.lastEvaluatedAt().toLocalDate().toString() : "—";
 
       sb.append("<tr style=\"background:").append(bg).append(";border-bottom:1px solid #f1f5f9;\">");
       sb.append("<td style=\"padding:10px 12px;color:#0f172a;font-weight:600;\">").append(esc(c.name())).append("</td>");
-      sb.append("<td style=\"padding:10px 12px;color:").append(scoreColor).append(";font-weight:700;\">").append(overall).append("/100</td>");
-      sb.append("<td style=\"padding:10px 12px;color:#334155;\">").append(c.riskScore()).append("</td>");
-      sb.append("<td style=\"padding:10px 12px;color:#334155;\">").append(c.riskProfileScore()).append("</td>");
-      sb.append("<td style=\"padding:10px 12px;color:#334155;\">").append(c.transactionRiskScore()).append("</td>");
+      sb.append("<td style=\"padding:10px 12px;color:").append(scoreColor).append(";font-weight:700;\">").append(score).append("/100</td>");
+      sb.append("<td style=\"padding:10px 12px;color:#334155;\">").append(esc(c.externalId())).append("</td>");
+      sb.append("<td style=\"padding:10px 12px;color:#334155;\">").append(lastEval).append("</td>");
       sb.append("</tr>");
     }
     sb.append("</table>");
@@ -118,9 +115,7 @@ public final class RiskReportService {
     sb.append("<p style=\"color:#9a3412;font-weight:700;margin:0 0 8px;\">What does this mean?</p>");
     sb.append("<p style=\"color:#7c2d12;font-size:13px;margin:0 0 6px;\">A risk score above 75 indicates that this customer exhibits multiple indicators that are consistent with financial crime — ")
       .append("this could be money laundering, structuring, or account takeover fraud.</p>");
-    sb.append("<p style=\"color:#7c2d12;font-size:13px;margin:0 0 6px;\"><strong>KYC score</strong> reflects how well we know this customer — missing identity documents, unverified addresses, or failed BVN/NIN checks raise this score.</p>");
-    sb.append("<p style=\"color:#7c2d12;font-size:13px;margin:0 0 6px;\"><strong>Case history score</strong> is based on how serious past fraud investigations involving this customer have been — the more open or unresolved cases, the higher this number.</p>");
-    sb.append("<p style=\"color:#7c2d12;font-size:13px;margin:0;\"><strong>Transaction behaviour score</strong> measures how many of this customer's transactions were flagged as suspicious, and how serious those flags were.</p>");
+    sb.append("<p style=\"color:#7c2d12;font-size:13px;margin:0;\">The <strong>Risk Score</strong> is derived from the most recent CDD workflow evaluation for each customer. It combines identity verification quality, watchlist screening, and behavioural signals — a score above 75 warrants review.</p>");
     sb.append("</div>");
 
     sb.append("<div style=\"background:#eff6ff;border:1px solid #bfdbfe;padding:16px;margin:20px 0;\">");

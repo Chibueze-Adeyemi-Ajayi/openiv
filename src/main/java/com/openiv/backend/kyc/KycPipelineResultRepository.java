@@ -1,7 +1,5 @@
 package com.openiv.backend.kyc;
 
-import com.openiv.backend.doja.PipelineStepResult;
-import com.openiv.backend.doja.PipelineVerificationResult;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Pool;
@@ -11,6 +9,9 @@ import io.vertx.sqlclient.Tuple;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import com.openiv.backend.dojah.PipelineStepResult;
+import com.openiv.backend.dojah.PipelineVerificationResult;
 
 public final class KycPipelineResultRepository {
 
@@ -30,10 +31,10 @@ public final class KycPipelineResultRepository {
       PipelineVerificationResult result, String actionTaken,
       Long monthlyInflow, Long monthlyOutflow, Integer institutionKycTier) {
 
-    PipelineStepResult bvn  = findStep(result, "bvn_nin");
-    PipelineStepResult ph   = aggregatePhoneSteps(result);
-    PipelineStepResult liv  = findStep(result, "liveness");
-    PipelineStepResult pep  = findStep(result, "pep_check");
+    PipelineStepResult bvn = findStep(result, "bvn_nin");
+    PipelineStepResult ph = aggregatePhoneSteps(result);
+    PipelineStepResult liv = findStep(result, "liveness");
+    PipelineStepResult pep = findStep(result, "pep_check");
 
     String knowledgeLevel = toKnowledgeLevel(result.kycTier());
 
@@ -67,7 +68,7 @@ public final class KycPipelineResultRepository {
         + " pep_score             = EXCLUDED.pep_score,"
         + " pep_detail            = EXCLUDED.pep_detail,"
         + " duration_ms           = EXCLUDED.duration_ms,"
-        + " identity_photo_b64    = EXCLUDED.identity_photo_b64,"
+        + " identity_photo_b64    = COALESCE(EXCLUDED.identity_photo_b64, kyc_pipeline_results.identity_photo_b64),"
         + " first_name            = EXCLUDED.first_name,"
         + " last_name             = EXCLUDED.last_name,"
         + " phone                 = EXCLUDED.phone,"
@@ -81,10 +82,10 @@ public final class KycPipelineResultRepository {
             institutionId, customerId,
             result.overallRiskScore(), knowledgeLevel, institutionKycTier,
             result.overallStatus(), actionTaken,
-            status(bvn),  score(bvn),  detail(bvn),
-            status(ph),   score(ph),   detail(ph),
-            status(liv),  score(liv),  detail(liv),
-            status(pep),  score(pep),  detail(pep),
+            status(bvn), score(bvn), detail(bvn),
+            status(ph), score(ph), detail(ph),
+            status(liv), score(liv), detail(liv),
+            status(pep), score(pep), detail(pep),
             result.totalDurationMs(), result.identityPhoto(),
             result.firstName(), result.lastName(), result.phone(), result.dateOfBirth(),
             monthlyInflow, monthlyOutflow))
@@ -94,10 +95,10 @@ public final class KycPipelineResultRepository {
               r.getLong("id"), institutionId, customerId, r.getOffsetDateTime("run_at"),
               result.overallRiskScore(), knowledgeLevel, institutionKycTier,
               result.overallStatus(), actionTaken,
-              status(bvn),  score(bvn),  detail(bvn),
-              status(ph),   score(ph),   detail(ph),
-              status(liv),  score(liv),  detail(liv),
-              status(pep),  score(pep),  detail(pep),
+              status(bvn), score(bvn), detail(bvn),
+              status(ph), score(ph), detail(ph),
+              status(liv), score(liv), detail(liv),
+              status(pep), score(pep), detail(pep),
               result.totalDurationMs(), result.identityPhoto(),
               result.firstName(), result.lastName(), result.phone(), result.dateOfBirth(),
               monthlyInflow, monthlyOutflow);
@@ -133,11 +134,11 @@ public final class KycPipelineResultRepository {
       long institutionId, String filter, String search) {
     StringBuilder sql = new StringBuilder(
         "SELECT kpr.* FROM kyc_pipeline_results kpr "
-        + "INNER JOIN ("
-        + "  SELECT customer_id, MAX(run_at) as latest FROM kyc_pipeline_results "
-        + "  WHERE institution_id = $1 GROUP BY customer_id"
-        + ") mx ON kpr.customer_id = mx.customer_id AND kpr.run_at = mx.latest "
-        + "WHERE kpr.institution_id = $1");
+            + "INNER JOIN ("
+            + "  SELECT customer_id, MAX(run_at) as latest FROM kyc_pipeline_results "
+            + "  WHERE institution_id = $1 GROUP BY customer_id"
+            + ") mx ON kpr.customer_id = mx.customer_id AND kpr.run_at = mx.latest "
+            + "WHERE kpr.institution_id = $1");
 
     if ("high-risk".equals(filter)) {
       sql.append(" AND kpr.overall_risk_score >= 75");
@@ -173,112 +174,163 @@ public final class KycPipelineResultRepository {
 
   /**
    * Returns customer summaries with the full weighted total risk score
-   * (20% KYC + 55% case history + 25% transaction) joined from the customers table.
-   * The filter thresholds use total_risk rather than the KYC-only overallRiskScore.
+   * (20% KYC + 55% case history + 25% transaction) joined from the customers
+   * table.
+   * The filter thresholds use total_risk rather than the KYC-only
+   * overallRiskScore.
    */
   public Future<List<JsonObject>> listCustomerSummaries(
       long institutionId, String filter, String search) {
 
+    // Customers table is the source of truth — includes workflow-imported customers
+    // that never went through the KYC pipeline. KYC pipeline data is joined in
+    // as supplementary detail (LATERAL gets latest row per customer).
     String base =
-        "SELECT kpr.customer_id, kpr.overall_risk_score, kpr.knowledge_level,"
-        + " kpr.institution_kyc_tier, kpr.overall_status, kpr.action_taken, kpr.run_at,"
-        + " kpr.bvn_nin_status, kpr.bvn_nin_score,"
-        + " kpr.phone_status,   kpr.phone_score,"
-        + " kpr.liveness_status, kpr.liveness_score,"
-        + " kpr.pep_status,     kpr.pep_score,"
-        + " kpr.identity_photo_b64, kpr.first_name, kpr.last_name,"
-        + " kpr.phone, kpr.date_of_birth,"
-        + " COALESCE(c.overall_risk_score, kpr.overall_risk_score) AS total_risk_score"
-        + " FROM kyc_pipeline_results kpr"
-        + " INNER JOIN ("
-        + "   SELECT customer_id, MAX(run_at) AS latest"
-        + "   FROM kyc_pipeline_results WHERE institution_id = $1 GROUP BY customer_id"
-        + " ) mx ON kpr.customer_id = mx.customer_id AND kpr.run_at = mx.latest"
-        + " LEFT JOIN customers c"
-        + "   ON c.institution_id = kpr.institution_id AND c.external_id = kpr.customer_id"
-        + " WHERE kpr.institution_id = $1";
+        "SELECT"
+        + "  c.external_id         AS customer_id,"
+        + "  c.name                AS customer_name,"
+        + "  c.phone               AS customer_phone,"
+        + "  c.dob                 AS customer_dob,"
+        + "  c.photo               AS customer_photo,"
+        + "  c.selfie_photo,"
+        + "  c.last_evaluated_at,"
+        + "  COALESCE(c.cdd_risk_score, c.risk_score, 0) AS risk_score,"
+        + "  c.cdd_concerns,"
+        + "  c.cdd_step_scores,"
+        + "  kpr.overall_risk_score, kpr.knowledge_level, kpr.institution_kyc_tier,"
+        + "  kpr.overall_status, kpr.action_taken, kpr.run_at,"
+        + "  kpr.bvn_nin_status, kpr.bvn_nin_score,"
+        + "  kpr.phone_status,   kpr.phone_score,"
+        + "  kpr.liveness_status, kpr.liveness_score,"
+        + "  kpr.pep_status,      kpr.pep_score,"
+        + "  kpr.identity_photo_b64,"
+        + "  kpr.first_name, kpr.last_name,"
+        + "  kpr.phone AS kpr_phone,"
+        + "  kpr.date_of_birth,"
+        + "  EXISTS ("
+        + "    SELECT 1 FROM cases ic"
+        + "    WHERE ic.customer_id = c.external_id"
+        + "    AND ic.institution_id = c.institution_id"
+        + "    AND ic.status != 'closed'"
+        + "  ) AS has_active_case"
+        + " FROM customers c"
+        + " LEFT JOIN LATERAL ("
+        + "   SELECT * FROM kyc_pipeline_results kpr2"
+        + "   WHERE kpr2.institution_id = c.institution_id AND kpr2.customer_id = c.external_id"
+        + "   ORDER BY kpr2.run_at DESC LIMIT 1"
+        + " ) kpr ON true"
+        + " WHERE c.institution_id = $1";
 
     StringBuilder sql = new StringBuilder(base);
     if ("high-risk".equals(filter)) {
-      sql.append(" AND COALESCE(c.overall_risk_score, kpr.overall_risk_score) >= 75");
+      sql.append(" AND COALESCE(c.cdd_risk_score, c.risk_score, 0) >= 75");
+    } else if ("medium-risk".equals(filter)) {
+      sql.append(" AND COALESCE(c.cdd_risk_score, c.risk_score, 0) >= 35"
+               + " AND COALESCE(c.cdd_risk_score, c.risk_score, 0) < 75");
     } else if ("low-risk".equals(filter)) {
-      sql.append(" AND COALESCE(c.overall_risk_score, kpr.overall_risk_score) < 35");
+      sql.append(" AND COALESCE(c.cdd_risk_score, c.risk_score, 0) < 35");
     } else if ("verified".equals(filter)) {
       sql.append(" AND kpr.overall_status = 'verified'");
     } else if ("flagged".equals(filter)) {
       sql.append(" AND kpr.overall_status = 'flagged'");
+    } else if ("active-cases".equals(filter)) {
+      sql.append(" AND EXISTS (SELECT 1 FROM cases ic WHERE ic.customer_id = c.external_id AND ic.institution_id = c.institution_id AND ic.status != 'closed')");
     }
 
     Tuple params;
     if (search != null && !search.isBlank()) {
-      sql.append(" AND (kpr.customer_id ILIKE $2"
-          + " OR kpr.first_name ILIKE $2"
-          + " OR kpr.last_name ILIKE $2"
-          + " OR CONCAT(kpr.first_name,' ',kpr.last_name) ILIKE $2)");
+      sql.append(" AND (c.external_id ILIKE $2 OR c.name ILIKE $2"
+          + " OR kpr.first_name ILIKE $2 OR kpr.last_name ILIKE $2)");
       params = Tuple.of(institutionId, "%" + search.trim() + "%");
     } else {
       params = Tuple.of(institutionId);
     }
 
-    sql.append(" ORDER BY total_risk_score DESC LIMIT 200");
+    sql.append(" ORDER BY risk_score DESC, c.name ASC LIMIT 200");
 
     return pool.preparedQuery(sql.toString())
         .execute(params)
         .map(rs -> {
           List<JsonObject> list = new ArrayList<>();
-          rs.forEach(r -> list.add(new JsonObject()
-              .put("customerId",       r.getString("customer_id"))
-              .put("overallRiskScore",    r.getInteger("overall_risk_score"))
-              .put("totalRiskScore",     r.getInteger("total_risk_score"))
-              .put("knowledgeLevel",     r.getString("knowledge_level"))
-              .put("institutionKycTier", r.getInteger("institution_kyc_tier"))
-              .put("overallStatus",    r.getString("overall_status"))
-              .put("actionTaken",      r.getString("action_taken"))
-              .put("runAt",            r.getOffsetDateTime("run_at").toString())
-              .put("bvnNinStatus",     r.getString("bvn_nin_status"))
-              .put("bvnNinScore",      r.getInteger("bvn_nin_score"))
-              .put("phoneStatus",      r.getString("phone_status"))
-              .put("phoneScore",       r.getInteger("phone_score"))
-              .put("livenessStatus",   r.getString("liveness_status"))
-              .put("livenessScore",    r.getInteger("liveness_score"))
-              .put("pepStatus",        r.getString("pep_status"))
-              .put("pepScore",         r.getInteger("pep_score"))
-              .put("identityPhoto",    r.getString("identity_photo_b64"))
-              .put("firstName",        r.getString("first_name"))
-              .put("lastName",         r.getString("last_name"))
-              .put("phone",            r.getString("phone"))
-              .put("dateOfBirth",      r.getString("date_of_birth"))));
+          rs.forEach(r -> {
+            int score = r.getInteger("risk_score") != null ? r.getInteger("risk_score") : 0;
+            JsonObject obj = new JsonObject()
+                .put("customerId",      r.getString("customer_id"))
+                .put("name",            r.getString("customer_name"))
+                .put("overallRiskScore", score)
+                .put("totalRiskScore",  score)
+                .put("knowledgeLevel",  r.getString("knowledge_level"))
+                .put("institutionKycTier", r.getInteger("institution_kyc_tier"))
+                .put("overallStatus",   r.getString("overall_status"))
+                .put("actionTaken",     r.getString("action_taken"))
+                .put("bvnNinStatus",    r.getString("bvn_nin_status"))
+                .put("bvnNinScore",     r.getInteger("bvn_nin_score"))
+                .put("phoneStatus",     r.getString("phone_status"))
+                .put("phoneScore",      r.getInteger("phone_score"))
+                .put("livenessStatus",  r.getString("liveness_status"))
+                .put("livenessScore",   r.getInteger("liveness_score"))
+                .put("pepStatus",       r.getString("pep_status"))
+                .put("pepScore",        r.getInteger("pep_score"))
+                .put("identityPhoto",   r.getString("identity_photo_b64") != null
+                    ? r.getString("identity_photo_b64") : r.getString("customer_photo"))
+                .put("selfiePhoto",     r.getString("selfie_photo"))
+                .put("firstName",       r.getString("first_name"))
+                .put("lastName",        r.getString("last_name"))
+                .put("phone",           r.getString("kpr_phone") != null
+                    ? r.getString("kpr_phone") : r.getString("customer_phone"))
+                .put("dateOfBirth",     r.getString("date_of_birth"))
+                .put("lastEvaluatedAt", r.getOffsetDateTime("last_evaluated_at") != null
+                    ? r.getOffsetDateTime("last_evaluated_at").toString() : null);
+            if (r.getOffsetDateTime("run_at") != null)
+              obj.put("runAt", r.getOffsetDateTime("run_at").toString());
+            if (r.getValue("cdd_concerns") != null)
+              obj.put("cddConcerns", r.getValue("cdd_concerns"));
+            if (r.getValue("cdd_step_scores") != null)
+              obj.put("cddStepScores", r.getValue("cdd_step_scores").toString());
+            if (Boolean.TRUE.equals(r.getBoolean("has_active_case")))
+              obj.put("hasActiveCase", true);
+            list.add(obj);
+          });
           return list;
         });
   }
 
   public Future<JsonObject> getStats(long institutionId) {
+    // Count from customers table so workflow-imported customers are included.
+    // kpr is joined only for overall_status (verified/flagged).
     String sql =
         "SELECT"
         + " COUNT(*) AS total,"
-        + " COUNT(*) FILTER (WHERE total_risk >= 75) AS high_risk,"
-        + " COUNT(*) FILTER (WHERE total_risk < 35) AS low_risk,"
-        + " COUNT(*) FILTER (WHERE overall_status = 'verified') AS verified,"
-        + " COUNT(*) FILTER (WHERE overall_status = 'flagged') AS flagged"
-        + " FROM ("
-        + "   SELECT DISTINCT ON (kpr.customer_id) kpr.overall_status,"
-        + "     COALESCE(c.overall_risk_score, kpr.overall_risk_score) AS total_risk"
-        + "   FROM kyc_pipeline_results kpr"
-        + "   LEFT JOIN customers c"
-        + "     ON c.institution_id = kpr.institution_id AND c.external_id = kpr.customer_id"
-        + "   WHERE kpr.institution_id = $1"
-        + "   ORDER BY kpr.customer_id, kpr.run_at DESC"
-        + " ) latest";
+        + " COUNT(*) FILTER (WHERE COALESCE(c.cdd_risk_score, c.risk_score, 0) >= 75) AS high_risk,"
+        + " COUNT(*) FILTER (WHERE COALESCE(c.cdd_risk_score, c.risk_score, 0) >= 35"
+        + "                    AND COALESCE(c.cdd_risk_score, c.risk_score, 0) < 75) AS medium_risk,"
+        + " COUNT(*) FILTER (WHERE COALESCE(c.cdd_risk_score, c.risk_score, 0) < 35) AS low_risk,"
+        + " COUNT(*) FILTER (WHERE kpr.overall_status = 'verified') AS verified,"
+        + " COUNT(*) FILTER (WHERE kpr.overall_status = 'flagged') AS flagged,"
+        + " COUNT(*) FILTER (WHERE EXISTS ("
+        + "   SELECT 1 FROM cases ic"
+        + "   WHERE ic.customer_id = c.external_id AND ic.institution_id = c.institution_id"
+        + "   AND ic.status != 'closed'"
+        + " )) AS active_cases"
+        + " FROM customers c"
+        + " LEFT JOIN LATERAL ("
+        + "   SELECT overall_status FROM kyc_pipeline_results kpr2"
+        + "   WHERE kpr2.institution_id = c.institution_id AND kpr2.customer_id = c.external_id"
+        + "   ORDER BY kpr2.run_at DESC LIMIT 1"
+        + " ) kpr ON true"
+        + " WHERE c.institution_id = $1";
     return pool.preparedQuery(sql)
         .execute(Tuple.of(institutionId))
         .map(rs -> {
           Row r = rs.iterator().next();
           return new JsonObject()
-              .put("total",    r.getLong("total"))
-              .put("highRisk", r.getLong("high_risk"))
-              .put("lowRisk",  r.getLong("low_risk"))
-              .put("verified", r.getLong("verified"))
-              .put("flagged",  r.getLong("flagged"));
+              .put("total",      r.getLong("total"))
+              .put("highRisk",   r.getLong("high_risk"))
+              .put("mediumRisk", r.getLong("medium_risk"))
+              .put("lowRisk",    r.getLong("low_risk"))
+              .put("verified",   r.getLong("verified"))
+              .put("flagged",    r.getLong("flagged"))
+              .put("activeCases", r.getLong("active_cases"));
         });
   }
 
@@ -300,14 +352,20 @@ public final class KycPipelineResultRepository {
     var phoneSteps = r.steps().stream()
         .filter(s -> s.step() != null && s.step().startsWith("phone_") && !s.skipped())
         .toList();
-    if (phoneSteps.isEmpty()) return null;
+    if (phoneSteps.isEmpty())
+      return null;
 
     // Status priority: fail > error > unverified > pass
     String aggregateStatus = "pass";
     for (var s : phoneSteps) {
-      if ("fail".equals(s.status())) { aggregateStatus = "fail"; break; }
-      if ("error".equals(s.status()) && !"fail".equals(aggregateStatus)) aggregateStatus = "error";
-      else if ("unverified".equals(s.status()) && "pass".equals(aggregateStatus)) aggregateStatus = "unverified";
+      if ("fail".equals(s.status())) {
+        aggregateStatus = "fail";
+        break;
+      }
+      if ("error".equals(s.status()) && !"fail".equals(aggregateStatus))
+        aggregateStatus = "error";
+      else if ("unverified".equals(s.status()) && "pass".equals(aggregateStatus))
+        aggregateStatus = "unverified";
     }
 
     int maxScore = phoneSteps.stream().mapToInt(PipelineStepResult::riskScore).max().orElse(50);
@@ -316,7 +374,8 @@ public final class KycPipelineResultRepository {
 
     StringBuilder detail = new StringBuilder();
     for (var s : phoneSteps) {
-      if (detail.length() > 0) detail.append(" · ");
+      if (detail.length() > 0)
+        detail.append(" · ");
       detail.append(s.step()).append(": ").append(s.detail());
     }
 
@@ -324,9 +383,17 @@ public final class KycPipelineResultRepository {
         totalMs, maxScore, anyDojahCalled);
   }
 
-  private static String status(PipelineStepResult s) { return s != null ? s.status() : null; }
-  private static int    score(PipelineStepResult  s) { return s != null ? s.riskScore() : 50; }
-  private static String detail(PipelineStepResult s) { return s != null ? s.detail() : null; }
+  private static String status(PipelineStepResult s) {
+    return s != null ? s.status() : null;
+  }
+
+  private static int score(PipelineStepResult s) {
+    return s != null ? s.riskScore() : 50;
+  }
+
+  private static String detail(PipelineStepResult s) {
+    return s != null ? s.detail() : null;
+  }
 
   private static KycPipelineResult mapRow(Row r) {
     return new KycPipelineResult(
@@ -339,10 +406,10 @@ public final class KycPipelineResultRepository {
         r.getInteger("institution_kyc_tier"),
         r.getString("overall_status"),
         r.getString("action_taken"),
-        r.getString("bvn_nin_status"),  safeInt(r, "bvn_nin_score"),  r.getString("bvn_nin_detail"),
-        r.getString("phone_status"),    safeInt(r, "phone_score"),    r.getString("phone_detail"),
+        r.getString("bvn_nin_status"), safeInt(r, "bvn_nin_score"), r.getString("bvn_nin_detail"),
+        r.getString("phone_status"), safeInt(r, "phone_score"), r.getString("phone_detail"),
         r.getString("liveness_status"), safeInt(r, "liveness_score"), r.getString("liveness_detail"),
-        r.getString("pep_status"),      safeInt(r, "pep_score"),      r.getString("pep_detail"),
+        r.getString("pep_status"), safeInt(r, "pep_score"), r.getString("pep_detail"),
         r.getLong("duration_ms") != null ? r.getLong("duration_ms") : 0L,
         r.getString("identity_photo_b64"),
         r.getString("first_name"),
@@ -364,7 +431,8 @@ public final class KycPipelineResultRepository {
 
   /** Convert knowledge_level string back to integer for limit lookups. */
   public static int fromKnowledgeLevel(String level) {
-    if (level == null) return 1;
+    if (level == null)
+      return 1;
     return switch (level) {
       case "t2" -> 2;
       case "t3" -> 3;

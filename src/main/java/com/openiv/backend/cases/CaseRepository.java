@@ -2,6 +2,7 @@ package com.openiv.backend.cases;
 
 import com.openiv.backend.transactions.Transaction;
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.Tuple;
@@ -528,6 +529,69 @@ public final class CaseRepository {
                       .put("rate", total > 0 ? (int) Math.round((double) breached / total * 100) : 0))
                   .put("volumeByDay", volArr);
             }))));
+  }
+
+  // ── Eureka AI helpers ────────────────────────────────────────────────────
+
+  /** Full-schema search for Eureka AI — matches across all text columns. */
+  public Future<List<CaseRecord>> aiSearch(long institutionId, String q, int limit) {
+    String sql = CASE_COLS
+        + ", false AS seen"
+        + CASE_FROM
+        + " WHERE c.institution_id = $1"
+        + "   AND ($2::text IS NULL OR"
+        + "        LOWER(c.id)            LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.title)         LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.typology)      LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.brief)         LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.notes)         LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.resolution)    LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.customer_name) LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.customer_id)   LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.status)        LIKE '%' || LOWER($2) || '%'"
+        + "     OR LOWER(c.priority)      LIKE '%' || LOWER($2) || '%')"
+        + " ORDER BY c.risk_score DESC, c.created_at DESC"
+        + " LIMIT $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, q, limit)).map(rs -> {
+      List<CaseRecord> list = new ArrayList<>();
+      for (Row r : rs) list.add(mapCase(r, false));
+      return list;
+    });
+  }
+
+  /** List cases belonging to a specific customer — used by Eureka cross-entity lookup. */
+  public Future<List<CaseRecord>> listByCustomer(long institutionId, String customerId, int limit) {
+    String sql = CASE_COLS
+        + ", false AS seen"
+        + CASE_FROM
+        + " WHERE c.institution_id = $1 AND c.customer_id = $2"
+        + " ORDER BY c.created_at DESC LIMIT $3";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, customerId, limit)).map(rs -> {
+      List<CaseRecord> list = new ArrayList<>();
+      for (Row r : rs) list.add(mapCase(r, false));
+      return list;
+    });
+  }
+
+  // ── CDD helpers ──────────────────────────────────────────────────────────
+
+  /**
+   * Returns a lightweight case summary used by the CASE_HISTORY CDD block.
+   * No API call — reads internal investigation records only.
+   */
+  public Future<JsonObject> historySummaryForCustomer(long institutionId, String customerId) {
+    String sql = "SELECT "
+        + "COUNT(*) AS total_count, "
+        + "COUNT(*) FILTER (WHERE status = 'escalated') AS escalated_count, "
+        + "COUNT(*) FILTER (WHERE status = 'escalated' AND created_at >= NOW() - INTERVAL '180 days') AS recent_escalated_count "
+        + "FROM cases WHERE institution_id=$1 AND customer_id=$2";
+    return pool.preparedQuery(sql).execute(Tuple.of(institutionId, customerId)).map(rs -> {
+      Row row = rs.iterator().next();
+      return new JsonObject()
+          .put("totalCount",           row.getLong("total_count"))
+          .put("escalatedCount",       row.getLong("escalated_count"))
+          .put("recentEscalatedCount", row.getLong("recent_escalated_count"));
+    });
   }
 
   // ── Metrics ──────────────────────────────────────────────────────────────

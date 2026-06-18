@@ -42,6 +42,11 @@
     "trustedProxies": [],
     "authRequired": true
   },
+  "ai": {
+    "_comment": "Anthropic API. Override at runtime with ANTHROPIC_API_KEY and ANTHROPIC_MODEL env vars.",
+    "anthropicApiKey": "sk-ant-api03-REPLACE_WITH_YOUR_KEY",
+    "model": "claude-sonnet-4-6"
+  },
   "totp": {
     "publicKey": "",
     "privateKey": ""

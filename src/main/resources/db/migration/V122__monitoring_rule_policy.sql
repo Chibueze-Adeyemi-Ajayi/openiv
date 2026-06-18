@@ -1,0 +1,1 @@
+ALTER TABLE monitoring_rules ADD COLUMN IF NOT EXISTS policy TEXT;

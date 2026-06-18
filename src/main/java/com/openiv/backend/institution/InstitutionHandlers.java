@@ -212,11 +212,35 @@ public final class InstitutionHandlers {
       String cbnCode      = body.getString("cbnCode");
       String address      = body.getString("address");
       String contactPhone = body.getString("contactPhone");
+      String industry     = body.getString("industry");
 
       users.findById(session.userId())
           .compose(uOpt -> institutions.updateProfile(
-              uOpt.orElseThrow().institutionId(), cbnCode, address, contactPhone))
+              uOpt.orElseThrow().institutionId(), cbnCode, address, contactPhone, industry))
           .onSuccess(inst -> ok(ctx, toJson(inst)))
+          .onFailure(ctx::fail);
+    };
+  }
+
+  // POST /institution/logo  (multipart: field "logo")
+  public Handler<RoutingContext> uploadLogo() {
+    return ctx -> {
+      var session = SessionAuthHandler.require(ctx);
+      List<FileUpload> uploads = ctx.fileUploads();
+      if (uploads == null || uploads.isEmpty()) { ctx.fail(400); return; }
+      FileUpload fu = uploads.stream()
+          .filter(f -> "logo".equals(f.name()) || f.contentType().startsWith("image/"))
+          .findFirst().orElse(uploads.get(0));
+      ctx.vertx().fileSystem().readFile(fu.uploadedFileName())
+          .compose(buf -> {
+            String publicId = "institution-logos/" + session.userId() + "-" + System.currentTimeMillis();
+            return cloudinary.upload(buf.getBytes(), "openiv", publicId, "image");
+          })
+          .compose(result -> users.findById(session.userId())
+              .compose(uOpt -> institutions.updateLogo(uOpt.orElseThrow().institutionId(), result.secureUrl())))
+          .onSuccess(inst -> ok(ctx, new JsonObject()
+              .put("logoUrl", inst.logoUrl())
+              .put("ok", true)))
           .onFailure(ctx::fail);
     };
   }
@@ -233,7 +257,9 @@ public final class InstitutionHandlers {
         .put("officialStamp",       i.officialStamp())
         .put("officialSignature",   i.officialSignature())
         .put("stampDocumentId",     i.stampDocumentId())
-        .put("signatureDocumentId", i.signatureDocumentId());
+        .put("signatureDocumentId", i.signatureDocumentId())
+        .put("logoUrl",             i.logoUrl())
+        .put("industry",            i.industry());
   }
 
   private static void ok(RoutingContext ctx, JsonObject body) {

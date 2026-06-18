@@ -50,6 +50,7 @@ public final class MainVerticle extends AbstractVerticle {
   private final DashboardService   dashboardService;
   private final GeoFenceService    geoFenceService;
   private final CustomerService    customerService;
+  private final com.openiv.backend.workflows.WorkflowService workflowService;
   private HttpServer httpServer;
 
   public MainVerticle(AppConfig config, Pool dbPool, SessionRepository sessionRepository,
@@ -58,7 +59,8 @@ public final class MainVerticle extends AbstractVerticle {
       ThresholdService thresholdService, WebhookService webhookService,
       BeamService beamService, KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService) {
+      CustomerService customerService,
+      com.openiv.backend.workflows.WorkflowService workflowService) {
     this.config = config;
     this.dbPool = dbPool;
     this.sessionRepository = sessionRepository;
@@ -75,11 +77,12 @@ public final class MainVerticle extends AbstractVerticle {
     this.dashboardService = dashboardService;
     this.geoFenceService = geoFenceService;
     this.customerService = customerService;
+    this.workflowService = workflowService;
   }
 
   /** Test convenience constructor — no services, DB-less routes only. */
   public MainVerticle(AppConfig config, Pool dbPool) {
-    this(config, dbPool, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(config, dbPool, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Override
@@ -111,7 +114,8 @@ public final class MainVerticle extends AbstractVerticle {
         authService, accessRequestService, teamService, transactionService,
         caseService, thresholdService, webhookService, config.isDevelopment(), beamService,
         kycService, heatmapService, dashboardService, geoFenceService, customerService,
-        config.cloudinary(), config.billing());
+        workflowService, config.cloudinary(), config.billing(), config.ai(), config.webAuthn(),
+        config.redis());
 
     var serverBuilder = vertx.createHttpServer(
             HttpServerOptionsFactory.forProduction(

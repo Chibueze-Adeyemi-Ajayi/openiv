@@ -142,10 +142,11 @@ public final class TeamService {
     if (!TeamRoles.isValid(role)) {
       return Future.failedFuture(AuthException.invalid("role"));
     }
-    // Check if a user with this email already exists in this institution
     return users.findByEmail(normalized).compose(existing -> {
-      if (existing.isPresent() && existing.get().institutionId() == ctx.institution().id()) {
-        return Future.<User>failedFuture(AuthException.invalid("already_invited"));
+      if (existing.isPresent()) {
+        String code = existing.get().institutionId() == ctx.institution().id()
+            ? "already_invited" : "email_already_registered";
+        return Future.<User>failedFuture(AuthException.invalid(code));
       }
       String tempPassword = Codes.generateTempPassword();
       String hash = PasswordHasher.hash(tempPassword);

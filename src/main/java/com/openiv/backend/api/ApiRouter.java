@@ -85,8 +85,13 @@ public final class ApiRouter {
       WebhookService webhookService, boolean devMode, BeamService beamService,
       KycService kycService, HeatmapService heatmapService,
       DashboardService dashboardService, GeoFenceService geoFenceService,
-      CustomerService customerService, AppConfig.CloudinaryConfig cloudinaryConfig,
-      AppConfig.BillingConfig billingConfig) {
+      CustomerService customerService,
+      com.openiv.backend.workflows.WorkflowService workflowService,
+      AppConfig.CloudinaryConfig cloudinaryConfig,
+      AppConfig.BillingConfig billingConfig,
+      AppConfig.AiConfig aiConfig,
+      AppConfig.WebAuthnConfig webAuthnConfig,
+      AppConfig.RedisConfig redisConfig) {
     router.route().handler(RequestId.create());
     if (devMode) {
       router.route().handler(com.openiv.backend.security.RequestDebugLogger.create());
@@ -106,10 +111,23 @@ public final class ApiRouter {
     // KYC beam stream may include a selfie file upload — allow up to 5 MB.
     router.post("/api/v1/beam/kyc/stream")
         .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024).setHandleFileUploads(true));
+    // Workflow import: multipart/form-data with customers JSON + per-customer selfie files.
+    // 20 MB covers a batch of ~10 customers each with a ~2 MB selfie.
+    router.post("/api/v1/workflows/:id/import")
+        .handler(BodyHandler.create().setBodyLimit(20L * 1024 * 1024)
+            .setHandleFileUploads(true).setUploadsDirectory("uploads/tmp"));
     // Avatar upload needs multipart handling — register before the global body handler.
     router.post("/api/v1/auth/profile/avatar")
         .handler(BodyHandler.create().setBodyLimit(5L * 1024 * 1024).setHandleFileUploads(true)
             .setUploadsDirectory("uploads/tmp"));
+    // CBN policy PDF upload for AI rule template suggestions — up to 20 MB.
+    router.post("/api/v1/nomos/suggest")
+        .handler(BodyHandler.create().setBodyLimit(20L * 1024 * 1024)
+            .setHandleFileUploads(true).setUploadsDirectory("uploads/tmp"));
+    // Institution logo upload — up to 2 MB image.
+    router.post("/api/v1/institution/logo")
+        .handler(BodyHandler.create().setBodyLimit(2L * 1024 * 1024)
+            .setHandleFileUploads(true).setUploadsDirectory("uploads/tmp"));
     router.route().handler(BodyHandler.create().setBodyLimit(security.maxBodyBytes()));
     router.route().handler(ContentTypeGuard.create());
     // SSE stream must not be subject to the per-request timeout — bypass it for that path.
@@ -122,7 +140,12 @@ public final class ApiRouter {
           || path.endsWith("/otp-alerts-stream")
           || path.endsWith("/beam/kyc/stream")
           || path.contains("/geo-access/requests/") && path.endsWith("/watch")
-          || path.endsWith("/ws/session"))) ctx.next();
+          || path.endsWith("/ws/session")
+          || path.endsWith("/comprehend")
+          || path.endsWith("/generate")
+          || path.endsWith("/nomos/templates")
+          || path.endsWith("/nomos/suggest")
+          || path.endsWith("/chat/eureka/stream"))) ctx.next();
       else timeout.handle(ctx);
     });
     router.route().handler(ResponseTimeHandler.create());
@@ -138,7 +161,8 @@ public final class ApiRouter {
         vertx, dbPool, security, authService, accessRequestService,
         teamService, transactionService, caseService, thresholdService, webhookService, devMode,
         beamService, kycService, heatmapService, dashboardService, geoFenceService,
-        customerService, cloudinaryConfig, billingConfig));
+        customerService, workflowService, cloudinaryConfig, billingConfig, aiConfig, webAuthnConfig,
+        redisConfig));
 
     if (devMode) {
       com.openiv.backend.api.dev.DocsHandler.mount(router);

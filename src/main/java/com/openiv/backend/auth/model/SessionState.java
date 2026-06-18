@@ -31,6 +31,8 @@ public enum SessionState {
   MUST_CHANGE_PASSWORD("must_change_password"),
   PENDING_TOTP_SETUP("pending_totp_setup"),
   PENDING_TOTP_CHALLENGE("pending_totp_challenge"),
+  PENDING_BIOMETRIC_SETUP("pending_biometric_setup"),
+  PENDING_BIOMETRIC_CHALLENGE("pending_biometric_challenge"),
   AUTHENTICATED("authenticated"),
   GEO_BLOCKED("geo_blocked");
 

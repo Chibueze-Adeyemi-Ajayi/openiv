@@ -19,12 +19,12 @@ public final class BehavioralRuleRepository {
     this.pool = pool;
   }
 
-  private record DefaultRule(String ruleId, String name, String category, String severity,
+  private record DefaultRule(String ruleId, String templateType, String name, String category, String severity,
       String description, String example, String matchedTypology, boolean isActive,
       JsonObject params, JsonArray recommendedActions) {}
 
   private static final List<DefaultRule> DEFAULTS = List.of(
-      new DefaultRule("pat-1", "Same-IP cluster across unrelated accounts", "Network", "critical",
+      new DefaultRule("pat-1", "ip_cluster", "Same-IP cluster across unrelated accounts", "Network", "critical",
           "Four customer accounts — none with prior relationship — all initiated wire transfers from the same IP block within minutes.",
           "Adamu I., Folake A., Bashir M., Tunde B. — all moved funds.",
           "Mule herding · NFIU Typology #SST-12", true,
@@ -32,7 +32,7 @@ public final class BehavioralRuleRepository {
           new JsonArray().add(new JsonObject().put("label", "Freeze all 4 accounts").put("primary", true))
                          .add(new JsonObject().put("label", "Open joint case"))
                          .add(new JsonObject().put("label", "File NFIU STR"))),
-      new DefaultRule("pat-2", "Geographically impossible login", "Geo", "high",
+      new DefaultRule("pat-2", "geo_impossible", "Geographically impossible login", "Geo", "high",
           "Customer logged in from distant locations physically impossible without supersonic travel. One session is using stolen credentials.",
           "Folake Adesanya · ACC-2840",
           "Account takeover · CBN Risk Code R-09", true,
@@ -40,7 +40,7 @@ public final class BehavioralRuleRepository {
           new JsonArray().add(new JsonObject().put("label", "Force re-authentication").put("primary", true))
                          .add(new JsonObject().put("label", "Lock newer session"))
                          .add(new JsonObject().put("label", "Notify customer via SMS"))),
-      new DefaultRule("pat-3", "Device shared across customers", "Device", "high",
+      new DefaultRule("pat-3", "device_shared", "Device shared across customers", "Device", "high",
           "Single device fingerprint authenticated as multiple different customers in the past 24 hours — pattern matches credential-stuffing operation.",
           "iPhone 14 Pro · IP rotated through 3 Lagos data centers",
           "Credential stuffing · NFIU Typology #SST-04", true,
@@ -48,14 +48,14 @@ public final class BehavioralRuleRepository {
           new JsonArray().add(new JsonObject().put("label", "Block device fingerprint").put("primary", true))
                          .add(new JsonObject().put("label", "Force MFA on affected accounts"))
                          .add(new JsonObject().put("label", "Alert affected customers"))),
-      new DefaultRule("pat-4", "Off-pattern activity bursts", "Temporal", "medium",
+      new DefaultRule("pat-4", "off_hours_burst", "Off-pattern activity bursts", "Temporal", "medium",
           "Customers transacting outside their personal baseline of activity. Pattern often precedes coordinated cash-out.",
           "Avg ticket: ₦1.8M · to first-time beneficiaries",
           "Coordinated cash-out · CBN Watch List W-22", true,
           new JsonObject().put("time_start", "02:00").put("time_end", "04:00").put("min_customers", 20).put("spike_ratio", 1.5),
           new JsonArray().add(new JsonObject().put("label", "Tighten night-window threshold").put("primary", true))
                          .add(new JsonObject().put("label", "Add to enhanced monitoring"))),
-      new DefaultRule("pat-5", "Velocity ring — same beneficiary", "Velocity", "high",
+      new DefaultRule("pat-5", "velocity_ring", "Velocity ring — same beneficiary", "Velocity", "high",
           "Multiple customers sent funds to the same wallet within hours. Sub-threshold structuring — each transaction to avoid manual review.",
           "Total flow: ₦9.4M · all marked as 'personal gift' in narration",
           "Smurfing · NFIU Typology #SST-07", true,
@@ -67,7 +67,7 @@ public final class BehavioralRuleRepository {
 
   private static final String SELECT_COLS =
       "id, institution_id, rule_id, name, category, severity, description, example, matched_typology, "
-      + "is_active, affected, emergence, params, recommended_actions, created_at, updated_at";
+      + "is_active, affected, emergence, params, recommended_actions, template_type, policy_statement, created_at, updated_at";
 
   public Future<List<BehavioralRuleRecord>> list(long institutionId) {
     String sql = "SELECT " + SELECT_COLS + " FROM behavioral_rules WHERE institution_id = $1 ORDER BY id ASC";
@@ -97,8 +97,8 @@ public final class BehavioralRuleRepository {
           String insertSql =
               "INSERT INTO behavioral_rules "
               + "(institution_id, rule_id, name, category, severity, description, example, matched_typology, "
-              + " is_active, affected, emergence, params, recommended_actions) "
-              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING";
+              + " is_active, affected, emergence, params, recommended_actions, template_type) "
+              + "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT DO NOTHING";
 
           Future<Void> chain = Future.succeededFuture();
           for (DefaultRule dr : DEFAULTS) {
@@ -106,7 +106,7 @@ public final class BehavioralRuleRepository {
                 pool.preparedQuery(insertSql).execute(Tuple.of(
                     institutionId, dr.ruleId(), dr.name(), dr.category(), dr.severity(),
                     dr.description(), dr.example(), dr.matchedTypology(), dr.isActive(),
-                    0, "Just now", dr.params(), dr.recommendedActions()
+                    0, "Just now", dr.params(), dr.recommendedActions(), dr.templateType()
                 )).mapEmpty()
             );
           }
@@ -126,6 +126,48 @@ public final class BehavioralRuleRepository {
         .map(rs -> rs.rowCount() > 0);
   }
 
+  /** Update editable text fields on any rule (name, description, policyStatement). */
+  public Future<Boolean> updateFields(long id, long institutionId,
+      String name, String description, String policyStatement) {
+    return pool.preparedQuery(
+            "UPDATE behavioral_rules"
+            + " SET name = COALESCE(NULLIF($3,''), name),"
+            + "     description = COALESCE(NULLIF($4,''), description),"
+            + "     policy_statement = $5,"
+            + "     updated_at = now()"
+            + " WHERE id = $1 AND institution_id = $2")
+        .execute(Tuple.of(id, institutionId,
+            name != null ? name : "", description != null ? description : "",
+            policyStatement != null ? policyStatement : ""))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
+  /** Create a new institution-specific rule from a template. */
+  public Future<BehavioralRuleRecord> create(long institutionId, String ruleId, String templateType,
+      String name, String category, String severity,
+      String description, String policyStatement, String example, String matchedTypology,
+      JsonObject params, JsonArray recommendedActions) {
+    return pool.preparedQuery(
+            "INSERT INTO behavioral_rules"
+            + " (institution_id, rule_id, template_type, name, category, severity,"
+            + "  description, policy_statement, example, matched_typology, params, recommended_actions)"
+            + " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)"
+            + " RETURNING " + SELECT_COLS)
+        .execute(Tuple.of(institutionId, ruleId, templateType, name, category, severity,
+            description, policyStatement != null ? policyStatement : "", example, matchedTypology,
+            params, recommendedActions))
+        .map(rs -> mapRow(rs.iterator().next()));
+  }
+
+  /** Delete a custom rule (non-default). Default rules (pat-*) cannot be deleted. */
+  public Future<Boolean> delete(long id, long institutionId) {
+    return pool.preparedQuery(
+            "DELETE FROM behavioral_rules"
+            + " WHERE id = $1 AND institution_id = $2 AND rule_id NOT LIKE 'pat-%'")
+        .execute(Tuple.of(id, institutionId))
+        .map(rs -> rs.rowCount() > 0);
+  }
+
   private static BehavioralRuleRecord mapRow(Row r) {
     return new BehavioralRuleRecord(
         r.getLong("id"),
@@ -142,6 +184,8 @@ public final class BehavioralRuleRepository {
         r.getString("emergence"),
         r.getJsonObject("params"),
         r.getJsonArray("recommended_actions"),
+        r.getString("template_type"),
+        r.getString("policy_statement"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at")
     );

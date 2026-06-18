@@ -32,6 +32,10 @@ public enum Permission {
   RULES_VIEW,
   RULES_MODIFY,
 
+  // CDD workflows — separate from threshold rules; only admin/CCO may modify
+  WORKFLOWS_VIEW,
+  WORKFLOWS_MODIFY,
+
   // Team management
   TEAM_VIEW,
   TEAM_MANAGE,

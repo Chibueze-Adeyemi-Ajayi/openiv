@@ -17,7 +17,7 @@ public final class InstitutionRepository {
       "id, name, type, status, cbn_code, address, contact_phone,"
       + " official_stamp, official_signature,"
       + " stamp_document_id, signature_document_id,"
-      + " created_at, updated_at";
+      + " logo_url, industry, created_at, updated_at";
 
   private final Pool pool;
 
@@ -69,15 +69,16 @@ public final class InstitutionRepository {
         .map(rs -> map(rs.iterator().next()));
   }
 
-  public Future<Institution> updateProfile(long id, String cbnCode, String address, String contactPhone) {
+  public Future<Institution> updateProfile(long id, String cbnCode, String address, String contactPhone, String industry) {
     String sql = "UPDATE institutions SET"
         + " cbn_code      = COALESCE($2, cbn_code),"
         + " address       = COALESCE($3, address),"
         + " contact_phone = COALESCE($4, contact_phone),"
+        + " industry      = COALESCE($5, industry),"
         + " updated_at    = now()"
         + " WHERE id = $1 RETURNING " + SELECT_COLS;
     return pool.preparedQuery(sql)
-        .execute(Tuple.of(id, cbnCode, address, contactPhone))
+        .execute(Tuple.of(id, cbnCode, address, contactPhone, industry))
         .map(rs -> map(rs.iterator().next()));
   }
 
@@ -98,6 +99,13 @@ public final class InstitutionRepository {
         .map(rs -> map(rs.iterator().next()));
   }
 
+  public Future<Institution> updateLogo(long id, String logoUrl) {
+    return pool.preparedQuery(
+            "UPDATE institutions SET logo_url = $2, updated_at = now() WHERE id = $1 RETURNING " + SELECT_COLS)
+        .execute(io.vertx.sqlclient.Tuple.of(id, logoUrl))
+        .map(rs -> map(rs.iterator().next()));
+  }
+
   private static Institution map(Row r) {
     return new Institution(
         r.getLong("id"),
@@ -111,6 +119,8 @@ public final class InstitutionRepository {
         r.getString("official_signature"),
         r.getLong("stamp_document_id"),
         r.getLong("signature_document_id"),
+        r.getString("logo_url"),
+        r.getString("industry"),
         r.getOffsetDateTime("created_at"),
         r.getOffsetDateTime("updated_at"));
   }
