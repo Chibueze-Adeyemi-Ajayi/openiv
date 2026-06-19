@@ -58,6 +58,26 @@ public final class AuthHandlers {
     this.institutions      = institutions;
   }
 
+  /** GET /auth/institution-hint?email=... — public, returns institution name + logo for a given email. */
+  public Handler<RoutingContext> institutionHint() {
+    return ctx -> {
+      String email = ctx.request().getParam("email");
+      if (email == null || email.isBlank()) { ctx.fail(400); return; }
+      institutions.findHintByUserEmail(email.trim()).onSuccess(opt -> {
+        var body = new JsonObject();
+        opt.ifPresent(hint -> {
+          body.put("institutionName",    hint[0])
+              .put("institutionLogoUrl", hint[1])
+              .put("displayName",        hint[2])
+              .put("avatarUrl",          hint[3]);
+        });
+        ctx.response().setStatusCode(200)
+            .putHeader("content-type", "application/json; charset=utf-8")
+            .end(body.encode());
+      }).onFailure(ctx::fail);
+    };
+  }
+
   public Handler<RoutingContext> verifyInvite() {
     return ctx -> withJson(ctx, body -> {
       String code = required(body, "inviteCode");

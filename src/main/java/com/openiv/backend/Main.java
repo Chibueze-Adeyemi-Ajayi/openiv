@@ -100,6 +100,8 @@ public final class Main {
     VertxOptions vertxOptions = new VertxOptions()
         .setEventLoopPoolSize(cores)
         .setWorkerPoolSize(Math.max(8, cores * 2))
+        .setMaxWorkerExecuteTime(5L * 60 * 1_000_000_000L)  // 5 min — AI model calls can be slow
+        .setBlockedThreadCheckInterval(10_000L)              // check every 10s, not every 1s
         .setPreferNativeTransport(true);
 
     Vertx vertx = Vertx.vertx(vertxOptions);

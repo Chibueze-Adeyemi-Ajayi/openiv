@@ -99,6 +99,26 @@ public final class InstitutionRepository {
         .map(rs -> map(rs.iterator().next()));
   }
 
+  /** Returns name + logoUrl for the institution that owns the given user email. Single JOIN. */
+  public Future<Optional<String[]>> findHintByUserEmail(String email) {
+    return pool.preparedQuery(
+            "SELECT i.name, i.logo_url, u.full_name, u.avatar_url FROM institutions i"
+            + " JOIN users u ON u.institution_id = i.id"
+            + " WHERE LOWER(u.email) = LOWER($1) AND u.status <> 'disabled' LIMIT 1")
+        .execute(Tuple.of(email))
+        .map(rs -> {
+          if (rs.rowCount() == 0) return Optional.empty();
+          var row = rs.iterator().next();
+          // [0] institutionName, [1] logoUrl, [2] displayName, [3] avatarUrl
+          return Optional.of(new String[]{
+            row.getString("name"),
+            row.getString("logo_url"),
+            row.getString("full_name"),
+            row.getString("avatar_url"),
+          });
+        });
+  }
+
   public Future<Institution> updateLogo(long id, String logoUrl) {
     return pool.preparedQuery(
             "UPDATE institutions SET logo_url = $2, updated_at = now() WHERE id = $1 RETURNING " + SELECT_COLS)
