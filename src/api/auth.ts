@@ -62,6 +62,8 @@ export interface SessionConflictError {
 export interface InstitutionHintResponse {
   institutionName?: string | null
   institutionLogoUrl?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
 }
 
 export const authApi = {
