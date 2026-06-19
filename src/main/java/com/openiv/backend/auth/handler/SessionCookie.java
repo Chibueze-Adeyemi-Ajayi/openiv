@@ -11,16 +11,13 @@ import io.vertx.ext.web.RoutingContext;
  * <ul>
  *   <li><b>HttpOnly</b> — inaccessible to JS; XSS cannot read it.</li>
  *   <li><b>Secure</b> in non-dev environments — only sent over TLS.</li>
- *   <li><b>SameSite=Lax</b> in dev (so Vite on :5173 can talk to the API on :8080 — same-site
- *       by cookie rules, different port doesn't matter), <b>Strict</b> in prod.</li>
+ *   <li><b>SameSite=Lax</b> in dev; <b>None</b> in prod. The frontend (www.openiv.ng) and the
+ *       API (api.openiv.ng) are on different subdomains, so the browser treats fetch() calls as
+ *       cross-origin. SameSite=Strict would silently drop the cookie on every request; None+Secure
+ *       is required for cross-subdomain credential flows. CSRF is mitigated by the CORS
+ *       allowCredentials + allowedOrigins allowlist.</li>
  *   <li><b>Path=/</b> — available to the whole origin.</li>
- *   <li><b>No Domain attribute</b> — the cookie becomes host-only, which is the narrowest
- *       scope and avoids accidental delivery to subdomains.</li>
- * </ul>
- *
- * <p>CSRF posture: SameSite=Lax blocks cross-site POSTs; SameSite=Strict goes further. For
- * tier-1 banking we still want an additional Origin/Referer check on state-changing requests,
- * which the request arrives with automatically for fetch() — handlers can inspect it if needed.
+ *   <li><b>No Domain attribute</b> — the cookie becomes host-only (api.openiv.ng only).</li>
  */
 public final class SessionCookie {
 
@@ -34,7 +31,7 @@ public final class SessionCookie {
         .setSecure(production)
         .setPath("/")
         .setMaxAge(maxAgeSeconds)
-        .setSameSite(production ? CookieSameSite.STRICT : CookieSameSite.LAX);
+        .setSameSite(production ? CookieSameSite.NONE : CookieSameSite.LAX);
     ctx.response().addCookie(c);
   }
 
@@ -44,7 +41,7 @@ public final class SessionCookie {
         .setSecure(production)
         .setPath("/")
         .setMaxAge(0)
-        .setSameSite(production ? CookieSameSite.STRICT : CookieSameSite.LAX);
+        .setSameSite(production ? CookieSameSite.NONE : CookieSameSite.LAX);
     ctx.response().addCookie(c);
   }
 

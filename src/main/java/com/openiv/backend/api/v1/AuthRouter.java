@@ -35,6 +35,7 @@ public final class AuthRouter {
     Router router = Router.router(vertx);
 
     // Public
+    router.get("/institution-hint").handler(handlers.institutionHint());
     router.post("/invite/verify").handler(handlers.verifyInvite());
     router.post("/login").handler(handlers.login());
     router.post("/session/transfer").handler(handlers.transferSession());
