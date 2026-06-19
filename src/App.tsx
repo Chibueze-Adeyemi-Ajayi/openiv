@@ -15,6 +15,7 @@ import DevelopersPage from '@/pages/landing/DevelopersPage'
 import PrivacyPage from '@/pages/landing/PrivacyPage'
 import TermsPage from '@/pages/landing/TermsPage'
 import LaunchPage from '@/pages/LaunchPage'
+import LandingPage from '@/pages/LandingPage'
 import AuthInvitePage from '@/pages/auth/InvitePage'
 import AuthLoginPage from '@/pages/auth/LoginPage'
 import AuthVerifyEmailPage from '@/pages/auth/VerifyEmailPage'
@@ -77,7 +78,8 @@ function App() {
     <>
     <ScrollToTop />
     <Routes>
-      <Route path="/" element={<LaunchPage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/launch" element={<LaunchPage />} />
       <Route path="/solutions" element={<SolutionsPage />} />
       <Route path="/network" element={<LandingNetworkPage />} />
       <Route path="/compliance" element={<CompliancePage />} />
@@ -85,7 +87,7 @@ function App() {
       <Route path="/developers" element={<DevelopersPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
-      <Route path="/landing" element={<LaunchPage />} />
+      <Route path="/landing" element={<LandingPage />} />
 
       {/* Auth */}
       <Route path="/auth/invite" element={<AuthInvitePage />} />

@@ -2,6 +2,15 @@ import { useEffect, useState, useCallback } from 'react'
 import type { DashboardStats } from '@/api/dashboard'
 import { getBaseUrl } from '@/api/client'
 
+const DEMO_STATS: DashboardStats = {
+  totalToday:       4_827,
+  flaggedToday:     94,
+  totalYesterday:   4_312,   // +12% trend shown on card
+  flaggedYesterday: 71,      // +32% trend shown on card
+  openCases:        23,
+  openCasesToday:   7,       // vs 4 yesterday implied by openCases delta
+}
+
 export interface OtpAlert {
   id: number
   rule: 'FAILED_CASCADE' | 'OTP_BOMBING' | 'VELOCITY_SPIKE' | 'NEW_DEVICE_SUSPICIOUS'
@@ -40,7 +49,7 @@ export interface DashboardData {
 }
 
 const INITIAL_STATE: DashboardData = {
-  stats: null,
+  stats: DEMO_STATS,   // show demo numbers immediately; real non-zero stats override below
   activity: [],
   otpAlerts: [],
   beamEvents: [],
@@ -74,9 +83,15 @@ export function useDashboardData() {
 
       es.addEventListener('stats', (e: MessageEvent) => {
         try {
-          const stats = JSON.parse(e.data)
+          const stats: DashboardStats = JSON.parse(e.data)
           console.log('[useDashboardData] stats received:', stats)
-          setData(prev => ({ ...prev, stats, connected: true }))
+          // Only replace demo stats when the tenant has real transactions today
+          const hasRealData = stats.totalToday > 0
+          setData(prev => ({
+            ...prev,
+            stats: hasRealData ? stats : prev.stats,
+            connected: true,
+          }))
         } catch (err) {
           console.error('[useDashboardData] stats parse error:', err)
         }

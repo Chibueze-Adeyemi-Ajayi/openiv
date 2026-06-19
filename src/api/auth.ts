@@ -59,8 +59,16 @@ export interface SessionConflictError {
   existingUserAgent?: string
 }
 
+export interface InstitutionHintResponse {
+  institutionName?: string | null
+  institutionLogoUrl?: string | null
+}
+
 export const authApi = {
   getDeviceId,
+
+  institutionHint: (email: string) =>
+    apiRequest<InstitutionHintResponse>(`/api/v1/auth/institution-hint?email=${encodeURIComponent(email)}`),
 
   verifyInvite: (inviteCode: string) =>
     apiRequest<InviteVerifyResponse>('/api/v1/auth/invite/verify', {
