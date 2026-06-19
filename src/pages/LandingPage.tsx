@@ -264,47 +264,66 @@ const NAV_LINKS = [
 ]
 
 function Navbar() {
-  const [solid, setSolid] = useState(false)
+  const [scrollState, setScrollState] = useState<'top' | 'hero' | 'solid'>('top')
   useEffect(() => {
     const onScroll = () => {
-      // Switch to solid once scrolled past (nearly) the full-screen hero
-      setSolid(window.scrollY > window.innerHeight - 80)
+      const y = window.scrollY
+      if (y <= 0) setScrollState('top')
+      else if (y < window.innerHeight - 80) setScrollState('hero')
+      else setScrollState('solid')
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const solid = scrollState === 'solid'
+  const dark  = scrollState === 'hero'
+
   return (
     <Box component="nav" sx={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
       height: 64, display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', px: '6vw',
-      bgcolor: solid ? 'rgba(255,255,255,0.95)' : 'transparent',
-      backdropFilter: solid ? 'blur(10px)' : 'none',
+      bgcolor: solid ? 'rgba(255,255,255,0.95)' : dark ? 'rgba(0,0,0,0.45)' : 'transparent',
+      backdropFilter: (solid || dark) ? 'blur(10px)' : 'none',
       borderBottom: solid ? `1px solid ${C.line}` : '1px solid transparent',
       boxShadow: solid ? '0 4px 20px rgba(0,40,142,0.06)' : 'none',
-      transition: 'background-color 0.3s, box-shadow 0.3s, border-color 0.3s',
+      transition: 'background-color 0.3s, box-shadow 0.3s, border-color 0.3s, backdrop-filter 0.3s',
     }}>
       <BrandMark light={!solid} />
-      <Stack direction="row" sx={{ gap: { xs: 2, md: 3.5 }, alignItems: 'center' }}>
+      {/* Centre nav links — desktop only */}
+      <Stack direction="row" sx={{ gap: 3.5, alignItems: 'center', display: { xs: 'none', md: 'flex' } }}>
         {NAV_LINKS.map((n) => (
           <Box key={n.to} component="a" href={n.to} sx={{
             textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500,
-            color: solid ? C.body : 'rgba(255,255,255,0.85)',
-            fontFamily: FONT, display: { xs: 'none', md: 'inline' },
+            color: solid ? C.body : 'rgba(255,255,255,0.82)',
+            fontFamily: FONT,
             '&:hover': { color: solid ? C.primary : C.white },
             transition: 'color 0.15s',
           }}>
             {n.label}
           </Box>
         ))}
+      </Stack>
+
+      {/* Right actions */}
+      <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center' }}>
+        <Box component={Link} to="/auth/login" sx={{
+          textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+          color: solid ? C.body : 'rgba(255,255,255,0.88)',
+          fontFamily: FONT, px: 1.5, py: 1,
+          '&:hover': { color: solid ? C.primary : C.white },
+          transition: 'color 0.15s',
+        }}>
+          Sign in
+        </Box>
         <Box component={Link} to="/request-access" sx={{
           textDecoration: 'none',
           bgcolor: solid ? C.primary : C.white,
           color: solid ? C.white : C.primary,
-          px: 2.75, py: 1.125, fontWeight: 700, fontSize: '0.875rem', borderRadius: '4px',
-          letterSpacing: '0.02em', fontFamily: FONT,
+          px: 2.5, py: 1.125, fontWeight: 700, fontSize: '0.875rem', borderRadius: '4px',
+          letterSpacing: '0.02em', fontFamily: FONT, whiteSpace: 'nowrap',
           '&:hover': { opacity: 0.88 }, transition: 'opacity 0.15s, background-color 0.3s, color 0.3s',
         }}>
           Request Demo
