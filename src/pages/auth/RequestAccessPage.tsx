@@ -11,6 +11,7 @@ export default function RequestAccessPage() {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [succeeded, setSucceeded] = useState(false)
+  const [currentStep, setCurrentStep] = useState(0)
 
   const handleSubmit = useSubmitGuard(async (values: RequestAccessFormValues) => {
     setSubmitting(true)
@@ -34,9 +35,10 @@ export default function RequestAccessPage() {
   })
 
   return (
-    <AuthLayout>
+    <AuthLayout wide={currentStep === 2}>
       <RequestAccessForm
         onSubmit={handleSubmit}
+        onStepChange={setCurrentStep}
         submitting={submitting}
         errorMessage={errorMessage}
         succeeded={succeeded}

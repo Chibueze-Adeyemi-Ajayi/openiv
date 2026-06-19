@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 
 interface AuthLayoutProps {
   children: React.ReactNode
+  wide?: boolean
 }
 
 const bounceIn = keyframes`
@@ -145,7 +146,7 @@ function AuthMarketingCarousel() {
   )
 }
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+export default function AuthLayout({ children, wide = false }: AuthLayoutProps) {
   return (
     <Box
       sx={{
@@ -270,17 +271,19 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          p: { xs: 4, sm: 6, md: 8, lg: 10 },
+          p: { xs: 3, sm: 4, md: 5, lg: 6 },
           bgcolor: '#ffffff',
           overflowY: 'auto',
           maxHeight: '100vh',
+          transition: 'padding 0.3s',
         }}
       >
         <Container
-          maxWidth="sm"
+          maxWidth={false}
           sx={{
             width: '100%',
-            maxWidth: '560px !important',
+            maxWidth: wide ? '960px !important' : '720px !important',
+            transition: 'max-width 0.3s ease',
             animation: 'fadeInUp 0.5s ease',
           }}
         >

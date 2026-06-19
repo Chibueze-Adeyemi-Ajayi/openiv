@@ -442,8 +442,6 @@ function BiometricPrompt({
   email,
   userName,
   avatarUrl,
-  institutionName,
-  institutionLogoUrl,
   onSuccess,
   onUsePassword,
   onExpired,
@@ -451,8 +449,6 @@ function BiometricPrompt({
   email: string
   userName?: string | null
   avatarUrl?: string | null
-  institutionName?: string | null
-  institutionLogoUrl?: string | null
   onSuccess: () => void
   onUsePassword: () => void
   onExpired: () => void
@@ -485,41 +481,9 @@ function BiometricPrompt({
     }
   }
 
-  const instInitials = institutionName
-    ? institutionName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
-    : '?'
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Institution logo / mark */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3, gap: 1 }}>
-        {institutionLogoUrl ? (
-          <>
-            <Box component="img" src={institutionLogoUrl} alt={institutionName ?? ''}
-              sx={{ height: 52, maxWidth: 180, objectFit: 'contain', display: 'block' }} />
-            {institutionName && (
-              <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--heading-color)', letterSpacing: '-0.01em' }}>
-                {institutionName}
-              </Typography>
-            )}
-          </>
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <Box sx={{ width: 40, height: 40, bgcolor: colorPalette.primary,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '0.9375rem', color: '#fff', lineHeight: 1 }}>
-                {instInitials}
-              </Typography>
-            </Box>
-            {institutionName && (
-              <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1rem', color: 'var(--heading-color)' }}>
-                {institutionName}
-              </Typography>
-            )}
-          </Box>
-        )}
-      </Box>
-
       {/* User identity pill */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.375,
         bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', mb: 2.5 }}>
@@ -790,7 +754,30 @@ export default function LoginPage() {
       <AuthLayout>
         {showBiometric ? (
           <Box sx={{ width: '100%' }}>
-            {/* Header */}
+            {/* Institution logo + name — always on top */}
+            {(bioInstitutionLogo || bioInstitutionName) && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3, gap: 1 }}>
+                {bioInstitutionLogo ? (
+                  <Box component="img" src={bioInstitutionLogo} alt={bioInstitutionName ?? ''}
+                    sx={{ height: 80, maxWidth: 240, objectFit: 'contain', display: 'block' }} />
+                ) : (
+                  <Box sx={{ width: 64, height: 64, bgcolor: colorPalette.primary,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '1.25rem', color: '#fff', lineHeight: 1 }}>
+                      {bioInstitutionName?.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') ?? '?'}
+                    </Typography>
+                  </Box>
+                )}
+                {bioInstitutionName && (
+                  <Typography sx={{ fontFamily: 'Jost', fontWeight: 700, fontSize: '0.9375rem',
+                    color: 'var(--heading-color)', letterSpacing: '-0.01em' }}>
+                    {bioInstitutionName}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            {/* Welcome back heading */}
             <Box sx={{ mb: 3.5 }}>
               <Typography sx={{ fontFamily: 'Jost', fontWeight: 800, fontSize: '1.375rem',
                 color: 'var(--heading-color)', mb: 0.5 }}>
@@ -800,6 +787,7 @@ export default function LoginPage() {
                 Use your registered biometric to sign in securely.
               </Typography>
             </Box>
+
             {sessionExpired && (
               <Alert severity="warning" sx={{ borderRadius: 0, mb: 2, fontSize: '0.8125rem' }}>
                 Session expired — please sign in again to continue.
@@ -809,8 +797,6 @@ export default function LoginPage() {
               email={bioEmail}
               userName={bioUserName}
               avatarUrl={bioAvatarUrl}
-              institutionName={bioInstitutionName}
-              institutionLogoUrl={bioInstitutionLogo}
               onSuccess={() => navigate('/dashboard')}
               onUsePassword={() => setShowPassword(true)}
               onExpired={() => setBioExpired(true)}
