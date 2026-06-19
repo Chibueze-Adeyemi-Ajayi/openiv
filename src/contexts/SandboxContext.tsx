@@ -30,19 +30,15 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    console.log('SandboxProvider: Fetching session...')
+    // On localhost isDevOrAdmin is always true via hostname check — skip the round-trip.
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      setIsLoading(false)
+      return
+    }
     authApi.session()
-      .then(res => {
-        console.log('SandboxProvider: Session fetched, role:', res.role)
-        setRole(res.role || null)
-      })
-      .catch((err) => {
-        console.error('SandboxProvider: Session fetch failed', err)
-        setRole(null)
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+      .then(res => { setRole(res.role || null) })
+      .catch(() => { setRole(null) })  // 401 is expected on public pages — not an error
+      .finally(() => { setIsLoading(false) })
   }, [])
 
   const setSandboxEnabled = (enabled: boolean) => {
@@ -56,8 +52,6 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
   }
 
   const r = (role || '').toUpperCase()
-  console.log('SandboxContext: Role check normalized to:', r)
-  
   // Extremely permissive check for any role containing 'ADMIN' or 'DEV'
   // Also enable on localhost for development convenience
   const isDevOrAdmin = 

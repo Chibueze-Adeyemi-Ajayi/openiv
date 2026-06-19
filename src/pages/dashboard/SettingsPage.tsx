@@ -1604,6 +1604,13 @@ function OrganizationSection() {
       const { logoUrl: url } = await institutionApi.uploadLogo(file)
       setLogoUrl(url)
       refreshProfile()
+      try {
+        const raw = localStorage.getItem('openiv.bioHint')
+        if (raw) {
+          const hint = JSON.parse(raw)
+          localStorage.setItem('openiv.bioHint', JSON.stringify({ ...hint, institutionLogoUrl: url }))
+        }
+      } catch { /* ignore corrupt hint */ }
     } catch { alert('Logo upload failed. Try again.') }
     finally { setLogoUploading(false); if (logoInputRef.current) logoInputRef.current.value = '' }
   }

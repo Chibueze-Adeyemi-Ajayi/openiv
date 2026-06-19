@@ -49,9 +49,13 @@ export default function SetupBiometricPage() {
       await registerBiometric()
       setPhase('success')
       await setSessionState('authenticated')
-      // Persist hint so LoginPage can show biometric button on next visit
+      // Persist hint so LoginPage can show biometric button on next visit.
+      // Spread existing hint to preserve institutionName / institutionLogoUrl / userName.
       const email = getLoginEmail()
-      if (email) localStorage.setItem('openiv.bioHint', JSON.stringify({ email }))
+      if (email) {
+        const existing = (() => { try { return JSON.parse(localStorage.getItem('openiv.bioHint') ?? '{}') } catch { return {} } })()
+        localStorage.setItem('openiv.bioHint', JSON.stringify({ ...existing, email }))
+      }
       setTimeout(() => navigate('/dashboard'), 1200)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)

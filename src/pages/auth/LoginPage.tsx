@@ -14,6 +14,7 @@ import {
   clearInviteState,
   getInviteCode,
   getInviteEmail,
+  getLoginAvatar,
   getLoginEmail,
   hydrate,
   setLoginAvatar,
@@ -439,6 +440,7 @@ function BiometricVerifyModal({
 function BiometricPrompt({
   email,
   userName,
+  avatarUrl,
   institutionName,
   institutionLogoUrl,
   onSuccess,
@@ -447,6 +449,7 @@ function BiometricPrompt({
 }: {
   email: string
   userName?: string | null
+  avatarUrl?: string | null
   institutionName?: string | null
   institutionLogoUrl?: string | null
   onSuccess: () => void
@@ -513,10 +516,13 @@ function BiometricPrompt({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.375,
         bgcolor: 'var(--section-bg)', border: '1px solid var(--border-col)', mb: 2.5 }}>
         <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: colorPalette.primary,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-            {(userName ?? email).slice(0, 2).toUpperCase()}
-          </Typography>
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+          {avatarUrl
+            ? <Box component="img" src={avatarUrl} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+                {(userName ?? email).slice(0, 2).toUpperCase()}
+              </Typography>
+          }
         </Box>
         <Typography sx={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)',
           fontFamily: 'Jost', fontWeight: 500, flex: 1, overflow: 'hidden',
@@ -578,6 +584,7 @@ export default function LoginPage() {
   // Biometric fast-path: shown when this device has a registered hint
   const [bioEmail,            setBioEmail]           = useState<string | null>(null)
   const [bioUserName,         setBioUserName]        = useState<string | null>(null)
+  const [bioAvatarUrl,        setBioAvatarUrl]       = useState<string | null>(null)
   const [bioInstitutionName,  setBioInstitutionName] = useState<string | null>(null)
   const [bioInstitutionLogo,  setBioInstitutionLogo] = useState<string | null>(null)
   const [showPassword,    setShowPassword]      = useState(false)
@@ -595,6 +602,8 @@ export default function LoginPage() {
     hydrate().then(() => {
       setInviteCodeState(getInviteCode())
       setInviteEmailState(getInviteEmail())
+      // Read avatar after hydrate so encrypted cache is populated
+      const av = getLoginAvatar(); if (av) setBioAvatarUrl(av)
     })
     // Check if this browser has a registered biometric for a known email
     if (webAuthnSupported()) {
@@ -612,6 +621,15 @@ export default function LoginPage() {
       } catch { /* ignore corrupt hint */ }
     }
   }, [])
+
+  // Refresh institution branding live from the API so logo changes appear without re-login
+  useEffect(() => {
+    if (!bioEmail) return
+    authApi.institutionHint(bioEmail).then(hint => {
+      if (hint.institutionName)    setBioInstitutionName(hint.institutionName)
+      if (hint.institutionLogoUrl) setBioInstitutionLogo(hint.institutionLogoUrl)
+    }).catch(() => { /* silently ignore — cached values still show */ })
+  }, [bioEmail])
 
   const afterLogin = async (state: string) => {
     switch (state) {
@@ -774,6 +792,7 @@ export default function LoginPage() {
             <BiometricPrompt
               email={bioEmail}
               userName={bioUserName}
+              avatarUrl={bioAvatarUrl}
               institutionName={bioInstitutionName}
               institutionLogoUrl={bioInstitutionLogo}
               onSuccess={() => navigate('/dashboard')}

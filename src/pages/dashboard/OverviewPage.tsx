@@ -31,7 +31,10 @@ function fmt(n: number) {
 }
 
 function overallScore(c: Customer) {
-  return Math.round(c.riskScore * 0.20 + c.riskProfileScore * 0.55 + c.transactionRiskScore * 0.25)
+  const a = c.riskScore ?? 0
+  const b = c.riskProfileScore ?? 0
+  const d = c.transactionRiskScore ?? 0
+  return Math.round(a * 0.20 + b * 0.55 + d * 0.25)
 }
 
 function scoreColor(score: number) {
