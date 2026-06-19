@@ -239,17 +239,18 @@ export default function Topbar(_props?: Record<string, unknown>) {
               src={resolveMediaUrl((profile as { avatarUrl?: string }).avatarUrl)!}
               alt={profile?.fullName ?? 'Avatar'}
               sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement | null)?.style.setProperty('display', 'flex') }}
             />
-          ) : (
-            <Box sx={{
-              width: '100%', height: '100%',
-              bgcolor: colorPalette.primary, color: '#ffffff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
-            }}>
-              {initials}
-            </Box>
-          )}
+          ) : null}
+          <Box sx={{
+            width: '100%', height: '100%',
+            bgcolor: colorPalette.primary, color: '#ffffff',
+            display: resolveMediaUrl((profile as { avatarUrl?: string } | null)?.avatarUrl) ? 'none' : 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Jost',
+          }}>
+            {initials}
+          </Box>
         </Box>
       </IconButton>
 

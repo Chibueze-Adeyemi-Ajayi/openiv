@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useProfile } from '@/contexts/ProfileContext'
 import { profileApi } from '@/api/profile'
 import { resolveMediaUrl } from '@/api/client'
+import { setLoginAvatar, setLoginName } from '@/onboarding/state'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined'
@@ -94,7 +95,7 @@ function MetaItem({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 export default function ProfilePage() {
-  const { profile, refreshProfile } = useProfile()
+  const { profile, refreshProfile, updateProfile } = useProfile()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Personal info ─────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ export default function ProfilePage() {
     setInfoSaving(true); setInfoMsg(null)
     try {
       await profileApi.update({ fullName: fullName.trim() || undefined, jobTitle: jobTitle.trim() || undefined })
+      if (fullName.trim()) await setLoginName(fullName.trim())
       refreshProfile()
       setInfoMsg({ ok: true, text: 'Profile updated successfully.' })
     } catch {
@@ -132,7 +134,18 @@ export default function ProfilePage() {
     const preview = URL.createObjectURL(file)
     setLocalAvatarUrl(preview)
     try {
-      await profileApi.uploadAvatar(file)
+      const result = await profileApi.uploadAvatar(file)
+      updateProfile({ avatarUrl: result.avatarUrl })
+      setLocalAvatarUrl(result.avatarUrl)
+      // Keep login cache in sync so the biometric login page shows the new photo
+      await setLoginAvatar(result.avatarUrl)
+      try {
+        const raw = localStorage.getItem('openiv.bioHint')
+        if (raw) {
+          const hint = JSON.parse(raw)
+          localStorage.setItem('openiv.bioHint', JSON.stringify({ ...hint, avatarUrl: result.avatarUrl }))
+        }
+      } catch { /* ignore */ }
       refreshProfile()
     } catch (err) {
       setAvatarError((err as Error).message ?? 'Upload failed.')

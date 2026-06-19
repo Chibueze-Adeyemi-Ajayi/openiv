@@ -221,12 +221,6 @@ export default function TransactionsPage() {
           </Box>
           <Stack direction="row" gap={1.25}>
             <Button
-              onClick={() => setImportOpen(true)}
-              sx={{ bgcolor: colorPalette.primary, color: '#ffffff', px: 2.25, py: 1.125, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'Jost', borderRadius: 0, textTransform: 'none', '&:hover': { bgcolor: colorPalette.primary, opacity: 0.9 } }}
-            >
-              Import Transactions
-            </Button>
-            <Button
               onClick={handleExport}
               disabled={exporting}
               startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: '1rem !important' }} />}

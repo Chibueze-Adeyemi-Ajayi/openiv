@@ -442,13 +442,15 @@ export default function Sidebar() {
           }}
         >
           <Box sx={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-            {resolveMediaUrl(profile?.avatarUrl) ? (
-              <Box component="img" src={resolveMediaUrl(profile?.avatarUrl)!} alt={profile?.fullName ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <Box sx={{ width: '100%', height: '100%', bgcolor: '#d9f99d', color: 'var(--heading-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>
-                {getInitials(profile?.fullName, profile?.email)}
-              </Box>
+            {resolveMediaUrl(profile?.avatarUrl) && (
+              <Box component="img" src={resolveMediaUrl(profile?.avatarUrl)!} alt={profile?.fullName ?? ''}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement | null)?.style.setProperty('display', 'flex') }}
+              />
             )}
+            <Box sx={{ width: '100%', height: '100%', bgcolor: '#d9f99d', color: 'var(--heading-color)', display: resolveMediaUrl(profile?.avatarUrl) ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontWeight: 700, fontFamily: 'Jost' }}>
+              {getInitials(profile?.fullName, profile?.email)}
+            </Box>
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#ffffff', lineHeight: 1.2 }}>
