@@ -183,6 +183,15 @@
 
   <!-- ─── Monitoring ───────────────────────────────────────────────────────── -->
   <script src="https://js.sentry-cdn.com/7a046e66971186af3c0c94191714bb9b/5578541.min.js" defer></script>
+
+  <!-- ─── Google Analytics (GA4) ───────────────────────────────────────────── -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', '%VITE_GA_MEASUREMENT_ID%', { send_page_view: false });
+  </script>
 </head>
 
 <body>

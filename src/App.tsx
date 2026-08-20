@@ -18,10 +18,22 @@ function ScrollToTop() {
   return null
 }
 
+function GaTracker() {
+  const location = useLocation()
+  useEffect(() => {
+    if (typeof window.gtag !== 'function') return
+    window.gtag('event', 'page_view', {
+      page_path: location.pathname + location.search,
+    })
+  }, [location])
+  return null
+}
+
 export default function App() {
   return (
     <>
       <ScrollToTop />
+      <GaTracker />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/landing" element={<LandingPage />} />
